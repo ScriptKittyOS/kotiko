@@ -1,0 +1,94 @@
+# Decisions
+
+Decisions already made, so slices don't reopen them. Newest first. Each says who decided
+and why. Open questions live in each slice's own "Open questions" section and in the
+[index](README.md#open-questions-for-the-maintainers).
+
+## 2026-10-01
+
+**Logo: the maintainer's kitten, on tile purple `#8E5EFA`.** *Maintainer.* A black kitten
+with orange eyes and a purple outline ([`brand/source/mira-original.png`](../brand/source/mira-original.png)),
+now the extension icon at every size on a `#8E5EFA` tile (from the artist's mockup; it
+passes the contrast checks). The illustrations in `brand/illustrations/` (Mira on the moon
+with greetings in six languages, and curious, happy, sleepy and oops expressions) are
+placeholders cropped from the mockup until the artist delivers full-resolution files and
+correctly sized store artwork. `#8E5EFA` is the input for the design system's palette
+([06](06-design-system/SPEC.md)). See [`brand/README.md`](../brand/README.md).
+
+**Store publisher: ScriptKittyOS, contact hello@scriptkittyos.com.** *Maintainer.* Both the
+Chrome Web Store and Firefox Add-ons listings are published under the ScriptKittyOS
+organization, with `hello@scriptkittyos.com` as the public contact, so no personal email
+appears and others in the org can manage releases. See
+[28](28-privacy-and-store-readiness/SPEC.md) and [30](30-release-pipeline/SPEC.md).
+
+**License: Apache-2.0.** *Maintainer.* For the code. Word packs get their own content
+license in [23](23-starter-packs/SPEC.md). See [03](03-oss-foundations/SPEC.md).
+
+**Celebrations are on by default.** *Maintainer.* Gentle, once per milestone, a calm
+alternative under reduced motion, and an off switch. See
+[32](32-page-coverage-and-celebrations/SPEC.md).
+
+**Language precedence: one stable language per English word per page.**
+*Decided in synthesis, from [research 01](../docs/research/01-language-mixing.md).*
+When several shown languages know the same English word, Mira picks one with a weighted,
+seeded choice (word, page, day). Every "thanks" in one article is the same word, a reload
+looks the same, and variety comes across pages and days. Round-robin within a page (the
+behavior before this plan) stays available as the "Mix within the page" option. The UX
+research worried about words changing language mid-read; this design removes that.
+See [18](18-language-precedence-and-mixing/SPEC.md).
+
+**Local first; the server becomes optional.**
+*Decided in synthesis, from [research 04](../docs/research/04-architecture-release.md) and
+[05](../docs/research/05-learner-ux.md); matches the maintainer's "since it's local, you can
+even drop files".* The extension keeps words itself and calls a model with the user's
+own key. The Elixir server stays as an add-on for Telegram, voice notes, multi-device sync and
+families. Rejected: server-only (non-developers can't set it up) and a free hosted instance
+for everyone (one key's free quota can't serve many people, plus abuse and data protection
+obligations). See [11](11-local-first-mode/SPEC.md).
+
+**Celebrations ship in P1, tastefully.** *Maintainer request; design from research 01.*
+When most of a page's English is words you've learned, Mira can mark the moment, confetti
+included. Once per milestone, never on every page, a quiet alternative under reduced motion,
+and an off switch. See [32](32-page-coverage-and-celebrations/SPEC.md).
+
+**Bulk add by pasting a whole list or dropping files.** *Maintainer.* Paste many words at
+once, or drop CSV, TSV, TXT, JSON or Anki exports. Lines that already have a translation
+skip the model entirely. See [13](13-bulk-add/SPEC.md).
+
+**A full dashboard for all your words.** *Maintainer.* A complete page with a live view of
+every word, alongside the popup. See [21](21-dashboard/SPEC.md).
+
+**Design bar: original, calm and premium, with the fewest possible steps.** *Maintainer.*
+"A design that Apple would be jealous of." Colors easy on every eye and comfortable across
+cultures; light and dark mode. The maintainer loves burnt orange with purples, and blues
+where they fit. The interface must not look like other dashboards or dropdowns, and users
+reach their goal in as few steps as possible, whatever the load on the backend.
+See [05](05-brand-identity/SPEC.md), [06](06-design-system/SPEC.md),
+[20](20-popup-redesign/SPEC.md) and [21](21-dashboard/SPEC.md).
+
+**Logo: no eye, no speech bubble.** *Maintainer.* An eye was rejected (and it suggests
+surveillance on an extension that reads pages); a speech bubble reads as a chat app.
+Superseded by the kitten logo above.
+
+**The name is Mira.** *Maintainer.* The word means something different, and good, in many
+languages, which is what the tool does with words: "look!" in Spanish, Italian and
+Portuguese; "world" and "peace" in Russian (мир, мира); "wonderful" in Latin, the name of
+the star Mira Ceti. It replaces "Slovo" (Russian for "word"), which was tied to one
+language and collides with an existing language-learning app. See
+[04](04-rename-to-mira/SPEC.md).
+
+**Not a product; a free open-source tool from ScriptKittyOS.** *Maintainer.* No paid tier,
+no hosted accounts. Optimise for people running it themselves with as little setup as
+possible.
+
+**Any language, mixed however the learner likes.** *Maintainer.* One language, a chosen
+set, or all of them. A new language starts the moment its first word is added.
+
+**Default model: free OpenRouter models, not a local model.** *Maintainer.* The local Ollama
+model on the maintainer's machine isn't suited to this. Any OpenAI-compatible API stays
+possible.
+
+**Encoded-path auth bypass fixed immediately.** *Synthesis.* `/%61pi/words` skipped the
+token check ([06 F01](../docs/research/06-adversarial-qa.md)). Fixed in commit 4705cb0 before
+the plan was written: deny by default, only `/health` is open, bodies are parsed after auth
+and capped at 64 KB. The rest of that work is in [01](01-api-auth-hardening/SPEC.md).
