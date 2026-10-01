@@ -6,6 +6,16 @@ and why. Open questions live in each slice's own "Open questions" section and in
 
 ## 2026-10-01
 
+**"Mira" is withdrawn; the final name is still to be chosen.** *Maintainer.* A trademark
+clearance screen rated "Mira" high risk (moderate-to-high even with a descriptor). Closest
+conflicts: Avant's "Mira powered by Avant", AI language-learning tools sold under the name
+since 2025 (Mira Stride won a 2026 EdTech Awards category); Mira Translator, an
+open-source extension that already saves and highlights words on pages; and @mira, a
+large Telegram AI bot. Until a new name is chosen, "Mira" in these slices is a working
+placeholder only. Slice 04 (the rename) is on hold, nothing is renamed in code, data
+paths or the repository, and no public listing, store account or artwork uses the name.
+The entry "The name is Mira" below is superseded.
+
 **English is not the base language. The base language is whatever the learner uses.**
 *Maintainer.* "If someone in Puerto Rico has an all-Spanish browser and the confetti is
 waiting on English to be done, then no surprise." Mira swaps words on pages written in the
