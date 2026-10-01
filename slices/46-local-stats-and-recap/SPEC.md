@@ -51,7 +51,7 @@ nag.
 | `swaps` | day × language | A swap is rendered while the tab is visible |
 | `wordsSeen` | day × language | First swap of a word that day (distinct) |
 | `added` | day × language | A word is created (not when merged or imported, which count as `imported`) |
-| `imported` | day × language | Words created by import, pack or bulk add |
+| `imported` | day × language | Words created by import or bulk add |
 | `checks` | day × language | The popover opens on a word (slice 19) |
 | `seen`, `lastSeenDay` | word | Each day the word was seen at least once (`seen` counts days, not swaps) |
 | `checks` | word | Popover opens on this word |

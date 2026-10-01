@@ -6,7 +6,7 @@
 | **Priority** | P0 (before public release) |
 | **Size** | L (several weeks) |
 | **Depends on** | [06-design-system](../06-design-system/SPEC.md), [07-word-model-v2](../07-word-model-v2/SPEC.md); uses [11](../11-local-first-mode/SPEC.md), [24](../24-add-flow-safety/SPEC.md), [25](../25-plain-language-errors/SPEC.md) |
-| **Unblocks** | [13-bulk-add](../13-bulk-add/SPEC.md), [23-starter-packs](../23-starter-packs/SPEC.md) (picker), settings for [11](../11-local-first-mode/SPEC.md), [12](../12-export-import-and-delete/SPEC.md), [31](../31-density-and-amount/SPEC.md), [32](../32-page-coverage-and-celebrations/SPEC.md), [33](../33-context-menu-and-shortcuts/SPEC.md), [35](../35-reveal-mode-and-review/SPEC.md), [37](../37-language-colors-and-reading-aids/SPEC.md) |
+| **Unblocks** | [13-bulk-add](../13-bulk-add/SPEC.md), settings for [11](../11-local-first-mode/SPEC.md), [12](../12-export-import-and-delete/SPEC.md), [31](../31-density-and-amount/SPEC.md), [32](../32-page-coverage-and-celebrations/SPEC.md), [33](../33-context-menu-and-shortcuts/SPEC.md), [35](../35-reveal-mode-and-review/SPEC.md), [37](../37-language-colors-and-reading-aids/SPEC.md) |
 | **Sources** | Maintainer ("a full dashboard with a live view of all words"; "not like the other dashboards"; fewest steps); [DECISIONS](../DECISIONS.md); [05 S20, S21, S12, §3.3, §3.5](../../docs/research/05-learner-ux.md); [02 G4](../../docs/research/02-linguistics.md); [01 S23](../../docs/research/01-language-mixing.md) |
 
 ## Problem
@@ -34,7 +34,8 @@ original rather than like another admin template.
 ## Non-goals
 
 - Bulk paste and file import UI: [13](../13-bulk-add/SPEC.md) (opened from here).
-- Starter pack picker: [23](../23-starter-packs/SPEC.md) (opened from here).
+- Ready-made word lists of any kind: never ([DECISIONS](../DECISIONS.md)). Every word in
+  the list is one the learner added.
 - Export formats and "delete all my data": [12](../12-export-import-and-delete/SPEC.md).
 - Stats and recaps: [46](../46-local-stats-and-recap/SPEC.md). The dashboard deliberately has
   no charts or KPI cards in v1.
@@ -66,7 +67,6 @@ popover and onboarding:
 | `#words/{id}` | The list with that word's inspector open |
 | `#words?lang=es&status=paused&q=thank` | Filtered list (state mirrored in the hash) |
 | `#add` | Bulk add sheet ([13](../13-bulk-add/SPEC.md)) |
-| `#packs` | Starter packs ([23](../23-starter-packs/SPEC.md)) |
 | `#settings`, `#settings/{section}` | Settings |
 
 Only one dashboard tab is kept: opening it from the popup focuses an existing tab and updates
@@ -131,8 +131,8 @@ What makes it Mira rather than an admin template ([06 §1](../06-design-system/S
   default Active + Paused). "Recently deleted" lists tombstoned words for as long as
   [07](../07-word-model-v2/SPEC.md) keeps them (at least 30 days) with "Restore", so an Undo
   missed in a toast is never final. Other filters: added (Any time, Today, This week, This month), source (from 07's
-  `origin`: Typed = `add` and `manual`, Starter pack = `pack`, Imported = `bulk` and
-  `import`, Telegram = `telegram`). Filters are chips with a menu; active ones show "×" to clear.
+  `origin`: Typed = `add` and `manual`, Imported = `bulk` and `import`, Telegram =
+  `telegram`). Filters are chips with a menu; active ones show "×" to clear.
 - **Virtualized:** only visible rows plus 10 above and below are in the DOM; row height fixed
   at 52 px (wide) or 64 px (narrow); `aria-rowcount` and `aria-rowindex` keep screen readers
   oriented.
@@ -168,7 +168,7 @@ What makes it Mira rather than an admin template ([06 §1](../06-design-system/S
 │  [ Formal; “shukran jazeelan” = …  ] │
 │  Swap on pages              [◉  ]    │  active / paused
 │ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄  │
-│  Added Sep 30 from “shukran”         │  provenance (07 origin, source_text, pack_id)
+│  Added Sep 30 from “shukran”         │  provenance (07 origin, source_text)
 │  Changed Oct 1                       │
 │                                      │
 │  Delete word                         │  danger quiet button
@@ -223,18 +223,17 @@ What makes it Mira rather than an admin template ([06 §1](../06-design-system/S
 
 Each card has a "⋯" menu: Show on pages / Hide on pages, Focus on {language} / Stop focusing
 ([18](../18-language-precedence-and-mixing/SPEC.md)), Color ([37](../37-language-colors-and-reading-aids/SPEC.md)),
-Starter words for {language} ([23](../23-starter-packs/SPEC.md), when a pack exists), Export
-{language} ([12](../12-export-import-and-delete/SPEC.md)), Delete all {language} words.
-"+ Start a language" opens a language picker, then the add box with that language as the hint
-and the starter pack offer when one exists.
+Export {language} ([12](../12-export-import-and-delete/SPEC.md)), Delete all {language} words.
+"+ Start a language" opens a language picker, then the add box with that language as the
+hint.
 
 ### 8. Header actions
 
 - **Add words** (primary): opens `#add` ([13](../13-bulk-add/SPEC.md)) with a single-line add
   box on top (the same as the popup's) and the paste/drop area below.
 - **⋯**: Import a list or file ([13](../13-bulk-add/SPEC.md)), Import a Mira backup
-  ([12](../12-export-import-and-delete/SPEC.md)), Export all words (JSON, CSV, Anki), Starter
-  packs, Show keyboard shortcuts.
+  ([12](../12-export-import-and-delete/SPEC.md)), Export all words (JSON, CSV, Anki), Show
+  keyboard shortcuts.
 - **Settings**: `#settings`.
 - Drag a file anywhere onto the page to start bulk add with it.
 
@@ -278,7 +277,7 @@ are absent, not disabled.
 | State | What shows |
 |---|---|
 | Loading | Header and shelf frame at once; if words haven't loaded in 150 ms, six skeleton rows (`--sunken` bars, no shimmer under reduced motion) |
-| No words | Illustration, "No words yet. Start with common words, or add your own.", [Start with starter words] (primary), "Add words", "Import a list or file" |
+| No words | Illustration, "No words yet. Add the first one you'd love to learn, in any language, or a list you already have.", [Add words] (primary), "Import a list or file" |
 | No results | §4 copy with "Add “{q}” as a new word" |
 | Filters exclude everything | "No paused words." (per filter) and "Clear filters" |
 | Offline / server unreachable | [25](../25-plain-language-errors/SPEC.md) state banner under the header; everything stays editable; edits queue and rows show "Waiting to save" |

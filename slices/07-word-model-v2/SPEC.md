@@ -25,8 +25,8 @@ the weight.
   `server/priv/repo/migrations/20261001000000_create_words.exs:21`): 7 of 8 parallel
   upserts failed and one HTTP request returned 500. Reproduced in [06 F06](../../docs/research/06-adversarial-qa.md).
 - **IDs only work on one server.** Integer autoincrement ids (`migrations/...create_words.exs:5`)
-  collide as soon as words are created in the extension (slice 11), by imports (slice 12)
-  or from packs (slice 23).
+  collide as soon as words are created in the extension (slice 11) or by imports
+  (slice 12).
 - **Deletes leave no trace.** `Words.delete/1` removes the row (`words.ex:86`), so a second
   device can't learn that a word is gone, and Undo can't restore it.
 - **Nothing can be edited.** The router has GET, POST and DELETE only
@@ -45,7 +45,7 @@ All of this is read from the code; F05, F06, F27 and F29 were reproduced by rese
 ## Goals
 
 - One word record, defined once, used identically by the server and the extension's local
-  store (slice 11), exports (slice 12), packs (slice 23) and sync (slice 39).
+  store (slice 11), exports (slice 12) and sync (slice 39).
 - Stable client-creatable ids, timestamps and tombstones, so words can move between
   devices and deletes can be undone and synced.
 - Re-adding a word never loses data, and every add reports `created`, `updated` or
@@ -96,13 +96,12 @@ owns the file and the caps; the fields below are normative).
 | `forms` | array of Form | yes, at least 1 | See below. Unique by `text` compared case-insensitively. |
 | `note` | string or null | no | One short sentence. |
 | `status` | string | yes | `active` (swapped on pages), `paused` (kept, not swapped), `pending` (a Telegram lookup awaiting Add; server-local, never synced). |
-| `origin` | string | yes | `add`, `manual`, `telegram`, `bulk`, `import`, `pack`, `assignment`, `migrated`. Informational. |
-| `pack_id` | string or null | no | Set for words that came from a pack (slice 23/47), so a pack can be removed as a unit. |
+| `origin` | string | yes | `add`, `manual`, `telegram`, `bulk`, `import`, `migrated`. Informational. Each is a learner's own action (or, for `migrated`, words they already had); nothing creates words on the learner's behalf ([DECISIONS](../DECISIONS.md)). |
 | `source_text` | string or null | no | What the user typed, for "why is this here". Never sent to the model again. |
 | `created_at` | string | yes | RFC 3339 UTC with milliseconds, e.g. `2026-10-01T21:23:47.123Z`. |
 | `updated_at` | string | yes | Same format. Set by the writer on every change. |
 | `deleted_at` | string or null | yes | Null for live words. Set means tombstone. |
-| `merged_into` | string or null | no | Only on tombstones: the id of the live word this one was merged into (duplicates found by the migration below, or by slice 39's sync). Clients move references (stats, pack membership) to that id. |
+| `merged_into` | string or null | no | Only on tombstones: the id of the live word this one was merged into (duplicates found by the migration below, or by slice 39's sync). Clients move references (stats) to that id. |
 | `language` | string | output only | English display name derived from `lang` (slice 08). Ignored on input. |
 
 **Form** object: `{text, enabled, case, ambiguous}`.
@@ -156,7 +155,6 @@ words
   note          TEXT
   status        TEXT NOT NULL DEFAULT 'active'
   origin        TEXT NOT NULL DEFAULT 'add'
-  pack_id       TEXT
   source_text   TEXT
   language      TEXT                    -- deprecated; slice 08 drops it
   created_at    TEXT NOT NULL           -- utc_datetime_usec
@@ -168,7 +166,6 @@ words
 UNIQUE INDEX words_natural ON words(lang, native_key, sense) WHERE deleted_at IS NULL
 INDEX words_seq ON words(seq)
 INDEX words_status ON words(status)
-INDEX words_pack ON words(pack_id)
 
 sync_state (id INTEGER PRIMARY KEY CHECK (id = 1), last_seq INTEGER NOT NULL,
             purged_through_seq INTEGER NOT NULL DEFAULT 0,
@@ -207,7 +204,7 @@ none raises on bad input.
 
 | Field | Rule |
 |---|---|
-| `romanization`, `note`, `pack_id`, `source_text` | Fill only if the existing value is null or blank. Never overwrite. |
+| `romanization`, `note`, `source_text` | Fill only if the existing value is null or blank. Never overwrite. |
 | `english` | Keep the existing value. If the incoming one differs, its text is added as a form (below). |
 | `forms` | Union by case-insensitive `text`. Existing forms keep their flags, including `enabled: false`. New forms are appended with the flags they came with. Result is re-capped (slice 09); existing forms win over new ones when the cap is hit. |
 | `status` | `pending` → incoming status. `paused` → `active` when the add is an explicit user add (`opts[:explicit]`, true for the add box and Telegram "add"), else unchanged. `active` stays. |
@@ -256,7 +253,7 @@ the wording.
 |---|---|
 | `GET /api/v1/words` | Live words. Query: `lang=ru,ar`, `status=active,paused` (default `active,paused`; `pending` is never returned), `limit` (default and max 20,000). Response `{"words": [Word], "cursor": "<last_seq>"}`. Slice 39 adds `since` and ETags on this route. |
 | `GET /api/v1/words/:id` | One word, including a tombstone (so a client can see it was deleted). 404 `word_gone` for a malformed or unknown id. |
-| `POST /api/v1/words` | Add. Body is either `{"text": "...", "client_request_id": "...", "hint_lang": "es"?}` (interpreted by the model, slices 09 and 10; `hint_lang` is slice 09's page or chip language hint) or `{"word": {...}, "client_request_id": "..."}` (structured, no model). Response `{"results": [{"result": "created" \| "updated" \| "unchanged", "word": Word, "previous": Word?}], "rejected": [...], "reply": "..."?}`. `rejected` and `reply` are defined by slice 09. |
+| `POST /api/v1/words` | Add. Body is either `{"text": "...", "client_request_id": "...", "hint_lang": "es"?}` (interpreted by the model, slices 09 and 10; `hint_lang` is slice 09's page or chip language hint) or `{"word": {...}, "client_request_id": "..."}` (structured, no model). Response `{"results": [{"result": "created" \| "updated" \| "unchanged", "word": Word, "previous": Word?}], "rejected": [...], "reply": "..."?}`. `rejected` and `reply` are defined by slice 09. With `"preview": true` (text form only) the server interprets and validates but saves nothing, returning `{"candidates": [Word-shaped, no id], "rejected": [...], "reply"?}`; the client then saves the learner's chosen candidates through the structured form. Required by the full-control decision so server-lookup mode never saves before the learner accepts. |
 | `POST /api/v1/words/batch` | Structured adds, up to 500 per call, one transaction. Same `results` shape, in input order. Used by slices 12 and 13. This route alone accepts bodies up to 1 MB (its own `Plug.Parsers` limit, still after auth); every other route keeps 64 KB. |
 | `PATCH /api/v1/words/:id` | Partial update (section 4). Optional `if_updated_at` in the body (or the equivalent header `If-Match: "<updated_at>"`); a mismatch is 409 `word_conflict` with `details.reason: "stale"` and the current word. A natural-key clash is 409 `word_conflict` with `details.reason: "duplicate"` and `details.other_id`. |
 | `DELETE /api/v1/words/:id` | Tombstone. Returns `{"word": Word}` with `deleted_at` set. Deleting a tombstone is a no-op 200. |

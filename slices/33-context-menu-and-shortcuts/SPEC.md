@@ -65,8 +65,8 @@ Mira                                   (context: selection)
 ```
 
 - Languages: the user's languages with words, Focus language first, then by word count,
-  at most 6, then "Another language…". With no languages yet, "Learn “%s” in" lists the
-  learner's onboarding choices (slice 22), or only "Another language…".
+  at most 6, then "Another language…". With no languages yet, "Learn “%s” in" lists only
+  "Another language…".
 - "Add “%s” to my words" is for a foreign word; the page's language is the hint.
 - Firefox supports `menus.onShown` and `menus.refresh`, so there the menu hides the item
   that doesn't fit: if the selection is in a non-Latin script or the selection's nearest

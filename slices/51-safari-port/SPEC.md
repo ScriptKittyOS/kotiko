@@ -77,7 +77,7 @@ Safari (from MDN browser-compat-data, checked 2026-10-01):
 - `browser` namespace: already handled by `globalThis.browser ?? globalThis.chrome`
   (`extension/background.js:3`).
 - Site access: on install nothing is allowed. Slice 28's access card is the main path;
-  the welcome page's last step asks the user to choose "Always allow on every website",
+  the welcome page's permission step asks the user to choose "Always allow on every website",
   with a screenshot, because otherwise Mira asks site by site.
 - Touch: slice 45's rules apply on iOS and iPadOS (`pointerType === "touch"`). iOS has no
   `contextmenu` on long-press inside links in the same way; the fallback setting from slice
@@ -119,8 +119,8 @@ Safari (from MDN browser-compat-data, checked 2026-10-01):
 ## Acceptance criteria
 
 - [ ] The macOS and iOS apps build in CI from the release tag without manual steps.
-- [ ] On an iPhone with Safari 17.1 or later, a starter pack swaps words on a news site
-      after enabling the extension and allowing every website.
+- [ ] On an iPhone with Safari 17.1 or later, words typed as “word = meaning” swap on a
+      news site after enabling the extension and allowing every website.
 - [ ] Local mode with an OpenRouter key adds a word on iOS, including after Safari has
       suspended and resumed the background worker.
 - [ ] Words and key survive 8 days without opening Safari (persistence check).

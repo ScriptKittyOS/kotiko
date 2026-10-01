@@ -6,7 +6,7 @@
 | **Priority** | P1 (soon after release) |
 | **Size** | M (about a week) |
 | **Depends on** | [28-privacy-and-store-readiness](../28-privacy-and-store-readiness/SPEC.md); uses [05-brand-identity](../05-brand-identity/SPEC.md) and [06-design-system](../06-design-system/SPEC.md) |
-| **Unblocks** | [47-hosted-word-packs](../47-hosted-word-packs/SPEC.md) (packs are served from it); the `/connect/` callback for [11](../11-local-first-mode/SPEC.md)'s "Connect OpenRouter"; "Learn more" links from [25](../25-plain-language-errors/SPEC.md) |
+| **Unblocks** | The `/connect/` callback for [11](../11-local-first-mode/SPEC.md)'s "Connect OpenRouter"; "Learn more" links from [25](../25-plain-language-errors/SPEC.md) |
 | **Sources** | [04 summary, S29, S31, section 3 release plan, docs-site slice](../../docs/research/04-architecture-release.md); [03 B9, D6, D8](../../docs/research/03-browser-extension.md); [05 S34, S39](../../docs/research/05-learner-ux.md) |
 
 ## Problem
@@ -21,7 +21,7 @@ Elixir 1.15+" (`README.md:30-32`), troubleshooting assumes you can read server l
 - a stable public URL for the privacy policy (slice 28 needs it before submission);
 - one page per error that the extension's "Learn more" links can point to (slice 25);
 - a server guide for those who want Telegram, written for people who use Docker but not Elixir;
-- a home for word packs (slice 47) and for the OAuth callback page (slice 11).
+- a home for the OAuth callback page (slice 11).
 
 The org can host static content safely and for free ([04 S31](../../docs/research/04-architecture-release.md)).
 
@@ -41,7 +41,8 @@ The org can host static content safely and for free ([04 S31](../../docs/researc
   This slice publishes it.
 - Translating the site: slice [50](../50-ui-localization-and-base-language/SPEC.md);
   the tool chosen here supports it.
-- Pack content and review: slices [23](../23-starter-packs/SPEC.md) and [47](../47-hosted-word-packs/SPEC.md).
+- Word lists to download or subscribe to: never ([DECISIONS](../DECISIONS.md)). The site
+  explains how to add words; it never supplies them.
 - A blog or newsletter.
 
 ## User stories
@@ -51,7 +52,8 @@ The org can host static content safely and for free ([04 S31](../../docs/researc
   link to explain why and what to do.
 - As a self-hoster, I want a Docker compose file and a page on reaching my server from my
   laptop over HTTPS.
-- As a teacher, I want to link my class to a pack page with an "Add to Mira" button.
+- As a teacher, I want one page I can send my class that shows how to paste or drop the
+  list I hand out into Mira and review it before saving.
 - As a contributor, I want to know how the extension and server share `spec/`.
 
 ## Specification
@@ -73,7 +75,7 @@ The org can host static content safely and for free ([04 S31](../../docs/researc
 ```
 /                      What Mira is, a before/after sample, three ways to start
 /install/              Chrome, Edge, Brave · Firefox · Firefox for Android · Safari (later) · from source
-/start/                Starter pack only · Free OpenRouter key · Your own server
+/start/                Your first word, no key needed · Free OpenRouter key · Your own server
 /providers/<id>/       One page per slice 11 preset: get a key, paste it, notes (Ollama origins, LM Studio)
 /use/                  Adding words · Bulk add · Dashboard · The word popover · Languages and Focus ·
                        Amount · Per-site rules · Shortcuts and right-click · Back up, restore, delete
@@ -84,15 +86,13 @@ The org can host static content safely and for free ([04 S31](../../docs/researc
 /help/                 Troubleshooting index
 /help/errors/#<code>   One anchored entry per slice 25 error code
 /help/faq/             Pages Mira can't run on, Find in page, copying, page translation, other sites' tools
-/packs/                Catalogue (slice 47), with "Add to Mira" buttons
-/packs/v1/...          Pack JSON files and index (slice 47)
 /connect/              Landing page for "Connect OpenRouter" (slice 11)
-/contribute/           Dev setup · Architecture · spec/ folder · Tests · Releases · Translating · Reviewing packs
+/contribute/           Dev setup · Architecture · spec/ folder · Tests · Releases · Translating
 /changelog/            Generated from CHANGELOG.md at build time
 ```
 
 **Stable URLs.** Paths the extension links to (`/privacy/`, `/help/errors/#…`,
-`/connect/`, `/packs/v1/…`, `/providers/<id>/`) are listed in `site/stable-urls.txt`. CI
+`/connect/`, `/providers/<id>/`) are listed in `site/stable-urls.txt`. CI
 fails if a build no longer produces one of them. Renamed pages get a redirect entry in the
 Starlight config.
 
@@ -132,11 +132,11 @@ script at 1280x800.
 ### 6. Build, checks and deploy
 
 - GitHub Actions workflow `site.yml`: on pushes to `main` that touch `site/**`,
-  `CHANGELOG.md`, `extension/errors.js` or `packs/**`, and on every release tag.
+  `CHANGELOG.md` or `extension/errors.js`, and on every release tag.
 - Steps: install, build, then checks: internal and external links (lychee, external
   failures as warnings), `stable-urls.txt`, error anchors, axe accessibility scan of every
-  page with Playwright (no serious or critical issues), pack validation (slice 47). Then
-  deploy with `actions/deploy-pages`.
+  page with Playwright (no serious or critical issues). Then deploy with
+  `actions/deploy-pages`.
 - Unreleased features: pages may carry `since: 0.6.0` in front matter; when that is newer
   than the latest release tag, the page shows "Coming in the next release" and is left out
   of the navigation.
@@ -147,7 +147,7 @@ script at 1280x800.
 
 No analytics, cookies, embedded videos or third-party scripts. GitHub Pages itself sees
 visitors' IP addresses under GitHub's privacy statement; the privacy policy says so in the
-row for pack and dictionary downloads (slice 28 section 1).
+row for dictionary downloads (slice 28 section 1).
 
 ## Acceptance criteria
 

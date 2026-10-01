@@ -130,9 +130,8 @@ a capital that only the base language uses (German nouns, for example) into the 
 Slice 09 ships a stopword list per supported base (articles, pronouns, copulas), starting
 with the bases offered in the UI.
 
-**Packs and onboarding.** Starter packs (slice 23) carry `base_lang`; the welcome page
-(slice 22) asks "Which language are the pages you read in?" only when the interface
-language isn't English, defaulting to the interface language.
+**Onboarding.** The welcome page (slice 22) asks "Which language are the pages you read
+in?" only when the interface language isn't English, defaulting to the interface language.
 
 **Phasing.**
 

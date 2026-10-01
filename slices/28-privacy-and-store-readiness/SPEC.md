@@ -85,7 +85,7 @@ it (a checkbox in the PR template from slice 03).
 | Settings | `storage.sync` / `storage.local` | Through your browser's own sync, if you use it | Google or Mozilla, under their sync terms |
 | Learning stats (slice 46) | Extension | Never | Nobody |
 | A word you ask to hear (slice 34) | Not stored | Only if you turn on online voices (off by default) | Your browser's or operating system's speech service (for example Google, Microsoft or Apple) |
-| Requests for packs, dictionaries and the free-model list | Not stored | The request itself (your IP address) | GitHub Pages; OpenRouter's public models list |
+| Requests for dictionaries (slice 49) and the free-model list | Not stored | The request itself (your IP address) | GitHub Pages; OpenRouter's public models list |
 | Telegram messages and voice notes (server add-on) | Your server | Yes | Telegram; your transcription provider |
 
 Mira has no analytics, telemetry, crash reporting, ads or remote configuration. It does
@@ -147,8 +147,8 @@ Outline:
 | `contextMenus` | "Learn this in…" on selected text (slice 33). |
 | `identity` (only if slice 11's spike chooses `launchWebAuthFlow`) | Signs you in to OpenRouter to create a key without copying it. |
 
-**Remote code**: "No, I am not using remote code." Words, packs, dictionaries and the
-model list are data, validated by slice 09's schemas; no code is fetched or evaluated.
+**Remote code**: "No, I am not using remote code." Words, dictionaries and the model
+list are data, validated by slice 09's schemas; no code is fetched or evaluated.
 
 **Data usage disclosures** (the form's checkboxes; medium confidence on how CWS reviewers
 read "collect" for user-directed transmissions, so the justification text spells it out):
@@ -166,8 +166,8 @@ three are true.
 **EU trader status**: see section 9.
 
 **Review expectations**: in-depth review for `<all_urls>`, typically several days. The
-reviewer notes field says: "No account or key needed to test: open the welcome page,
-choose a starter pack, then open any English Wikipedia article."
+reviewer notes field says: "No account or key needed to test: on the welcome page, type
+“hola = hello”, choose Español, press Make it my first word, then Try it on a page."
 
 ### 4. Firefox (AMO) manifest and submission
 
@@ -188,12 +188,12 @@ choose a starter pack, then open any English Wikipedia article."
 - 140 and 142 are the first desktop and Android versions that read
   `data_collection_permissions` (MDN browser-compat-data); 140 is an ESR, so ESR users
   are covered.
-- **Why `none` is required and `websiteContent` optional.** Out of the box, with a
-  starter pack, Mira transmits nothing. Text typed into the add box is the user's own
-  input sent to a provider they configured; it matches none of Mozilla's categories,
-  which describe data about the user's browsing. Text selected on a page and sent with
-  "Learn this in…" is website content. Mira requests the optional `websiteContent`
-  consent (`permissions.request({data_collection: ["websiteContent"]})`) the first time
+- **Why `none` is required and `websiteContent` optional.** Out of the box, with words
+  typed with their meaning (“hola = hello”), Mira transmits nothing. Text typed into the
+  add box is the user's own input sent to a provider they configured; it matches none of
+  Mozilla's categories, which describe data about the user's browsing. Text selected on
+  a page and sent with "Learn this in…" is website content. Mira requests the optional
+  `websiteContent` consent (`permissions.request({data_collection: ["websiteContent"]})`) the first time
   the user uses that menu item with a remote provider; if refused, the menu still opens
   the popup with the text prefilled, so the user sends it by typing Enter. Confidence:
   medium on the category reading, medium-low on the runtime request API shape. Before the
@@ -245,7 +245,7 @@ Both Firefox and Chrome let users withhold host access after install.
   state) and inject into the tab when access arrives (slice 15's injection).
 - The provider or server origin is checked the same way before a lookup; if missing, the
   job waits with slice 25's `permission_missing` code and the same button.
-- Slice 22's welcome page runs the same check as its last step.
+- Slice 22's welcome page runs the same check as its first step (step 0).
 
 ### 7. Secrets and page exposure audit
 
@@ -274,7 +274,7 @@ example "Mira: learn languages while you browse" (CWS allows 75 characters).
 > Free, open source, and private by design.
 
 **Long description outline**: what it does in one paragraph; three ways to start
-(starter pack, free OpenRouter key, your own server); "What leaves your computer" in
+(type a word with its meaning, no key needed; a free OpenRouter key; your own server); "What leaves your computer" in
 three lines; keyboard and accessibility notes; why it needs access to all sites; links to
 docs, privacy, source and issues.
 
@@ -368,7 +368,8 @@ the declaration should be checked against that before submitting.
   justification table in this spec (a small script reading both, so a new permission
   can't ship without a justification).
 - **Manual, before first submission**: read the policy against a fresh install's network
-  log (only the provider, after a key is set; nothing on a starter-pack-only install).
+  log (only the provider, after a key is set; nothing on an install that only has words
+  typed as “word = meaning”).
 
 ## Rollout and migration
 

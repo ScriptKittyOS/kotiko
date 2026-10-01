@@ -39,7 +39,7 @@ phases that can overlap:
 2. **Correct on every page**: the matching engine, framework-safe swapping, what not to
    swap, casing, language precedence.
 3. **Local first, beautifully**: brand, design system, popup, dashboard, bulk add,
-   onboarding, starter packs, the word popover.
+   onboarding around the learner's own first word, the word popover.
 4. **Release**: privacy, store readiness, release pipeline.
 
 ## All slices
@@ -67,8 +67,8 @@ phases that can overlap:
 | 19 | [Word popover](19-word-popover/SPEC.md) | P0 | M | 06, 15 | Replace the `title` tooltip with one shared popover in a shadow root; hover, tap, keyboard; nothing revealing in page DOM (custom element, no `data-en`/`title`); actions slot (speak, edit, pause, wrong meaning). 03, 05. |
 | 20 | [Popup redesign](20-popup-redesign/SPEC.md) | P0 | M | 06 | The popup rebuilt on the design system: add, languages and focus, amount, status, quick links; fewest steps for the common tasks. 05; maintainer. |
 | 21 | [Dashboard](21-dashboard/SPEC.md) | P0 | L | 06, 07 | Full extension page with a live view of all words: search, filter, edit, delete with undo, pause, move language, bulk add entry, export, per-language overview. Maintainer request; 05. |
-| 22 | [First-run onboarding](22-first-run-onboarding/SPEC.md) | P0 | M | 11, 20, 23 | Welcome tab on install: pick languages, start from a starter pack, optional key or server, live preview; first swapped word within a minute. 05. |
-| 23 | [Starter packs](23-starter-packs/SPEC.md) | P0 | M | 09 | Curated packs bundled in the extension, no model calls; preview and untick before import; licensing (CC0 or CC BY 4.0); review process. 04, 05. |
+| 22 | [First-run onboarding](22-first-run-onboarding/SPEC.md) | P0 | M | 11, 20, 24 | Welcome tab on install as a short conversation: connect your own AI (key typed only on full pages), ask for the first word you'd love to learn in any language, confirm it, confetti, live preview with the real matcher. "native = english" works with no key. Nothing is saved until the learner confirms. Maintainer; 05. |
+| 23 | ~~[Starter packs](23-starter-packs/SPEC.md)~~ | – | – | – | **Dropped** (2026-10-01): Mira never adds words the learner didn't choose ([DECISIONS](DECISIONS.md)). Replaced by 13, 22 and 12. |
 | 24 | [Add flow safety](24-add-flow-safety/SPEC.md) | P0 | M | 07 | Report created/updated/unchanged; per-word undo that restores rather than deletes; results survive the popup closing; manual add without the model; idempotent add with a client id. 05, 06 F05, F09, F30. |
 | 25 | [Plain-language errors](25-plain-language-errors/SPEC.md) | P0 | S | – | Error codes from every backend; messages that say what still works and the next step; offline cached words keep working. 05. |
 | 26 | [Background sync correctness](26-background-sync-correctness/SPEC.md) | P0 | S | – | Sync generations, abort on credential change, response validation, URL checks, alarm re-creation, sender checks on messages. 03, 06 F10, F11, F31, F32, F39. |
@@ -92,8 +92,8 @@ phases that can overlap:
 | 44 | [Docs site](44-docs-site/SPEC.md) | P1 | M | 28 | GitHub Pages: install guides per mode, privacy, troubleshooting, contributor docs. 04. |
 | 45 | [Firefox for Android](45-firefox-android/SPEC.md) | P1 | M | 19, 11 | Tap interactions, mobile layouts, local mode on mobile. 03, 05. |
 | 46 | [Local stats and recap](46-local-stats-and-recap/SPEC.md) | P2 | M | 07 | Words seen and added per language, weekly recap, no URLs stored, no guilt mechanics. 05. |
-| 47 | [Hosted word packs](47-hosted-word-packs/SPEC.md) | P2 | M | 23 | Packs on GitHub Pages; import or subscribe by URL; remove a pack as a unit. 04. |
-| 48 | [Multi-user and classroom](48-multi-user-and-classroom/SPEC.md) | P2 | L | 07, 40 | Users and tokens on one server; families; teachers assigning words. 04. |
+| 47 | ~~[Hosted word packs](47-hosted-word-packs/SPEC.md)~~ | – | – | – | **Dropped** (2026-10-01): no word lists of any kind, hosted or subscribed ([DECISIONS](DECISIONS.md)). Replaced by 13 and 12; classrooms use 48's offered lists. |
+| 48 | [Multi-user and classroom](48-multi-user-and-classroom/SPEC.md) | P2 | L | 07, 40 | Users and tokens on one server; families; teachers offering word lists that each student reviews and accepts, never added automatically. 04. |
 | 49 | [Dictionary verification](49-dictionary-verification/SPEC.md) | P2 | L | 09 | Open dictionaries (CC-CEDICT, Wiktionary) to verify model output and work offline. 02, 04. |
 | 50 | [UI localization and base language](50-ui-localization-and-base-language/SPEC.md) | P2 | L | 25 | Interface strings in `_locales`; pages in languages other than English. 02, 05. |
 | 51 | [Safari port](51-safari-port/SPEC.md) | P2 | L | 45 | macOS and iOS via Xcode conversion. 03. |
@@ -108,7 +108,7 @@ phases that can overlap:
                          ├─ 16 skip rules, 17 casing, 18 precedence ┤                  ├─ 28 privacy ─ 30 release
 05 brand ─ 06 design system ─┬─ 20 popup ───────────────────────────┤                  │
                              └─ 21 dashboard ─ 13 bulk add ─────────┘                  │
-03 OSS files, 01 auth, 29 ops, 25 errors, 26 sync, 27 a11y, 12 export, 23 packs, 24 add ┘
+03 OSS files, 01 auth, 29 ops, 25 errors, 26 sync, 27 a11y, 12 export, 24 add ──────────┘
 ```
 
 ## Open questions for the maintainers
@@ -116,9 +116,5 @@ phases that can overlap:
 Collected from the slices; each slice repeats its own with a recommendation. Everything else
 is decided; see [DECISIONS.md](DECISIONS.md).
 
-1. **Starter packs.** Should Mira ship ready-made word lists ("50 everyday Spanish
-   words") so a new learner sees words on pages right away, before typing any or setting up
-   a key? If yes: which languages first, and who checks each list for mistakes?
-   ([23](23-starter-packs/SPEC.md))
-2. **Who reads security@scriptkittyos.com?** Ideally at least two people.
+1. **Who reads security@scriptkittyos.com?** Ideally at least two people.
    ([03](03-oss-foundations/SPEC.md))

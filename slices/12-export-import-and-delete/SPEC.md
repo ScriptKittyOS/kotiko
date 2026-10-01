@@ -46,8 +46,9 @@ everything.
   This slice imports only Mira's own JSON.
 - A native Anki `.apkg` file (SQLite in a zip): future work.
 - Automatic scheduled backups to disk (needs the `downloads` permission): future work.
-- Packs as a unit (import by URL, remove a pack): slices [23](../23-starter-packs/SPEC.md)
-  and [47](../47-hosted-word-packs/SPEC.md).
+- Importing word lists published by someone else, by URL or file: never
+  ([DECISIONS](../DECISIONS.md)). This slice restores the learner's own backups; a list
+  from anywhere else goes through bulk add's review ([13](../13-bulk-add/SPEC.md)).
 - Per-word undo after a delete: slices [21](../21-dashboard/SPEC.md) and [24](../24-add-flow-safety/SPEC.md).
 
 ## User stories
@@ -99,7 +100,7 @@ so it diffs well.
 ```
 
 - `words` holds every word that is not deleted, in every status, with every field
-  slice 07 defines (ids, timestamps, status, source text, forms, pack membership).
+  slice 07 defines (ids, timestamps, status, origin, source text, forms).
   Tombstones are left out.
 - `settings` and `stats` are included by default with a checkbox each ("Include
   settings", "Include learning stats"). Secrets (API keys, server token) are never
@@ -159,7 +160,7 @@ verify against the current Anki manual):
 | Back | `english`, then ` - note` when present |
 | Language | Display name |
 | Deck | `Mira::<Language>`, so each language gets a subdeck |
-| Tags | `mira lang::<code>` plus `pack::<id>` when the word came from a pack |
+| Tags | `mira lang::<code>` |
 | GUID | `mira-<word id>`, so re-importing an updated export updates the same notes instead of duplicating them |
 
 Tabs and newlines inside fields are replaced with spaces. The dialog says "In Anki: File,

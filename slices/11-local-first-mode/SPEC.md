@@ -110,8 +110,8 @@ Two settings replace today's single "server" assumption:
 - **Where words live** (`wordsHome`): `"local"` (the extension owns them) or `"server"`
   (a connected Mira server owns them; the extension mirrors them).
 - **Who looks words up** (`lookup.kind`): `"provider"` (the extension calls a model
-  directly), `"server"` (the server looks up with its own key), or `"none"` (packs,
-  manual add and bulk add with translations only).
+  directly), `"server"` (the server looks up with its own key), or `"none"` (manual
+  add, "native = english" lines and bulk add with translations only).
 
 The UI presents these as two choices, not as infrastructure: "Keep my words in this
 browser" or "Use my Mira server", and "Look words up with: OpenRouter (free) ▾". The
@@ -207,9 +207,9 @@ move with slice 39, not here.
 - The background accepts `secrets.*`, `backend.*`, `words.*` writes and `migrate.*` only
   from extension pages: `sender.id === runtime.id` and `sender.url` starts with the
   extension's own origin, and `sender.tab` is either absent or the tab is an extension
-  page. Content scripts may only send `sync`, `stats` (slice 46), `oauth.code` (section 4)
-  and `pack.preview` (slice 47), the last two accepted only from the docs-site origin,
-  and the in-page messages slices 19 and 33 define. Slice [26](../26-background-sync-correctness/SPEC.md) owns
+  page. Content scripts may only send `sync`, `stats` (slice 46), `oauth.code` (section 4),
+  the last accepted only from the docs-site origin, and the in-page messages slices 19
+  and 33 define. Slice [26](../26-background-sync-correctness/SPEC.md) owns
   the generic sender check; this slice lists the privileged types.
 - On upgrade, the old `token` key is copied from `storage.local` into `secrets` and then
   removed from `storage.local` in the same migration step (section 8).
@@ -411,9 +411,9 @@ on the next alarm.
 
 ## Acceptance criteria
 
-- [ ] A fresh profile with no server and no key can add a word manually, import a starter
-      pack (slice 23) and see swaps on a page, with no network requests from the
-      extension at all (verified in the network log).
+- [ ] A fresh profile with no server and no key can add a word manually (typed as
+      "native = english" or through the manual form) and see it swapped on a page, with
+      no network requests from the extension at all (verified in the network log).
 - [ ] With an OpenRouter key and the mock provider, typing a word and pressing Enter
       clears the input and shows "looking up" within 100 ms, and the add button is never
       disabled.

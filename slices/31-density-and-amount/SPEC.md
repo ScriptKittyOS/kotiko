@@ -166,7 +166,7 @@ then cached. No DOM reads beyond tag names. Adds under 2 % to slice 15's pipelin
       swaps every match.
 - [ ] A word known as "and" is swapped at most 5 times per page on Medium.
 - [ ] With 30 known words on a typical article, no match is dropped by the caps (fixture with a
-      realistic 30-word starter pack, slice 23).
+      realistic 30-word vocabulary of common words).
 - [ ] When a cap binds, fresh words are chosen before older ones (unit test).
 - [ ] Reloading gives identical swaps; re-rendering a block gives identical swaps (refunds work).
 - [ ] The Everything note appears once.

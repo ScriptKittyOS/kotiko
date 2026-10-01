@@ -107,7 +107,7 @@ large files; GitHub Pages limits files to 100 MB and sites to about 1 GB):
 ### 4. Verification
 
 Runs in slice 11's job pipeline right after slice 09's validator, for every word from a
-model, pack or import, when a dictionary for its language is installed:
+model, bulk add or import, when a dictionary for its language is installed:
 
 | Result | Rule | Shown |
 |---|---|---|
@@ -191,10 +191,11 @@ link. Words filled from a dictionary carry `source: "dictionary:<source>"`, and 
    clear attribution.
 2. **Dictionary-filled words and share-alike.** A word filled from CC BY-SA glosses may
    carry that licence; does that matter for learners' exports? Recommendation: attribute
-   in exports as specified, and keep dictionary-filled words out of org packs (slice 47).
+   in exports as specified.
 
 ## Future work
 
 - Server-side verification for Telegram adds, loading the same files (`DICT_DIR`).
 - Example sentences from Tatoeba (CC BY 2.0 FR) in the popover.
-- Frequency data to suggest which words to learn next.
+- Frequency data to show how common a word is, never to pick words for the learner
+  ([DECISIONS](../DECISIONS.md)).
