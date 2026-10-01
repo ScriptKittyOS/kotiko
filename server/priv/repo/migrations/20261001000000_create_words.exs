@@ -3,7 +3,10 @@ defmodule Slovo.Repo.Migrations.CreateWords do
 
   def change do
     create table(:words) do
+      # BCP 47 code ("ru", "zh", "ar", "zh-Hant"); any language is allowed
       add :lang, :string, null: false
+      # English name of the language, shown on bot cards and in the extension
+      add :language, :string
       add :native, :string, null: false
       add :romanization, :string
       add :english, :string, null: false

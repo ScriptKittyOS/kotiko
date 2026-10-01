@@ -7,6 +7,11 @@ defmodule Slovo.Application do
     Application.get_env(:slovo, :api_token) ||
       raise "API_TOKEN is not set. Copy .env.example to .env and fill it in."
 
+    Application.get_env(:slovo, :llm_api_key) ||
+      Logger.warning(
+        "LLM_API_KEY is not set; adding words will fail unless LLM_URL needs no key."
+      )
+
     port = Application.fetch_env!(:slovo, :port)
     bind = Application.fetch_env!(:slovo, :bind)
     {:ok, ip} = :inet.parse_address(String.to_charlist(bind))

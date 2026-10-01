@@ -5,7 +5,8 @@ defmodule Slovo.Bot do
     "what's da"            -> card with [Add] [Skip]
     "add sobaka"           -> saved immediately, card with [Undo]
     "how do you say cat"   -> card with [Add] [Skip]
-    /list, /remove <word>, /help
+    "shukran"              -> any language works; the model works out which one
+    /list [language], /languages, /remove <word>, /help
   """
   use GenServer
   require Logger
@@ -14,13 +15,19 @@ defmodule Slovo.Bot do
   @help """
   Send me a word any way you like, typed or as a voice note:
 
-  • "what's da" or "what does spasibo mean"
-  • "how do you say dog"
+  • "what's da" or "what does shukran mean"
+  • "how do you say dog in japanese"
   • "add sobaka" (saves it straight away)
 
+  Any language works, and a new one starts the moment you add its first word.
+  If I pick the wrong language, say which: "da in serbian".
+
   Tap Add on a card and that word starts replacing its English on web pages.
+  Choose which languages show up in the extension's popup.
 
   /list  your newest words
+  /list arabic  newest words in one language
+  /languages  how many words you know in each
   /remove <word>  stop replacing a word
   """
 
@@ -96,8 +103,13 @@ defmodule Slovo.Bot do
   defp dispatch(%{"callback_query" => cq}), do: handle_callback(cq)
   defp dispatch(%{"message" => %{"text" => "/" <> _ = text} = msg}), do: handle_command(text, msg)
   defp dispatch(%{"message" => %{"text" => text} = msg}), do: handle_text(text, msg)
-  defp dispatch(%{"message" => %{"voice" => %{"file_id" => fid}} = msg}), do: handle_voice(fid, msg)
-  defp dispatch(%{"message" => %{"audio" => %{"file_id" => fid}} = msg}), do: handle_voice(fid, msg)
+
+  defp dispatch(%{"message" => %{"voice" => %{"file_id" => fid}} = msg}),
+    do: handle_voice(fid, msg)
+
+  defp dispatch(%{"message" => %{"audio" => %{"file_id" => fid}} = msg}),
+    do: handle_voice(fid, msg)
+
   defp dispatch(_), do: :ignore
 
   # ── commands ─────────────────────────────────────────────────────────
@@ -113,14 +125,32 @@ defmodule Slovo.Bot do
         Telegram.send_message(chat, @help)
 
       "/list" ->
-        case Words.recent(15) do
-          [] ->
+        langs = if arg == "", do: nil, else: Words.langs_matching(arg)
+
+        case {langs, Words.recent(15, langs)} do
+          {[], _} ->
+            Telegram.send_message(
+              chat,
+              "No words in \"#{arg}\" yet. /languages shows what you have."
+            )
+
+          {_, []} ->
             Telegram.send_message(chat, "No words yet. Send me one.")
 
-          words ->
-            lines = Enum.map(words, &"#{&1.native}  =  #{&1.english}")
+          {_, words} ->
+            lines = Enum.map(words, &"#{&1.native}  =  #{&1.english}  · #{language_name(&1)}")
             header = "#{Words.count_active()} words. Newest:\n\n"
             Telegram.send_message(chat, header <> Enum.join(lines, "\n"))
+        end
+
+      "/languages" ->
+        case Words.languages() do
+          [] ->
+            Telegram.send_message(chat, "No words yet. Send me one in any language.")
+
+          langs ->
+            lines = Enum.map(langs, &"#{&1.language || &1.lang}  #{&1.count}")
+            Telegram.send_message(chat, Enum.join(lines, "\n"))
         end
 
       "/remove" when arg == "" ->
@@ -173,7 +203,7 @@ defmodule Slovo.Bot do
     chat = msg["chat"]["id"]
     Telegram.typing(chat)
 
-    case LLM.interpret(text) do
+    case LLM.interpret(text, Words.recent_languages()) do
       {:ok, %{words: [], reply: reply}} ->
         Telegram.send_message(
           chat,
@@ -252,13 +282,14 @@ defmodule Slovo.Bot do
   # ── formatting ───────────────────────────────────────────────────────
 
   defp card(%Word{} = w) do
-    flag = if w.lang == "zh", do: "🇨🇳", else: "🇷🇺"
-    head = if w.romanization, do: "#{flag} #{w.native}  (#{w.romanization})", else: "#{flag} #{w.native}"
+    head = if w.romanization, do: "#{w.native}  (#{w.romanization})", else: w.native
 
-    [head, "= #{w.english}", w.note]
+    [language_name(w), head, "= #{w.english}", w.note]
     |> Enum.reject(&(&1 in [nil, ""]))
     |> Enum.join("\n")
   end
+
+  defp language_name(%Word{language: l, lang: code}), do: l || code
 
   defp btn(text, data), do: %{text: text, callback_data: data}
 end

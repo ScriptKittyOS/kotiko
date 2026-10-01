@@ -29,8 +29,13 @@ config :slovo,
   api_token: env.("API_TOKEN", nil),
   telegram_token: env.("TELEGRAM_BOT_TOKEN", nil),
   allowed_ids: allowed_ids,
-  ollama_url: env.("OLLAMA_URL", "http://localhost:11434"),
-  ollama_model: env.("OLLAMA_MODEL", nil),
+  llm_url: env.("LLM_URL", "https://openrouter.ai/api/v1") |> String.trim_trailing("/"),
+  llm_api_key: env.("LLM_API_KEY", nil),
+  # Comma-separated; later ones are fallbacks (OpenRouter only).
+  llm_models:
+    env.("LLM_MODEL", "google/gemma-4-31b-it:free,qwen/qwen3.8-27b:free")
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1),
   transcribe_url: env.("TRANSCRIBE_URL", nil),
   transcribe_model: env.("TRANSCRIBE_MODEL", "whisper-1"),
   transcribe_api_key: env.("TRANSCRIBE_API_KEY", nil)
