@@ -5,9 +5,9 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
-| **Depends on** | [11-local-first-mode](../11-local-first-mode/SPEC.md); uses [05-brand-identity](../05-brand-identity/SPEC.md) artwork, [12-export-import-and-delete](../12-export-import-and-delete/SPEC.md) deletion, [19-word-popover](../19-word-popover/SPEC.md) DOM changes |
+| **Depends on** | [11-local-first-mode](../11-local-first-mode/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (`_locales`, the Weblate `store-listing` component, the glossary); uses [05-brand-identity](../05-brand-identity/SPEC.md) artwork, [12-export-import-and-delete](../12-export-import-and-delete/SPEC.md) deletion, [19-word-popover](../19-word-popover/SPEC.md) DOM changes |
 | **Unblocks** | [30-release-pipeline](../30-release-pipeline/SPEC.md), [44-docs-site](../44-docs-site/SPEC.md) |
-| **Sources** | [DECISIONS: store publisher](../DECISIONS.md); [04 summary, S24, S25, S29, S30](../../docs/research/04-architecture-release.md); [03 summary, C4, C5, C6, E4, E6, E7, open questions 6 and 8](../../docs/research/03-browser-extension.md); [06 F36](../../docs/research/06-adversarial-qa.md) |
+| **Sources** | [DECISIONS: store publisher; English is not the base language](../DECISIONS.md); [04 summary, S24, S25, S29, S30](../../docs/research/04-architecture-release.md); [03 summary, C4, C5, C6, E4, E6, E7, open questions 6 and 8](../../docs/research/03-browser-extension.md); [06 F36](../../docs/research/06-adversarial-qa.md) |
 
 ## Problem
 
@@ -35,6 +35,10 @@ answer to "what does this do with my data?"
   `title` (`extension/content.js:91-97`) ([03 E4](../../docs/research/03-browser-extension.md)).
 - There are no listing texts, screenshots or promo tiles, and the ScriptKittyOS publisher
   accounts the maintainer decided on don't exist yet.
+- The descriptions drafted so far say Mira swaps "English words", which is wrong since
+  the base-language decision: Mira swaps words in whatever languages the learner reads
+  ([50](../50-ui-localization-and-base-language/SPEC.md)). A learner in Puerto Rico with a
+  Spanish browser would see an English-only listing promising English pages.
 
 ## Goals
 
@@ -46,6 +50,9 @@ answer to "what does this do with my data?"
 - Mira notices when it lacks site access and offers a one-click fix.
 - An automated check that no secret is reachable from a content script.
 - Listing copy and asset specs ready for slice 05's artwork and slice 30's upload.
+- The listing, screenshots and privacy policy exist in **English and Spanish** at launch,
+  and every listing and policy text is base-neutral: no sentence assumes the learner reads
+  English.
 - ScriptKittyOS publisher accounts on both stores, with `hello@scriptkittyos.com` as the
   public contact and at least two maintainers able to publish.
 
@@ -58,6 +65,8 @@ answer to "what does this do with my data?"
 - Automating uploads: slice [30](../30-release-pipeline/SPEC.md).
 - Drawing the artwork: slice [05](../05-brand-identity/SPEC.md).
 - Safari's App Store privacy label: slice [51](../51-safari-port/SPEC.md).
+- Translation tooling and locales beyond English and Spanish: [50](../50-ui-localization-and-base-language/SPEC.md);
+  community translations of the listing arrive through its `store-listing` component.
 
 ## User stories
 
@@ -66,6 +75,9 @@ answer to "what does this do with my data?"
   feature I can test.
 - As a Firefox user who revoked site access, I want Mira to tell me and fix it in one click.
 - As a self-hoster on Tailscale, I want my `http://100.x.y.z` server to keep working in Firefox.
+- As a Spanish speaker browsing the Chrome Web Store in Spanish, I want the listing, the
+  screenshots and the privacy policy in Spanish, and to see that Mira works on Spanish
+  pages.
 
 ## Specification
 
@@ -78,7 +90,7 @@ it (a checkbox in the PR template from slice 03).
 | Data | Stored where | Leaves the device? | To whom, when |
 |---|---|---|---|
 | Page text and URLs | Not stored; read in memory to swap words | Never | Nobody |
-| Your words (native, English, notes, source text) | Extension (IndexedDB, slice 11) | Only if you connect a server | Your own Mira server |
+| Your words (the word, its meaning in your language, notes, source text) | Extension (IndexedDB, slice 11) | Only if you connect a server | Your own Mira server |
 | Text you type to add a word, plus the names of your five most recent languages | Job queue until done | Yes, when you add a word | The model provider you chose (OpenRouter by default), or your server, which forwards it to its provider |
 | Text you select and send with "Learn this in…" (slice 33), plus the page's declared language | Job queue until done | Yes, when you use the menu | Same as above. Never the URL |
 | API key, server token | Extension (IndexedDB, not readable by page-side scripts) | Only to the service it belongs to | Your provider or your server |
@@ -96,8 +108,17 @@ about the user.
 
 Published at `<docs site>/privacy/` (slice 44) and bundled as
 `extension/privacy.html`, linked from the settings page and the welcome page. Dated, with
-a version, and a changelog at the bottom. Reading level: plain English, short sentences,
+a version, and a changelog at the bottom. Reading level: plain language, short sentences,
 no legal boilerplate beyond what the stores require.
+
+**Languages.** The policy ships in English and Spanish at launch: `docs/privacy/en.md` and
+`docs/privacy/es.md` on the docs site (slice 44's Starlight i18n), and
+`extension/privacy.html` renders the copy for the interface language, falling back to the
+source language for untranslated locales. The English text is the source; a change to it
+updates the Spanish in the same PR (the second-speaker review from slice 50 applies), and
+both carry the same version and date. Other translations come through Weblate and are
+marked "translation; the English version is the reference" until a maintainer reviews
+them.
 
 Outline:
 
@@ -113,7 +134,7 @@ Outline:
    (slice 11, open question 1).
 5. **What websites can see**: swapped words are visible in the page, so a site's own
    scripts or session-recording tools can see that you use Mira and which words appear.
-   Slice 19 removes the English originals and Mira's attributes from the page; the
+   Slice 19 removes the original words and Mira's attributes from the page; the
    visible words remain. "Pause on this site" (slice 38) stops it.
 6. **Your own server** (optional add-on): you are its operator; what it stores; Telegram.
 7. **Browser sync**: settings follow your browser account if sync is on.
@@ -130,10 +151,11 @@ Outline:
 
 ### 3. Chrome Web Store submission
 
-**Single purpose** (the form's text field):
+**Single purpose** (the form's text field; CWS takes one text, so it is in English and
+names no reading language):
 
-> Mira replaces English words on the web pages you read with the words you are learning
-> in other languages, so you pick up vocabulary while you browse.
+> Mira replaces words on the web pages you read, in your own language, with the words you
+> are learning in other languages, so you pick up vocabulary while you browse.
 
 **Permissions and justifications** (final list once slices 11, 15 and 33 land):
 
@@ -167,7 +189,9 @@ three are true.
 
 **Review expectations**: in-depth review for `<all_urls>`, typically several days. The
 reviewer notes field says: "No account or key needed to test: on the welcome page, type
-“hola = hello”, choose Español, press Make it my first word, then Try it on a page."
+a word and its meaning in the language the reviewer's browser uses (for example
+“hola = hello” in an English browser, or “dog = perro” in a Spanish one), press Make it my
+first word, then Try it on a page in that language."
 
 ### 4. Firefox (AMO) manifest and submission
 
@@ -189,7 +213,7 @@ reviewer notes field says: "No account or key needed to test: on the welcome pag
   `data_collection_permissions` (MDN browser-compat-data); 140 is an ESR, so ESR users
   are covered.
 - **Why `none` is required and `websiteContent` optional.** Out of the box, with words
-  typed with their meaning (“hola = hello”), Mira transmits nothing. Text typed into the
+  typed with their meaning (“hola = hello”, “dog = perro”), Mira transmits nothing. Text typed into the
   add box is the user's own input sent to a provider they configured; it matches none of
   Mozilla's categories, which describe data about the user's browsing. Text selected on
   a page and sent with "Learn this in…" is website content. Mira requests the optional
@@ -255,8 +279,8 @@ A CI end-to-end test (slice 02's Playwright harness) and a release checklist ite
 2. From a content script test hook, read `storage.local.get(null)`,
    `storage.sync.get(null)`, and attempt `storage.session.get(null)`; assert no value
    contains either secret.
-3. From a page-world script, read `document.documentElement.outerHTML` after swaps;
-   assert no English original, no word id, and no Mira attribute except what slice 19
+3. From a page-world script, read `document.documentElement.outerHTML` after swaps, on an
+   English page and on a Spanish page; assert no original word, no word id, and no Mira attribute except what slice 19
    allows.
 4. Send every privileged message type from a content script; assert each is refused.
 5. Assert the manifest has no `externally_connectable`, and `web_accessible_resources`
@@ -265,15 +289,34 @@ A CI end-to-end test (slice 02's Playwright harness) and a release checklist ite
 
 ### 8. Listing copy and assets
 
+**Where the copy lives.** The name and short description come from the manifest's
+`__MSG_extName__` and `__MSG_extDescription__` (50's `_locales`), so each store shows them
+in the visitor's language wherever a locale exists. The long description, screenshot
+captions and promo tile text live in `store/listing/<locale>.json` (the Weblate
+`store-listing` component from 50), which slice 30's upload reads per locale. CWS takes a
+localized description per locale from the `_locales` folder plus per-locale text in the
+dashboard; AMO takes per-locale name, summary and description through its API. Locales
+that are not 100% translated are not uploaded; the store falls back to the default
+locale for them.
+
 **Name**: "Mira" plus a descriptor, final wording after slice 04's name check, for
-example "Mira: learn languages while you browse" (CWS allows 75 characters).
+example "Mira: learn languages while you browse" / "Mira: aprende idiomas mientras
+navegas" (CWS allows 75 characters).
 
 **Short description** (CWS summary, 132 characters max; AMO summary, 250 max):
 
-> Swap English words on any web page for the words you're learning, in any language.
+> en: Swap words on the pages you read for the words you're learning, in any language.
 > Free, open source, and private by design.
+>
+> es: Cambia palabras de las páginas que lees por las que estás aprendiendo, en cualquier
+> idioma. Gratis, de código abierto y privado.
 
-**Long description outline**: what it does in one paragraph; three ways to start
+Both versions are checked against the character limits in CI (a small script reading
+`_locales/*/messages.json`).
+
+**Long description outline** (same in both languages; the glossary from 50 keeps terms
+consistent): what it does in one paragraph, saying it works on pages in the learner's own
+languages, detected from the browser; three ways to start
 (type a word with its meaning, no key needed; a free OpenRouter key; your own server); "What leaves your computer" in
 three lines; keyboard and accessibility notes; why it needs access to all sites; links to
 docs, privacy, source and issues.
@@ -287,10 +330,22 @@ docs, privacy, source and issues.
 | Small promo tile | 440x280, required | n/a |
 | Marquee | 1400x560, optional | n/a |
 
-Screenshot set: (1) a Wikipedia article with Spanish and Japanese swaps and the popover
-open; (2) the popup adding a word; (3) the dashboard; (4) the welcome page; (5) dark mode.
-Use openly licensed pages (Wikipedia, with attribution in the listing) and no third-party
-logos. Captions in each image, short, in the design system's type.
+Screenshot set, made twice, once per launch locale, with the interface and the page in
+that language:
+
+| # | English set (interface `en`, base `en`) | Spanish set (interface `es`, base `es`) |
+|---|---|---|
+| 1 | English Wikipedia article with Spanish and Japanese swaps, popover open | Spanish Wikipedia article with English and Japanese swaps ("dog" for "perro"), popover open |
+| 2 | Popup adding a word | Popup adding "¿cómo se dice gato en japonés?" |
+| 3 | Dashboard | Dashboard |
+| 4 | Welcome page | Welcome page with "español" detected |
+| 5 | Dark mode | Dark mode |
+
+Each locale's listing uploads its own set. Use openly licensed pages (Wikipedia, with
+attribution in the listing) and no third-party logos. Captions in each image, short, in
+the design system's type, from `store/listing/<locale>.json`. The screenshots are produced
+by slice 44's Playwright screenshot script with the browser launched in each locale, so
+they are regenerated when the UI changes.
 
 ### 9. Publisher accounts and contact
 
@@ -357,6 +412,14 @@ the declaration should be checked against that before submitting.
       declaration is filled in.
 - [ ] The listing assets exist at the listed sizes in `brand/store/` and pass slice 27's
       contrast check for caption text.
+- [ ] The listing (name, short and long description, screenshots with captions) and the
+      privacy policy exist in English and Spanish; a native Spanish speaker has reviewed the
+      Spanish texts (50's release sign-off).
+- [ ] No listing, policy or single-purpose text says Mira swaps English words or assumes
+      the reader reads English (checked by grep for "English" in `store/listing/` and
+      `docs/privacy/`, with an allow-list for the language's own name in lists).
+- [ ] Viewing the CWS and AMO listings with the browser set to Spanish shows the Spanish
+      name, summary and screenshots.
 
 ## Test plan
 
@@ -364,10 +427,12 @@ the declaration should be checked against that before submitting.
   (loopback, `localhost`, `::1`, Tailscale `100.64.0.0/10`, LAN, public).
 - **End-to-end** (slice 02): section 7's audit; the access card flow with permissions
   removed via the browser's test APIs; the CSP case in Firefox.
-- **CI**: `web-ext lint`; a JSON check that the manifest's permission list matches the
+- **CI**: `web-ext lint`; character limits for each locale's name and summary; every key
+  in `store/listing/en.json` exists in `es.json`; a JSON check that the manifest's permission list matches the
   justification table in this spec (a small script reading both, so a new permission
   can't ship without a justification).
-- **Manual, before first submission**: read the policy against a fresh install's network
+- **Manual, before first submission**: a native Spanish speaker reads the Spanish listing,
+  screenshots and policy; read the policy against a fresh install's network
   log (only the provider, after a key is set; nothing on an install that only has words
   typed as “word = meaning”).
 
@@ -395,7 +460,8 @@ the declaration should be checked against that before submitting.
 
 ## Future work
 
-- Localized store listings and policy (slice 50).
+- Listings and policy in more languages as community translations reach 100% in Weblate
+  (slice 50).
 - Safari App Store privacy label (slice 51).
 - A short "privacy at a glance" panel inside the welcome page, generated from
   `inventory.md`.

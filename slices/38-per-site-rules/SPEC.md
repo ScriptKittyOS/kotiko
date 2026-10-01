@@ -5,7 +5,7 @@
 | **Status** | Proposed |
 | **Priority** | P1 (soon after release) |
 | **Size** | M (about a week) |
-| **Depends on** | [18-language-precedence-and-mixing](../18-language-precedence-and-mixing/SPEC.md), [31-density-and-amount](../31-density-and-amount/SPEC.md); uses [16-what-not-to-swap](../16-what-not-to-swap/SPEC.md)'s sensitive-site list |
+| **Depends on** | [18-language-precedence-and-mixing](../18-language-precedence-and-mixing/SPEC.md), [31-density-and-amount](../31-density-and-amount/SPEC.md); uses [16-what-not-to-swap](../16-what-not-to-swap/SPEC.md)'s sensitive-site list and page-language gate, and [50](../50-ui-localization-and-base-language/SPEC.md)'s base languages |
 | **Unblocks** | None; its settings sync through [39-multi-device-sync](../39-multi-device-sync/SPEC.md) |
 | **Sources** | [01 S13, S14, section 3 "Density"](../../docs/research/01-language-mixing.md); [03 B3, E4, open question 2](../../docs/research/03-browser-extension.md); [05 S33, S35](../../docs/research/05-learner-ux.md) |
 
@@ -21,11 +21,16 @@ hostnames (`extension/popup.js:208-213`) and checked against `location.hostname`
   31 adds an Amount control.
 - Pausing `www.example.com` doesn't pause `news.example.com`.
 - Banking, health and webmail sites are swapped like any other ([03 E4, B3](../../docs/research/03-browser-extension.md)).
+- Some sites declare the wrong language: a Puerto Rican news site whose template says
+  `<html lang="en">` over Spanish articles. Slice 16's detection catches most of these,
+  but a learner has no way to correct it when it doesn't.
 - A paused site leaves no trace, so learners forget they paused it ([05 S35](../../docs/research/05-learner-ux.md)).
 
 ## Goals
 
-- Per site: swap on or off, which languages show (or a Focus language), and the Amount.
+- Per site: swap on or off, which languages show (or a Focus language), the Amount, and
+  which of the learner's base languages the site is written in when its own declaration is
+  wrong.
 - Any field not set for a site follows the global setting, so changing global settings
   still reaches every site without an override.
 - Rules cover a site and its subdomains by default.
@@ -49,6 +54,10 @@ hostnames (`extension/popup.js:208-213`) and checked against `location.hostname`
 - As a learner, I want fewer swaps on documentation sites I read for work.
 - As a learner, I want my bank never touched unless I say so.
 - As a learner who paused a site last month, I want to see that it's paused when I'm on it.
+- As a Spanish reader whose favourite news site wrongly says it is English, I want to tell
+  Mira "this site is in Spanish" so my words appear there.
+- As a reader of Spanish and English, I want Mira to treat a bilingual site as Spanish
+  only, because that's where I want the practice.
 
 ## Specification
 
@@ -63,7 +72,8 @@ ships):
     "example.com":  { "swap": "off", "updatedAt": 1767225600000 },
     "reddit.com":   { "langs": { "focus": "zh" }, "updatedAt": 1767225600000 },
     "docs.rs":      { "amount": "light", "updatedAt": 1767225600000 },
-    "mybank.com":   { "swap": "on", "updatedAt": 1767225600000 }
+    "mybank.com":   { "swap": "on", "updatedAt": 1767225600000 },
+    "elnuevodia.com": { "base": "es", "updatedAt": 1767225600000 }
   }
 }
 ```
@@ -73,6 +83,7 @@ ships):
 | `swap` | `"on"`, `"off"` | Follow global, including sensitive-site defaults |
 | `langs` | `{focus: "<tag>"}` or `{show: ["<tag>", …]}` | Follow global language choice and Focus (slice 18) |
 | `amount` | Slice 31's values: `"light"`, `"medium"`, `"heavy"`, `"everything"` | Follow global Amount |
+| `base` | One of the learner's base tags ([50](../50-ui-localization-and-base-language/SPEC.md)) | Follow the page's declared or detected language (slice 16) |
 | `exact` | `true` to match only this hostname | Matches the hostname and all its subdomains |
 | `updatedAt` | ms timestamp | Needed for slice 39's merge |
 
@@ -84,6 +95,11 @@ ships):
 - `langs.show` naming a language that no longer has words is ignored at evaluation and
   pruned when the Sites list is opened, the same rule as global hidden languages today
   (`popup.js:96-99`).
+- `base` overrides slice 16's page-language gate for the whole site: text on it is treated
+  as that base language, except elements below `<html>` that carry their own `lang` in another language
+  (those keep 16's rules, so a German quote on a Spanish site stays German). A `base` that
+  is no longer one of the learner's base languages is ignored and shown greyed in the
+  Sites list with "Not one of your languages now".
 
 ### 2. Effective settings
 
@@ -91,7 +107,7 @@ A pure module, `siteRules.js`, loaded in the content script and the extension pa
 
 ```
 effective(global, siteRules, sensitiveList, hostname, tabOriginal)
-  -> { swap: bool, reason, langs, amount, ruleKey }
+  -> { swap: bool, reason, langs, amount, base, ruleKey }
 ```
 
 Order, first match wins for `swap`:
@@ -102,7 +118,7 @@ Order, first match wins for `swap`:
 4. The hostname is on slice 16's sensitive list → `false, "sensitive"` with its category.
 5. Otherwise → `true, "default"`.
 
-`langs` and `amount` are the matching rule's values, or `null` when the rule doesn't set
+`langs`, `amount` and `base` are the matching rule's values, or `null` when the rule doesn't set
 them (or no rule matches). Slices 18 and 31 then use their global settings, so this
 module never copies global values and can't go stale when they change.
 
@@ -127,6 +143,7 @@ The pause control stays one click; customising is one disclosure away.
 |               Focus on Spanish           |
 |               Only: [x] Spanish [ ] Japanese |
 |   Amount      [Same as everywhere  v]    |
+|   Written in  [As the site says    v]    |
 |   Applies to  (o) example.com and subdomains |
 |               ( ) only news.example.com  |
 |   Reset this site                        |
@@ -139,6 +156,10 @@ The pause control stays one click; customising is one disclosure away.
   `co.uk` is the user's explicit choice from the radio and is allowed.
 - On a sensitive site the section reads "Paused here by default (banking). Swap here
   anyway" and the toggle creates `swap: "on"`.
+- "Written in" offers "As the site says" plus the learner's base languages, named in the
+  interface language ([50](../50-ui-localization-and-base-language/SPEC.md)). When the
+  page's language isn't one of the bases, slice 50's page-state line in the popup links
+  here: "Is this page actually in Spanish? Tell Mira."
 - When any rule applies, the section header shows a small "Custom" tag, and the toolbar
   badge shows slice 20's paused state for `swap: false`.
 - On pages Mira can't run on (browser pages, the stores, PDFs) the section is replaced by
@@ -154,6 +175,7 @@ Sites                                   [Search sites...]
   reddit.com           Focus: Mandarin               Edit  Remove
   docs.rs              Amount: Light                 Edit  Remove
   mybank.com           Swapping (you allowed it)     Edit  Remove
+  elnuevodia.com       Written in Spanish            Edit  Remove
   Paused by default: sites on the sensitive list (slice 16)  [Show]
 ```
 
@@ -186,12 +208,18 @@ takes under 1 ms (it checks at most one key per hostname label).
 - [ ] After update, every former `pausedHosts` entry is still paused and `pausedHosts` is gone.
 - [ ] Frames on a paused site are not swapped.
 - [ ] The 501st rule is refused with a clear message.
+- [ ] With base `es` and a rule `base: "es"` on a fixture host whose page says
+      `<html lang="en">` over Spanish text, Spanish words are swapped; without the rule,
+      slice 16's gate decides. A `lang="de"` quote on that page stays untouched.
+- [ ] With bases `es` and `en`, a rule `base: "es"` on a page whose English paragraphs
+      carry no `lang` leaves them alone (they are treated as Spanish text and no Spanish
+      form matches English words).
 
 ## Test plan
 
 - **Unit** (slice 02's Node harness): table-driven tests for `effective()` covering every
   precedence step, subdomain matching, `exact`, IDN, IPs, pruning of missing languages,
-  and the migration.
+  `base` for a current and a removed base language, and the migration.
 - **End-to-end** (Playwright): two fixture hosts mapped to the local test server (for
   example `a.test` and `sub.a.test`); pause from the popup; per-site focus; sensitive
   default with a fixture list; a frame inside a paused page.
@@ -203,7 +231,8 @@ takes under 1 ms (it checks at most one key per hostname label).
 - Section 5's migration runs on update. No server change.
 - The sensitive-site defaults apply to existing users too, so the changelog says so:
   "Mira now leaves sensitive sites such as banking and health alone unless you turn it on for them.
-  New: choose languages and amount per site."
+  New: choose languages and amount per site, and tell Mira which language a site is
+  really written in."
 
 ## Open questions
 

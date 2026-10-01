@@ -5,9 +5,9 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | L (several weeks) |
-| **Depends on** | [06-design-system](../06-design-system/SPEC.md), [07-word-model-v2](../07-word-model-v2/SPEC.md); uses [11](../11-local-first-mode/SPEC.md), [24](../24-add-flow-safety/SPEC.md), [25](../25-plain-language-errors/SPEC.md) |
+| **Depends on** | [06-design-system](../06-design-system/SPEC.md), [07-word-model-v2](../07-word-model-v2/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base-language settings, `t()`); uses [11](../11-local-first-mode/SPEC.md), [24](../24-add-flow-safety/SPEC.md), [25](../25-plain-language-errors/SPEC.md) |
 | **Unblocks** | [13-bulk-add](../13-bulk-add/SPEC.md), settings for [11](../11-local-first-mode/SPEC.md), [12](../12-export-import-and-delete/SPEC.md), [31](../31-density-and-amount/SPEC.md), [32](../32-page-coverage-and-celebrations/SPEC.md), [33](../33-context-menu-and-shortcuts/SPEC.md), [35](../35-reveal-mode-and-review/SPEC.md), [37](../37-language-colors-and-reading-aids/SPEC.md) |
-| **Sources** | Maintainer ("a full dashboard with a live view of all words"; "not like the other dashboards"; fewest steps); [DECISIONS](../DECISIONS.md); [05 S20, S21, S12, §3.3, §3.5](../../docs/research/05-learner-ux.md); [02 G4](../../docs/research/02-linguistics.md); [01 S23](../../docs/research/01-language-mixing.md) |
+| **Sources** | [DECISIONS 2026-10-01, base language](../DECISIONS.md); Maintainer ("a full dashboard with a live view of all words"; "not like the other dashboards"; fewest steps); [DECISIONS](../DECISIONS.md); [05 S20, S21, S12, §3.3, §3.5](../../docs/research/05-learner-ux.md); [02 G4](../../docs/research/02-linguistics.md); [01 S23](../../docs/research/01-language-mixing.md) |
 
 ## Problem
 
@@ -20,6 +20,11 @@ Fixing a wrong romanization means deleting and re-adding, which may repeat the m
 maintainer asked for a full dashboard with a live view of every word, and for it to feel
 original rather than like another admin template.
 
+Nothing lets a learner say which languages they read, either: the extension assumes
+English pages and English meanings (`server/lib/slovo/word.ex:13-14`, `extension/popup.js:165`),
+and there is no place to change Mira's interface language. The base-language decision
+([50](../50-ui-localization-and-base-language/SPEC.md)) needs a home for both settings.
+
 ## Goals
 
 - A full-page extension view of every word, updating live as words arrive from the popup,
@@ -28,7 +33,12 @@ original rather than like another admin template.
   instead of confirmation dialogs.
 - Bulk actions on many words: pause, resume, move language, export, delete.
 - A per-language overview that doubles as the language filter.
-- Settings for every slice in one place, so the popup stays small.
+- Settings for every slice in one place, so the popup stays small, including "Languages you
+  read in" (base languages) and "Mira's language" (interface override), per
+  [50 §2](../50-ui-localization-and-base-language/SPEC.md).
+- One row per word as the learner thinks of it: a bilingual learner's 犬 (records for `es`
+  and `en`, [07](../07-word-model-v2/SPEC.md)) is one row showing both meanings.
+- Every string through `MiraI18n.t()`, complete in English and Spanish at launch.
 - Smooth with 20,000 words; nothing waits on the network.
 
 ## Non-goals
@@ -52,6 +62,12 @@ original rather than like another admin template.
 - As a learner who added a word on my phone via Telegram, I want to see it appear without
   reloading.
 - As a learner, I want to see at a glance how many words I have in each language.
+- As a reader of Spanish and English, I want to see "perro · dog" beside 犬, and fix either
+  meaning without touching the other.
+- As a learner who just started reading French news, I want to add French as a language I
+  read and get French meanings for the words I already have, after reviewing them.
+- As a learner whose browser is in Spanish but who wants Mira in English, I want to switch
+  Mira's language myself.
 
 ## Specification
 
@@ -92,47 +108,69 @@ Wide (≥ 960 px):
 │ ▌ شكرا       shukran     thanks                  Arabic   Today      │ │  شكرا      │ │
 │   gracias                thanks, thank you       Spanish  2 days     │ │  shukran   │ │
 │   собака     sobaka      dog                     Russian  Sep 20     │ │  Arabic    │ │
-│   犬         inu         dog                     Japanese Sep 20  ‖  │ │  ...       │ │
+│   犬         inu         perro · dog             Japanese Sep 20  ‖  │ │  ...       │ │
 │   …                                                                  │ └────────────┘ │
 └───────────────────────────────────────────────────────────────────────────────────────┘
                                                                          inspector, 380 px
 ```
 
 Narrow (< 960 px): the inspector becomes a full-height sheet over the list; below 600 px rows
-become two lines (native and romanization; English · language · date) and the shelf scrolls
+become two lines (native and romanization; meaning · language · date) and the shelf scrolls
 horizontally.
+
+The same list for a Spanish reader, interface in Spanish:
+
+```
+│  [ / Buscar 20 palabras                     ]  Activas ▾   Cualquier fecha ▾   Recientes ▾ │
+│ ▌ 犬         inu         perro                   japonés  Hoy        │
+│   dog                    perro, perros           inglés   hace 2 días │
+│   ありがとう  arigatō     gracias                 japonés  20 sept     │
+```
 
 What makes it Mira rather than an admin template ([06 §1](../06-design-system/SPEC.md)):
 
 - **The language shelf** replaces a sidebar and KPI cards. Each language is a card titled by
-  its endonym in the script's display face, with the English name, word count, words added in
+  its endonym in the script's display face, with its name in the interface language, word count, words added in
   the last 7 days ("+5 wk") and its state (hidden, focus ◎, color dot from
   [37](../37-language-colors-and-reading-aids/SPEC.md)). Selecting a card filters the list;
   "All" clears it. The shelf is the per-language overview.
-- **Rows lead with the native word** in `--t-word` and the right face for its script; English
-  is secondary. No avatars, no flags, no zebra stripes.
+- **Rows lead with the native word** in `--t-word` and the right face for its script; the
+  meaning in the learner's base language(s) is secondary. No avatars, no flags, no zebra stripes.
 - **The inspector is a specimen.** The selected word is set at `--t-specimen` with a line
-  showing how it appears on pages: "Mira shows **شكرا** where pages say “thanks”." with the
-  dotted underline.
+  showing how it appears on pages: "Mira shows **شكرا** where pages say “thanks”." / "Mira
+  muestra **犬** donde las páginas dicen “perro”." with the dotted underline, one line per
+  base the word has a meaning in.
 - **The live arrival** of a word uses the swap motion and a 2 s `--orange-soft` wash.
 
 ### 3. The list
 
-- **Columns (wide):** Native (with romanization in `--ink-3` beside it), English (first form,
-  then "+2" with the rest in the tooltip and inspector), Language, Added (relative, then date
+- **Rows are word groups.** A row is every live record sharing `lang` and `native_key`
+  ([07](../07-word-model-v2/SPEC.md); one record per base language). Most learners have one
+  base, so a row is one record. Row actions (pause, delete, move language, export) apply
+  to the whole group by default; the inspector can act on one base's record (§5).
+- **Columns (wide):** Native (with romanization in `--ink-3` beside it), Meaning (the gloss
+  in each of the learner's bases, primary base first, joined with " · ", each in
+  `<bdi lang>`; a base with no gloss yet is omitted; when there's one base, the first
+  form then "+2" with the rest in the tooltip and inspector), Language, Added (relative, then date
   after 7 days), Status (only shown when not active: "Paused" chip with pause icon; "Well
   known" when [35](../35-reveal-mode-and-review/SPEC.md) ships; "Waiting to save" when an edit
   hasn't reached the server).
 - **Pending adds** from `addJobs` ([24](../24-add-flow-safety/SPEC.md)) sit at the top as rows
   with their job line and actions.
 - **Sort:** Newest (default), Oldest, Native A-Z (collated with `Intl.Collator(lang)`),
-  English A-Z, Language.
+  Meaning A-Z (the primary base's gloss, collated with `Intl.Collator(primaryBase)`),
+  Language (by name in the interface language, `Intl.Collator(uiLocale)`).
 - **Filters:** language (the shelf), status (Active, Paused, Well known, Recently deleted, All;
   default Active + Paused). "Recently deleted" lists tombstoned words for as long as
   [07](../07-word-model-v2/SPEC.md) keeps them (at least 30 days) with "Restore", so an Undo
   missed in a toast is never final. Other filters: added (Any time, Today, This week, This month), source (from 07's
   `origin`: Typed = `add` and `manual`, Imported = `bulk` and `import`, Telegram =
-  `telegram`). Filters are chips with a menu; active ones show "×" to clear.
+  `telegram`), and, for learners with more than one base or with words from a removed base,
+  **Meaning in** (each base language, plus "Missing a meaning in {base}", which finds the
+  words that won't swap on that base's pages). Words whose only base was removed from
+  settings show under "For pages in {base} (not one of your languages now)" with "Read
+  {base} again" ([50 §2](../50-ui-localization-and-base-language/SPEC.md)). Filters are
+  chips with a menu; active ones show "×" to clear.
 - **Virtualized:** only visible rows plus 10 above and below are in the DOM; row height fixed
   at 52 px (wide) or 64 px (narrow); `aria-rowcount` and `aria-rowindex` keep screen readers
   oriented.
@@ -140,10 +178,12 @@ What makes it Mira rather than an admin template ([06 §1](../06-design-system/S
 ### 4. Search
 
 - One field, focused with `/` (or by clicking), placeholder "Search {n} words".
-- Matches, as you type, against native, romanization, every English form and the note.
-  Matching folds case (`toLocaleLowerCase` per the word's language), strips diacritics and
+- Matches, as you type, against native, romanization, every gloss and form in every base,
+  and the note. Matching folds case (`toLocaleLowerCase` with the word's language for
+  native and romanization, and with the record's `base_lang` for glosses and forms), strips diacritics and
   tone marks (NFKD, then remove combining marks), so "xiexie" finds "xièxie" and "cafe"
-  finds "café"; it also matches Japanese kana against romanization when present.
+  finds "café" (and "nino" finds "niño"); it also matches Japanese kana against romanization
+  when present.
 - Results keep the current sort, with exact native matches first; matched text is shown in
   `--purple-text` weight 600 (not color alone).
 - No results: "No words match “{q}”." with **"Add “{q}” as a new word"** (one click creates an
@@ -162,10 +202,15 @@ What makes it Mira rather than an admin template ([06 §1](../06-design-system/S
 │  Mira shows شكرا where pages say     │
 │  “thanks”.                           │
 │ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄  │
-│  English                             │
-│  [thanks ×] [thank you ×] [+ Add]    │  forms chip editor
+│  On pages in English                 │  one block per base record (heading: base name)
+│  Meaning  [ thanks ]                 │  gloss
+│  [thanks ×] [thank you ×] [+ Add]    │  forms chip editor (forms in this base)
 │  Note                                │
-│  [ Formal; “shukran jazeelan” = …  ] │
+│  [ Formal; “shukran jazeelan” = …  ] │  note (in this base)
+│  On pages in Spanish                 │  second base, if the learner has one
+│  Meaning  [ gracias ]                │
+│  [gracias ×] [+ Add]                 │
+│  + Add a meaning in French           │  for a base with no record yet
 │  Swap on pages              [◉  ]    │  active / paused
 │ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄  │
 │  Added Sep 30 from “shukran”         │  provenance (07 origin, source_text)
@@ -181,15 +226,29 @@ What makes it Mira rather than an admin template ([06 §1](../06-design-system/S
   server mode uses [07](../07-word-model-v2/SPEC.md)'s `PATCH` with `if_updated_at`).
 - Each change also shows a toast "Changed {field} of {native}. Undo"; Ctrl/Cmd+Z undoes the
   last change made on this page.
-- **Forms:** each form is a removable chip; "+ Add" accepts one or several (comma separated).
-  Removing the last form is refused inline: "A word needs at least one English meaning."
-  Forms already owned by another word in the same language show a note: "“can” is also lata
-  (Spanish)." ([01 S9](../../docs/research/01-language-mixing.md)).
+- **Per-base blocks.** Each record in the group gets a block headed "On pages in {base}"
+  ("En páginas en {base}") with its gloss, forms and note, edited independently: fixing
+  "dog" never changes "perro". Native, romanization, language and "Swap on pages" are the
+  group's and save to every record in it ([50 §3](../50-ui-localization-and-base-language/SPEC.md)).
+  Each block has "Remove this meaning" (tombstones that record only; refused for the last
+  record, which is "Delete word"). "+ Add a meaning in {base}" appears for each base with
+  no record: with a lookup available it runs [24](../24-add-flow-safety/SPEC.md)'s preview
+  for that base and shows the candidate to accept; without one it opens an empty block
+  to type the meaning.
+- **Forms:** each form is a removable chip; "+ Add" accepts one or several (separated by
+  commas, or `、` and `，` for Japanese and Chinese bases). Removing the last form is refused
+  inline: "A word needs at least one meaning in {base}." / "Una palabra necesita al menos un
+  significado en {base}." Forms already owned by another word in the same language and base
+  show a note: "“can” is also lata (Spanish)." / "“banco” también es 銀行 (japonés)."
+  ([01 S9](../../docs/research/01-language-mixing.md)).
 - **Native:** changing it is allowed; if another word in that language already has the new
   native, the inspector offers "Merge with the existing {native}" (07 merge) instead of
   failing.
-- **Move language:** a picker of the learner's languages plus "Other language…"; merges the
-  same way if needed.
+- **Move language:** a picker of the learner's languages plus "Other language…"; moves every
+  record in the group and merges the same way if needed. Moving a word to a language that
+  is the base of one of its records drops that record (a word's language never equals its
+  own base, [50 §1](../50-ui-localization-and-base-language/SPEC.md)), with an undoable toast
+  saying so.
 - **Validation** is shared with [09](../09-shared-word-spec-and-prompt/SPEC.md); errors appear
   under the field with an icon ([25](../25-plain-language-errors/SPEC.md)).
 - **Conflicts:** if the word changes elsewhere while a field is being edited, the field keeps
@@ -216,8 +275,9 @@ What makes it Mira rather than an admin template ([06 §1](../06-design-system/S
 - Delete of any size is undoable for 10 s; afterwards words stay as tombstones per
   [07](../07-word-model-v2/SPEC.md) until compaction.
 - Deleting **all words of a language** from its shelf card menu is the one confirmed action:
-  "Delete all 812 Spanish words? You can undo this for 10 seconds." because one click affects
-  hundreds of words.
+  "Delete all 812 Spanish words? You can undo this for 10 seconds." / "¿Eliminar las 812
+  palabras en japonés? Puedes deshacerlo durante 10 segundos." because one click affects
+  hundreds of words. Counts are word groups, with `Intl.NumberFormat` and plural keys.
 
 ### 7. Language shelf menu
 
@@ -244,7 +304,9 @@ Sections and their owners:
 
 | Section | Contents | Owner |
 |---|---|---|
-| Reading | Amount; skip buttons and menus; language colors; romanization above words; vowel marks; copy as English | [31](../31-density-and-amount/SPEC.md), [16](../16-what-not-to-swap/SPEC.md), [37](../37-language-colors-and-reading-aids/SPEC.md), [43](../43-copy-print-translate-coexistence/SPEC.md) |
+| Languages you read in | Base languages: chips in order (primary first), drag or ↑/↓ to reorder, "Add a language" from a searchable list of names in the interface language, remove (×), each with its support level (Full, Good, Basic) and "Add meanings in {base} for your {n} words" when words lack one; the detected list as a hint ("From your browser: español, English") | [50 §2](../50-ui-localization-and-base-language/SPEC.md), this slice |
+| Mira's language | Interface language: "Same as my browser ({name})" (default) or any shipped locale, by its endonym; "Help translate Mira" link to Weblate | [50 §8](../50-ui-localization-and-base-language/SPEC.md) |
+| Reading | Amount; skip buttons and menus; language colors; romanization above words; vowel marks; copy the original text (`copyOriginal`) | [31](../31-density-and-amount/SPEC.md), [16](../16-what-not-to-swap/SPEC.md), [37](../37-language-colors-and-reading-aids/SPEC.md), [43](../43-copy-print-translate-coexistence/SPEC.md) |
 | Learning | Celebrations; reveal mode; weekly recap | [32](../32-page-coverage-and-celebrations/SPEC.md), [35](../35-reveal-mode-and-review/SPEC.md), [46](../46-local-stats-and-recap/SPEC.md) |
 | Word lookup and connection | Mode, provider, key, server address and access key, "Test" | [11](../11-local-first-mode/SPEC.md) |
 | Shortcuts | Current keys; link to the browser's shortcut page | [33](../33-context-menu-and-shortcuts/SPEC.md) |
@@ -254,6 +316,39 @@ Sections and their owners:
 
 Each setting saves on change with no Save button; settings that the owner slice hasn't shipped
 are absent, not disabled.
+
+**Languages you read in**, wide layout:
+
+```
+  Languages you read in
+  Mira swaps words on pages in these languages.
+  ┌──────────────────────────────────────────────────────────────┐
+  │ ⋮⋮ 1  español        Full    · primary                    ×  │
+  │ ⋮⋮ 2  English        Full                                 ×  │
+  │ ⋮⋮ 3  français       Good    Add meanings in français for  │
+  │                               your 214 words  [ Add ]     ×  │
+  └──────────────────────────────────────────────────────────────┘
+  [ + Add a language ]          From your browser: español, English
+```
+
+- **Add a language** ([50 §2](../50-ui-localization-and-base-language/SPEC.md)): at most 4
+  bases; the fifth is refused with "Mira can follow up to 4 languages you read. Remove
+  one first." Adding one writes `s:ui.baseLangs` at once; pages in that language start
+  matching as soon as words have meanings in it.
+- **Add meanings in {base}** runs [13](../13-bulk-add/SPEC.md)'s batched lookup for every
+  group without a record in that base, under the quota ([10](../10-llm-client-resilience/SPEC.md)),
+  then shows 13's review table; nothing is saved until the learner accepts. Without a model,
+  the button reads "Type meanings in {base}" and filters the list to "Missing a meaning in
+  {base}", where each inspector shows an empty block for that base.
+- **Remove** keeps the words (they stop swapping) and shows an undoable toast: "Mira won't
+  swap words on pages in français. Your 214 meanings are kept. Undo".
+- **Support level** shows the label and a one-line explanation on hover and focus; Basic
+  bases link to `spec/lang/README.md` ("help improve them").
+- **Primary base** is the first chip; it decides the language of suggestions on the
+  welcome tab and the default gloss shown in single-meaning places.
+
+**Mira's language** changes take effect without a restart (50's `t()` override); the
+dashboard re-renders in place and keeps scroll position.
 
 ### 10. Live updates
 
@@ -277,7 +372,8 @@ are absent, not disabled.
 | State | What shows |
 |---|---|
 | Loading | Header and shelf frame at once; if words haven't loaded in 150 ms, six skeleton rows (`--sunken` bars, no shimmer under reduced motion) |
-| No words | Illustration, "No words yet. Add the first one you'd love to learn, in any language, or a list you already have.", [Add words] (primary), "Import a list or file" |
+| No words | Illustration, "No words yet. Add the first one you'd love to learn, in any language, or a list you already have." / "Aún no hay palabras. Agrega la primera que te encantaría aprender, en cualquier idioma, o una lista que ya tengas.", [Add words] (primary), "Import a list or file" |
+| Upgraded with English meanings | One-time note after the base-language upgrade ([50 §2](../50-ui-localization-and-base-language/SPEC.md)): "Mira now follows the languages you read: {list}. Your words keep their English meanings. [Change]" |
 | No results | §4 copy with "Add “{q}” as a new word" |
 | Filters exclude everything | "No paused words." (per filter) and "Clear filters" |
 | Offline / server unreachable | [25](../25-plain-language-errors/SPEC.md) state banner under the header; everything stays editable; edits queue and rows show "Waiting to save" |
@@ -314,6 +410,8 @@ popover open.
 |---|---|
 | Open the dashboard | 2 (popup, "All words") |
 | Find a word (dashboard open) | 1 (type) |
+| Add a language you read | 3 (Settings, Add a language, pick) |
+| Fix one base's meaning of a word | 3 (select, edit the meaning field, Enter) |
 | Fix a romanization from a page | 3 (Edit in popover, edit field, Enter) |
 | Pause one word (dashboard open) | 2 (select, P) |
 | Pause 40 contiguous words | 3 (click first, Shift+click last, P) |
@@ -344,7 +442,18 @@ toasts are `role="status"`; every icon button is labelled; the page works at 200
 - [ ] Every task in §13 completes in the listed steps (Playwright step-count scripts).
 - [ ] A word added through the popup while the dashboard is open appears within 500 ms
       without reload; a server-side add appears within one sync interval.
-- [ ] Typing "xiexie" finds "谢谢 / xièxie"; "cafe" finds "café".
+- [ ] Typing "xiexie" finds "谢谢 / xièxie"; "cafe" finds "café"; "perro" finds 犬 for a
+      Spanish-base learner.
+- [ ] A word with records for `es` and `en` is one row showing "perro · dog"; editing the
+      English gloss leaves the Spanish record unchanged; pausing the row pauses both.
+- [ ] Adding French as a base, then "Add meanings in français", shows a review table and
+      saves nothing until accepted; afterwards a French fixture page swaps those words.
+- [ ] Removing a base keeps its records, stops their swaps, and lists them under "For pages
+      in {base}"; Undo restores the base.
+- [ ] A fifth base is refused with the copy in §9.
+- [ ] Switching "Mira's language" to Español re-renders the dashboard in Spanish without a
+      reload; with the browser in Spanish and the setting on "Same as my browser", every
+      string is Spanish (slice 50's literal-string check passes).
 - [ ] Editing a field saves without a Save button, updates swaps on an open page, and can be
       undone with Ctrl/Cmd+Z.
 - [ ] Deleting 500 selected words takes one key press and is fully undone by Undo.
@@ -357,11 +466,14 @@ toasts are `role="status"`; every icon button is labelled; the page works at 200
 
 ## Test plan
 
-- **Unit:** search folding and ranking; diffing and scroll anchoring; hash route parsing;
-  undo stack.
+- **Unit:** search folding and ranking (including glosses in each base); grouping records by
+  `(lang, native_key)`; group actions; base-language settings writes (order, cap, remove,
+  undo); diffing and scroll anchoring; hash route parsing; undo stack.
 - **End-to-end (Playwright):** fixtures with 0, 10, 5,000 and 20,000 words across 12 scripts;
   live updates from a second extension page writing to storage; server mode with a mock
-  server, including 409 conflicts and an unreachable server; drag-and-drop of a file.
+  server, including 409 conflicts and an unreachable server; drag-and-drop of a file;
+  a two-base fixture (`es`, `en`) and a Spanish-base fixture with the browser in Spanish;
+  slice 50's `en-XA` pseudo-locale for truncation.
 - **Manual:** NVDA and VoiceOver passes; RTL words in every column; Windows High Contrast;
   200 % zoom.
 
@@ -375,7 +487,10 @@ Changelog: "A new page for all your words: search, edit, pause, move and delete,
 
 1. **Default status filter.** Recommendation: Active + Paused, so paused words aren't
    "missing"; tombstones are never shown.
-2. **Confirm before deleting a whole language?** Recommendation: yes, the only confirmed
+2. **Group actions by default?** Pause, delete and move apply to every record of a word
+   (all bases). Recommendation: yes; the learner thinks "犬", not "犬 for Spanish pages".
+   Per-base removal stays available in the inspector.
+3. **Confirm before deleting a whole language?** Recommendation: yes, the only confirmed
    action, because it is one click affecting hundreds of words; everything else is undo.
 
 ## Future work

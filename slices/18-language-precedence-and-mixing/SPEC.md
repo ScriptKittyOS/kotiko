@@ -5,14 +5,15 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
-| **Depends on** | [14-matcher-engine](../14-matcher-engine/SPEC.md); uses `created_at` from [07](../07-word-model-v2/SPEC.md) and canonical tags from [08](../08-language-tags/SPEC.md) |
+| **Depends on** | [14-matcher-engine](../14-matcher-engine/SPEC.md), [50](../50-ui-localization-and-base-language/SPEC.md) (base languages); uses `created_at` from [07](../07-word-model-v2/SPEC.md) and canonical tags from [08](../08-language-tags/SPEC.md) |
 | **Unblocks** | [31-density-and-amount](../31-density-and-amount/SPEC.md), [38-per-site-rules](../38-per-site-rules/SPEC.md), [20](../20-popup-redesign/SPEC.md) (languages, focus and mixing controls) |
 | **Sources** | [01 S1-S8, S11, S12, section 3](../../docs/research/01-language-mixing.md), [05 S31-S33](../../docs/research/05-learner-ux.md), [03 A6](../../docs/research/03-browser-extension.md), [DECISIONS 2026-10-01](../DECISIONS.md) |
 
 ## Problem
 
-When several of your languages know the same English word, Mira rotates through them in page
-order: the first "thanks" is Spanish, the second Russian, the third Mandarin
+When several of your languages know the same word of the page's language, Mira rotates through
+them in page order: on an English page the first "thanks" is Spanish, the second Russian, the
+third Mandarin; on a Spanish page the first "gracias" is English, the second Japanese
 (`extension/content.js:87-89`). Read from the code (research 01):
 
 - **One paragraph can hold three scripts for one idea**: "спасибо … 谢谢 … gracias" (01 S1).
@@ -25,13 +26,14 @@ order: the first "thanks" is Spanish, the second Russian, the third Mandarin
   (01 S11).
 - **Lossy candidates.** Within a language, the newest word silently takes a form
   (`content.js:42-43`), so "hogar" never appears once "casa" claims "home" (01 S8). A swap
-  whose native equals the English ("no", "hotel") just adds an underline (01 S7). Serbian and
+  whose native equals the page's word (Spanish "no" on an English page, English "hotel" on a
+  Spanish page) just adds an underline (01 S7). Serbian and
   Croatian "da" alternate between identical strings (01 S6).
 - **No preference can be expressed.** Every language gets an equal share of contested words,
   and there is no way to lean towards one.
 
 The decision is made ([DECISIONS.md](../DECISIONS.md), 2026-10-01): one stable language per
-English word per page per day, chosen by a seeded weighted choice; round-robin within a page
+base-language word per page per day, chosen by a seeded weighted choice; round-robin within a page
 stays available as "Mix within the page". This slice specifies it.
 
 ## The maintainer's question, answered
@@ -39,7 +41,8 @@ stays available as "Mix within the page". This slice specifies it.
 > If I know most Spanish, Russian and Mandarin and mix them, which language gets precedence:
 > the one I know most, least, or an option?
 
-**Neither most nor least, by default.** Each English word gets one language per page per day,
+**Neither most nor least, by default.** Each word of the page's language (each "thanks" on an
+English page, each "gracias" on a Spanish one) gets one language per page per day,
 picked at random but repeatably, with every language you show getting an equal share of the
 words they have in common. Words you added in the last seven days win, so new vocabulary gets
 early exposure. On top of that you can choose:
@@ -59,7 +62,8 @@ auto-weight by word count, because that is opaque (01 S4).
 
 ## Goals
 
-- Every occurrence of one English word on a page shows the same language (default mode).
+- Every occurrence of one base-language word on a page shows the same language (default mode),
+  whatever the base.
 - Reloading, syncing, re-rendering or adding unrelated words never changes a shown word.
 - Adding or hiding a language only changes the words that language wins or loses.
 - Long-run shares match the weights exactly in expectation.
@@ -134,11 +138,16 @@ From the matcher's `entry.candidates` (14), after slice 36's sense filter:
 
 1. Drop candidates whose language isn't in `E`, whose word status isn't `active` or
    `well_known` (07: paused, pending, deleted), whose status is `well_known` while slice 35's
-   "Words you know well" setting is "Stop swapping", whose language is `en`, or whose `native`
-   starts or ends with a hyphen (a suffix saved as a grammar note, 36).
-2. **No-op**: drop a candidate whose `native` equals the matched English surface, compared
-   case-insensitively after removing diacritics (NFD, strip `\p{M}`), if any other candidate
-   remains. If it is the only one, nothing is swapped, and the match is reported to coverage
+   "Words you know well" setting is "Stop swapping", whose `base_lang` isn't the base this text
+   was scanned in or whose `lang` is that base (14 already excludes both at build time; this is
+   the guard for stale indexes), or whose `native` starts or ends with a hyphen (a suffix saved
+   as a grammar note, 36).
+2. **No-op, native equals gloss**: drop a candidate whose `native` equals the matched surface
+   in the page's base, compared with the base's `keyOf` (14: its locale lowering, so Turkish
+   I/ı is right) after removing diacritics (NFD, strip `\p{M}`), if any other candidate
+   remains. English base: Spanish "no" for "no", French "hôtel" for "hotel". Spanish base:
+   English "hotel" for "hotel", English "chocolate" for "chocolate". Japanese base: Chinese
+   "学生" for "学生". If it is the only one, nothing is swapped, and the match is reported to coverage
    ([32](../32-page-coverage-and-celebrations/SPEC.md)) as known (01 S7).
 3. **Identical natives** across languages (Serbian and Croatian "da") are not merged for the
    choice; the pick runs normally. After the pick, other candidates with the same native string
@@ -153,9 +162,10 @@ pageKey   = origin + pathname + canonical query
              ref_src, _hsenc, _hsmi, yclid; sort the rest; no fragment).
             In frames, the top page's key (slice 42). Recomputed on single-page navigation.
 dayKey    = local date "YYYY-MM-DD" when the page session starts (not at midnight mid-read)
-concept   = keyOf(word.english) of the oldest candidate in the matcher's entry for this form
-            (by created_at, then id), taken before cleanup so hiding a language never changes
-            it; "dog" and "dogs" then share one choice. Falls back to the form key
+concept   = keyOf(word.gloss, base) of the oldest candidate in the matcher's entry for this
+            form (by created_at, then id), taken before cleanup so hiding a language never
+            changes it; "dog" and "dogs" (or "perro" and "perros") then share one choice.
+            Falls back to the form key
 seed      = cyrb53([seedSalt, concept, pageKey, dayKey].join("\u001f")).toString(16)
 u(x)      = (cyrb53(seed + "\u001f" + x) + 0.5) / 2^53          // uniform in (0, 1)
 ```
@@ -232,6 +242,25 @@ hundred. Measured: 100,000 picks take about 140 ms, so a page's picks cost well 
 When words or mixing settings change, the memo is recomputed and slice 15 rewrites only nodes
 whose chosen word changed.
 
+### Several base languages on one page
+
+A learner with more than one base (50) can meet several of them on one page: a Spanish
+article quoting an English speech, or a bilingual site. Slice 16 decides each subtree's base and
+14 scans it with that base's index, so candidates on a Spanish passage are always records with
+`base_lang: "es"`, and on the English quote records with `base_lang: "en"`. Precedence then
+works the same way in each:
+
+- Memos are keyed by `(base, concept)` (and the occurrence memo by `base` plus occurrence key),
+  so "no" on the English part and "no" on the Spanish part never share a `Choice` whose word
+  belongs to the other base.
+- The seed formula is unchanged (it doesn't include the base), so the reference vectors below
+  stay valid, and when the same concept string exists in two bases the same language tends to
+  win in both, which reads as consistent.
+- Focus, hidden languages, weights, priority, freshness and mix mode are global: they describe
+  the learner's target languages, not the page's.
+- A base with no candidates for a concept simply leaves that word as written; no other base's
+  word is ever used as a fallback.
+
 ### Determinism guarantees
 
 For the same `seedSalt`, word list, settings, `pageKey` and `dayKey`:
@@ -273,7 +302,7 @@ Scenarios:
 |---|---|
 | You added 谢谢 yesterday; "thanks" also exists in es and ru | zh on every page for 7 days, then back to the shared draw |
 | Russian hidden ("rest this language") | ru never shown; concepts it won go to their next-best language; nothing else moves |
-| Focus: Mandarin; "dog" exists only in es | "dog" stays English |
+| Focus: Mandarin; "dog" exists only in es | "dog" stays as the page wrote it |
 | Focus: Mandarin; you add a Turkish word | Turkish is not shown; popup notice |
 | Priority es > ru > zh; "thanks" in ru and zh only | ru |
 | Weight es 0 (backup only); "dog" in es and ru | ru; "cat" in es only: es |
@@ -281,6 +310,9 @@ Scenarios:
 | Spanish "no" only | "no" stays unswapped, counted as known |
 | "home" in es as casa and hogar | es wins as usual; casa or hogar chosen per page and day |
 | sr "da" and hr "da" | "da", tagged with whichever language won; popover lists both |
+| Base es; "perro" known in en (dog) and ja (犬) | one of dog or 犬 for every "perro" on the page that day |
+| Base es; English "hotel" and Japanese ホテル for "hotel" | ホテル (the English no-op is dropped) |
+| Bases es and en; a Spanish article quoting an English paragraph | "perro" and "dog" each get their own choice, from their own base's records |
 
 ### Copy for slice 20
 
@@ -290,7 +322,7 @@ these are the meanings each control must convey, with suggested wording.
 - Mixing options, under Languages: "Each word: **One language per page** (default) · Mix within
   the page · Always in this order".
 - Weights per language: "Less · Normal · More" (0.33, 1, 3), plus "Only when no other language
-  has it" (0). Help text: "Mira picks one of your languages for each English word on a page.
+  has it" (0). Help text: "Mira picks one of your languages for each word on a page.
   'More' makes a language win more of the words your languages share."
 - Focus: the "only" link becomes a Focus button on each language, always visible (05 S33), and a
   strip shows while Focus is on, with a way to stop.
@@ -311,7 +343,10 @@ these are the meanings each control must convey, with suggested wording.
       Focus restores the previous `hiddenLangs` exactly; a site language rule (38) overrides
       Focus on that site only.
 - [ ] Fresh words win contested forms for `freshDays` days, then rejoin the draw.
-- [ ] No-op candidates are dropped and reported to coverage as known.
+- [ ] No-op candidates are dropped and reported to coverage as known, with the English-base
+      ("no") and Spanish-base ("hotel") examples as unit tests.
+- [ ] With bases es and en, a Spanish page quoting English text picks from `base_lang: "es"`
+      records on the Spanish part and `base_lang: "en"` records on the quote, with separate memos.
 - [ ] No URL, page key or seed is written to storage or sent anywhere.
 
 ## Test plan
@@ -330,7 +365,7 @@ these are the meanings each control must convey, with suggested wording.
 - `seedSalt` is generated on first run of the new version.
 - Existing `hiddenLangs` keep their meaning. The old "only" link can't be told apart from
   manual hiding, so nothing is converted; the popup offers Focus from then on.
-- Default mode is balanced. Changelog: "Each English word now shows one of your languages per
+- Default mode is balanced. Changelog: "Each word on a page now shows one of your languages per
   page, and stays put while you read. New words show up first for a week. Focus on a language,
   give one more weight, or turn on 'Mix within the page' for the old rotation."
 

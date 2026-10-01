@@ -5,7 +5,7 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
-| **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md) |
+| **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages, localized headers) |
 | **Unblocks** | [11-local-first-mode](../11-local-first-mode/SPEC.md) (mode switches use the export endpoint), [28-privacy-and-store-readiness](../28-privacy-and-store-readiness/SPEC.md) (deletion is a store expectation), [39-multi-device-sync](../39-multi-device-sync/SPEC.md) (reset epoch) |
 | **Sources** | [04 summary, S5, S6, S7](../../docs/research/04-architecture-release.md); [05 S17, section 3.5](../../docs/research/05-learner-ux.md); [03 C7](../../docs/research/03-browser-extension.md) |
 
@@ -90,7 +90,7 @@ so it diffs well.
 ```json
 {
   "format": "mira.words",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "exportedAt": "2026-10-01T12:00:00Z",
   "app": { "name": "Mira", "version": "0.3.0", "source": "extension" },
   "words": [ { "...": "one slice 07 word, exactly as spec/word.schema.json defines it" } ],
@@ -100,8 +100,10 @@ so it diffs well.
 ```
 
 - `words` holds every word that is not deleted, in every status, with every field
-  slice 07 defines (ids, timestamps, status, origin, source text, forms).
-  Tombstones are left out.
+  slice 07 defines (ids, timestamps, status, origin, source text, `base_lang`, `gloss`,
+  forms). Tombstones are left out. A bilingual learner's two records for 犬 (glossed
+  "perro" for `es` and "dog" for `en`) are two entries, exactly as stored. Words whose
+  `base_lang` is no longer one of the learner's bases are exported too.
 - `settings` and `stats` are included by default with a checkbox each ("Include
   settings", "Include learning stats"). Secrets (API keys, server token) are never
   included; slice 11 keeps them out of reach of this code entirely.
@@ -109,6 +111,14 @@ so it diffs well.
   `spec/` folder so the extension and the server validate the same document. A newer
   Mira reads every older version; an older Mira refuses a newer file with
   "This backup was made by a newer version of Mira. Update Mira, then try again."
+- **Version 1** is the shape before base languages (slice 50): words with `english` and
+  no `base_lang`. Mira reads it by mapping `english` to `gloss` and setting
+  `base_lang: "en"`, which is what those words were for (their forms were English
+  forms). Any word in any version that has `english` but no `gloss` is read the same way.
+  If the learner's bases don't include `en`, the preview says "These words are for pages
+  in English, which isn't one of your languages. Add English to your languages?" with
+  [Add English] [Import anyway] (imported words are kept and don't swap until `en` is a
+  base; slice 50 section 2).
 
 ### 3. Spreadsheet (CSV)
 
@@ -117,19 +127,26 @@ Windows shows non-Latin scripts correctly ([04 S6](../../docs/research/04-archit
 RFC 4180: comma separator, CRLF line ends, double quotes around fields that contain a
 comma, quote or newline.
 
-Columns, in this order, with this header row:
+Columns, in this order. One row per word record, so a bilingual learner gets one row
+per base for the same target word. The header row is localized: each column's header
+is the `export_csv_col_<id>` message in the interface language (slice 50), so a Spanish
+learner sees `palabra, romanización, significado, formas, idioma, código_idioma,
+idioma_base, código_base, nota, estado, agregada, id`. Slice 13's CSV import recognises
+the headers of every shipped locale and the stable ids below.
 
-| Column | Content |
+| Column (stable id) | Content |
 |---|---|
 | `native` | The word |
 | `romanization` | Empty when none |
-| `english` | Main meaning |
-| `forms` | English forms joined with ` | ` |
-| `language` | Display name in the UI language |
+| `gloss` | Main meaning, in the base language |
+| `forms` | Base-language forms joined with ` | ` (perro \| perros; dog \| dogs) |
+| `language` | Target language's display name in the interface language |
 | `language_code` | BCP 47 tag (slice 08) |
-| `note` | |
+| `base_language` | Base language's display name in the interface language |
+| `base_language_code` | Base tag (slice 50) |
+| `note` | In the base language |
 | `status` | Slice 07's values (`active`, `paused`, and any slice 35 adds) |
-| `added` | `YYYY-MM-DD` in local time |
+| `added` | `YYYY-MM-DD` in local time (ISO, not the locale's date format, so spreadsheets sort it) |
 | `id` | UUID, last so it stays out of the way |
 
 **Formula injection.** A cell that starts with `=`, `+`, `-`, `@`, a tab or a carriage
@@ -157,14 +174,24 @@ verify against the current Anki manual):
 | Field | Content |
 |---|---|
 | Front | `native`, then ` (romanization)` when present |
-| Back | `english`, then ` - note` when present |
-| Language | Display name |
-| Deck | `Mira::<Language>`, so each language gets a subdeck |
-| Tags | `mira lang::<code>` |
+| Back | `gloss` (in the record's base language), then ` - note` when present |
+| Language | Target language's display name in the interface language |
+| Deck | `Mira::<Language>`, so each language gets a subdeck; when the export holds more than one base, `Mira::<Base language>::<Language>` (`Mira::español::japonés`, `Mira::English::Japanese`), so a bilingual learner drills each base separately |
+| Tags | `mira lang::<code> base::<base tag>` |
 | GUID | `mira-<word id>`, so re-importing an updated export updates the same notes instead of duplicating them |
 
-Tabs and newlines inside fields are replaced with spaces. The dialog says "In Anki: File,
-Import, choose this file." A link to the docs site (slice 44) shows screenshots.
+One note per word record: 犬 for a Spanish reader is Front "犬 (inu)", Back "perro";
+for an English reader, Back "dog". The stock note type's name is localized by Anki's own
+interface language ("Basic (and reversed card)" in English Anki), so the dialog has
+"My Anki is in: [English ▾]", defaulting to the interface language, and writes that
+locale's name of the stock note type in `#notetype`, from a table in
+`extension/data/anki-notetypes.json` taken from Anki's translation files (each entry
+verified against Anki before it ships; a locale with no verified name falls back to
+leaving `#notetype` out, and Anki asks which note type to use).
+
+Tabs and newlines inside fields are replaced with spaces. The dialog says, in the
+interface language, "In Anki: File, Import, choose this file." A link to the docs site
+(slice 44) shows screenshots.
 
 ### 5. Importing a backup
 
@@ -194,8 +221,9 @@ target):
 
 - Same `id` exists locally: merge with slice 07's rules; the newer `updated_at` wins
   per field where 07 says so.
-- Otherwise, same natural key `(lang, native_key, sense)` exists: merge into the existing word and
-  keep the local id.
+- Otherwise, same natural key `(lang, native_key, sense, base_lang)` exists: merge into
+  the existing word and keep the local id. A file's 犬 glossed "dog" (`en`) never merges
+  into a local 犬 glossed "perro" (`es`); it is a separate record.
 - Local tombstone for the same id, newer than the file's `updated_at`: skipped unless
   "Also restore words you deleted" is ticked (default on for a full restore into an empty
   store, off otherwise).
@@ -288,6 +316,14 @@ up", defaults on. No system notifications.
 - [ ] A note starting with `=1+1` appears as text in all three spreadsheet apps.
 - [ ] The Anki file imports into Anki with no field mapping, makes one subdeck per
       language, and re-importing an updated export updates notes instead of adding new ones.
+- [ ] A version 1 backup (words with `english`, no `base_lang`) imports with every word's
+      `gloss` equal to the old `english` and `base_lang: "en"`; with bases `["es"]`, the
+      preview offers to add English and nothing is lost either way.
+- [ ] With bases `es` and `en`, the CSV has one row per record (犬 / perro / es and
+      犬 / dog / en), and the Anki file puts them in `Mira::español::japonés` and
+      `Mira::English::Japanese`.
+- [ ] With the interface in Spanish, the CSV header row is Spanish, and slice 13's
+      importer reads that CSV back with no column mapping.
 - [ ] Importing the same backup twice reports everything as "already identical" the
       second time and creates nothing.
 - [ ] A word edited locally after the backup keeps the edit after importing the backup
@@ -316,8 +352,10 @@ Uses slice [02](../02-test-harness-and-ci/SPEC.md)'s harness.
 - **ExUnit**: export streaming and content; a backup restored through the batch route
   (shared fixtures with the JS tests); delete-all with and without confirm; `reset_epoch`; body limit and auth
   order; the `reset` release command in a temp data directory.
-- **Shared fixtures** in `spec/fixtures/export/`: a multi-script backup, an old-version
-  backup, a newer-version backup, a backup with invalid words.
+- **Shared fixtures** in `spec/fixtures/export/`: a multi-script backup, a version 1
+  backup with `english` fields, a bilingual (es and en bases) backup, a newer-version
+  backup, a backup with invalid words; CSV and Anki golden files with English and
+  Spanish headers.
 - **End-to-end (Playwright)**: export, delete everything, import round trip in Chromium
   and Firefox; delete everything with an open tab showing swaps.
 - **Manual, per release**: open the CSV in Excel on Windows and in LibreOffice; import

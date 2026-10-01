@@ -5,7 +5,7 @@
 | **Status** | Proposed |
 | **Priority** | P2 (later) |
 | **Size** | L (several weeks) |
-| **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md), [40-server-packaging-docker](../40-server-packaging-docker/SPEC.md); uses [13-bulk-add](../13-bulk-add/SPEC.md)'s parser and review table |
+| **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md), [40-server-packaging-docker](../40-server-packaging-docker/SPEC.md); uses [13-bulk-add](../13-bulk-add/SPEC.md)'s parser and review table, [41](../41-telegram-improvements/SPEC.md)'s `profile`, and [50](../50-ui-localization-and-base-language/SPEC.md)'s base languages |
 | **Unblocks** | None |
 | **Sources** | [04 S9, S10, S11, S31](../../docs/research/04-architecture-release.md); [DECISIONS: Not a product; Local first; every word is one the learner chose](../DECISIONS.md) |
 
@@ -51,6 +51,10 @@ machine.
   extensions tomorrow, ready to add with one or two clicks.
 - As a student, I want to look at the list my teacher offered and add only the words I don't
   know yet, without my teacher seeing my whole list.
+- As an English teacher in Puerto Rico, I want to offer "Unit 3 animals" as English words with
+  Spanish meanings, so they appear in my students' Spanish pages.
+- As a student in that class who reads Portuguese at home, I want the meanings in my own
+  language, not the class's.
 - As the server owner, I want to stop one person from using up the free lookups.
 
 ## Specification
@@ -59,16 +63,18 @@ machine.
 
 ```
 users        (id UUID PK, name TEXT, role TEXT CHECK (role IN ('admin','member','teacher','student')),
-              daily_lookup_limit INTEGER NULL, created_at, disabled_at NULL)
+              daily_lookup_limit INTEGER NULL, base_langs TEXT NOT NULL DEFAULT '[]',
+              locale TEXT NULL, created_at, disabled_at NULL)
 tokens       (id UUID PK, user_id FK, token_hash TEXT UNIQUE, prefix TEXT, label TEXT,
               created_at, last_used_at, revoked_at NULL)
-words        + user_id FK NOT NULL; natural key becomes (user_id, lang, native_key, sense)
+words        + user_id FK NOT NULL; natural key becomes (user_id, lang, native_key, sense, base_lang)
                WHERE deleted_at IS NULL; seq stays global (cursors are per user, filtered)
 telegram_users + user_id FK (slice 41's table)
 lookup_cache + user_id (no cross-user cache hits; avoids revealing what others looked up)
 classes      (id UUID PK, name, teacher_id FK users, join_code TEXT UNIQUE, created_at, archived_at)
 class_members (class_id, user_id, joined_at, share_progress BOOLEAN DEFAULT false)
-offers       (id UUID PK, class_id, title, words JSON (slice 07 word objects),
+offers       (id UUID PK, class_id, title, base_lang TEXT NOT NULL,
+              words JSON (slice 07 word objects, all with this base_lang),
               created_at, withdrawn_at NULL)
 offer_views  (offer_id, user_id, opened_at NULL, dismissed_at NULL, added_count INTEGER
               DEFAULT 0)
@@ -78,8 +84,11 @@ offer_views  (offer_id, user_id, opened_at NULL, dismissed_at NULL, added_count 
   (high-entropy tokens need no slow hash). `prefix` (first 6 characters) is shown in lists
   so people can tell tokens apart. Lookup is by hash, then `Plug.Crypto.secure_compare`
   on the hash.
-- **Migration**: create user "Owner" (role `admin`), assign every word and every
-  `telegram_users` row to it; the existing `API_TOKEN` / token file keeps working as the
+- **Base languages and interface locale are per user**: slice 41's single-row `profile`
+  moves into `users.base_langs`, and `telegram_users.locale` stays per Telegram account.
+  `GET/PUT /api/v1/profile` reads and writes the current user's row.
+- **Migration**: create user "Owner" (role `admin`), copy `profile.base_langs` into it,
+  assign every word and every `telegram_users` row to it; the existing `API_TOKEN` / token file keeps working as the
   owner's token (compared as today, not stored in `tokens`). A server that never adds a
   second user behaves exactly as before.
 
@@ -130,7 +139,11 @@ for a future UI.
   (`POST /api/v1/classes/join {code}`).
 - A teacher offers a list from a file or a pasted list, parsed by slice
   [13](../13-bulk-add/SPEC.md)'s `parse.js`: `POST /api/v1/classes/:id/offers {title, words}`
-  (teacher of that class only). Words are validated with slice 09's rules; no model calls.
+  (teacher of that class only). Words are validated with slice 09's rules, using the
+  offer's `base_lang` data; no model calls. The offer's `base_lang` is the language of its
+  meanings, chosen by the teacher (default: the teacher's primary base language), so an
+  English teacher in Puerto Rico offers `lang: "en"` words with `base_lang: "es"`
+  ("dog = perro").
 - **Offering never adds.** The server stores the offer and nothing else. No server code
   path writes an offered word into a student's word list; only the student's own accept
   does, through the same routes as any add. A test enforces this (Test plan).
@@ -141,7 +154,7 @@ for a future UI.
   ```
   ┌──────────────────────────────────────────┐
   │ Ms Ortiz offered “Unit 3 animals”        │
-  │ 24 words in Spanish                      │
+  │ 24 English words, meanings in Spanish    │
   │ [ Look at the list ]          Not now    │
   └──────────────────────────────────────────┘
   ```
@@ -153,6 +166,13 @@ for a future UI.
   one tick per word. Saving goes through 13's batch path with `origin: "bulk"`, so 07's merge
   rules apply (a student's existing word keeps their note and edits) and 13's Undo works.
   "Not now" hides the card; the offer stays in the dashboard's list until withdrawn.
+- **When the offer's meanings aren't in a language the student reads** (offer `base_lang`
+  `es`, student bases `["pt-BR"]`): the review table says so in its header ("Meanings in
+  Spanish. You read Portuguese.") and offers two paths: "Look up meanings in Portuguese"
+  runs slice 13's batched lookup for the ticked rows (under the student's quota, previewed
+  before saving), or "Add with Spanish meanings", which saves them with `base_lang: "es"`
+  and points to settings to add Spanish as a language the student reads (until they do,
+  those words don't swap, per slice 50). Nothing is converted silently.
 - **Withdrawing** an offer removes the card from students who haven't opened it. Words a
   student already added stay: they are the student's.
 - **What the teacher sees**: per offer, counts only: how many students opened it, and, for
@@ -186,6 +206,11 @@ for a future UI.
       before and after delivery).
 - [ ] The review table opens with every row unticked; adding 3 of 24 words adds exactly
       those 3, without overwriting a student's existing note.
+- [ ] An offer with `base_lang: "es"` shown to a student whose only base is `pt-BR` says the
+      meanings are in Spanish, and saves nothing until the student chooses a lookup or
+      "Add with Spanish meanings".
+- [ ] Two users on one server keep separate base languages; each one's lookups ask the
+      model for glosses in their own bases.
 - [ ] Withdrawing an offer removes unopened cards and never removes words a student added.
 - [ ] A teacher sees aggregate counts only, and only for students who opted in.
 

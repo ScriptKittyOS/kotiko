@@ -141,6 +141,14 @@ All under `.github/` unless noted; written in plain language, no emojis.
      [04 S21](../../docs/research/04-architecture-release.md)); no runtime npm dependencies
      in the extension and no bundler (keeps AMO review source-free); no user text in logs
      above debug; no external network in tests.
+  3a. Rules that keep Mira working in every language: the cross-cutting checklist in
+     [50](../50-ui-localization-and-base-language/SPEC.md) section 7, in short: no
+     English-named base concepts (`gloss`, not `english`), every user-facing string
+     through `MiraI18n.t()` with the English and Spanish text added together, language
+     names from `Intl.DisplayNames`, never assume spaces between words, and examples and
+     tests in at least two base languages.
+  3b. Translating Mira: through Weblate (link), no Git needed; how to add a base
+     language's data under `spec/lang/` (link to its README).
   4. Commits and PR titles in Conventional Commits (`feat(extension): ...`); scopes
      `server`, `extension`, `spec`, `docs`, `ci`, `release`. Breaking changes with `!`.
   5. Prompt or validator changes must include slice 09's eval summary.
@@ -164,16 +172,18 @@ All under `.github/` unless noted; written in plain language, no emojis.
   - `bug.yml`: Mira version, browser and version, mode (local or server), what happened,
     what you expected, steps, optional site URL, a checkbox "I removed API keys and
     tokens from anything I pasted".
-  - `wrong-word.yml`: what you typed, the language, what Mira saved, what it should be,
-    model if known. Labelled `word-quality`; these feed slice 09's golden set.
+  - `wrong-word.yml`: what you typed, the language you were looking up, the language you
+    read in (base language), what Mira saved, what it should be, model if known. Labelled `word-quality`; these feed slice 09's golden set.
   - `site-broken.yml`: URL, what broke, does "Pause on this site" fix it. Label `compat`.
   - `feature.yml`: problem first, then idea; link to an existing slice if there is one.
   - `config.yml`: `blank_issues_enabled: false`; links to Discussions (questions), the
     docs site (setup help), and the security policy.
 - **`pull_request_template.md`**: what and why, linked slice or issue, checklist (tests
   added or updated; `mix format` and lint pass; UI changes include before and after
-  screenshots in light and dark; prompt changes include eval results; no new extension
-  runtime dependency; user-facing change described for the changelog).
+  screenshots in light and dark; new user-facing strings added in `en` and `es`; works
+  for a non-English base language (slice 50's checklist); prompt changes include eval
+  results; no new extension runtime dependency; user-facing change described for the
+  changelog).
 - **`CODEOWNERS`**: `* @ScriptKittyOS/mira-maintainers` (team to be created), so reviews
   are requested automatically.
 - Root **`.editorconfig`** (UTF-8, LF, 2 spaces, final newline) and **`.gitattributes`**
@@ -262,4 +272,6 @@ if the rename lands first. No user-facing change; no changelog entry beyond the 
 
 - `GOVERNANCE.md` once there is more than one active maintainer.
 - OpenSSF Scorecard workflow and badge.
-- Translating CONTRIBUTING when the interface is localised (slice 50).
+- Translating CONTRIBUTING into Spanish once the docs site's i18n is in place (slices 44, 50).
+- Issue forms in Spanish (GitHub forms are single-language; a second set of `*-es.yml`
+  forms if Spanish-speaking reporters struggle).

@@ -80,7 +80,8 @@ asked for, grey on grey, a blue primary, and lately purple gradients, glass and 
 say "AI". Mira avoids all of it. Its identity rests on seven rules:
 
 1. **The word is the hero.** A learner's native word is set large, in a face suited to its
-   script (§5.1), like a specimen in a type book. English is small and secondary. Counts and
+   script (§5.1), like a specimen in a type book. Its meaning in the learner's base language
+   (the gloss: "dog", "perro") is small and secondary. Counts and
    chrome stay quiet.
 2. **One ornament: the dotted underline.** The mark Mira draws under swapped words
    (`extension/content.css:2-6`) is the system's only decoration: section dividers, the
@@ -94,8 +95,10 @@ say "AI". Mira avoids all of it. Its identity rests on seven rules:
    accent for the learner's words and rare milestones. Blue is for information only. Never
    gradients on UI, never purple glow or glass, which reads as "AI".
 5. **Languages by name, never by flag.** Languages are not countries. Chips show the endonym
-   ("Русский", "中文", "العربية") with the English name beside it.
-6. **One signature motion: the swap.** English fades out as the native word fades in and its
+   ("Русский", "中文", "العربية") with the name in the interface language beside it
+   ("Russian" or "ruso").
+6. **One signature motion: the swap.** The base-language word ("dog", "perro") fades out as
+   the native word fades in and its
    dotted underline draws in from the start of the word (§9). It appears when a word is added,
    in the onboarding preview and when a word arrives live in the dashboard; never on websites.
 7. **Never blocks.** No spinners for lookups, no disabled screens while the model works.
@@ -374,7 +377,10 @@ the package small.
 
 Han characters are unified in Unicode, so the right glyph shapes depend on the language.
 Every element showing a native word carries an accurate `lang` (as `content.js:94` already
-does for swaps), and `base.css` prepends CJK families by language:
+does for swaps), every gloss carries its `base_lang`, and every extension page sets
+`<html lang>` to the interface locale ([50](../50-ui-localization-and-base-language/SPEC.md)),
+so a Japanese interface or a Japanese gloss gets Japanese glyphs. `base.css` prepends CJK
+families by language:
 
 | Selector | Families prepended to `--font-ui` |
 |---|---|
@@ -391,6 +397,13 @@ Serif families rarely cover Arabic or Indic scripts well, and forcing them would
 unevenly.
 
 #### 5.2 Rules
+
+- **Interface locales.** Text in every component comes from the active locale and must fit
+  any of them: Spanish strings run about 20-30% longer than English, German longer still,
+  and the `en-XA` pseudo-locale is 40% longer (50's CI run). Labels wrap rather than
+  truncate; no fixed widths on buttons, chips or tabs; icon-only controls keep a translated
+  `aria-label`. Components are specified and screenshot-tested in both launch locales
+  (`en`, `es`).
 
 - Never `text-transform: uppercase` (caseless scripts, Turkish dotted i); never
   `letter-spacing` on non-Latin text (it breaks Arabic joining and Indic conjuncts).
@@ -452,7 +465,7 @@ highlight, because shadows vanish on dark backgrounds.
 | `--ease-enter` | `cubic-bezier(0.05, 0.7, 0.1, 1)` | Things arriving |
 | `--ease-exit` | `cubic-bezier(0.3, 0, 0.8, 0.15)` | Things leaving (use 70 % of the enter duration) |
 
-**The swap:** over `--d-swap`, the English word fades to 0 opacity with a 2 px blur while the
+**The swap:** over `--d-swap`, the base-language word fades to 0 opacity with a 2 px blur while the
 native word fades in from 0, then the dotted underline appears dot by dot from the inline
 start (each dot 20 ms apart, capped at 200 ms total). Layout never moves: both words occupy
 an inline-grid cell sized to the wider one.
@@ -495,7 +508,8 @@ Error: `--danger` border plus a message below with the danger icon, linked by
 `aria-describedby`. Native-word inputs use `dir="auto"` and `spellcheck="false"`.
 
 **Chip** (`.chip`): height 28; `--r-sm`; `--t-small`.
-- Language chip: endonym, English name in `--ink-3` when space allows, count. On:
+- Language chip: endonym, the name in the interface language in `--ink-3` when space
+  allows (`Intl.DisplayNames`, [50](../50-ui-localization-and-base-language/SPEC.md)), count. On:
   `--purple-soft` fill, `--purple-text` label, check glyph. Off: `--surface`, 1 px dashed
   `--border`, `--ink-3` label, hollow circle glyph. Focus mode: filled `--primary` with
   `--on-primary`. `role="switch"` or `aria-pressed` per screen spec.
@@ -512,7 +526,7 @@ Error: `--danger` border plus a message below with the danger icon, linked by
 segment `--surface` on a `--sunken` track with `--e-1`, label `--ink`; others `--ink-2`.
 
 **List row** (`.row`): min height 44 (popup), 52 (dashboard); leading native word in
-`--t-word`, then romanization (`--ink-3`), English (`--ink-2`); trailing meta. Hover
+`--t-word`, then romanization (`--ink-3`), gloss in the base language (`--ink-2`); trailing meta. Hover
 `--sunken`; selected `--selected` plus a 3 px `--primary` bar at the inline start; focus ring
 inset. New rows enter with the swap motion and a 2 s `--orange-soft` wash that fades.
 

@@ -5,7 +5,7 @@
 | **Status** | Proposed |
 | **Priority** | P1 (soon after release) |
 | **Size** | S (a day or two) |
-| **Depends on** | [15-framework-safe-swapping](../15-framework-safe-swapping/SPEC.md) |
+| **Depends on** | [15-framework-safe-swapping](../15-framework-safe-swapping/SPEC.md); [16](../16-what-not-to-swap/SPEC.md) and [50](../50-ui-localization-and-base-language/SPEC.md) for the page-language gate |
 | **Unblocks** | None |
 | **Sources** | [03 B10, D1, D6, D7, D8, section 3](../../docs/research/03-browser-extension.md) |
 
@@ -14,19 +14,21 @@
 Swapped words leak into everything the user does with a page (03, read from the code):
 
 - **Copy and paste** takes the foreign words: copying "Thanks for the coffee" from a page gives
-  "Gracias for the coffee" in an email or a document (03 D1).
+  "Gracias for the coffee" in an email or a document (03 D1); for a Spanish reader learning
+  Japanese, "Gracias por el café" becomes "ありがとう por el café".
 - **Printing** and "Save as PDF" print the swapped page (03 B10).
 - **Machine translation** collides with Mira. Chrome's built-in translation and Google Translate
-  wrap text in `<font>` elements and change `<html lang>`; Mira's observer then matches English
-  inside translated output, and the translator may translate Mira's words back into the
+  wrap text in `<font>` elements and change `<html lang>`; Mira's observer then matches words
+  inside translated output (an English page translated into Spanish would get Spanish-base
+  swaps on top of machine output), and the translator may translate Mira's words back into the
   learner's language (03 D7). The translator also replaces the text nodes Mira's swap records
   point at, which slice 15's cleanup would otherwise read as the site removing them.
 
 ## Goals
 
-- Copying a selection that contains swaps puts the original English on the clipboard (setting,
-  on by default), in plain text and HTML.
-- Printing shows the original English (setting, on by default) and the page returns to its
+- Copying a selection that contains swaps puts the page's original text on the clipboard,
+  whatever language the page is in (setting, on by default), in plain text and HTML.
+- Printing shows the original page (setting, on by default) and the page returns to its
   swapped state afterwards, identically.
 - Swapped words survive page translation untouched, Mira stays out of the translator's way while
   a page is translated, and resumes cleanly when translation is turned off.
@@ -41,22 +43,25 @@ Swapped words leak into everything the user does with a page (03, read from the 
 ## User stories
 
 - As a learner quoting an article in an email, I paste what the author wrote.
-- As someone printing a recipe, the printout is in English.
+- As someone printing a recipe, the printout is the recipe as written, in English or in
+  Spanish.
 - As a learner who translates a page into Portuguese, my Spanish words stay Spanish inside the
   translated sentences, and Mira doesn't scramble the translation.
+- As a Spanish reader who translates an English page into Spanish, I don't want Mira to start
+  swapping words in the machine's Spanish halfway through.
 
 ## Specification
 
 File: `extension/content/coexist.js`.
 
-### Copy as English
+### Copy the original text
 
 A `copy` listener and a `dragstart` listener on `window`, bubble phase, so the page's own handlers
 run first.
 
 ```
 onCopy(e):
-  if !settings.copyAsEnglish or e.defaultPrevented: return    // the site wrote its own data
+  if !settings.copyOriginal or e.defaultPrevented: return    // the site wrote its own data
   sel = getSelection(); if !sel or sel.isCollapsed: return
   swaps = mira-w elements intersecting any range, in document order
           (range.intersectsNode over querySelectorAll within each range's common ancestor,
@@ -71,33 +76,36 @@ onCopy(e):
             prefix when the range starts or ends inside it)
     i = text.indexOf(shown, cursor)
     if i < 0: continue                                          // hidden or collapsed: skip
-    english = info.get(el).english
-    text = text.slice(0, i) + english + text.slice(i + shown.length)
-    cursor = i + english.length
+    original = info.get(el).surface                             // the page's own word, as it was
+    text = text.slice(0, i) + original + text.slice(i + shown.length)
+    cursor = i + original.length
 
   // HTML: clone and replace in the same order
   html = ""
   for range in ranges:
     frag = range.cloneContents()
     clones = frag.querySelectorAll("mira-w")                    // same order as originals
-    zip(clones, swaps in this range): replace each clone with a Text node of its original's English
+    zip(clones, swaps in this range): replace each clone with a Text node of its original's surface
     html += serialize(frag)                                     // via a detached <div>
   e.clipboardData.setData("text/plain", text)
   e.clipboardData.setData("text/html", html)
   e.preventDefault()
 ```
 
-A selection that starts or ends inside a swapped word copies the whole English word: half a
-foreign word mapped to half an English word would be meaningless. `dragstart` builds the same data
+The original is the exact surface slice 15 recorded ("Perros", "houses", "犬"), not the word's
+gloss, so case, inflection and spacing come back as the author wrote them. A selection that
+starts or ends inside a swapped word copies the whole original word: half a foreign word mapped
+to half of the page's word would be meaningless. `dragstart` builds the same data
 for `e.dataTransfer`. Editable fields never contain swaps (16), so `cut` needs no handling.
 
-Setting: "Copy as English" (default on). With it off, the clipboard gets what is on screen.
+Setting: "Copy the original text" (`copyOriginal`, default on; Spanish "Copiar el texto
+original"). With it off, the clipboard gets what is on screen.
 
-### Print in English
+### Print the original page
 
 ```
 window.addEventListener("beforeprint", () => {
-  if (!settings.printInEnglish) return;
+  if (!settings.printOriginal) return;
   engine.suspend();          // observer paused, queue held
   engine.unwrapAll();        // synchronous, in place, no normalize (15)
 });
@@ -108,7 +116,8 @@ window.addEventListener("afterprint", () => {
 
 `matchMedia("print")` change events are a fallback where `beforeprint` is missing. Budget:
 unwrapping 10,000 swaps takes under 100 ms, inside the handler, before the browser lays out the
-print snapshot. Setting: "Print in English" (default on).
+print snapshot. Setting: "Print the original page" (`printOriginal`, default on; Spanish
+"Imprimir la página original").
 
 ### Machine translation
 
@@ -121,7 +130,7 @@ in the translated sentence.
 | Signal | Translator |
 |---|---|
 | class `translated-ltr` or `translated-rtl` added | Chrome built-in, Google Translate |
-| `lang` changes from `en*` to another language | Firefox Translations, Edge, others |
+| `lang` changes from the page's original language to another one | Firefox Translations, Edge, others |
 | `_msttexthash` attributes appearing on elements under body (checked when an added `font` or text batch arrives) | Microsoft Translator in Edge |
 
 **While translated**, Mira is frozen:
@@ -131,10 +140,16 @@ in the translated sentence.
   Mira tracks, and it restores them when translation is undone;
 - existing swaps stay, untouched.
 
-**When translation is undone** (class removed, `lang` back to English): leave frozen mode, run
+**When translation is undone** (class removed, `lang` back to the original language): leave frozen mode, run
 slice 15's reconciliation (restore records whose original node is gone by replacing their
-`mira-w` elements with English text, drop stale records), then re-apply. The page language gate
+`mira-w` elements with their original surface text, drop stale records), then re-apply. The page language gate
 (16) is re-evaluated at the same moment.
+
+**A page translated into one of the learner's base languages** stays frozen for as long as the
+translation is on, even though its new `lang` is a base: machine output is not what the author
+wrote, and swapping in it would mix two layers of substitution. The popup's page state says
+"This page is machine-translated. Mira waits until you switch back to the original."
+(Spanish: "Esta página está traducida automáticamente. Mira espera a que vuelvas al original.")
 
 If translation is detected after Mira already processed some of the translator's mutations (the
 class can arrive a few milliseconds after the first replacements), the cleanup handler checks the
@@ -142,16 +157,19 @@ class at handling time and skips removals whenever it is present.
 
 ## Acceptance criteria
 
-- [ ] Copying a paragraph with three swaps gives the original English in `text/plain` and
-      `text/html` (Playwright reads the clipboard in Chromium and Firefox).
-- [ ] A selection starting mid-swap copies the whole English word; a selection without swaps is
+- [ ] Copying a paragraph with three swaps gives the page's original text in `text/plain` and
+      `text/html`, on an English fixture and on a Spanish one ("Los perros" comes back as "Los
+      perros", not the gloss "perro") (Playwright reads the clipboard in Chromium and Firefox).
+- [ ] A selection starting mid-swap copies the whole original word; a selection without swaps is
       left to the browser.
 - [ ] A site that sets its own clipboard data (`preventDefault`) keeps it.
-- [ ] With "Print in English" on, `page.emulateMedia({ media: "print" })` plus a `beforeprint`
+- [ ] With "Print the original page" on, `page.emulateMedia({ media: "print" })` plus a `beforeprint`
       dispatch shows no `mira-w`; after `afterprint`, the swapped DOM is identical to before.
 - [ ] On a fixture that simulates Chrome translation (class change plus `<font>` wrapping of text
       nodes), swaps survive, no new swaps are made inside `<font>`, and undoing translation
       returns a consistent page with no duplicated or missing text.
+- [ ] With base languages `es` and `en`, translating an English fixture into Spanish (simulated)
+      makes no Spanish-base swaps in the translated text; undoing it resumes English-base swaps.
 
 ## Test plan
 
@@ -163,8 +181,8 @@ class at handling time and skips removals whenever it is present.
 
 ## Rollout and migration
 
-Both settings default on. Changelog: "Copying and printing now give you the original English, and
-Mira stays out of the way of page translation."
+Both settings default on. Changelog: "Copying and printing now give you the page's original text,
+and Mira stays out of the way of page translation."
 
 ## Open questions
 

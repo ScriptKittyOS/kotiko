@@ -63,13 +63,13 @@ A learner with two laptops gets two different Mira setups.
 
 | Key | Contents | Owner slice |
 |---|---|---|
-| `s:display` | `enabled`, celebrations, reveal mode and its settings, well-known underline, colors, reading aids, swap controls, sensitive-sites default, copy as English, print in English, speech (voice per language, online voices) | 16, 32, 34, 35, 37, 43 |
+| `s:display` | `enabled`, celebrations, reveal mode and its settings, well-known underline, colors, reading aids, swap controls, sensitive-sites default, copy the original text, print the original page, speech (voice per language, online voices) | 16, 32, 34, 35, 37, 43 |
 | `s:langs` | hidden languages, Focus, weights, mix within page, `seedSalt` (so a page looks the same on every device) | 18 |
 | `s:matching` | `neverSwap` forms, `formSense` choices, `variants` (pt-BR, sr-Latn, yue) | 14, 16, 36 |
 | `s:amount` | Amount, captions amount | 31, 52 |
 | `s:lookup` | provider id, base URL, model (never the key) | 11 |
 | `s:server` | server URL (never the token) | 11 |
-| `s:ui` | interface language, base languages | 50 |
+| `s:ui` | `uiLang` (`"auto"` or a shipped locale), `baseLangs` (ordered base tags, primary first, at most 4), `baseLangsConfirmed`, `baseLangsDetected` | 50 |
 | `s:sites:0` … `s:sites:N` | site rules, chunked | 38 |
 
 **Never synced**: secrets, words, jobs, stats, the "show originals" tab state, last-backup
@@ -80,7 +80,7 @@ first run and kept in `storage.local`.
 
 **Chunking**: an item may not exceed 8,192 bytes, counted as the key plus the
 JSON-encoded value in UTF-8 (Chrome's rule). Site rules are serialised compactly
-(`[host, swap, langs, amount, exact, updatedAt]` arrays) and split into chunks under
+(`[host, swap, langs, amount, base, exact, updatedAt]` arrays) and split into chunks under
 7,500 bytes. 500 site rules need about four chunks.
 
 **Writes**: debounced 2 s and coalesced, then written through a token bucket that allows
@@ -102,6 +102,17 @@ locally only. Brave's handling is unverified. In every case the code path is the
 nothing errors. A second device whose welcome page (slice 22) finds synced settings says
 "Found your Mira settings from another browser" and asks only for what's missing, usually
 the key.
+
+**Base and interface languages across devices** ([50](../50-ui-localization-and-base-language/SPEC.md)).
+A confirmed `baseLangs` (`baseLangsConfirmed: true`) from sync wins over a new device's
+own detection: the learner reads the same languages on every device, and their words carry
+glosses for those bases. The welcome page on the second device shows the synced list
+("You read in: español, English") instead of asking again, and still offers to edit it.
+An unconfirmed synced list never overwrites a confirmed local one. `uiLang: "auto"`
+resolves per device, so a Spanish work laptop and an English home browser each follow
+their own browser; only an explicit choice of interface language follows the learner.
+The background mirrors the effective `baseLangs` into `storage.local.baseLangs` for
+content scripts after every sync apply.
 
 ### 2. Words: two-way sync with a server
 
@@ -229,6 +240,11 @@ A change of one word is one word each way.
 - [ ] A word added by Telegram appears in a synced browser within 70 s with no user action.
 - [ ] After a server delete-all, no client pushes words back without the user choosing to.
 - [ ] A client whose cursor is 200 days old resyncs fully and loses no local-only words.
+- [ ] A second device whose browser is in English picks up confirmed base languages
+      `["es"]` from sync, and swaps Spanish pages with the same words; its interface stays
+      English while `uiLang` is `"auto"`.
+- [ ] Words with different `base_lang` values for the same target word (a bilingual
+      learner's two records) sync as two words and never merge.
 
 ## Test plan
 

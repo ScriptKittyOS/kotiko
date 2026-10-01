@@ -6,7 +6,7 @@
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
 | **Depends on** | None |
-| **Unblocks** | [04](../04-rename-to-mira/SPEC.md), [07](../07-word-model-v2/SPEC.md), [14](../14-matcher-engine/SPEC.md), [30](../30-release-pipeline/SPEC.md); in practice every slice, since each one's test plan runs here |
+| **Unblocks** | [50](../50-ui-localization-and-base-language/SPEC.md)'s CI checks, [04](../04-rename-to-mira/SPEC.md), [07](../07-word-model-v2/SPEC.md), [14](../14-matcher-engine/SPEC.md), [30](../30-release-pipeline/SPEC.md); in practice every slice, since each one's test plan runs here |
 | **Sources** | [06 section 4 (items 1-8)](../../docs/research/06-adversarial-qa.md); [03 summary, section 3 "Matching engine", slices matcher-module-tests and e2e-fixture-corpus](../../docs/research/03-browser-extension.md); [04 S32, S33, slices ci-pipeline and dependency-automation](../../docs/research/04-architecture-release.md); [02 section 3 "Tests"](../../docs/research/02-linguistics.md) |
 
 ## Problem
@@ -160,9 +160,16 @@ used by slices 08, 09, 14 and 26 for their pure modules.
 
 - **Browser**: Playwright's bundled Chromium, via
   `chromium.launchPersistentContext(tmpDir, {channel: "chromium", headless: true, args:
-  ["--disable-extensions-except=<ext>", "--load-extension=<ext>"]})`. Branded Google
-  Chrome dropped `--load-extension` in Chrome 137, so don't use `channel: "chrome"`.
-  The extension id is read from the service worker URL.
+  ["--disable-extensions-except=<ext>", "--load-extension=<ext>", "--lang=<locale>"]})`.
+  Branded Google Chrome dropped `--load-extension` in Chrome 137, so don't use
+  `channel: "chrome"`. The extension id is read from the service worker URL.
+- **Browser languages are a test parameter** (slice [50](../50-ui-localization-and-base-language/SPEC.md)).
+  A helper `launchMira({locale, acceptLanguages})` sets `--lang` (the interface language
+  `i18n.getUILanguage()` reports) and writes `intl.accept_languages` into the profile's
+  `Default/Preferences` before launch (what `i18n.getAcceptLanguages()` reports). Two
+  standard profiles run the required specs: **`en`** (`en-US`, `en`) and **`es-PR`**
+  (`es-PR`, `es`), the maintainer's Puerto Rico case. Neither is treated as the default:
+  each required spec runs under both.
 - **Network isolation**: every test's context routes `**/*` and aborts any request whose
   host isn't `127.0.0.1` or `localhost`, then fails the test, so an accidental external
   dependency is caught locally and in CI. Nothing needs DNS.
@@ -185,8 +192,15 @@ used by slices 08, 09, 14 and 26 for their pure modules.
 | `self-healing.html` | Page script reverts any change to its paragraph (F08 ping-pong) | 15 |
 | `shadow.html` | Open and closed shadow roots, nested custom elements | 42 |
 | `iframes.html` | Same-origin, `srcdoc` and `about:blank` frames, a tiny ad-sized frame | 42 |
-| `rtl.html` | `dir="rtl"` Arabic and Hebrew page with English inserts | 17 |
-| `non-english.html` | `<html lang="de">` with "die", "Gift", "Kind"; an `lang="en"` island | 16 |
+| `rtl.html` | `dir="rtl"` Arabic and Hebrew page with English and Spanish inserts | 17 |
+| `other-lang.html` | `<html lang="de">` with "die", "Gift", "Kind" (not a base in the default test profile); an `lang="en"` island and an `lang="es"` island | 16, 50 |
+| `es-news.html` | A Spanish news article with `lang="es"`: "perro", "perros", "¿Dónde está el perro?", "¡Perro!", "Perro" at sentence start, a `lang="en"` quote | 14, 16, 17, 32, 50 |
+| `es-undeclared.html` | The same Spanish text with no `lang` attribute (detection path) | 16, 50 |
+| `en-news.html` | An English article with the same structure as `es-news.html`, so both bases are tested on equal footing | 14, 16, 32, 50 |
+| `ja-news.html` | `lang="ja"` text without spaces ("犬が好きです。"), kana and kanji mixed, furigana `<ruby>` | 14, 17, 50 |
+| `fr-elisions.html` | `lang="fr"`: "l'eau", "d'abord", "aujourd'hui", "qu'il" | 14 |
+| `de-compounds.html` | `lang="de"`: capitalised nouns, compounds ("Hundehütte"), "Hund" at sentence start and mid-sentence | 14, 17 |
+| `mixed-lang-subtrees.html` | An English page with Spanish, Japanese and German `lang` subtrees | 16, 18, 50 |
 | `editors.html` | `textarea`, `contenteditable`, `role=textbox`, a CodeMirror-like editor, `translate="no"` | 16 |
 | `controls.html` | Buttons, nav, labels, form fields | 16 |
 | `big.html` | Script that generates 100,000 text nodes (about 2 MB) at load | 14, 15 perf |
@@ -195,8 +209,11 @@ used by slices 08, 09, 14 and 26 for their pure modules.
   Pages for later slices start as files with `test.fixme` specs, so the corpus exists
   from day one.
 - **Required specs now**: install, set token and server URL to the fake server, sync,
-  open `basic.html`, see a swapped word, toggle off, see English; popup add against the
-  fake server; nothing outside localhost is requested.
+  open `basic.html` (or `es-news.html` under the `es-PR` profile), see a swapped word,
+  toggle off, see the page's original text; popup add against the fake server; nothing
+  outside localhost is requested. The fake model in `test/fixtures/llm/` answers both
+  English and Spanish questions ("how do you say dog in japanese", "¿cómo se dice perro en
+  japonés?") with records for the requested `base_langs`.
 - **Full-stack smoke** (`e2e/fullstack.spec.mjs`): starts the real server
   (`MIX_ENV=test mix run --no-halt` with `LLM_URL` pointing at the fake LLM, a temp data
   dir and a fixed token), then adds a word through the popup and sees it on a page. Runs
@@ -226,6 +243,20 @@ slice 15 the long-task budget on `big.html`.
   of fixtures, then the shared fixtures run in both `mix test --only spec` and
   `node --test test/unit/spec-*.test.mjs`.
 - Version parity and `reuse lint` (slice 03).
+- **Localization and base neutrality** (slice [50](../50-ui-localization-and-base-language/SPEC.md)
+  section 8), in the `i18n` job:
+  - `node scripts/check-i18n-keys.mjs`: every `extension/_locales/*/messages.json` and
+    `server/priv/locales/*/messages.json` is valid JSON; every key exists in `en`;
+    placeholders match `en` per key; plural keys cover every `Intl.PluralRules` category
+    of their locale; the launch locales (`en`, `es`) have 100% of keys.
+  - `node scripts/check-i18n-literals.mjs`: no user-facing string literals outside
+    `MiraI18n.t()` in extension HTML and JS, with an allow-list for technical strings.
+  - `node scripts/check-base-neutral.mjs`: no `english`-named identifiers for base-side
+    concepts in `extension/`, `server/lib/` or `spec/`, with an allow-list for code that
+    reads old data (07's legacy API adapter, 09's legacy-key repair, 12's version-1
+    import, 11's cache upgrade) and `spec/lang/en/` (50 §7 rule 1).
+  - The `en-XA` and RTL pseudo-locales are generated here and used by the e2e job's
+    screenshot run.
 
 ### 7. CI workflow outline (`.github/workflows/ci.yml`)
 
@@ -277,6 +308,14 @@ jobs:
       - node --test test/unit/spec-*.test.mjs
       - pipx run reuse lint
 
+  i18n:
+    runs-on: ubuntu-24.04
+    steps:
+      - checkout; setup-node 22
+      - node scripts/check-i18n-keys.mjs
+      - node scripts/check-i18n-literals.mjs
+      - node scripts/check-base-neutral.mjs
+
   shell:
     runs-on: ubuntu-24.04
     steps: [checkout, "shellcheck server/*.sh scripts/*.sh"]
@@ -295,7 +334,7 @@ jobs:
 
 All third-party actions are pinned to a full commit SHA with the version in a comment;
 Dependabot keeps them current. Required checks for branch protection: `server (1.19.2)`,
-`extension`, `spec`, `shell`, `e2e`.
+`extension`, `spec`, `i18n`, `shell`, `e2e`.
 
 ### 8. Dependabot (`.github/dependabot.yml`)
 
@@ -316,6 +355,9 @@ so release-please (slice 30) leaves them out of user-facing notes.
 - [ ] Introducing `el.innerHTML = word.native` makes ESLint fail.
 - [ ] Dependabot opens PRs for all three ecosystems.
 - [ ] Every page in the corpus table exists, with at least a `fixme` spec.
+- [ ] The required e2e specs pass under both the `en` and the `es-PR` browser profiles.
+- [ ] Adding a hard-coded `textContent = "Added"` to the popup makes the `i18n` job fail;
+      so does a new `word.english` reference outside the allow-list.
 
 ## Test plan
 

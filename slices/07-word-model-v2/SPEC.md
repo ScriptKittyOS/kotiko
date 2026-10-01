@@ -6,8 +6,8 @@
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
 | **Depends on** | [02-test-harness-and-ci](../02-test-harness-and-ci/SPEC.md) |
-| **Unblocks** | [08](../08-language-tags/SPEC.md), [09](../09-shared-word-spec-and-prompt/SPEC.md), [11](../11-local-first-mode/SPEC.md), [12](../12-export-import-and-delete/SPEC.md), [13](../13-bulk-add/SPEC.md), [21](../21-dashboard/SPEC.md), [24](../24-add-flow-safety/SPEC.md), [36](../36-grammar-and-senses/SPEC.md), [39](../39-multi-device-sync/SPEC.md), [41](../41-telegram-improvements/SPEC.md), [46](../46-local-stats-and-recap/SPEC.md), [48](../48-multi-user-and-classroom/SPEC.md) |
-| **Sources** | [06 F05, F06, F27, F29](../../docs/research/06-adversarial-qa.md); [02 C1, C6, D3, D6, G4, section 3](../../docs/research/02-linguistics.md); [04 S2, S4, S8, S15, S22](../../docs/research/04-architecture-release.md); [05 S7, S12, S21](../../docs/research/05-learner-ux.md) |
+| **Unblocks** | [08](../08-language-tags/SPEC.md), [09](../09-shared-word-spec-and-prompt/SPEC.md), [11](../11-local-first-mode/SPEC.md), [12](../12-export-import-and-delete/SPEC.md), [13](../13-bulk-add/SPEC.md), [21](../21-dashboard/SPEC.md), [24](../24-add-flow-safety/SPEC.md), [36](../36-grammar-and-senses/SPEC.md), [39](../39-multi-device-sync/SPEC.md), [41](../41-telegram-improvements/SPEC.md), [46](../46-local-stats-and-recap/SPEC.md), [48](../48-multi-user-and-classroom/SPEC.md), [50](../50-ui-localization-and-base-language/SPEC.md) |
+| **Sources** | [DECISIONS 2026-10-01, base language](../DECISIONS.md) and the record shape in [50 section 3](../50-ui-localization-and-base-language/SPEC.md#3-the-word-record-for-base-languages-decided-here-built-in-07); [06 F05, F06, F27, F29](../../docs/research/06-adversarial-qa.md); [02 C1, C6, D3, D6, G4, section 3](../../docs/research/02-linguistics.md); [04 S2, S4, S8, S15, S22](../../docs/research/04-architecture-release.md); [05 S7, S12, S21](../../docs/research/05-learner-ux.md) |
 
 ## Problem
 
@@ -37,6 +37,11 @@ the weight.
   замок (lock) can't both exist ([02 D3](../../docs/research/02-linguistics.md)).
 - **Forms are a newline-joined string** (`word.ex:11`, `word.ex:32-37`) with no room for
   per-form switches or case rules ([02 C1, C6](../../docs/research/02-linguistics.md)).
+- **The meaning is always English.** The record has `english` and `english_forms`
+  (`server/lib/slovo/word.ex:13-14`), so a learner who reads Spanish has nowhere to put
+  "perro", and their Spanish pages can never be matched. The maintainer decided that
+  English is not the base language ([DECISIONS](../DECISIONS.md), slice
+  [50](../50-ui-localization-and-base-language/SPEC.md)).
 - **Small edges:** a huge id in `DELETE /api/words/:id` returns 500 ([06 F27](../../docs/research/06-adversarial-qa.md),
   `router.ex:62`), and an empty language name sticks forever ([06 F29](../../docs/research/06-adversarial-qa.md), `words.ex:72-82`).
 
@@ -52,6 +57,9 @@ All of this is read from the code; F05, F06, F27 and F29 were reproduced by rese
   `unchanged` per word.
 - Concurrent writes of the same word produce one row and no errors.
 - Every field can be edited through a versioned API.
+- A word's meaning and its swappable forms are stored in the learner's base language
+  (`gloss`, `forms`, `base_lang`), whatever that language is, with one record per base
+  for learners who read several (50 section 3).
 - The existing database migrates with no data loss, after an automatic backup.
 
 ## Non-goals
@@ -76,6 +84,10 @@ All of this is read from the code; F05, F06, F27 and F29 were reproduced by rese
 - As a learner who sees a wrong romanization, I want to fix just that field.
 - As a learner on two devices, I want a word I delete on one to disappear on the other.
 - As a learner of Russian, I want замок (castle) and замок (lock) to be two words.
+- As a Spanish reader, I want "perro" stored as the meaning of 犬, so that 犬 replaces
+  "perro" on my pages.
+- As a reader of Spanish and English, I want 犬 to carry "perro" for my Spanish pages and
+  "dog" for my English pages, and to delete or pause it once for both.
 - As a contributor writing the local store, I want one schema file to validate against.
 
 ## Specification
@@ -90,11 +102,12 @@ owns the file and the caps; the fields below are normative).
 | `id` | string | yes | UUID, lowercase, hyphenated. New ids are UUIDv7 (RFC 9562), created by whichever side creates the word. Any valid UUID is accepted from clients. Immutable. |
 | `lang` | string | yes | Canonical tag per slice 08. Part of the natural key. |
 | `native` | string | yes | The word in its own script, NFC, trimmed, internal whitespace collapsed, no control characters or newlines. |
-| `sense` | string | yes, default `""` | Short lowercase English gloss that tells homographs apart ("castle", "lock"). Empty for most words. Part of the natural key. |
-| `romanization` | string or null | no | NFC. |
-| `english` | string | yes | The headword meaning. Lowercase unless always capitalised in English (slice 09). |
-| `forms` | array of Form | yes, at least 1 | See below. Unique by `text` compared case-insensitively. |
-| `note` | string or null | no | One short sentence. |
+| `base_lang` | string | yes | The base language this record is for: a base tag per slice 50 section 2 (`es`, `en`, `pt-BR`, `ja`, `zh-Hant`). Never equal to `lang` (compared as the same base, 50). Part of the natural key. |
+| `sense` | string | yes, default `""` | Short lowercase gloss **in `base_lang`** that tells homographs apart ("castle" / "lock"; "castillo" / "cerradura"). Empty for most words. Part of the natural key. |
+| `romanization` | string or null | no | NFC. Target side: the same on every record of a group (below). |
+| `gloss` | string | yes | The headword meaning in `base_lang` ("dog", "perro", "犬"). Lowercase unless that base language always capitalises it (German nouns: `Hund`; English: `Monday`; slice 09 and `spec/lang/<base>/casing.json`). Replaces v1's `english`. |
+| `forms` | array of Form | yes, at least 1 | Surface forms **in `base_lang`** that get swapped. See below. Unique by `text` compared case-insensitively with the base's locale. |
+| `note` | string or null | no | One short sentence, in `base_lang`. |
 | `status` | string | yes | `active` (swapped on pages), `paused` (kept, not swapped), `pending` (a Telegram lookup awaiting Add; server-local, never synced). |
 | `origin` | string | yes | `add`, `manual`, `telegram`, `bulk`, `import`, `migrated`. Informational. Each is a learner's own action (or, for `migrated`, words they already had); nothing creates words on the learner's behalf ([DECISIONS](../DECISIONS.md)). |
 | `source_text` | string or null | no | What the user typed, for "why is this here". Never sent to the model again. |
@@ -102,16 +115,16 @@ owns the file and the caps; the fields below are normative).
 | `updated_at` | string | yes | Same format. Set by the writer on every change. |
 | `deleted_at` | string or null | yes | Null for live words. Set means tombstone. |
 | `merged_into` | string or null | no | Only on tombstones: the id of the live word this one was merged into (duplicates found by the migration below, or by slice 39's sync). Clients move references (stats) to that id. |
-| `language` | string | output only | English display name derived from `lang` (slice 08). Ignored on input. |
+| `language` | string | output only | The endonym of `lang` (its name in itself: "日本語", "español"), derived by slice 08. Ignored on input. Clients show names from `Intl.DisplayNames` in the interface language instead (50). |
 
 **Form** object: `{text, enabled, case, ambiguous}`.
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
-| `text` | string | required | An English surface form to replace ("house", "houses", "ice cream"). NFC, trimmed. |
+| `text` | string | required | A surface form in `base_lang` to replace: "house", "houses", "ice cream" (base `en`); "casa", "casas", "helado de crema" (base `es`); "家" (base `ja`). NFC, trimmed. |
 | `enabled` | boolean | `true` | Disabled forms are kept (so a re-add doesn't bring them back) but never matched. |
-| `case` | string | `"any"` | `any`, `lower` (skip capitalised matches mid-sentence: will, may), `exact` (US), `proper` (Japan, Monday). Interpreted by slices 14 and 16. |
-| `ambiguous` | boolean | `false` | The model or the user flagged the form as also being another word ("saw", "glasses"). Slice 16 and 36 decide the default treatment. |
+| `case` | string | `"any"` | `any`, `lower` (skip capitalised matches mid-sentence: en will, may; es Sol the newspaper vs sol), `exact` (US, EE. UU.), `proper` (Japan, Monday; Japón). Interpreted by slices 14, 16 and 17 with the base's casing rules. |
+| `ambiguous` | boolean | `false` | The model or the user flagged the form as also being another word in the base language (en "saw", "glasses"; es "vino" wine / came, "sal" salt / go out). Slice 16 and 36 decide the default treatment. |
 
 **Reserved names** for slice 36, which no other slice may use for anything else: `pos`,
 `article`, `article_indefinite`, `gender`, `plural`, `inflections`, `reading`,
@@ -120,6 +133,15 @@ and `pos` on Form objects (a per-form part of speech). Slice 35 may add `status`
 `well_known`); readers that don't know a status must keep the word and treat it as not
 swapped.
 
+**Groups.** Records that share `(lang, native_key)` are one **group**: the same target word
+for each of the learner's bases (and each sense). The server stores and syncs records
+individually; groups are a client concept. The dashboard (21) and popover (19) show a group
+as one word with its glosses, and pause, delete, restore and review (35) the whole group
+by default, by issuing one call per record (or a batch). Target-side fields (`lang`,
+`native`, `romanization`, and slice 36's target grammar) are copied to every live record
+of the group with the same `sense` mapping when one is edited from the dashboard, with a
+"Only this meaning" option.
+
 **Forward compatibility.** `word.schema.json` allows additional properties. Readers ignore
 fields they don't know. The server stores only the fields above; the extension's local
 store (slice 11) keeps unknown fields it receives so a newer server's data survives a
@@ -127,7 +149,9 @@ round trip through an older extension.
 
 ### 2. Natural key and `native_key`
 
-A live word is identified by `(lang, native_key, sense)`.
+A live word is identified by `(lang, native_key, sense, base_lang)`. A bilingual
+learner's 犬 is two live words, `(ja, 犬, "", es)` and `(ja, 犬, "", en)`; a Spanish
+reader's English word "dog" is `(en, dog, "", es)`.
 
 `native_key(native)` = `NFC(native)`, then Unicode default lowercase (not locale-specific),
 then replace final sigma `ς` with `σ`. The last step exists because JavaScript's
@@ -149,8 +173,9 @@ words
   native        TEXT NOT NULL
   native_key    TEXT NOT NULL
   sense         TEXT NOT NULL DEFAULT ''
+  base_lang     TEXT NOT NULL
   romanization  TEXT
-  english       TEXT NOT NULL
+  gloss         TEXT NOT NULL
   forms         TEXT NOT NULL DEFAULT '[]'   -- JSON array of Form
   note          TEXT
   status        TEXT NOT NULL DEFAULT 'active'
@@ -163,7 +188,8 @@ words
   merged_into   TEXT                    -- uuid of the surviving word, on merge tombstones
   seq           INTEGER NOT NULL        -- change sequence, see below
 
-UNIQUE INDEX words_natural ON words(lang, native_key, sense) WHERE deleted_at IS NULL
+UNIQUE INDEX words_natural ON words(lang, native_key, sense, base_lang) WHERE deleted_at IS NULL
+INDEX words_group ON words(lang, native_key)
 INDEX words_seq ON words(seq)
 INDEX words_status ON words(status)
 
@@ -205,7 +231,7 @@ none raises on bad input.
 | Field | Rule |
 |---|---|
 | `romanization`, `note`, `source_text` | Fill only if the existing value is null or blank. Never overwrite. |
-| `english` | Keep the existing value. If the incoming one differs, its text is added as a form (below). |
+| `gloss` | Keep the existing value. If the incoming one differs, its text is added as a form (below). Records for different bases never merge with each other: `base_lang` is in the key. |
 | `forms` | Union by case-insensitive `text`. Existing forms keep their flags, including `enabled: false`. New forms are appended with the flags they came with. Result is re-capped (slice 09); existing forms win over new ones when the cap is hit. |
 | `status` | `pending` → incoming status. `paused` → `active` when the add is an explicit user add (`opts[:explicit]`, true for the add box and Telegram "add"), else unchanged. `active` stays. |
 | `origin`, `created_at`, `id` | Never change. |
@@ -228,9 +254,9 @@ optimistic concurrency: a mismatch returns `{:error, :stale}`.
 a 24-hour timer and a first run 5 minutes after boot; slices 10 and 41 add their own
 cleanup jobs to it):
 
-- After 30 days, a tombstone's content is scrubbed: `native`, `romanization`, `english`,
+- After 30 days, a tombstone's content is scrubbed: `native`, `romanization`, `gloss`,
   `note`, `source_text` and `forms` are cleared; `native_key` becomes the `uuid` (to stay
-  unique and meaningless). `id`, `lang`, timestamps and `seq` remain. Restore is no longer
+  unique and meaningless). `id`, `lang`, `base_lang`, timestamps and `seq` remain. Restore is no longer
   possible.
 - After 180 days the row is removed. `sync_state` records `purged_through_seq` so slice 39
   can tell a client whose cursor is older than that to do a full resync.
@@ -251,12 +277,13 @@ the wording.
 
 | Route | Does |
 |---|---|
-| `GET /api/v1/words` | Live words. Query: `lang=ru,ar`, `status=active,paused` (default `active,paused`; `pending` is never returned), `limit` (default and max 20,000). Response `{"words": [Word], "cursor": "<last_seq>"}`. Slice 39 adds `since` and ETags on this route. |
+| `GET /api/v1/words` | Live words. Query: `lang=ru,ar`, `base=es,en` (records for those bases; default all), `status=active,paused` (default `active,paused`; `pending` is never returned), `limit` (default and max 20,000). Response `{"words": [Word], "cursor": "<last_seq>"}`. Slice 39 adds `since` and ETags on this route. |
 | `GET /api/v1/words/:id` | One word, including a tombstone (so a client can see it was deleted). 404 `word_gone` for a malformed or unknown id. |
-| `POST /api/v1/words` | Add. Body is either `{"text": "...", "client_request_id": "...", "hint_lang": "es"?}` (interpreted by the model, slices 09 and 10; `hint_lang` is slice 09's page or chip language hint) or `{"word": {...}, "client_request_id": "..."}` (structured, no model). Response `{"results": [{"result": "created" \| "updated" \| "unchanged", "word": Word, "previous": Word?}], "rejected": [...], "reply": "..."?}`. `rejected` and `reply` are defined by slice 09. With `"preview": true` (text form only) the server interprets and validates but saves nothing, returning `{"candidates": [Word-shaped, no id], "rejected": [...], "reply"?}`; the client then saves the learner's chosen candidates through the structured form. Required by the full-control decision so server-lookup mode never saves before the learner accepts. |
+| `POST /api/v1/words` | Add. Body is either `{"text": "...", "base_langs": ["es", "en"], "client_request_id": "...", "hint_lang": "ja"?}` (interpreted by the model, slices 09 and 10; `base_langs` are the bases to write glosses for, in order, required, at most 4, and entries whose `lang` equals one of them as the same base are dropped for that base; `hint_lang` is slice 09's page or chip language hint) or `{"word": {...}, "client_request_id": "..."}` (structured, no model). Response `{"results": [{"result": "created" \| "updated" \| "unchanged", "word": Word, "previous": Word?}], "rejected": [...], "reply": "..."?}`. `rejected` and `reply` are defined by slice 09. With `"preview": true` (text form only) the server interprets and validates but saves nothing, returning `{"candidates": [Word-shaped, no id, one per base], "rejected": [...], "reply"?}`; the client then saves the learner's chosen candidates through the structured form. Required by the full-control decision so server-lookup mode never saves before the learner accepts. |
 | `POST /api/v1/words/batch` | Structured adds, up to 500 per call, one transaction. Same `results` shape, in input order. Used by slices 12 and 13. This route alone accepts bodies up to 1 MB (its own `Plug.Parsers` limit, still after auth); every other route keeps 64 KB. |
 | `PATCH /api/v1/words/:id` | Partial update (section 4). Optional `if_updated_at` in the body (or the equivalent header `If-Match: "<updated_at>"`); a mismatch is 409 `word_conflict` with `details.reason: "stale"` and the current word. A natural-key clash is 409 `word_conflict` with `details.reason: "duplicate"` and `details.other_id`. |
 | `DELETE /api/v1/words/:id` | Tombstone. Returns `{"word": Word}` with `deleted_at` set. Deleting a tombstone is a no-op 200. |
+| `GET`/`PUT /api/v1/profile` | The learner's `base_langs`, written by the extension so the Telegram bot looks up meanings in the right languages. Defined by [41](../41-telegram-improvements/SPEC.md). |
 | `POST /api/v1/words/:id/restore` | Undo a delete. 409 `word_conflict` (`reason: "duplicate"`) if a live word took the key; 410 `word_gone` if scrubbed. |
 
 **Ids in paths** must match `^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`;
@@ -266,9 +293,13 @@ anything else is 404 before touching the database (fixes F27 for v1).
 new server:
 
 - `GET /api/words` returns today's shape: integer `id`, `lang`, `language`, `native`,
-  `romanization`, `english`, `forms` as a list of strings (enabled forms only), `note`;
-  active words only, newest first.
-- `POST /api/words` uses `add/2` with merging. `words` contains only `created` words; if
+  `romanization`, `english` (the `gloss`), `forms` as a list of strings (enabled forms
+  only), `note`; active words only, newest first, and **only records with
+  `base_lang: "en"`**, because a 0.2 extension knows no other base and would swap
+  Spanish forms on any page. This adapter is the one place on the server that maps a
+  field to English, and it goes away with the legacy routes.
+- `POST /api/words` uses `add/2` with merging and `base_langs: ["en"]` (what a 0.2
+  client meant). `words` contains only `created` words; if
   any were `updated` or `unchanged`, `reply` says "Already in your list: спасибо". The
   0.2 popup shows `reply` when `words` is empty (`extension/popup.js:148-150`), so a
   repeated add no longer offers a destructive Undo. It honours `client_request_id` the
@@ -288,13 +319,16 @@ and keeps the newest five (slice 29 runs migrations before the HTTP server start
 2. Add the new columns. Backfill `uuid` with a UUIDv7 whose timestamp is the row's
    `created_at`, so ids sort in creation order. UUIDv7 comes from a 30-line `Mira.UUID7`
    module (no new dependency), tested against the RFC 9562 layout.
-3. NFC-normalise and trim `native`, `romanization`, `english`, `note`; compute
-   `native_key`; set `sense = ''`, `origin = 'migrated'`, `deleted_at = NULL`.
-4. Convert `english_forms` to `forms`: split on newlines, add `english` if missing (the
-   same union `Word.forms/1` does today, `word.ex:32-37`), dedupe case-insensitively,
+3. Rename `english` to `gloss` and add `base_lang` with `'en'` for every existing row:
+   every 0.2 word was looked up as an English meaning for English pages, so this records
+   what the data is, not a default for anyone new. NFC-normalise and trim `native`,
+   `romanization`, `gloss`, `note`; compute `native_key`; set `sense = ''`,
+   `origin = 'migrated'`, `deleted_at = NULL`.
+4. Convert `english_forms` to `forms`: split on newlines, add `gloss` if missing (the
+   same union `Word.forms/1` does today, `word.ex:34-37`), dedupe case-insensitively,
    wrap as `{"text": t, "enabled": true, "case": "any", "ambiguous": false}`. Then drop
    `english_forms`.
-5. Find rows that now share `(lang, native_key, '')` (NFD/NFC or case duplicates, which
+5. Find rows that now share `(lang, native_key, '', 'en')` (NFD/NFC or case duplicates, which
    the old index allowed). Keep the oldest, merge the others into it with section 4's
    rules, tombstone them with `merged_into` set to the survivor. Log the count.
 6. Set `language = NULL` where it is blank (F29). Slice 08 handles the rest.
@@ -304,10 +338,22 @@ and keeps the newest five (slice 29 runs migrations before the HTTP server start
 The migration is tested against a fixture copy of a 0.2 database with NFD duplicates,
 blank language names, empty forms and pending rows.
 
+The extension's own store (slice 11) and imports of 0.2 exports (slice 12) apply the same
+mapping: `english` becomes `gloss`, `base_lang` is `"en"`. Slice 50 adds `en` to the
+learner's base languages on upgrade when such words exist, so an existing learner's swaps
+never stop.
+
 ## Acceptance criteria
 
 - [ ] Re-adding a word whose model answer has null note and romanization keeps both and
       returns `unchanged` (or `updated` with `previous` if new forms were added).
+- [ ] An add of 犬 with `base_langs: ["es", "en"]` creates two live words, glosses "perro"
+      and "dog", each with forms in its own base; a later add with `["es"]` returns
+      `unchanged` for the Spanish one and leaves the English one alone.
+- [ ] An add of "dog" with `base_langs: ["es", "en"]` creates only the `es` record
+      (`lang: "en"`, gloss "perro"); no stored record has `lang` equal to its `base_lang`.
+- [ ] The legacy `GET /api/words` returns only `base_lang: "en"` records, with `english`
+      equal to `gloss`.
 - [ ] 20 concurrent `Words.add/2` calls for the same `(ja, 犬)` produce one live row, 0
       exceptions, one `created` and 19 `unchanged`/`updated`.
 - [ ] 6 concurrent `POST /api/v1/words` with the same text return 200 each; none is 500.
@@ -322,14 +368,16 @@ blank language names, empty forms and pending rows.
 - [ ] `native_key` gives identical output in Elixir and JavaScript for every entry in
       `spec/fixtures/native-key.json`.
 - [ ] Migrating the 0.2 fixture database keeps every word, merges NFD duplicates, writes
-      a backup file first, and a second boot runs no migration and makes no new backup.
+      a backup file first, sets `gloss` from `english` and `base_lang: "en"` on every row,
+      and a second boot runs no migration and makes no new backup.
 - [ ] A 0.2 extension against the new server can list, add (repeat add shows "Already in
       your list") and undo.
 
 ## Test plan
 
 - **ExUnit, `Mira.WordsTest`**: table-driven merge cases (each field rule, form flag
-  preservation, cap overflow, status transitions); concurrency test with 20 tasks against
+  preservation, cap overflow, status transitions), each run for a Spanish-base and an
+  English-base word, plus a bilingual group; concurrency test with 20 tasks against
   a file-backed test database (sandbox in shared mode, `async: false`); tombstone,
   restore, scrub and purge with a controllable clock; `seq` monotonicity.
 - **ExUnit, `Mira.RouterV1Test`** (`Plug.Test`): every route, error shape, id
@@ -350,7 +398,8 @@ blank language names, empty forms and pending rows.
   version later, with a changelog note.
 - Changelog: "Words now have permanent ids and keep a history of deletes. Adding a word
   you already have no longer overwrites your notes; Mira tells you it's already in your
-  list. Your database is backed up automatically before the upgrade."
+  list. A word's meaning is stored in the language you read, so Mira works for readers
+  of any language. Your database is backed up automatically before the upgrade."
 
 ## Open questions
 
@@ -358,7 +407,10 @@ blank language names, empty forms and pending rows.
    (the learner just typed it), no for bulk adds and imports.
 2. **Tombstone windows (30 days restorable, 180 days kept).** Recommendation: keep these;
    they cover a long holiday offline and bound privacy exposure.
-3. **Case-insensitive `native_key`.** It merges "Polska" (Poland) and "polska" (Polish,
+3. **Should deleting from the dashboard delete the whole group?** Recommendation: yes by
+   default (the learner thinks of 犬 as one word), with "Only the Spanish meaning" in the
+   row's menu; Undo restores every record it removed.
+4. **Case-insensitive `native_key`.** It merges "Polska" (Poland) and "polska" (Polish,
    adjective) unless one gets a `sense`. Recommendation: accept; homographs are exactly
    what `sense` is for.
 

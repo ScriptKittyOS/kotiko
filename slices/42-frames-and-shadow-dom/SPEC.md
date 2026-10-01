@@ -15,7 +15,7 @@ Mira only sees the top frame's light DOM (06 F26, read from the code):
 
 - **Iframes are never processed.** The manifest has no `all_frames` (`extension/manifest.json:12-19`),
   so Disqus comments, embedded posts, AMP viewers and HTML email in Fastmail, Proton Mail and
-  Outlook on the web stay English (03 B3, B8, C1).
+  Outlook on the web are never swapped, whatever language they are in (03 B3, B8, C1).
 - **Shadow DOM is invisible.** The `TreeWalker` and `MutationObserver` don't cross shadow
   boundaries (`extension/content.js:120-131`, `176`), so web-component sites such as Reddit's
   "shreddit" UI and Salesforce Lightning get nothing (03 B7).
@@ -81,10 +81,14 @@ This runs before reading storage, so tracking pixels and ad slots cost one size 
 `run` applies the top site's pause, per-site rule (38) and sensitive-site rule (16): a payment
 frame inside a bank's page is skipped because the bank is. `pageKey` is the top page's key, so
 slice 18's choices match the article. The frame applies its own page-language gate (16) to its
-own document, because a frame can be in another language.
+own document, because a frame can be in another language: a Spanish newsletter in an English
+webmail page uses the Spanish base index when Spanish is one of the learner's base languages
+([50](../50-ui-localization-and-base-language/SPEC.md)) and is skipped when it isn't. A
+`base` site rule (38) on the top site applies to its frames too.
 
 **Word data.** Each running frame reads the word list from `storage.local` like the top frame
-and builds its own index (14: under 40 ms at 20,000 words). Cross-origin frames usually run in
+and builds its own indexes, one per base language present in the frame (14: under 40 ms at
+20,000 words). Cross-origin frames usually run in
 another process, so this doesn't block the top page's main thread. If profiling on the
 `ads-heavy.html` fixture shows more than 5 frames running per page, a follow-up moves index
 building into the background worker and sends frames a compact index (Future work).
@@ -154,8 +158,10 @@ Measured in slice 02's Playwright runs:
 - [ ] Text in a same-origin iframe, a cross-origin iframe, a `srcdoc` iframe and an `about:blank`
       iframe written by script is swapped.
 - [ ] Frames under the size threshold never read storage (verified with a storage spy).
-- [ ] Pausing the top site stops swapping in its frames; a frame's own non-English content is
-      skipped by the language gate.
+- [ ] Pausing the top site stops swapping in its frames; a frame whose content is in a
+      language that isn't one of the learner's bases is skipped by the language gate, and a
+      frame in another of the learner's bases (a Spanish frame on an English page for an
+      es+en reader) is swapped with that base's words.
 - [ ] The same concept shows the same word in the top page and a frame (shared page key).
 - [ ] Text in open and closed shadow roots is swapped, including roots attached after load and
       nested roots.

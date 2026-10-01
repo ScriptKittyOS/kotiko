@@ -5,7 +5,7 @@
 | **Status** | Proposed |
 | **Priority** | P1 (soon after release) |
 | **Size** | M (about a week) |
-| **Depends on** | [18-language-precedence-and-mixing](../18-language-precedence-and-mixing/SPEC.md) |
+| **Depends on** | [18-language-precedence-and-mixing](../18-language-precedence-and-mixing/SPEC.md); uses [14](../14-matcher-engine/SPEC.md)'s per-base `tokenCount` and [50](../50-ui-localization-and-base-language/SPEC.md)'s base languages |
 | **Unblocks** | [38-per-site-rules](../38-per-site-rules/SPEC.md) (amount per site), [52](../52-video-captions/SPEC.md) (caption amount) |
 | **Sources** | [01 S15-S17, section 3 "Density"](../../docs/research/01-language-mixing.md), [05 S23, S32](../../docs/research/05-learner-ux.md), [03 B11](../../docs/research/03-browser-extension.md), [02 C4](../../docs/research/02-linguistics.md) |
 
@@ -13,11 +13,13 @@
 
 Every match is swapped (`extension/content.js:84-100`). With 30 words that is fine. With 3,000
 words across three languages, long passages become mostly foreign, often with adjacent swaps
-("the большой 狗 corrió"), and a single function word such as "и" for "and" replaces every
-"and" on every page (01 S15, S16). Reading research commonly cited for this (Laufer 1989;
+("the большой 狗 corrió"), and a single function word such as "и" for "and" (or "and" for
+"y", for a Spanish reader learning English) replaces it on every page (01 S15, S16). Reading research commonly cited for this (Laufer 1989;
 Hu and Nation 2000) puts comfortable reading at roughly 95-98 % known running words, and
 Mira's swaps are by definition words still being learned. Past a point, more swaps stop
-teaching: the English context that makes a swapped word guessable disappears.
+teaching: the context in the learner's own language that makes a swapped word guessable
+disappears. This is true in every base language: a Spanish reader with 3,000 English and
+Japanese words loses their Spanish pages the same way.
 
 There is no control for this today, so a successful learner's reward for adding words is pages
 they can't read.
@@ -47,6 +49,10 @@ they can't read.
 - As a learner with 4,000 words, I set Medium and articles stay readable, with roughly one
   word in seven in my languages.
 - As a learner who added "и" for "and", I see it a few times per page, not 200 times.
+- As a Spanish reader who added English "the" for "el", I see it a few times per Spanish
+  page, not on every line.
+- As a bilingual reader of Spanish and English, I want a Spanish quotation inside an
+  English article to be judged on its own, not to use up the English paragraph's swaps.
 - As a beginner, I see every one of my 30 words wherever they appear.
 - As someone who wants total immersion, I choose Everything and accept harder pages.
 
@@ -57,7 +63,7 @@ after precedence (18) and before casing (17).
 
 ### Levels
 
-| Level | Ratio (`N`: one swap per N English tokens per block) | Adjacent swaps | Same word per page (`K`) | Same word per block |
+| Level | Ratio (`N`: one swap per N base-language tokens per block) | Adjacent swaps | Same word per page (`K`) | Same word per block |
 |---|---|---|---|---|
 | Light | 15 | never | 2 | 1 |
 | Medium (default) | 7 | never | 5 | 1 |
@@ -65,19 +71,32 @@ after precedence (18) and before casing (17).
 | Everything | no cap | allowed | no cap | no cap |
 
 These are starting values to tune by use, not research-derived numbers (01 S15). They live in
-one table in `density.js`.
+one table in `density.js`, the same for every base language.
+
+**Tokens** are the word tokens slice 14's tokenizer reports for the text's base language
+(`Intl.Segmenter` word segments with `isWordLike`, after that base's `boundaries.json`
+adjustments). Punctuation and spaces never count. In spaced languages a token is roughly a
+word ("el perro come" is 3; "can't" is 1 in English; "l'eau" is 2 in French, l' and eau). In
+Japanese and Chinese a token is a dictionary segment, so particles count ("犬が好きです" is 犬,
+が, 好き, です: 4), which makes a Japanese block's ratio a little denser in meaning than an
+English one at the same `N` (open question 3).
 
 ### Blocks
 
 A block is the nearest ancestor whose tag is block-level by name: `p, li, dd, dt, td, th,
 blockquote, figcaption, caption, h1-h6, article, section, aside, header, footer, main, div,
 body, form, fieldset, details, summary`. Tag names, not computed style, so there are no layout
-reads. The text-node-to-block lookup is cached in a `WeakMap<Element, BlockState>` on the parent
-element. Shadow roots and frames are separate blocks (42); captions are handled by slice 52.
+reads. The text-node-to-block lookup is cached in a `WeakMap<Element, Map<base, BlockState>>`
+on the parent element: one state per base language present in the block, so a
+`<q lang="es">` inside an English paragraph is budgeted against Spanish tokens only, and
+English tokens never pay for Spanish swaps. Text whose language is not one of the
+learner's bases (16) is never swapped and never counted. Shadow roots and frames are
+separate blocks (42); captions are handled by slice 52.
 
 ```ts
 type BlockState = {
-  tokens: number;          // English tokens seen in this block (from 14's tokenCount)
+  base: string;            // the base language this state counts (50's base tag)
+  tokens: number;          // tokens in that base seen in this block (from 14's tokenCount)
   swaps: number;           // swaps made
   lastSwapToken: number;   // block-level token index of the last swap, for adjacency
   perForm: Map<string, number>;
@@ -86,7 +105,8 @@ type BlockState = {
 
 ### Selection algorithm
 
-Per text node, with the node's matches (already filtered by 16, with choices from 18):
+Per text node, with the node's matches (already filtered by 16, with choices from 18) and the
+`BlockState` for the node's base language:
 
 ```
 select(T, matches, block, page, level):
@@ -113,7 +133,7 @@ select(T, matches, block, page, level):
 - **Credit model.** A block earns one swap per `N` tokens plus one starting credit, so a short
   heading or list item can always show one word, and swaps spread out across a long paragraph
   instead of bunching at its start.
-- **Adjacency.** Two swaps are adjacent if no English token lies between them in the block
+- **Adjacency.** Two swaps are adjacent if no base-language token lies between them in the block
   (whitespace and punctuation don't count). A multi-word form counts as one swap covering its
   tokens.
 - **Refunds.** When slice 15 reprocesses a node (site re-render, word change), the node's
@@ -121,7 +141,9 @@ select(T, matches, block, page, level):
   the budget and a re-rendered node gets the same result.
 - **Per-form page cap** counts per page session and resets when the page key changes
   (single-page navigation, 18). On an infinite feed, the first `K` occurrences of a word are
-  swapped and later ones stay English; function words thin out naturally (01 S16, S17).
+  swapped and later ones stay as the page wrote them; function words thin out naturally
+  (01 S16, S17). The per-form count is keyed by the choice's concept, which already
+  includes the base (one record per base, 50 §3), so "perro" and "dog" have separate caps.
 
 ### Readability guard for large vocabularies
 
@@ -164,7 +186,15 @@ then cached. No DOM reads beyond tag names. Adds under 2 % to slice 15's pipelin
       tokens, with no two adjacent swaps, and each block within its ratio plus one.
 - [ ] Light and Heavy produce ratios within their table values on the same fixture; Everything
       swaps every match.
-- [ ] A word known as "and" is swapped at most 5 times per page on Medium.
+- [ ] A word known as "and" is swapped at most 5 times per page on Medium; with base `es`,
+      a word known as "y" likewise on a Spanish page.
+- [ ] On a 1,000-token Spanish article with base `es` and every word known, Medium swaps
+      between 10 % and 16 % of tokens, counted with the Spanish tokenizer.
+- [ ] On a Japanese article with base `ja`, ratios use `Intl.Segmenter` tokens and no two
+      swaps are adjacent (particles count as tokens between them).
+- [ ] An English paragraph containing a `<q lang="es">` quotation, with bases `en` and
+      `es`, budgets the two separately: the quotation's swaps don't reduce the paragraph's
+      and vice versa.
 - [ ] With 30 known words on a typical article, no match is dropped by the caps (fixture with a
       realistic 30-word vocabulary of common words).
 - [ ] When a cap binds, fresh words are chosen before older ones (unit test).
@@ -176,8 +206,9 @@ then cached. No DOM reads beyond tag names. Adds under 2 % to slice 15's pipelin
 - **Unit (slice 02):** selection with synthetic blocks: credits, adjacency with multi-word forms,
   per-form caps, ranking order, refunds; level table.
 - **jsdom:** articles with many paragraphs and lists; a React-style re-render of one paragraph.
-- **Playwright corpus:** `dense-article.html` with a 3,000-word fixture vocabulary at each
-  level, asserting ratios and adjacency from the DOM; an infinite-feed fixture for per-form caps.
+- **Playwright corpus:** `dense-article.html` (English) and `dense-article-es.html`
+  (Spanish, base `es`) with a 3,000-word fixture vocabulary at each level, plus a short
+  Japanese article, asserting ratios and adjacency from the DOM; an infinite-feed fixture for per-form caps.
 - **Manual:** read three long articles at each level with a large vocabulary and judge
   readability; tune `N` and `K` if needed.
 
@@ -195,6 +226,11 @@ keeps pages readable. Want every word? Set Amount to Everything."
    one-time note.
 2. **Should Everything still prevent adjacent swaps?** Recommendation: no; it means everything,
    and Heavy covers dense-but-readable.
+3. **Should `N` differ for bases whose tokens are smaller than words (Japanese, Chinese,
+   Thai)?** Particles and auxiliaries count as tokens there, so the same `N` gives a slightly
+   different feel. Recommendation: one table for every base at launch; add an optional
+   per-base multiplier in `spec/lang/<base>/` only if Japanese and Chinese readers report
+   pages too sparse or too dense.
 
 ## Future work
 

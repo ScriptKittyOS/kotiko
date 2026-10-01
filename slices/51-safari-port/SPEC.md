@@ -103,7 +103,12 @@ Safari (from MDN browser-compat-data, checked 2026-10-01):
   text goes only to a provider the user configures. Medium confidence on how App Review
   reads user-configured providers; the review notes explain it as in slice 28.
 - Listing: same name, short description and screenshots as slice 28, at Apple's sizes
-  (6.9-inch and 13-inch iPad screenshots for iOS, 1280x800 or larger for macOS).
+  (6.9-inch and 13-inch iPad screenshots for iOS, 1280x800 or larger for macOS), in
+  English and Spanish (App Store Connect localizations `en-US` and `es-MX`, with `es-ES`
+  using the same text), per [50](../50-ui-localization-and-base-language/SPEC.md).
+- The containing app's few strings live in a String Catalog (`Localizable.xcstrings`) with
+  English and Spanish, translated through the same workflow as the extension (50 section 9).
+  The extension itself uses its `_locales` unchanged; Safari supports them.
 
 ### 4. Build and release
 
@@ -128,6 +133,8 @@ Safari (from MDN browser-compat-data, checked 2026-10-01):
       second follows the link.
 - [ ] Context menu and shortcuts work on macOS and are absent on iOS.
 - [ ] The containing app makes no network requests (Xcode network instrument or a proxy).
+- [ ] With the device language set to Spanish, the containing app, the extension and the
+      welcome page are in Spanish, and Spanish base pages are detected and swapped.
 
 ## Test plan
 

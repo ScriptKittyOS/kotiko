@@ -5,7 +5,7 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
-| **Depends on** | [09-shared-word-spec-and-prompt](../09-shared-word-spec-and-prompt/SPEC.md) |
+| **Depends on** | [09-shared-word-spec-and-prompt](../09-shared-word-spec-and-prompt/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages in each request) |
 | **Unblocks** | [11](../11-local-first-mode/SPEC.md), [13](../13-bulk-add/SPEC.md), [20](../20-popup-redesign/SPEC.md) (quota display), [22](../22-first-run-onboarding/SPEC.md) |
 | **Sources** | [06 F09, F14, F40](../../docs/research/06-adversarial-qa.md); [04 S17, S18, S19, S28](../../docs/research/04-architecture-release.md); [05 S19, S34](../../docs/research/05-learner-ux.md) |
 
@@ -139,8 +139,8 @@ tested):
 
 | Outcome | Next step | Model health |
 |---|---|---|
-| 200, slice 09 yields words | done: `ok` | success |
-| 200, slice 09 finds no word | next model **once** per lookup (F14); then slice 09's code (`no_word_found` or `rejected_english`) | none |
+| 200, slice 09 yields words | done: `ok` (words missing for some requested bases are listed in `missing_bases`; see "Missing bases" below) | success |
+| 200, slice 09 finds no word | next model **once** per lookup (F14); then slice 09's code (`no_word_found` or `rejected_same_as_gloss`) | none |
 | 200, unparseable | next model; if it was the last attempt, `bad_lookup_result` | failure |
 | 400 naming `response_format` | retry the same model once without it; mark `json_mode: false` | none |
 | 400/404 model not found or unavailable | next model | skip model 1 h |
@@ -157,7 +157,7 @@ that model to the front of the chain for one hour (the "what worked last" heuris
 [04 S17](../../docs/research/04-architecture-release.md)).
 
 **Result codes** returned to callers are slice 25's: `ok`, `no_word_found`,
-`rejected_english`, `bad_lookup_result`, `lookup_not_set_up`, `key_rejected`,
+`rejected_same_as_gloss`, `bad_lookup_result`, `lookup_not_set_up`, `key_rejected`,
 `quota_exhausted`, `rate_limited`, `model_unavailable`, `lookup_timeout`. Each non-ok
 result carries `details` (`reason`, HTTP status) and `retry_at` (UTC, when known) and
 `attempts` (model ids and outcomes, for the debug log only). The router maps them to HTTP
@@ -189,7 +189,12 @@ as the platform kind, which wastes nothing.
 ### 4. Lookup cache
 
 - **Key**: SHA-256 of `spec VERSION`, prompt hash, mode, `hint_lang`, the recent-language
-  list, and the input text after NFC, trim, whitespace collapse and lowercase.
+  list, the requested `base_langs` **in order** (slice 09; the primary base picks the
+  few-shot examples, so order changes the prompt), and the input text after NFC, trim,
+  whitespace collapse and lowercase with the primary base's locale
+  (`toLocaleLowerCase(base_langs[0])`). "perro" asked with bases `["es"]` and with
+  `["es", "en"]` are two entries; a Spanish reader and an English reader asking "dog"
+  never share an answer, since the glosses differ.
 - **Value**: slice 09's processed result (words and rejections), never the raw answer.
   Only `ok` results are cached; never no-word results, errors or chat replies.
 - **Storage**: server table `lookup_cache (key TEXT PRIMARY KEY, result TEXT, model TEXT,
@@ -197,6 +202,11 @@ as the platform kind, which wastes nothing.
   TTL 30 days; at most 5,000 entries, least recently hit evicted by the daily
   `Mira.Janitor` job (slice 07).
 - **Bypass**: `opts[:fresh]` (the popover's "wrong meaning", slice 19, and "try again").
+- **Missing bases**: an `ok` result with a non-empty `missing_bases` is cached with them,
+  and the caller may ask again for just those bases (`base_langs` narrowed), which is a
+  different key. Mira never makes that follow-up call by itself unless slice 09's eval
+  shows free models routinely skip bases (09 open question 5); then one follow-up call
+  per lookup, counted against the same 3-request cap and deadline.
 - Cleared by delete-all (slice 12).
 - **Single flight**: identical concurrent lookups (same key) share one model call.
 
@@ -209,7 +219,8 @@ count against their own deadlines.
 ### 6. Logging policy
 
 - **Info**, one line per lookup: `llm lookup result=ok model=<id> attempts=2 ms=3412
-  words=1 cache=miss`. No input text, no output words, no prompt.
+  words=1 bases=2 cache=miss`. No input text, no output words, no prompt. Base tags
+  are logged as a count only.
 - **Warning**: catalog fetch failure (once per hour), quota exhausted (once per day),
   every model unavailable.
 - **Debug**, only with `LOG_LOOKUPS=true` (default false, documented in `.env.example`):
@@ -250,7 +261,9 @@ The extension mirrors `Policy` and `Client` in `extension/lib/llm/` with the sam
 - [ ] With the network down at boot and no cache, the shipped fallback list is used; with
       a cache, the cache is used.
 - [ ] `LLM_MODEL=a,b` is used verbatim, even if `a` is not in the catalog.
-- [ ] A second identical lookup within 30 days makes no model request.
+- [ ] A second identical lookup within 30 days makes no model request; the same text
+      with different `base_langs` (`["es"]` vs `["en"]`, or `["es","en"]` vs
+      `["en","es"]`) does.
 - [ ] At the default log level, no log line contains the input text or a returned word.
 - [ ] `GET /api/v1/llm/status` reports used, limit and remaining matching a stubbed `/key`.
 - [ ] `spec/fixtures/llm-policy.json` passes in Elixir and JavaScript.
@@ -265,7 +278,8 @@ The extension mirrors `Policy` and `Client` in `extension/lib/llm/` with the sam
 - Catalog: filter and order against `test/fixtures/openrouter/models-2026-10-01.json`
   (the real response, trimmed); cache and fallback paths.
 - Quota: estimate decrement, refresh after 429, gate at zero.
-- Cache: key composition, TTL, eviction, single flight with 10 concurrent callers.
+- Cache: key composition (including base order and the Turkish-locale lowercase of
+  "IRAK" with base `tr`), TTL, eviction, single flight with 10 concurrent callers.
 - Log capture: run the full suite with `capture_log` and assert no fixture input text appears.
 - **Recorded examples**: capture one real platform 429 and one upstream 429 (headers and
   body) once with a throwaway key, commit them as fixtures, and confirm the
@@ -277,7 +291,8 @@ The extension mirrors `Policy` and `Client` in `extension/lib/llm/` with the sam
   default list switch to the live catalog automatically. `.env.example` drops the
   commented list (`server/.env.example:20-24`) in favour of "leave LLM_MODEL empty to
   use OpenRouter's current free models".
-- New table `lookup_cache` via migration.
+- New table `lookup_cache` via migration. Entries from before slice 50 can't exist (the
+  table is new), so no cache entry lacks base languages.
 - Extension: slice 11 uses the JavaScript twin from its first release.
 - Changelog: "Adding a word now answers within 25 seconds, uses at most 3 requests, and
   remembers words it already looked up. Mira follows OpenRouter's current free models

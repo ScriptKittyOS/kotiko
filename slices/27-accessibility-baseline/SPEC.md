@@ -5,7 +5,7 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week, spread across the UI slices) |
-| **Depends on** | [06-design-system](../06-design-system/SPEC.md) |
+| **Depends on** | [06-design-system](../06-design-system/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages, `MiraI18n.t()`) |
 | **Unblocks** | Release sign-off for [19](../19-word-popover/SPEC.md), [20](../20-popup-redesign/SPEC.md), [21](../21-dashboard/SPEC.md), [22](../22-first-run-onboarding/SPEC.md), [13](../13-bulk-add/SPEC.md), [32](../32-page-coverage-and-celebrations/SPEC.md), [35](../35-reveal-mode-and-review/SPEC.md) |
 | **Sources** | [05 S36, S37, S35](../../docs/research/05-learner-ux.md); [03 D2, D3, D4, D5, D6](../../docs/research/03-browser-extension.md); WCAG 2.2 |
 
@@ -48,14 +48,20 @@ UI. Today, read from the code:
 ## Non-goals
 
 - Making third-party websites accessible. Mira's duty on pages is not to make them worse.
-- Translating the interface: [50](../50-ui-localization-and-base-language/SPEC.md).
+- The translation infrastructure itself: [50](../50-ui-localization-and-base-language/SPEC.md).
+  This slice only requires that every accessible name, description and announcement comes
+  from `MiraI18n.t()` like any other string, and checks the English and Spanish locales.
 - Mobile screen readers in depth: [45](../45-firefox-android/SPEC.md) extends this baseline
   to TalkBack.
 
 ## User stories
 
-- As a screen reader user learning Spanish, I want to hear "gracias" in a Spanish voice where
-  a page said "thanks", and to get the English when I ask for it.
+- As a screen reader user who reads English and is learning Spanish, I want to hear
+  "gracias" in a Spanish voice where a page said "thanks", and to get the meaning in English
+  when I ask for it.
+- As a screen reader user who reads Spanish and is learning English, I want to hear "dog"
+  in an English voice where a page said "perro", and the rest of the page in my Spanish
+  voice, with every label and announcement of Mira's in Spanish.
 - As a keyboard user, I want to add, find, edit and delete words without a mouse.
 - As a person with low vision at 200 % zoom, I want the dashboard to reflow without
   horizontal scrolling.
@@ -87,7 +93,7 @@ affect Mira and how each is met; the owning slice implements, this slice verifie
 | 2.5.3 Label in name | Controls on pages aren't swapped by default | 16 |
 | 2.5.7 Dragging movements | Every drop target has a "Choose a file" button | 13 |
 | 2.5.8 Target size (minimum) | 24 × 24 CSS px everywhere; 44 × 44 on coarse pointers | 06 §10 |
-| 3.1.1 / 3.1.2 Language of page and parts | `<html lang>` on every extension page is the UI language; every native word has an accurate `lang` (08 tags) | all, 15 |
+| 3.1.1 / 3.1.2 Language of page and parts | `<html lang>` on every extension page is the interface language ([50](../50-ui-localization-and-base-language/SPEC.md)); every native word has an accurate `lang` (08 tags); learner- or model-supplied text in another language (a gloss in a second base, a native word in a list) carries its own `lang` | all, 15 |
 | 3.2.6 Consistent help | Help links (docs, report a problem) live in the same place: dashboard Settings → About and the popup's settings button | 21 |
 | 3.3.1 / 3.3.3 Error identification and suggestion | Errors name the field and the fix, with an icon, linked by `aria-describedby` | 25 |
 | 3.3.7 Redundant entry | Bulk add and onboarding remember choices already made (batch language, the connected AI) | 13, 22 |
@@ -97,25 +103,41 @@ affect Mira and how each is met; the owning slice implements, this slice verifie
 
 ### 2. Swapped words for screen readers
 
-**Default: the foreign word, in its own voice.** `<mira-w lang="es">gracias</mira-w>` is read
-as "gracias" by NVDA, JAWS, VoiceOver and Orca, switching to a Spanish voice where one is
-installed. This is listening practice, and it matches what sighted readers see. The English
-is reachable on demand with the "Show details" command (33's `reveal-word`, Alt+Shift+R by
+**Default: the target word, in its own voice.** On an English page,
+`<mira-w lang="es">gracias</mira-w>` is read as "gracias" by NVDA, JAWS, VoiceOver and
+Orca, switching to a Spanish voice where one is installed; on a Spanish page,
+`<mira-w lang="en">dog</mira-w>` in place of "perro" is read in an English voice and the
+reader switches back to Spanish for the text after it. The `lang` on `<mira-w>` is always
+the word's target `lang`, never inferred from the page. This is listening practice, and
+it matches what sighted readers see. The gloss (the meaning in the page's base language,
+[50 §3](../50-ui-localization-and-base-language/SPEC.md)) is reachable on demand with the "Show details" command (33's `reveal-word`, Alt+Shift+R by
 default) or, in keyboard mode, Enter on a focused word: the popover opens with focus on its
-first action and is announced as a dialog, so the screen reader reads the English, the
-language and the note ([19 §7](../19-word-popover/SPEC.md)).
+first action and is announced as a dialog, so the screen reader reads the gloss, the
+language name (in the interface language) and the note; the popover marks the gloss with
+the record's `base_lang` and the native word with its `lang`, so each is read in its own
+voice ([19 §7](../19-word-popover/SPEC.md)).
 
-**Setting "Screen readers hear swapped words as":** Foreign word (default) · English ·
-Both. Implemented by [15](../15-framework-safe-swapping/SPEC.md)'s element, which this
-slice asks to support an opt-in variant:
+**Setting "Screen readers hear swapped words as":** The word I'm learning (default) ·
+The original word · Both. Implemented by [15](../15-framework-safe-swapping/SPEC.md)'s
+element, which this slice asks to support an opt-in variant:
 
-- English: the visible word gets `aria-hidden="true"` on an inner `<span>` and a visually
-  hidden sibling `<span lang="en">thanks</span>` carries the English.
-- Both: the hidden sibling reads "gracias, thanks" with each part in its own `lang`.
-- These variants put English text into the page's DOM, which every other mode avoids
-  ([19 §6](../19-word-popover/SPEC.md)). The setting says so: "Sites can read this text."
-- While reveal mode ([35](../35-reveal-mode-and-review/SPEC.md)) is on, English never enters
-  the accessibility tree until revealed; the setting is overridden and says why.
+- Original: the visible word gets `aria-hidden="true"` on an inner `<span>` and a visually
+  hidden sibling carries the page's own text with the text's base-language tag:
+  `<span lang="en">thanks</span>` on an English page, `<span lang="es">perro</span>` on a
+  Spanish page. The `lang` is the language [16](../16-what-not-to-swap/SPEC.md) resolved
+  for that text, so the screen reader returns to the page's voice.
+- Both: the hidden sibling reads "gracias, thanks" (or "dog, perro") with each part in its
+  own `lang`.
+- These variants put the page's original words back into its DOM next to the swap, which
+  every other mode avoids ([19 §6](../19-word-popover/SPEC.md)). The setting says so:
+  "Sites can read this text."
+- While reveal mode ([35](../35-reveal-mode-and-review/SPEC.md)) is on, the original never
+  enters the accessibility tree until revealed; the setting is overridden and says why.
+
+**Restored text.** When Mira restores a page (off switch, 33's "Show the original" command,
+an unswap in 15), the original text node comes back unchanged, so it carries whatever
+language the page declared; Mira never adds or changes `lang` on page text it didn't
+insert.
 
 No `aria-label` is ever put on `<mira-w>`: ARIA forbids naming generic elements and most
 screen readers ignore it ([03 D4](../../docs/research/03-browser-extension.md)).
@@ -126,7 +148,7 @@ adds a tab stop for every swap on a page. When on, swaps are reachable in docume
 the shortcut stays the faster path on long pages.
 
 **Find in page** can't find swapped words ([03 D6](../../docs/research/03-browser-extension.md)).
-33's "Show the original English on this tab" command (Alt+Shift+O) restores the page for
+33's "Show the original text on this tab" command (Alt+Shift+O) restores the page for
 searching; onboarding mentions it ([22 §8](../22-first-run-onboarding/SPEC.md)).
 
 ### 3. Widget patterns
@@ -162,6 +184,10 @@ Rules for content scripts, beyond the popover:
 - Never move focus on a page except when the user opens the popover by keyboard.
 - Never insert announcements on a page except the in-page toast's polite status
   ([19 §8](../19-word-popover/SPEC.md)) and milestone messages, at most one at a time.
+- Every label, accessible name, `aria-description`, toast and milestone announcement comes
+  from `MiraI18n.t()` in the interface language ([50](../50-ui-localization-and-base-language/SPEC.md));
+  the in-page toast and popover set `lang` on their root to the interface language, so a
+  Spanish interface on an English page is read in a Spanish voice.
 - Swapped words keep the surrounding text's font, size and color; the underline is the only
   added styling (plus 37's opt-in colors), so the page's own contrast is unchanged.
 - Don't swap inside controls by default ([16](../16-what-not-to-swap/SPEC.md)); when the user
@@ -174,7 +200,8 @@ Rules for content scripts, beyond the popover:
   `popup.html` (every state from [20](../20-popup-redesign/SPEC.md)), `dashboard.html`
   (list, inspector, settings, bulk add), `welcome.html` (every state from
   [22](../22-first-run-onboarding/SPEC.md)), and the popover and toast on three fixture
-  pages (light, dark, RTL), in light and dark themes; zero violations of WCAG 2.2 A and AA
+  pages (light, dark, RTL), in light and dark themes, in the `en` and `es` interface
+  locales; zero violations of WCAG 2.2 A and AA
   rules. A keyboard-traversal script per page asserts every interactive
   element is reachable, has a visible focus ring (screenshot diff of the focused element) and
   is never covered by a sticky element. Reflow test at 320 px. Reduced-motion test with
@@ -198,17 +225,27 @@ Rules for content scripts, beyond the popover:
 - [ ] The dashboard and welcome page have no horizontal page scroll at 320 CSS px.
 - [ ] With reduced motion, no transform animation runs on any Mira surface, and celebrations
       show only their message.
-- [ ] On a fixture page, NVDA reads a swapped Spanish word with a Spanish voice by default,
-      and Alt+Shift+R on it opens the popover and reads the English (manual, recorded).
-- [ ] The "English" screen-reader setting makes NVDA read "thanks" instead of "gracias" and
-      is unavailable while reveal mode is on.
+- [ ] On an English fixture page, NVDA reads a swapped Spanish word with a Spanish voice by
+      default, and Alt+Shift+R on it opens the popover and reads the gloss "thanks" in an
+      English voice (manual, recorded).
+- [ ] On a Spanish fixture page with base `es`, NVDA reads a swapped "dog" with an English
+      voice and the surrounding text in Spanish; the popover reads the gloss "perro" in a
+      Spanish voice and its buttons in Spanish when the interface is Spanish (manual).
+- [ ] The "original word" screen-reader setting makes NVDA read "thanks" instead of
+      "gracias" on an English page and "perro" instead of "dog" on a Spanish page, with the
+      hidden text's `lang` equal to the page text's language, and is unavailable while
+      reveal mode is on.
+- [ ] Every accessible name and announcement on Mira pages comes from `_locales` (the
+      literal-string check from [50](../50-ui-localization-and-base-language/SPEC.md)
+      covers `aria-label`, `title` and `alt`), and axe passes in `es`.
 - [ ] Every toast's Undo has a non-timed equivalent (manual check against §1 2.2.1).
 - [ ] Target sizes: no interactive element under 24 × 24 CSS px (CI measurement).
 - [ ] `docs/accessibility.md` exists and the release checklist links it.
 
 ## Test plan
 
-As §6. Fixtures: a page with swapped words in Spanish, Arabic (RTL) and Japanese; a page with
+As §6. Fixtures: an English page with swapped words in Spanish, Arabic (RTL) and Japanese;
+a Spanish page (base `es`) with swapped English and Japanese words; a page with
 buttons, links and a form (for 16's skip rules and voice control); a dark page; a page with
 sticky headers. Manual results are recorded per release in the release PR template from
 [30](../30-release-pipeline/SPEC.md).
@@ -222,9 +259,9 @@ respect reduced motion."
 
 ## Open questions
 
-1. **What should screen readers hear by default?** Recommendation: the foreign word in its
-   own voice (listening practice, no English in the page's DOM), with English on demand and
-   the setting above. Confirm with at least one screen-reader user before release.
+1. **What should screen readers hear by default?** Recommendation: the target word in its
+   own voice (listening practice, no original text in the page's DOM), with the gloss on
+   demand and the setting above. Confirm with at least one screen-reader user before release.
 2. **Keyboard mode default.** Recommendation: off; the shortcut covers most needs without
    adding hundreds of tab stops.
 

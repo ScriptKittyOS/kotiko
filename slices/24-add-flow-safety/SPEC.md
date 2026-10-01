@@ -5,9 +5,9 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
-| **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md) |
+| **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages, `t()`) |
 | **Unblocks** | [13-bulk-add](../13-bulk-add/SPEC.md), [20-popup-redesign](../20-popup-redesign/SPEC.md), [21-dashboard](../21-dashboard/SPEC.md), [22-first-run-onboarding](../22-first-run-onboarding/SPEC.md), [33-context-menu-and-shortcuts](../33-context-menu-and-shortcuts/SPEC.md) |
-| **Sources** | [05 S7, S8, S9, S10, S13, S19](../../docs/research/05-learner-ux.md); [06 F05, F06, F09, F12, F30](../../docs/research/06-adversarial-qa.md); [01 S22](../../docs/research/01-language-mixing.md) |
+| **Sources** | [DECISIONS 2026-10-01, base language](../DECISIONS.md); [05 S7, S8, S9, S10, S13, S19](../../docs/research/05-learner-ux.md); [06 F05, F06, F09, F12, F30](../../docs/research/06-adversarial-qa.md); [01 S22](../../docs/research/01-language-mixing.md) |
 
 ## Problem
 
@@ -37,6 +37,11 @@ happened, and block the learner for minutes:
   offline, the learner is stuck ([05 S19](../../docs/research/05-learner-ux.md)).
 - **A pasted sentence saves many words with no confirmation**
   ([05 S9](../../docs/research/05-learner-ux.md), [06 F12](../../docs/research/06-adversarial-qa.md)).
+- **Every result assumes English.** The popup prints "native = english"
+  (`extension/popup.js:165`) and the model is asked for the English meaning
+  (`server/lib/slovo/llm.ex:28-29`). A learner reading Spanish pages needs the meaning in
+  Spanish, and one reading Spanish and English needs both
+  ([50](../50-ui-localization-and-base-language/SPEC.md)).
 
 ## Goals
 
@@ -48,9 +53,13 @@ happened, and block the learner for minutes:
 - No add ever blocks the UI. The input clears at once and accepts the next word; lookups run
   in a persistent background queue that survives the popup closing and the worker restarting.
 - Adds are idempotent: a retry with the same client id never creates a duplicate or a 500.
-- A learner can always add a word without the model, in one line ("gracias = thanks") or a
-  small form.
+- A learner can always add a word without the model, in one line ("gracias = thanks";
+  for a Spanish reader, "thanks = gracias") or a small form, with the meaning in their own
+  language.
 - Inputs that produce four or more words ask before saving.
+- Each add looks up meanings for the learner's base languages (all of them by default,
+  narrowable per add) and reports results per base, in the interface language
+  ([50 §3](../50-ui-localization-and-base-language/SPEC.md)).
 
 ## Non-goals
 
@@ -75,6 +84,11 @@ happened, and block the learner for minutes:
   saved anyway.
 - As a learner who got the wrong language, I want to fix it from the result line in one
   click.
+- As a reader of Spanish and English, I want one add of 犬 to give me "perro" for my Spanish
+  pages and "dog" for my English ones, and to skip English for a word I only want on Spanish
+  pages.
+- As a Spanish reader learning English, I want to type "dog" and get it with the meaning
+  "perro".
 
 ## Specification
 
@@ -94,15 +108,17 @@ persisted in `storage.local` under `addJobs` before any network call:
                           // rules.max_input_chars (200), else input_too_long
   hintLang: null,         // BCP 47 tag from the language hint chip or 33's "Learn in", or null
   pageLang: null,         // 33: language of a selected foreign word's page, or null
-  manual: null,           // {native, english, lang, romanization?, note?} for manual adds
+  baseLangs: ["es", "en"],// bases to look meanings up for: s:ui.baseLangs at submit time,
+                          // narrowed by the "For pages in" chips (§8)
+  manual: null,           // {native, gloss, base_lang, lang, romanization?, note?} for manual adds
   state: "queued",        // queued | looking_up | waiting | needs_choice | done | failed | cancelled
   createdAt: 1727771234567,
   startedAt: null,
   attempts: 0,
   error: null,            // {code, details: {reason?, retry_at?, ...}} per 25
   candidates: null,       // words found, before saving, in needs_choice
-  results: [              // after saving
-    { wordId, result: "created" | "updated" | "unchanged",
+  results: [              // after saving; one entry per saved record (one per base)
+    { wordId, baseLang: "es", result: "created" | "updated" | "unchanged",
       word: {...word}, previous: {...word} | null, undo: null | "done" | "failed" }
   ],
   seen: false             // set true once any surface has shown the finished job
@@ -126,17 +142,24 @@ queued ──> looking_up ──> done
   quota; [10](../10-llm-client-resilience/SPEC.md) owns the quota math). It writes
   `state` and `startedAt` before calling the backend.
 - **Lookup:** in local mode the background calls the model through
-  [11](../11-local-first-mode/SPEC.md)'s client with the job's `hintLang` (or `pageLang`)
-  and the learner's recent languages, under [10](../10-llm-client-resilience/SPEC.md)'s
-  overall deadline. In server mode it calls `POST /api/v1/words` with
-  `{text, client_request_id: job.id, hint_lang}` ([07 §5](../07-word-model-v2/SPEC.md)).
+  [11](../11-local-first-mode/SPEC.md)'s client with the job's `hintLang` (or `pageLang`),
+  the learner's recent languages and the job's `baseLangs`, under
+  [10](../10-llm-client-resilience/SPEC.md)'s overall deadline. In server mode it calls
+  `POST /api/v1/words` with `{text, client_request_id: job.id, hint_lang, base_langs}`
+  ([07 §5](../07-word-model-v2/SPEC.md)). The model returns one entry per base
+  ([09](../09-shared-word-spec-and-prompt/SPEC.md)); a base equal to the word's own
+  language is dropped ([50 §1](../50-ui-localization-and-base-language/SPEC.md)).
 - **Saving:** words are written through [07](../07-word-model-v2/SPEC.md)'s merge-not-overwrite
   `add`, which returns `created | updated | unchanged` and, for `updated`, `previous` (the
   full word before the merge). In server mode the response's `results` carry both; in local
   mode [11](../11-local-first-mode/SPEC.md)'s store returns the same shape. Words the
   validator rejects ([09](../09-shared-word-spec-and-prompt/SPEC.md) `rejected`) are listed
-  in the job with their reason.
-- **Four or more words:** if the lookup returns 4+ words (09 caps an add at 5), nothing is
+  in the job with their reason. Each base's record is saved and reported on its own (one
+  base can be `created` while another is `unchanged`); if a base's entry is missing or
+  rejected while another succeeded, the job is `done` and its line notes "No meaning in
+  {base} yet" with "Add it" (a manual meaning, §7).
+- **Four or more words:** counted as target words, not records (犬 for two bases is one
+  word). If the lookup returns 4+ words (09 caps an add at 5), nothing is
   saved; the job moves to `needs_choice` with `candidates`, all ticked by default. One to
   three words are saved immediately, each with its own Undo. The threshold is a constant
   (`CONFIRM_AT = 4`). Exception: when the server does the lookup (`lookup.kind = "server"`,
@@ -155,7 +178,9 @@ queued ──> looking_up ──> done
   and "Add it yourself".
   A job waits at most 3 days, then becomes `failed` with its text kept so the learner can
   add it by hand.
-- **failed:** for `no_word_found`, `rejected_english`, `input_too_long`, `key_rejected`,
+- **failed:** for `no_word_found`, `rejected_same_as_gloss` (the word is already in one of
+  the learner's base languages, [09](../09-shared-word-spec-and-prompt/SPEC.md)),
+  `input_too_long`, `key_rejected`,
   `vocabulary_full`, and `bad_lookup_result` after one retry. Failed jobs offer "Add it yourself"
   with the text prefilled.
 - **Worker restarts:** on every worker start the background scans `addJobs`. A job in
@@ -181,23 +206,35 @@ queued ──> looking_up ──> done
 
 The popup ([20](../20-popup-redesign/SPEC.md)) shows the three most recent jobs, newest first;
 the dashboard ([21](../21-dashboard/SPEC.md)) shows pending jobs at the top of the list. Native
-words are in `<bdi lang="…">`. Exact copy:
+words are in `<bdi lang="…">`, glosses in `<bdi lang="{base_lang}">`. Every line is a key in
+`_locales` read with `MiraI18n.t()` ([50 §8](../50-ui-localization-and-base-language/SPEC.md));
+English and Spanish are complete at launch:
 
-| State / result | Line | Actions |
-|---|---|---|
-| queued, looking_up | "Looking up {text}…" | "Cancel" |
-| created | "Added {native} ({romanization}) = {english} · {Language}" | "Undo", language chip |
-| updated | "Updated {native} = {english} · {Language}: {what changed}" where what changed is e.g. "new forms: thank you" | "Undo" |
-| unchanged | "Already in your list: {native} = {english} · {Language}" | "Open" (dashboard at that word) |
-| needs_choice | "Found {n} words in “{text}”." then a checklist | "Add {k} words", "Cancel" |
-| waiting | "Waiting to look up {text}: {short reason from 25}" | "Add it yourself", "Cancel" |
-| failed | "{message from 25}" | "Add it yourself", "Try again" where it can help |
-| undo done (created) | "Removed {native}." | "Add it back" |
-| undo done (updated) | "Put {native} back as it was." | none |
-| undo failed | "Couldn't undo: {message from 25}" | "Try again" |
+| Key | en | es | Actions |
+|---|---|---|---|
+| `add_looking_up` | Looking up {text}… | Buscando {text}… | "Cancel" / "Cancelar" |
+| `add_created` | Added {native} ({romanization}) = {gloss} · {lang} | Agregada {native} ({romanization}) = {gloss} · {lang} | "Undo" / "Deshacer", language chip |
+| `add_updated` | Updated {native} = {gloss} · {lang}: {what changed} | Actualizada {native} = {gloss} · {lang}: {what changed} | "Undo" |
+| `add_updated_forms` (what changed) | new forms: {forms} | formas nuevas: {forms} | |
+| `add_unchanged` | Already in your list: {native} = {gloss} · {lang} | Ya está en tu lista: {native} = {gloss} · {lang} | "Open" / "Abrir" |
+| `add_needs_choice` | Found {n} words in “{text}”. | Encontré {n} palabras en “{text}”. | "Add {k} words" / "Agregar {k} palabras", "Cancel" |
+| `add_waiting` | Waiting to look up {text}: {reason} | Esperando para buscar {text}: {reason} | "Add it yourself" / "Agrégala tú", "Cancel" |
+| failed | {message from 25} | {mensaje de 25} | "Add it yourself", "Try again" / "Reintentar" where it can help |
+| `add_missing_base` | No meaning in {base} yet. | Aún sin significado en {base}. | "Add it" / "Agregarlo" |
+| `undo_done_created` | Removed {native}. | Se quitó {native}. | "Add it back" / "Volver a agregarla" |
+| `undo_done_updated` | Put {native} back as it was. | {native} volvió a como estaba. | none |
+| `undo_failed` | Couldn't undo: {message from 25} | No se pudo deshacer: {mensaje de 25} | "Try again" |
 
-Romanization in parentheses is omitted when null. `{Language}` is the display name from
-[08](../08-language-tags/SPEC.md).
+Romanization in parentheses is omitted when null. `{lang}` and `{base}` are names from
+`Intl.DisplayNames([uiLocale], {type: "language"})` on [08](../08-language-tags/SPEC.md)'s
+canonical tag, never the model's `language` field. `{n}`, `{k}` use plural keys
+(`_one`/`_other`, 50 §8). "Agregada" agrees with "palabra", not with the learner.
+
+**Several bases.** With more than one base, `{gloss}` is the glosses in base order, joined
+with " · " ("perro · dog"), and the result is the record-level summary: `created` if any
+record was created, else `updated` if any was updated, else `unchanged`. Undo on the line
+undoes every record of that word in the job; per-base detail ("Already had the English
+meaning; added the Spanish one") appears under the line when results differ.
 
 ```
 Popup, three jobs in different states (360 px wide):
@@ -210,6 +247,19 @@ Popup, three jobs in different states (360 px wide):
   │        [Arabic ▾]                   Undo   │
   │  Already in your list: gracias = thanks    │
   │        Spanish                      Open   │
+  └────────────────────────────────────────────┘
+
+The same popup for a reader of Spanish and English (interface in Spanish):
+
+  ┌────────────────────────────────────────────┐
+  │ [ Agrega una palabra, en cualq… ] [Auto▾]  │
+  │  Para páginas en: [✓ español] [✓ inglés]   │  §8
+  │                                            │
+  │  Buscando こんにちは…              Cancelar  │
+  │  Agregada 犬 (inu) = perro · dog           │
+  │        [japonés ▾]               Deshacer  │
+  │  Ya está en tu lista: dog = perro          │
+  │        inglés                       Abrir  │
   └────────────────────────────────────────────┘
 
 needs_choice:
@@ -228,6 +278,8 @@ In `needs_choice`, function-word candidates the shared spec flags
 
 ### 5. Undo
 
+- Undo applies to every record the job saved for that word (one per base), each with its
+  own rule below; the line reports the combined outcome.
 - **created:** removes the word with a tombstone (`DELETE /api/v1/words/:id`, or the local
   store's delete; [07](../07-word-model-v2/SPEC.md)). "Add it back" calls restore
   (`POST /api/v1/words/:id/restore`); if that returns `word_conflict` or `word_gone`, it
@@ -245,39 +297,57 @@ In `needs_choice`, function-word candidates the shared spec flags
 
 ### 6. Wrong language, in one click
 
-The language on a created result is a chip ("Arabic ▾"). Choosing another language from its
-menu (the learner's languages first, then "Other language…" with search) runs a new job with
+The language on a created result is a chip ("Arabic ▾" / "árabe ▾"). Choosing another
+language from its menu (the learner's languages first, then "Other language…" with search) runs a new job with
 `hintLang` set to that language and the original `text`. When it succeeds, the previous
 created words from that job are removed in the same step, and the line shows the new result
 with Undo that restores the previous pair. Two clicks, no retyping.
 
 ### 7. Adding without the model
 
-**Inline syntax.** The add box recognizes `native = english` (also `—`, `–`, ` - ` with
-spaces, and a tab), the same rules [13](../13-bulk-add/SPEC.md) uses for one line. Optional
-romanization in parentheses after the native word: `спасибо (spasibo) = thanks`. The
-language comes from the language hint; if the hint is Auto, from Focus
+**Inline syntax.** The add box recognizes `native = meaning` (also `—`, `–`, ` - ` with
+spaces, and a tab), the same rules [13](../13-bulk-add/SPEC.md) uses for one line, in any
+base language. Optional romanization in parentheses after the native word: `спасибо
+(spasibo) = thanks` or `спасибо (spasibo) = gracias`. The meaning is the gloss in the
+**primary base** (the first ticked "For pages in" chip, §8), so a Spanish reader types
+"thanks = gracias" or "犬 = perro"; one record is saved. The word's language comes from
+the language hint; if the hint is Auto, from Focus
 ([18](../18-language-precedence-and-mixing/SPEC.md)), then from the most recently added
-language, and the result line names it with the chip so it can be changed. If the learner has
-no languages yet, the hint opens with "Choose a language" and Enter opens the picker. Such
-adds never call the model and work offline.
+language, and the result line names it with the chip so it can be changed. It can never be
+the meaning's base ([50 §1](../50-ui-localization-and-base-language/SPEC.md)); when the
+fallbacks would pick it, the picker opens instead. If the learner has no languages yet, the
+hint opens with "Choose a language" and Enter opens the picker. Such adds never call the
+model and work offline.
 
 **Manual form.** "Add it yourself" (from a waiting or failed job, from the add box's menu, or
-from the dashboard) opens a small form: native (required, `dir="auto"`), English (required;
-more forms separated by commas), language (required, picker), romanization (optional), note
-(optional). Enter saves. Prefilled from the job's text: if the text is not Latin script it
-goes into native; otherwise into native too, and the learner fills English.
+from the dashboard) opens a small form: native (required, `dir="auto"`), **Meaning in
+{base}** (required; more forms separated by commas, or `、`/`，` for Japanese and Chinese
+bases; one field per ticked base, only the first required), language (required, picker),
+romanization (optional), note (optional). Labels in Spanish: "Palabra", "Significado en
+español", "Idioma", "Romanización", "Nota". Enter saves one record per filled meaning.
+Prefilled from the job's text: the text goes into native, and the learner fills the
+meaning.
 
-Validation (shared with [09](../09-shared-word-spec-and-prompt/SPEC.md)): native 1-64
-characters, no newlines; English forms at least 2 letters; language not `en`; native not equal
-to English unless the learner confirms ("This is spelled the same as the English. Save
-anyway?").
+Validation (shared with [09](../09-shared-word-spec-and-prompt/SPEC.md), using each base's
+`spec/lang/<base>/` rules): native 1-64 characters, no newlines; forms at least 2
+characters, or 1 for Chinese and Japanese bases; language not equal to the meaning's base;
+native not equal to the meaning unless the learner confirms ("This is spelled the same as
+the {base} word. Save anyway?" / "Se escribe igual que en {base}. ¿Guardar de todos
+modos?").
 
-### 8. Language hint
+### 8. Language hint and "For pages in"
 
 A compact chip beside the add box: "Auto" by default; a menu of the learner's languages and
 "Other language…". The choice persists for the session (`storage.session`) and resets to Auto
 on browser restart. When Focus is on, the chip shows the focus language instead of Auto.
+
+**For pages in** ("Para páginas en"): shown under the add box only when the learner has
+two or more base languages. One checkbox chip per base, all ticked by default
+([50 §3](../50-ui-localization-and-base-language/SPEC.md), open question 1), names in the
+interface language. Unticking narrows the next add only and resets after it, so the
+default stays "all my languages". At least one stays ticked. The job carries the result as
+`baseLangs`. The welcome tab ([22](../22-first-run-onboarding/SPEC.md)) uses its own base
+chips instead.
 
 ### 9. Drafts and unseen results
 
@@ -292,8 +362,8 @@ Background message types (sender checks per [26](../26-background-sync-correctne
 
 | Type | Payload | Reply (immediate) |
 |---|---|---|
-| `add` | `{id, text, hintLang, pageLang?, surface}` | `{ok: true}` once persisted |
-| `addManual` | `{id, native, english, lang, romanization?, note?, surface}` | `{ok: true}`; saved as 07 `origin: "manual"` via the structured add `{word, client_request_id}` |
+| `add` | `{id, text, hintLang, pageLang?, baseLangs, surface}` | `{ok: true}` once persisted |
+| `addManual` | `{id, native, lang, meanings: [{base_lang, gloss, forms?}], romanization?, note?, surface}` | `{ok: true}`; one 07 record per meaning, `origin: "manual"`, via the structured add `{word, client_request_id}` (batch route for several) |
 | `chooseWords` | `{id, keep: [index]}` | `{ok: true}` |
 | `undo` | `{id, wordId}` | `{ok: true}` |
 | `relang` | `{id, lang}` | `{ok: true, newId}` |
@@ -325,7 +395,16 @@ what makes the popup closing harmless.
       create one row.
 - [ ] Undo against a server that returns an error shows "Couldn't undo" and keeps the Undo
       button (regression for 06 F30).
-- [ ] "gracias = thanks" with the hint set to Spanish saves with no model call, offline.
+- [ ] "gracias = thanks" with the hint set to Spanish (base `en`) saves with no model call,
+      offline; for a Spanish-base learner, "thanks = gracias" with the hint set to English
+      saves `{lang: "en", native: "thanks", base_lang: "es", gloss: "gracias"}` the same way.
+- [ ] With bases `es` and `en`, adding 犬 saves two records and shows one line "perro · dog"
+      whose Undo removes both; unticking "inglés" before adding saves only the Spanish one.
+- [ ] Adding "dog" for a Spanish-base learner saves `lang: "en"` with gloss "perro"; no
+      record ever has `lang` equal to its own `base_lang`.
+- [ ] A lookup whose words are all in the learner's base language fails with
+      `rejected_same_as_gloss` and the 25 message in the interface language.
+- [ ] With the browser in Spanish, every line, chip and action in §4 is Spanish.
 - [ ] A lookup returning five words saves nothing until "Add 3 words" is pressed, and then
       saves exactly the three ticked.
 - [ ] Changing the language chip on a result replaces the word in two clicks.
@@ -334,13 +413,15 @@ what makes the popup closing harmless.
 ## Test plan
 
 - **Unit (Node):** the job state machine with a fake clock and fake backend: every transition
-  in §2, backoff schedule, the 3-day expiry, the 4-word threshold, the inline parser (shared
-  fixtures with 13), validation rules.
+  in §2, backoff schedule, the 3-day expiry, the 4-word threshold (counted per target word,
+  not per base record), per-base results and combined summary, the inline parser in `en`,
+  `es` and `ja` bases (shared fixtures with 13), validation rules per base.
 - **Server (ExUnit):** `client_request_id` idempotency including concurrent requests; created /
   updated / unchanged reporting; restore with `if_updated_at` conflict.
 - **End-to-end (Playwright, unpacked extension, mock model server):** add, close popup, reopen;
   slow model (40 s) with worker termination via the DevTools protocol; offline toggling;
-  Undo of each result type; relang.
+  Undo of each result type; relang; a two-base learner; the browser launched with
+  `--lang=es`.
 - **Manual:** Firefox and Chrome, a real free model, with the popup closed mid-add.
 
 ## Rollout and migration
@@ -363,7 +444,11 @@ what makes the popup closing harmless.
    DECISIONS.md): slice 07's `POST /api/v1/words` takes `"preview": true` (interpret and
    validate, save nothing, return candidates), so server-lookup mode confirms before saving
    exactly like local mode.
-3. **How long Undo stays available.** Recommendation: as long as the job is listed (7 days),
+3. **Show "For pages in" chips on every add, or only in a menu?** Recommendation: show them
+   under the add box for learners with two or more bases (everyone else never sees them);
+   narrowing is rare but should be one tap, and seeing them explains why one add gives two
+   meanings.
+4. **How long Undo stays available.** Recommendation: as long as the job is listed (7 days),
    because wrong words are often noticed later.
 
 ## Future work

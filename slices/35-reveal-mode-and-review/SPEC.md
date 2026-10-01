@@ -5,14 +5,14 @@
 | **Status** | Proposed |
 | **Priority** | P1 (soon after release) |
 | **Size** | M (about a week) |
-| **Depends on** | [19-word-popover](../19-word-popover/SPEC.md); uses stable word IDs and the reserved `well_known` status from [07](../07-word-model-v2/SPEC.md) |
+| **Depends on** | [19-word-popover](../19-word-popover/SPEC.md); uses stable word IDs, `gloss`, `base_lang` and the reserved `well_known` status from [07](../07-word-model-v2/SPEC.md), and record groups from [50](../50-ui-localization-and-base-language/SPEC.md) |
 | **Unblocks** | [46-local-stats-and-recap](../46-local-stats-and-recap/SPEC.md) (shares the local signal store) |
 | **Sources** | [05 S26, S28, S29, open questions 2 and 5, wireframe 3.2](../../docs/research/05-learner-ux.md), [01 S20, open question 5](../../docs/research/01-language-mixing.md) |
 
 ## Problem
 
-Hovering a swapped word shows the English at once (`extension/content.js:96`), so the learner
-never has to recall it: recognition without retrieval (05 S26). Mira also learns nothing from
+Hovering a swapped word shows its meaning at once (`extension/content.js:96`, today always in
+English), so the learner never has to recall it: recognition without retrieval (05 S26). Mira also learns nothing from
 use. A word you keep getting wrong appears exactly as often as one you've known for months, and
 there is no way to say "I know this one now" short of deleting it (05 S28). Retrieval practice
 and spacing are among the best-supported findings in learning research (01 section 3), and Mira
@@ -20,13 +20,17 @@ already provides the spacing for free by showing words across pages and days.
 
 ## Goals
 
-- A **Reveal mode** (test yourself): the popover hides the English until asked.
+- A **Reveal mode** (test yourself): the popover hides the meaning (the gloss, in the base
+  language of the page the word is on, [50](../50-ui-localization-and-base-language/SPEC.md))
+  until asked.
 - **Knew it / Didn't know** answers in the popover, stored locally per word.
 - **Light review weighting**: words you missed show up more and are easier to spot; words you
   know well fade into ordinary text.
 - **Well known** status: suggested automatically from answers, set or cleared by the user, and
   either kept swapping (default) or retired.
 - No schedules, notifications, streaks or guilt.
+- A bilingual reader's answers count for the word, not for one of its per-base records: knowing
+  犬 on an English page also counts on a Spanish page.
 
 ## Non-goals
 
@@ -38,8 +42,10 @@ already provides the spacing for free by showing words across pages and days.
 
 ## User stories
 
-- As a learner, I turn on Reveal mode, see "собака", think "dog", then reveal and press
-  "Knew it".
+- As a learner reading English, I turn on Reveal mode, see "собака", think "dog", then reveal
+  and press "Knew it".
+- As a learner reading Spanish, I see "dog" where the page said "perro", think "perro", then
+  press "Ver significado" and "Lo sabía".
 - As a learner who keeps forgetting "колесо", I see it more often and with a stronger underline
   until I get it.
 - As a learner who has known "gracias" for months, it stops drawing my eye but stays in the page.
@@ -49,35 +55,41 @@ already provides the spacing for free by showing words across pages and days.
 
 ### Popover states (content for slice 19)
 
-Normal mode (Reveal off):
+The meaning shown is the `gloss` of the record that was swapped, so it is always in the
+language of the text the word replaced; the language name and buttons are in the interface
+language (`MiraI18n.t()`, 50). Normal mode (Reveal off), English page and interface, then
+Spanish page and interface:
 
 ```
-+----------------------------------------+
-| 谢谢   xièxie                [speaker] |
-| Mandarin                               |
-| thanks                                 |
-| Also: gracias · спасибо                |
-|----------------------------------------|
-| Knew it     Didn't know                |
-+----------------------------------------+
++----------------------------------------+   +----------------------------------------+
+| 谢谢   xièxie                [speaker] |   | 谢谢   xièxie                [altavoz] |
+| Mandarin                               |   | chino mandarín                         |
+| thanks                                 |   | gracias                                |
+| Also: gracias · спасибо                |   | También: thank you · спасибо           |
+|----------------------------------------|   |----------------------------------------|
+| Knew it     Didn't know                |   | Lo sabía     No lo sabía               |
++----------------------------------------+   +----------------------------------------+
 ```
 
 Reveal mode, before revealing:
 
 ```
-+----------------------------------------+
-| 谢谢   xièxie                [speaker] |
-| Mandarin                               |
-| [ Show English ]                       |
-+----------------------------------------+
++----------------------------------------+   +----------------------------------------+
+| 谢谢   xièxie                [speaker] |   | 谢谢   xièxie                [altavoz] |
+| Mandarin                               |   | chino mandarín                         |
+| [ Show meaning ]                       |   | [ Ver significado ]                    |
++----------------------------------------+   +----------------------------------------+
 ```
 
-After "Show English": the English and "Also" lines appear, focus moves to "Knew it", and the
+After "Show meaning": the gloss and "Also" lines appear, focus moves to "Knew it", and the
 answer buttons get primary emphasis. Romanization stays visible in both states; it is
 pronunciation, not meaning. A setting "Hide pronunciation until I reveal" covers learners who
-want a harder test. Keyboard: Space or Enter on "Show English"; then K for "Knew it" and D for
+want a harder test. Keyboard: Space or Enter on "Show meaning"; then K for "Knew it" and D for
 "Didn't know" (19 owns key handling; 33 adds a global "reveal the word under the cursor"
-shortcut). Screen readers: the English is not in the accessibility tree until revealed (27).
+shortcut). Answer keys are not localized letters: K and D work in every interface language,
+and the buttons show them as hints. Screen readers: the gloss is not in the accessibility
+tree until revealed (27), and once revealed it carries the record's `base_lang` as its
+`lang`.
 
 After an answer, the buttons are replaced by a one-line confirmation ("Marked: knew it ·
 Change") for the rest of that popover session; "Change" lets the learner correct a mis-tap.
@@ -96,6 +108,14 @@ review: Record<WordId, {
 }>
 ```
 
+**Groups.** A learner with several base languages has one record per base for the same target
+word (50 §3): 犬 for Spanish pages and 犬 for English pages. Review is about the target word, so
+an answer updates the shown record's entry and its **siblings**: records in the learner's other
+bases with the same `lang` and `native_key`, when that base has exactly one such record. (When
+a base has several senses of the same native, such as замок "castle" and "lock", the answer
+stays on the shown record, because Mira can't tell which sense the sibling is.) Entries stay
+keyed by UUID, so nothing changes for single-base learners.
+
 Writes are batched (2 s debounce) through the background worker so that tabs don't race. One
 answer per word per page view counts towards the streak, so rapid clicking can't retire a word.
 About 80 bytes per word: 20,000 words is under 2 MB. Deleting a word deletes its entry; slice
@@ -106,7 +126,9 @@ About 80 bytes per word: 20,000 words is under 2 MB. Deleting a word deletes its
 "Well known" is a word status, not a local flag: the word's `status` becomes `well_known`
 (the value slice 07 reserves), saved through the normal edit path (07's `PATCH`, or the local
 store in 11), so it syncs (39), shows in the dashboard's status filter (21) and survives export
-(12). The counters above stay local.
+(12). The counters above stay local. Marking a word well known, automatically or by hand,
+patches the shown record and its siblings together, and "Back to learning" does the same, so a
+bilingual reader never has 犬 retired on Spanish pages but not on English ones.
 
 - **Auto**: a word becomes well known when `streak >= 3` across at least 3 distinct days
   (`knewDays`) and it hasn't been missed in 14 days. The next popover for it shows "Marked as
@@ -146,8 +168,13 @@ Stored in slice 39's `s:display` group. The popup (20) shows Reveal mode as one 
 
 ## Acceptance criteria
 
-- [ ] With Reveal mode on, the popover never shows the English (visually or to assistive
-      technology) until "Show English" is activated.
+- [ ] With Reveal mode on, the popover never shows the gloss (visually or to assistive
+      technology) until "Show meaning" is activated; on a Spanish page with base `es` the
+      revealed gloss is the Spanish one ("perro" for "dog") and the buttons read "Ver
+      significado", "Lo sabía", "No lo sabía" when the interface is Spanish.
+- [ ] With bases `en` and `es`, "Knew it" on 犬 on an English page updates both 犬 records'
+      entries; marking it well known patches both records; with two Spanish senses of замок,
+      an answer on the English record leaves both Spanish records alone.
 - [ ] "Knew it" and "Didn't know" update `review` once per word per page view; a second tap in the
       same view changes the answer instead of adding one.
 - [ ] Three "knew" answers on three different days, with no miss in 14 days, mark a word well
@@ -168,7 +195,7 @@ Stored in slice 39's `s:display` group. The popup (20) shows Reveal mode as one 
 ## Rollout and migration
 
 Off by default; no migration (empty store). Changelog: "Test yourself: turn on Reveal mode to
-guess before you see the English. Tell Mira when you knew a word, and words you've mastered fade
+guess before you see the meaning. Tell Mira when you knew a word, and words you've mastered fade
 into the page."
 
 ## Open questions

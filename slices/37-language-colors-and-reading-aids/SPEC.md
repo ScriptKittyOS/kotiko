@@ -146,8 +146,9 @@ mira-w.mira-known { text-decoration-line: none; }          /* 35 */
   by about half an em. This is the one place Mira accepts a change to the page's line height,
   only while the learner has turned the aid on, and the setting says so: "Lines with a
   reading get a little taller."
-- Copy and print: [43](../43-copy-print-translate-coexistence/SPEC.md)'s copy-as-English
-  replaces the whole element, ruby included; with copy-as-English off, `rt` text is excluded
+- Copy and print: [43](../43-copy-print-translate-coexistence/SPEC.md)'s "Copy the original
+  text" replaces the whole element, ruby included, with the page's own words; with it off,
+  `rt` text is excluded
   from copied text by 43's copy handler so "谢谢" doesn't paste as "谢谢xièxie".
 - Words without the requested reading show without ruby.
 
@@ -155,8 +156,8 @@ mira-w.mira-known { text-decoration-line: none; }          /* 35 */
 
 - **Vowel and stress marks:** when on for a language, [17](../17-casing-and-script-display/SPEC.md)'s
   `display()` receives `native_vocalized` instead of `native` where the word has one
-  ("كَتَبَ", "за́мок", "שָׁלוֹם"); words without it show `native`. Matching is on the English
-  side, so nothing else changes. Casing still applies after (17).
+  ("كَتَبَ", "за́мок", "שָׁלוֹם"); words without it show `native`. Matching is on the base-language
+  side (the page's own words, [14](../14-matcher-engine/SPEC.md)), so nothing else changes. Casing still applies after (17).
 - **Kana for Japanese:** "Spelling: Kana" displays 36's `reading` instead of `native` (ねこ for
   猫); "Above the word: Reading" with "Spelling: Kanji" gives furigana. Both options together
   (kana above kana) are prevented in the settings.
@@ -188,7 +189,7 @@ per-node budget in 15 rises by under 10 % on a page of 2,000 swaps (measured in 
       "Reading above / Kanji".
 - [ ] An Arabic word with `native_vocalized` shows the vocalized form when vowel marks are on;
       one without shows the plain form.
-- [ ] Copying a sentence with ruby (copy-as-English off) pastes without the `rt` text.
+- [ ] Copying a sentence with ruby ("Copy the original text" off) pastes without the `rt` text.
 - [ ] The popover, popup chips and dashboard show the same color dot plus the language name.
 - [ ] In forced colors, underlines use `CanvasText` and stay visible.
 
@@ -220,3 +221,8 @@ above words, vowel marks and kana."
 
 - Per-site reading-aid overrides with [38](../38-per-site-rules/SPEC.md).
 - Tone colors for Mandarin pinyin (a common learner aid), once tones are reliable in 36's data.
+- Readings in the learner's base script: romanization is Latin today, which suits readers
+  of Latin-script bases; a Japanese-base reader learning Russian might prefer katakana
+  above собака, and a Russian-base reader Cyrillic transcription of Japanese (Polivanov).
+  This needs a per-base reading field from 36's prompt, keyed by base like the gloss
+  ([50](../50-ui-localization-and-base-language/SPEC.md)).

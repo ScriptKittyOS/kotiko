@@ -5,7 +5,7 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
-| **Depends on** | [02-test-harness-and-ci](../02-test-harness-and-ci/SPEC.md), [03-oss-foundations](../03-oss-foundations/SPEC.md) |
+| **Depends on** | [02-test-harness-and-ci](../02-test-harness-and-ci/SPEC.md), [03-oss-foundations](../03-oss-foundations/SPEC.md); the release checklist checks [50](../50-ui-localization-and-base-language/SPEC.md)'s launch locales |
 | **Unblocks** | The public release; [40](../40-server-packaging-docker/SPEC.md) (image publishing hooks in here), [44](../44-docs-site/SPEC.md) |
 | **Sources** | [04 section 3 "Release plan", S30, S32](../../docs/research/04-architecture-release.md); [03 E6, E7](../../docs/research/03-browser-extension.md); [DECISIONS: store publisher and contact](../DECISIONS.md) |
 
@@ -215,6 +215,18 @@ The GitHub release body is the CHANGELOG entry plus a fixed footer: install link
 both stores, server upgrade instructions (`git pull && ./run.sh`, or Docker once slice 40
 lands), the compatibility line ("Extension 0.3 works with server 0.2 and 0.3"), and the
 verification commands.
+
+**In both launch languages.** The CHANGELOG stays in English (it is written from commit
+messages), but the user-facing summary is not: the release PR carries a short
+`release-notes/<version>.es.md` with the Spanish version of the user-facing changes,
+written or reviewed by a Spanish speaker, and the release body includes it under
+"Español". Store "what's new" text (where the store has one) is filled per listing
+language from the same two files ([50](../50-ui-localization-and-base-language/SPEC.md),
+[28](../28-privacy-and-store-readiness/SPEC.md)).
+
+**Release checklist** (`docs/stores.md`), ticked in the release PR: the `i18n` CI job is
+green (both launch locales complete); new strings since the last release were reviewed in
+Spanish by a native speaker; the store listings in English and Spanish match the release.
 
 ### 9. Compatibility policy
 

@@ -5,18 +5,24 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
-| **Depends on** | [14-matcher-engine](../14-matcher-engine/SPEC.md) |
+| **Depends on** | [14-matcher-engine](../14-matcher-engine/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages, `spec/lang/<base>/detect.json` and `casing.json`) |
 | **Unblocks** | [38-per-site-rules](../38-per-site-rules/SPEC.md), [32](../32-page-coverage-and-celebrations/SPEC.md) (coverage counts only text Mira would consider) |
-| **Sources** | [06 F13](../../docs/research/06-adversarial-qa.md), [02 B1-B3, C4, E6](../../docs/research/02-linguistics.md), [03 B1, B2, B5, B6, D5, E4](../../docs/research/03-browser-extension.md), [01 S10, S14](../../docs/research/01-language-mixing.md), [05 S23](../../docs/research/05-learner-ux.md) |
+| **Sources** | [DECISIONS 2026-10-01, "English is not the base language"](../DECISIONS.md); [06 F13](../../docs/research/06-adversarial-qa.md), [02 B1-B3, C4, E6](../../docs/research/02-linguistics.md), [03 B1, B2, B5, B6, D5, E4](../../docs/research/03-browser-extension.md), [01 S10, S14](../../docs/research/01-language-mixing.md), [05 S23](../../docs/research/05-learner-ux.md) |
 
 ## Problem
 
 Mira swaps nearly everything it can see. Read from the code, and reproduced where noted:
 
-- **Other languages get "translated".** Nothing checks `<html lang>` or element `lang`
-  (`extension/content.js:115-132`). On a German page "Hand", "Kind", "also" and "will" are
-  swapped; on French pages "on" and "pain"; on Spanish pages "come", "no" and "a". Wikipedia's
-  `<i lang="de">` quotes and IPA spans are treated as English (02 E6, 03 B5, B6).
+- **Pages in languages the learner doesn't read get "translated".** Nothing checks
+  `<html lang>` or element `lang` (`extension/content.js:115-132`). For a learner who reads
+  English, on a German page "Hand", "Kind", "also" and "will" are swapped; on French pages
+  "on" and "pain"; on Spanish pages "come", "no" and "a". Wikipedia's `<i lang="de">` quotes and
+  IPA spans are treated as English (02 E6, 03 B5, B6).
+- **A rule that only allowed English pages would break everyone else.** The earlier draft of
+  this slice swapped only English text. For the maintainer's example, a learner in Puerto Rico
+  who reads Spanish, that rule skips every page they read, and Mira never does anything
+  ([DECISIONS 2026-10-01](../DECISIONS.md)). The rule has to be "pages in one of *your*
+  languages" (slice [50](../50-ui-localization-and-base-language/SPEC.md)'s base languages).
 - **Names and acronyms are swapped as words.** The regex is case-insensitive
   (`content.js:51`). "the IT team" becomes "ЭТО team", "Vitamin A." becomes "Vitamin Ein.",
   every "a" in "I think a cat is a pet" becomes "ein" (06 F13, reproduced). "Will Smith",
@@ -33,12 +39,18 @@ Mira swaps nearly everything it can see. Read from the code, and reproduced wher
 
 ## Goals
 
-- Mira only swaps English text: the page and each element are judged by declared language,
-  with detection as a fallback and a per-site override.
+- Mira only swaps text in one of the learner's base languages (50): the page and each element
+  are judged by declared language, with detection as a fallback and a per-site override. Text
+  in any other language, including English for a learner who doesn't read it, is left alone.
+- Each subtree is scanned with its own base's index, so a Spanish page quoting English text
+  works for a learner who reads both.
 - Precision over coverage for capitalized and short words (02 open question 1): names,
-  acronyms and initials are left alone, with every example in this spec passing.
+  acronyms and initials are left alone, with every example in this spec passing, using each
+  base's own capitalization conventions (German nouns are capitalized and are not names;
+  Spanish months and languages are lowercase; caseless scripts have no case evidence).
 - Code, editors, explicit opt-outs and Mira's own UI are never touched.
-- Controls are left in English by default, with a setting to include them.
+- Controls (buttons, menus, labels) are left as the site wrote them, in the learner's own
+  language, by default, with a setting to include them.
 - A built-in, transparent "sensitive sites" rule that the user can turn off.
 
 ## Non-goals
@@ -52,9 +64,15 @@ Mira swaps nearly everything it can see. Read from the code, and reproduced wher
 
 ## User stories
 
-- As a reader of a German news site who is learning Russian, Mira leaves the German alone.
+- As a reader of English and not German, learning Russian, Mira leaves a German news site
+  alone.
+- As a reader of Spanish in Puerto Rico, Mira swaps words on my Spanish news sites and leaves
+  English pages alone, because I didn't say I read English.
+- As a reader of Spanish and English, a Spanish article quoting an English speech gets Spanish
+  swaps in the article and English swaps in the quote.
 - As a reader of "the IT team met at the US embassy in May", nothing in that sentence is swapped
-  unless I know "team", "met" or "embassy".
+  unless I know "team", "met" or "embassy"; and in "el equipo de TI se reunió en mayo", "TI" is
+  never swapped.
 - As a developer reading code on GitHub, the code is untouched.
 - As someone paying a bill online, the payment form says exactly what the bank wrote.
 
@@ -72,36 +90,60 @@ Mira runs on a document only if all of these pass:
 2. Slice 38's `effective()` returns `swap: true`. It already folds in the global switch, the
    tab's "show originals" state (33), the site's own rule and this slice's sensitive-site list
    (section 4), in that order.
-3. **Page language** is English or unknown-but-detected-English:
+3. **Page language** is one of the learner's base languages, declared or detected. The result
+   is the page's base, `pageBase`, or null (leave the page alone, except for subtrees declared
+   in a base, below):
 
 ```
-declared = primaryTag(html[lang] || html[xml:lang] || meta[http-equiv=content-language])
+bases    = storage.local.baseLangs              // 50, e.g. ["es"], ["es", "en"]; at most 4
+declared = html[lang] || html[xml:lang] || meta[http-equiv=content-language]
+isBase(t)= the base in `bases` that is the same base as baseTagOf(t) (50: primary language and
+           script match; pt-BR and pt-PT are the same base), or null
 sample   = up to 2,000 characters of visible text, from main/article if present, else body,
            skipping elements this slice skips; collected with the walker, no layout reads
 detected = await i18n.detectLanguage(sample)       // chrome.i18n / browser.i18n, content-script safe
-           -> { isReliable, languages: [{ language, percentage }] }
+           -> { isReliable, languages: [{ language, percentage }] }; tags mapped with baseTagOf
+top      = detected.languages[0]
 
-if the site's rule (38) has swap: "on" -> run   // set by "Run here anyway"; skips detection
-if declared == "en":
-    stop only if detected.isReliable and top language != en and its percentage >= 80
-    (templates often leave lang="en" on non-English pages)
-    otherwise run
-if declared is another language:
-    run only if detected.isReliable and en percentage >= 80
-    otherwise mixed mode: run only inside elements whose lang starts with "en"
+if the site's rule (38) has swap: "on" -> pageBase = the rule's base, else bases[0]; done
+                                            // set by "Run here anyway", which asks which of the
+                                            // learner's languages the page is in when they have several
+if isBase(declared) = b:
+    pageBase = b, unless detected.isReliable and top is not a base and top.percentage >= 80
+    (templates often leave lang="en" or lang="es" on pages in other languages); then null
+    if top is reliably a different base with >= 80 %, pageBase = that base
+if declared is a language that isn't a base:
+    pageBase = isBase(top) if detected.isReliable and top.percentage >= 80
+    otherwise null, in mixed mode: run only inside elements whose lang is a base
 if nothing declared:
-    run if en is the top detected language with percentage >= 50
-    otherwise mixed mode as above
+    pageBase = isBase(top) if top.percentage >= 50
+    otherwise null, in mixed mode as above
 if detection is unavailable or the sample is under 200 characters:
-    stopword heuristic: run if at least 12 % of word tokens are among the 40 most common
-    English words (the, and, of, to, a, in, is, it, you, that, ...); recheck once after 5 s
-    if the sample was short (single-page app shells)
+    function-word heuristic: for each base b with spec/lang/<b>/detect.json, the share of word
+    tokens (14's tokenizer for b) that are among that file's 40 most common words
+    (en: the, and, of, to, a, in, is, it, you, that, ...; es: de, la, que, el, en, y, a, los,
+    se, del, ...; ja: の, に, は, を, た, が, で, て, と, し, ...);
+    pageBase = the best-scoring base if its share is at least 12 %; recheck once after 5 s
+    if the sample was short (single-page app shells). Bases at 50's Basic level have no
+    detect.json and rely on the declared language and i18n.detectLanguage.
 ```
+
+`baseFor(el)` (cached per element with the element rules) is what slice 15 calls for each text
+node: the base of the nearest `[lang]` or `[xml:lang]` ancestor if that language is a base,
+`null` if it is declared and isn't a base, and `pageBase` otherwise (an empty `lang=""`
+inherits). A Chinese page declaring bare `lang="zh"` is matched against `zh-Hans` or `zh-Hant`
+by detection (`zh-CN`, `zh-TW`), falling back to `zh-Hans` per 50's `baseTagOf`.
+
+Examples, for a learner with bases `["es"]`: a Spanish page with `lang="es"` runs with base
+`es`; an English page with `lang="en"` is left alone; a Spanish page that left the template's
+`lang="en"` and is reliably 95 % Spanish runs with base `es`; an undeclared page that is 70 %
+Spanish runs. With bases `["es", "en"]`, both kinds run, each with its own index. With bases
+`["en"]`, the rules are what the earlier English-only draft specified.
 
 The decision is re-evaluated when the attribute observer from slice 15 sees `lang` change on
 `<html>`, and by slice 43 when the page is machine-translated. The gate result and reason are
-exposed to the popup ("This page looks German, so Mira is leaving it alone. [Run here
-anyway]"), whose UI is slice 20's.
+exposed to the popup ("This page is in German, which isn't one of your languages. Mira leaves it
+alone. [Run here anyway]", with 50's copy in the interface language), whose UI is slice 20's.
 
 ### 2. Element rules
 
@@ -114,7 +156,7 @@ is cached in a `WeakMap<Element, boolean>` so the check is O(1) after the first 
 | Editable | `el.isContentEditable`, `[role=textbox]`, `[role=searchbox]`, `[role=combobox]` | Never type around foreign words (03 B2) |
 | Code editors and code views | `.monaco-editor, .cm-editor, .CodeMirror, .ace_editor, .react-code-lines, .blob-code, .highlight, [class*="language-"], [role=code]`, plus per-host extras in `extension/data/skip-selectors.json` | Code and editors that measure text (03 B1) |
 | Explicit opt-out | `[translate=no]`, `.notranslate`, `[data-mira-skip]`, `[data-slovo-skip]` (legacy) on any element **below** `body` | The site says this text isn't to be translated. Ignored on `html` and `body`, because many React sites set `translate="no"` there only to stop Google Translate crashing them; `<meta name="google" content="notranslate">` is ignored for the same reason |
-| Other language | Nearest `[lang]` or `[xml:lang]` ancestor whose primary subtag isn't `en` (empty `lang=""` inherits the page decision) | Quotes, names and IPA in other languages (03 B5) |
+| Not one of the learner's languages | `baseFor(el)` is null: the nearest `[lang]` or `[xml:lang]` ancestor declares a language that isn't a base (empty `lang=""` inherits the page decision). A subtree declared in a *different* base is not skipped; it is scanned with that base's index | Quotes, names and IPA in other languages (03 B5); bilingual pages |
 | Controls (setting "Swap words in buttons and menus", **off** by default) | `button, summary, label, legend, select, nav, menu, [role=button], [role=link][aria-haspopup], [role=menu], [role=menubar], [role=menuitem], [role=menuitemcheckbox], [role=menuitemradio], [role=tab], [role=tablist], [role=option], [role=listbox], [role=switch], [role=checkbox], [role=radio], [role=toolbar], [role=navigation]` | Misclicks, voice control and WCAG 2.5.3 Label in Name (03 D5) |
 | Sensitive forms | `form` elements containing `input[type=password]` or `[autocomplete^="cc-"]`, `[autocomplete=one-time-code]` | Logins and payments anywhere |
 | Mira's own UI | the popover host (19), celebration overlay (32), `mira-w` | Never process ourselves |
@@ -134,7 +176,9 @@ costly; focus is the moment that matters.
 Applied to each match from slice 14 before precedence (18). Inputs: the match (`surface`,
 `shape`, `sentenceStart`, `prevToken`, `nextToken`, gaps), the form's `case` flag
 (`any` | `lower` | `exact` | `proper`, default `any`; set by [09](../09-shared-word-spec-and-prompt/SPEC.md)
-and editable in [21](../21-dashboard/SPEC.md)), and page evidence (below).
+and editable in [21](../21-dashboard/SPEC.md)), page evidence (below), and the conventions of
+the base the text was scanned in, `C = spec/lang/<base>/casing.json` (50; `_generic` when the
+base has none).
 
 ```
 filter(m):
@@ -144,6 +188,7 @@ filter(m):
   if f == "proper": keep only if m.shape is title or upper; done (17 never copies its capital)
   if m.tokens == 1 and m.surface has one letter: return singleLetter(m)
   switch m.shape:
+    caseless: keep                                              // Han, kana, Thai, Arabic: no case evidence exists
     lower: keep
     mixed: drop                                                 // iPhone, eBay, McDonald
     upper:
@@ -156,22 +201,28 @@ titleCase(m):
   if f == "lower": keep only if m.sentenceStart and not nameLike(m)
   if numberNext(m): drop                                        // May 2026, March 3, Chapter 2
   if nameLike(m): drop                                          // Will Smith, Bill Gates, New York
+  if C.nouns_capitalized: keep                                  // German "der Hund": a capital is ordinary
   if m.sentenceStart: defer(m, "start")
-  if inTitleRun(m): defer(m, "title")
-  drop, and record proper evidence for m.key                    // mid-sentence capital: Rose, Apple, Turkey
+  if C.title_case_headlines and inTitleRun(m): defer(m, "title")
+  drop, and record proper evidence for m.key                    // mid-sentence capital: Rose, Apple, Turkey; Rosa, Apple
 
-nameLike(m): the token right before or after (single space gap, same sentence) is
-             title-shaped, not sentence-initial and not the pronoun "I", or is an honorific
-             (Mr, Mrs, Ms, Dr, St, Prof, Sir, Lady, Lord, King, Queen, President)
+nameLike(m): an adjacent token (single space gap, same sentence) is in C.honorifics
+             (en: Mr, Mrs, Ms, Dr, St, Prof, Sir, Lady, Lord, King, Queen, President;
+             es: Sr., Sra., Srta., Dr., Dra., Don, Doña, San, Santa, Rey, Reina, Presidente;
+             de: Herr, Frau, Dr., Prof., Sankt), or, when C.nouns_capitalized is false, is
+             title-shaped, not sentence-initial and not in C.capitalized_pronouns (en: "I")
 numberNext(m): next token starts with a digit, is a roman numeral of two or more letters
              (II, IV), or is a single uppercase letter other than "I" (Type A, Plan B)
 
 singleLetter(m):
-  "a": keep only if surface is lowercase "a", prevToken isn't a mid-sentence title-shaped
+  in C.single_letter_words (en: a; es: a, e, o, u, y; fr: a, à, y; it: a, e, è, o; pt: a, e, o):
+       keep only if the surface is lowercase, prevToken isn't a mid-sentence title-shaped
        token, nextGap isn't "." or ")" and the match isn't inside "(a)"
-  "I": keep only if surface is "I", next gap is a space followed by a lowercase letter, and
-       prevToken isn't a mid-sentence title-shaped token (World War I, Henry I; but
-       "Can I go" keeps it, because "Can" starts the sentence)
+  in C.capitalized_pronouns (en: I):
+       keep only if the surface is exactly that letter, next gap is a space followed by a
+       lowercase letter, and prevToken isn't a mid-sentence title-shaped token (World War I,
+       Henry I; but "Can I go" keeps it, because "Can" starts the sentence)
+  caseless single characters (犬, 猫, 狗 in ja and zh): keep; a one-character word is normal there
   anything else: drop
 
   "mid-sentence title-shaped" = prevToken.shape is title and prevToken.sentenceStart is false
@@ -181,7 +232,26 @@ singleLetter(m):
 70 % of its cased letters are uppercase ("THANK YOU FOR READING").
 
 **Title Case run**: at least three tokens of four or more letters in the text node, and at
-least 60 % of them title-shaped (headlines, menu labels).
+least 60 % of them title-shaped (headlines, menu labels). Only bases whose `casing.json` sets
+`title_case_headlines` (English) treat this as headline style; Spanish, French and Italian
+headlines use sentence case, so a capital there is real evidence.
+
+**Per-base conventions** (`casing.json`, schema in `spec/lang/schema/casing.schema.json`, shared
+with slice 17):
+
+| Key | en | es | de | ja, zh, th |
+|---|---|---|---|---|
+| `nouns_capitalized` | false | false | true | n/a (caseless) |
+| `title_case_headlines` | true | false | false | n/a |
+| `capitalized_pronouns` | ["I"] | [] | [] (Sie is a pronoun but not single-letter) | [] |
+| `lowercase_classes` | [] | months, days, languages, nationalities | [] | n/a |
+| `honorifics` | Mr, Mrs, … | Sr., Sra., … | Herr, Frau, … | (none; 16 relies on form flags) |
+| `single_letter_words` | a | a, e, o, u, y | (none) | n/a |
+
+`lowercase_classes` only documents why a mid-sentence capital in that class is evidence of a
+name ("vi a Mayo" is a person, "en mayo" is the month); the rule itself is the generic one.
+Caseless bases have no case evidence at all: proper nouns there are protected only by a form's
+`case: "proper"` or `exact` flag, the never-swap list, and 36's senses.
 
 **Page evidence and deferral.** Capitalized matches at a sentence start or in a headline are
 ambiguous: "Apple is a company" and "Dog bites man". Mira decides them with what the rest of
@@ -226,6 +296,37 @@ Known words: it, us, a, I, may, will, bill, apple, dog, rose, thank you, team, a
 | `Monday` with form case `proper` | Monday (17 shows "lunes", not "Lunes", mid-sentence) | |
 | `iPhone`, `eBay` | | mixed shape |
 
+Spanish base (`es`). Known words (all `base_lang: "es"`): a (en "to"), y (en "and"), mayo (en
+"May"), rosa (en "rose"), perro (en "dog"), equipo (en "team"), ejército (en "army"),
+español (en "Spanish").
+
+| Text | Swapped | Not swapped, and the rule |
+|---|---|---|
+| `el equipo de TI` | equipo | TI: upper, 2 letters |
+| `el ejército de EE. UU.` | ejército | EE, UU: upper, 2 letters |
+| `Vitamina A` | | A: single letter after a title-shaped word |
+| `Voy a casa y como` | a, y | |
+| `Plan B` | | single uppercase letter |
+| `el 3 de mayo`, `Mayo 2026` | mayo (lowercase) | Mayo: number next |
+| `Ayer vi a Rosa` | a | Rosa: mid-sentence capital (proper evidence; Spanish doesn't capitalise flowers) |
+| `Rosa dijo que sí` with "Rosa" mid-sentence elsewhere | | Rosa: sentence start, deferred, proper evidence |
+| `El Perro Andaluz` (film title) | | Perro: mid-sentence capital; Spanish has no Title Case headlines |
+| `la Sra. Rosa` | | Rosa: honorific |
+| `¿Hablas español?` | español | |
+
+German base (`de`). Known words: Hund (en "dog"), Wolf (en "wolf").
+
+| Text | Swapped | Not swapped, and the rule |
+|---|---|---|
+| `Der Hund bellt laut` | Hund | (German nouns are capitalised; not a name) |
+| `Herr Wolf kommt` | | Wolf: honorific |
+
+Japanese base (`ja`). Known words: 犬 (en "dog"), 猫 (en "cat").
+
+| Text | Swapped | Not swapped, and the rule |
+|---|---|---|
+| `犬と猫が好き` | 犬, 猫 | (caseless; one-character words are normal) |
+
 ### 4. Sensitive sites
 
 Two protections:
@@ -262,51 +363,66 @@ present in the index, so they stay small.
 
 ## Acceptance criteria
 
-- [ ] On fixtures in German, French and Spanish (declared and undeclared), nothing is swapped;
-      on an English page with `<i lang="de">` quotes, the quotes are untouched.
+- [ ] With bases `["en"]`, fixtures in German, French and Spanish (declared and undeclared)
+      are untouched; on an English page with `<i lang="de">` quotes, the quotes are untouched.
+- [ ] **Puerto Rico**: with bases `["es"]`, Spanish fixture pages (declared and undeclared) are
+      swapped and English, German and Japanese pages are untouched.
+- [ ] With bases `["es", "en"]`, a Spanish page with an `<blockquote lang="en">` swaps the
+      Spanish text from `es` records and the quote from `en` records.
 - [ ] A page declaring `lang="en"` whose text is reliably German is skipped; a page with no
-      `lang` whose text is English is swapped.
-- [ ] Every row of the worked-examples table passes as a unit test of `rules.js`.
+      `lang` whose text is in a base is swapped; a page declaring `lang="en"` that is reliably
+      Spanish runs with base `es` for a learner who reads Spanish.
+- [ ] The function-word heuristic picks the right base for short English, Spanish and Japanese
+      samples with detection stubbed out.
+- [ ] Every row of the worked-examples tables (English, Spanish, German, Japanese) passes as a
+      unit test of `rules.js`.
 - [ ] Monaco, CodeMirror 6, Ace and a GitHub code-view snapshot are untouched.
 - [ ] `translate="no"` on `<html>` does not stop Mira; on a `div`, it does.
 - [ ] With the default settings, `button`, `nav` and `[role=menuitem]` text is untouched;
       with "Swap words in buttons and menus" on, it is swapped.
-- [ ] Focusing an element that became `contenteditable` after swapping restores English in it
-      before the first keystroke.
+- [ ] Focusing an element that became `contenteditable` after swapping restores the original
+      text in it before the first keystroke.
 - [ ] Password and payment forms are untouched on every site.
 - [ ] The popup can show why Mira isn't running on the current page.
 
 ## Test plan
 
-- **Unit (slice 02):** `rules.js` against the worked-examples table and the boundary table rows
-  21-28 in slice 14; evidence and deferral ordering; the language decision table with stubbed
-  `detectLanguage` results.
+- **Unit (slice 02):** `rules.js` against the worked-examples tables and the English boundary
+  table rows 21-28 in slice 14; evidence and deferral ordering; the language decision table
+  with stubbed `detectLanguage` results for base sets `["en"]`, `["es"]`, `["es", "en"]` and
+  `["ja"]`; `baseFor` over nested `lang` attributes; every launch `casing.json` and
+  `detect.json` against its schema.
 - **jsdom:** element rules over a fixture with each selector; `focusin` restore; legacy
   `data-slovo-skip`.
-- **Playwright, slice 02's corpus:** `non-english.html`, `editors.html`, `controls.html`,
-  `boundaries.html`. Added by this slice: `non-english-undeclared-fr.html`,
-  `mislabelled-lang.html`, `wikipedia-like.html`, `code-editors-real.html` (vendored Monaco and
+- **Playwright, slice 02's corpus:** `other-lang.html`, `editors.html`, `controls.html`,
+  `boundaries.html`. Added by this slice: `other-lang-undeclared-fr.html`,
+  `mislabelled-lang.html`, `es-news.html`, `es-quoting-en.html`, `es-undeclared.html`,
+  `ja-news.html`, `wikipedia-like.html`, `code-editors-real.html` (vendored Monaco and
   CodeMirror 6 bundles), `bank-login.html`, `late-editable.html`.
-- **Manual:** GitHub, Wikipedia (en and de), Gmail, a bank's public site, Google Docs (canvas,
+- **Manual:** GitHub, Wikipedia (en, es and de), El Nuevo Día and BBC Mundo with base `es`, Gmail, a bank's public site, Google Docs (canvas,
   nothing happens), Notion.
 
 ## Rollout and migration
 
 Ships with 14, 15 and 17. Defaults: controls off, sensitive sites on. Users who relied on
-swaps in buttons get the setting. Changelog: "Mira now leaves alone pages in other languages,
-names and acronyms, code, buttons and menus, and banking and payment pages. You can change the
+swaps in buttons get the setting. Changelog: "Mira now swaps words only on pages in the languages you
+read, and leaves other languages, names and acronyms, code, buttons and menus, and banking and payment pages. You can change the
 last two in settings."
 
 ## Open questions
 
 1. **Swap inside buttons and menus by default?** Decided by the maintainer: no. Buttons,
    menus and labels stay in the learner's own language (the page's base language,
-   English today; slice [50](../50-ui-localization-and-base-language/SPEC.md) for others).
-   The setting stays available for learners who want it.
-2. **Sensitive-sites list contents.** Recommendation: start small (patterns above plus a few
+   [50](../50-ui-localization-and-base-language/SPEC.md)). The setting stays available for
+   learners who want it.
+2. **Names in German and other noun-capitalising bases.** Without case evidence, a person
+   called "Wolf" mid-sentence is swapped unless an honorific is next to it. Recommendation:
+   accept for launch; the popover's "Don't swap this word" covers it, and 36's senses can help
+   later.
+3. **Sensitive-sites list contents.** Recommendation: start small (patterns above plus a few
    dozen widely used banks and payment providers), keep it in the repository, and accept
    additions by pull request; never fetch it remotely.
-3. **Pause webmail by default?** (03 B3.) Recommendation: no; compose areas are already
+4. **Pause webmail by default?** (03 B3.) Recommendation: no; compose areas are already
    skipped as editables. Revisit if quoting swapped words into replies is reproduced.
 
 ## Future work

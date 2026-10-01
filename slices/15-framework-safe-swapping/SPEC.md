@@ -5,7 +5,7 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
-| **Depends on** | [14-matcher-engine](../14-matcher-engine/SPEC.md) |
+| **Depends on** | [14-matcher-engine](../14-matcher-engine/SPEC.md); the base for each subtree comes from [16](../16-what-not-to-swap/SPEC.md) and [50](../50-ui-localization-and-base-language/SPEC.md) |
 | **Unblocks** | [19](../19-word-popover/SPEC.md), [42](../42-frames-and-shadow-dom/SPEC.md), [43](../43-copy-print-translate-coexistence/SPEC.md), [52](../52-video-captions/SPEC.md) |
 | **Sources** | [06 F02, F03, F08, F15, F25](../../docs/research/06-adversarial-qa.md), [03 A1-A8, B11, C3, E4, E5, section 3](../../docs/research/03-browser-extension.md), [01 S2, S17](../../docs/research/01-language-mixing.md) |
 
@@ -31,11 +31,12 @@ content script:
   disabled extension leaves the old content script alive with a dead API; its observer keeps
   swapping and the popup can't stop it. Chrome also never injects into tabs that were open
   at install, so a new user sees nothing on the page they already had open (03 A7, A8).
-- **It stalls big pages and flashes English.** All text nodes are collected and processed
-  in one task (`content.js:129-131`). New content waits on a 250 ms timer that starts at the
-  first mutation (`content.js:169`), so feeds show English, then jump (03 A5, B11).
+- **It stalls big pages and flashes the original text.** All text nodes are collected and
+  processed in one task (`content.js:129-131`). New content waits on a 250 ms timer that
+  starts at the first mutation (`content.js:169`), so feeds show the page's own words, then
+  jump (03 A5, B11).
 - **It leaks the vocabulary.** Every swap is a `span.slovo-w` with `data-en` and a `title`
-  holding the English and every language (`content.js:91-97`), readable by any page script
+  holding the original word and every language (`content.js:91-97`), readable by any page script
   and recorded by session-replay tools (03 E4). Site CSS such as `span { display:block }`
   can restyle it (03 E5).
 
@@ -48,7 +49,7 @@ content script:
 - New content is swapped before it is painted for small batches; no task longer than 50 ms.
 - Changing words or settings rewrites only the swaps whose outcome changed.
 - Exactly one live Mira instance per document, including across updates and reloads.
-- No English text, language list or word ID in page-visible attributes.
+- No original text, gloss, language list or word ID in page-visible attributes.
 
 ## Non-goals
 
@@ -61,7 +62,8 @@ content script:
 ## User stories
 
 - As someone using Mira on a React web app, the app keeps working exactly as without Mira.
-- As a learner scrolling a feed, new posts arrive already swapped, without a flash of English.
+- As a learner scrolling a feed, new posts arrive already swapped, without a flash of the
+  unswapped text.
 - As a learner who adds a word on my phone, the page I'm reading doesn't reshuffle; at most
   the new word appears.
 - As someone who just installed or updated Mira, the tabs I already had open start working
@@ -90,7 +92,7 @@ can't define custom elements, and an undefined element with a hyphen renders inl
   screen-reader voice switching and Han glyph choice.
 - `dir="auto"` isolates right-to-left words (kept from `content.js:95`).
 - `translate="no"` and `notranslate` keep the word intact under machine translation (43).
-- No `data-*`, `title`, `id` or `aria-*`. English, candidates and IDs live in a content-script
+- No `data-*`, `title`, `id` or `aria-*`. The original surface, candidates and IDs live in a content-script
   `WeakMap<Element, SwapInfo>` that page scripts can't reach. The visible word itself is
   still readable by the page; slice 28 discloses this.
 - `content.css`:
@@ -110,7 +112,7 @@ mira-w {
 
 Colors and states come from [06](../06-design-system/SPEC.md) and
 [37](../37-language-colors-and-reading-aids/SPEC.md) as classes on `mira-w` (for example
-`mira-missed` from slice 35); classes never carry English or word data. A custom element
+`mira-missed` from slice 35); classes never carry original text or word data. A custom element
 name avoids nearly all site selectors aimed at `span`.
 
 ### Swapping a text node in place
@@ -128,7 +130,7 @@ swap(T, plan):                         // plan: matches with chosen display text
   for m in plan:
     if m.start > cursor: frag.append(ownText(original.slice(cursor, m.start)))
     el = createElement("mira-w"); set lang, dir, translate, class; el.textContent = m.display
-    info.set(el, { T, english: m.surface, key: m.key, choice: m.choice, entry: m.entry })
+    info.set(el, { T, surface: m.surface, base: ctx.base, key: m.key, choice: m.choice, entry: m.entry })
     frag.append(el)
     cursor = m.end
   if cursor < original.length: frag.append(ownText(original.slice(cursor)))
@@ -159,10 +161,11 @@ restore(T):
 
 There is no `normalize()` anywhere (06 F03). `unwrapAll()` finds every `mira-w` with
 `querySelectorAll` (plus the shadow-root registry from 42), restores each distinct `T`, and
-removes any `mira-w` whose `T` is gone by replacing it with a text node holding its English.
+removes any `mira-w` whose `T` is gone by replacing it with a text node holding its original
+surface.
 
 Legacy cleanup: on startup, every `span.slovo-w` from version 0.2 is replaced with a text node
-of its `data-en` (no `normalize`). This runs once per document and is removed two releases
+of its `data-en` (the original text 0.2 stored there; no `normalize`). This runs once per document and is removed two releases
 later.
 
 ### Processing pipeline
@@ -173,9 +176,11 @@ For each text node, in this order:
 process(T):
   if ownedText.has(T) or skipCache says T's parent is skipped (16): return
   if swaps.has(T): restore(T)                          // reprocess from the original
-  ctx = edges(T)                                         // 14: before/after inline text
-  { matches, tokenCount } = matcher.scan(T.data, ctx)
-  coverage.count(T, tokenCount, matches)                 // 32, before any filtering of choice
+  base = skip.baseFor(T.parentElement)                  // 16: a base tag, or null to leave alone
+  if base is null: return
+  ctx = { base, ...edges(T) }                            // 14: before/after inline text
+  { matches, tokenCount } = matcher.scan(T.data, ctx, indexes.get(base))
+  coverage.count(T, base, tokenCount, matches)           // 32, per base, before any filtering of choice
   matches = rules.filter(matches, ctx, page)             // 16: case, acronym, names, deferral
   for m in matches: m.choice = precedence.choose(m, page)  // 18; drop if null
   plan = density.select(T, matches)                      // 31
@@ -185,6 +190,12 @@ process(T):
 
 `edges(T)` walks previous and next sibling text within the same inline run (the element list
 in 14) and returns up to 16 characters each side, or U+2029 at a block or skip boundary.
+
+`indexes` is `MiraMatcher.buildIndexes(words, storage.local.baseLangs)` (14, 50), rebuilt when
+the words or the base languages change; a change to the base languages re-runs the page gate
+(16) and then re-applies like any other settings change. `skip.baseFor` is cached per element
+with the rest of 16's element rules, so a page in Spanish with an English quote scans each
+part with its own base's index.
 
 Slice 16 may defer capitalized matches until it has seen more of the page. At the end of each
 processing slice, the nodes holding resolved deferrals are run through `process(T)` again;
@@ -301,7 +312,7 @@ mechanism is `restoreWithin(element)`.
 ### Public surface for other slices
 
 ```js
-MiraEngine.infoFor(el)        // SwapInfo for a mira-w: english, key, choice, entry, T
+MiraEngine.infoFor(el)        // SwapInfo for a mira-w: surface, base, key, choice, entry, T
 MiraEngine.unwrapAll()        // used by 43 (print), popup "off", teardown
 MiraEngine.restoreWithin(el)  // used by 16 (editables)
 MiraEngine.reapply(reason)    // used by settings changes, 43 (afterprint)
@@ -325,15 +336,16 @@ MiraEngine.addRoot(root)      // used by 42 for shadow roots
       errors and its text always matches React's state.
 - [ ] The 06 F08 ping-pong page stops within 10 s and stays stable.
 - [ ] After `documentElement.replaceChild(newBody, document.body)`, new text is swapped.
-- [ ] No `title`, `data-en` or other attribute on swaps reveals English or other languages.
+- [ ] No `title`, `data-en` or other attribute on swaps reveals the original text, the gloss
+      or other languages.
 - [ ] Mutations of under 200 text nodes are swapped before the next paint (Playwright checks
-      a `requestAnimationFrame` callback never sees the English).
+      a `requestAnimationFrame` callback never sees the unswapped text).
 - [ ] No long task over 50 ms on the 100,000-node fixture; first viewport within 100 ms.
 - [ ] Adding one word rewrites only nodes containing its forms (count of DOM writes in test).
 - [ ] After an extension reload in Chromium, the old instance's swaps are gone, the new
       instance swaps, and exactly one set of `mira-w` exists.
 - [ ] On install, a tab opened before install gets swaps without reload (Chromium).
-- [ ] Legacy `span.slovo-w` elements are converted back to English on first run.
+- [ ] Legacy `span.slovo-w` elements are converted back to their original text on first run.
 
 ## Test plan
 
@@ -344,7 +356,8 @@ MiraEngine.addRoot(root)      // used by 42 for shadow roots
 - **Playwright with the unpacked extension:** slice 02's `react-list.html`, `turbo-swap.html`,
   `self-healing.html` and `big.html`; added by this slice: `vue-list.html`, `ticker.html` (clock
   text every 500 ms) and `feed.html` (50 posts appended every second). Assertions: no page errors,
-  framework state equals DOM text, long-task observer empty, no English frame captured.
+  framework state equals DOM text, long-task observer empty, no unswapped frame captured; `feed.html` runs once with an
+  English page and once with a Spanish page (base `es`).
 - **Lifecycle:** Playwright reloads the extension via `chrome.runtime.reload()` from the
   service worker and checks handoff; installs into a browser with an already-open tab.
 - **Manual:** GitHub (Turbo), Reddit, X, YouTube comments, Gmail reading pane, Notion,

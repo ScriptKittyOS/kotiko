@@ -6,7 +6,7 @@
 | **Priority** | P0 (before public release) |
 | **Size** | S (a day or two) |
 | **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md) |
-| **Unblocks** | [09](../09-shared-word-spec-and-prompt/SPEC.md), [17](../17-casing-and-script-display/SPEC.md), [18](../18-language-precedence-and-mixing/SPEC.md), [36](../36-grammar-and-senses/SPEC.md) |
+| **Unblocks** | [50](../50-ui-localization-and-base-language/SPEC.md) (base tags), [09](../09-shared-word-spec-and-prompt/SPEC.md), [17](../17-casing-and-script-display/SPEC.md), [18](../18-language-precedence-and-mixing/SPEC.md), [36](../36-grammar-and-senses/SPEC.md) |
 | **Sources** | [02 E1-E5, section 3 "Language tags"](../../docs/research/02-linguistics.md); [06 F17, F29](../../docs/research/06-adversarial-qa.md); [01 language grouping](../../docs/research/01-language-mixing.md) |
 
 ## Problem
@@ -38,7 +38,11 @@ model said, lightly cleaned.
   stay distinct.
 - A word's script is checked against its language; a mismatch is fixed when the script is
   legitimate and rejected when it is not.
-- Display names come from the tag, never from the model.
+- Display names come from the tag, never from the model, in the interface language.
+- One function turns any browser or page language tag into a **base tag** (the languages
+  the learner reads in, [50](../50-ui-localization-and-base-language/SPEC.md)), in both
+  runtimes, with the same fixtures.
+- English is an ordinary language: a valid target and a valid base.
 
 ## Non-goals
 
@@ -46,8 +50,11 @@ model said, lightly cleaned.
   This slice keeps a region when the model returns one, and provides the hook.
 - Casing rules per script: slice [17](../17-casing-and-script-display/SPEC.md), which reads
   the `caseful` flag defined here.
-- Interface translation: slice [50](../50-ui-localization-and-base-language/SPEC.md).
-  Names are English for now.
+- Interface translation, and choosing and storing base languages: slice
+  [50](../50-ui-localization-and-base-language/SPEC.md). This slice provides the tag
+  functions and the names data 50 uses.
+- Whether a word's target equals its own base language: slice
+  [09](../09-shared-word-spec-and-prompt/SPEC.md)'s validator, which knows `base_lang`.
 
 ## User stories
 
@@ -56,6 +63,12 @@ model said, lightly cleaned.
 - As a learner of Cantonese, I want my words labelled Cantonese, not Mandarin.
 - As a learner of Serbian in both scripts, I want хвала and hvala in clearly named groups.
 - As a learner who typed "spasibo", I want Mira to save спасибо, not the Latin spelling.
+- As a Spanish reader learning English, I want "dog" accepted as an English word, not
+  rejected because English is assumed to be my language.
+- As a learner with a Spanish interface, I want my languages called "japonés" and
+  "cantonés", not "Japanese" and "Cantonese".
+- As a learner in Taiwan, I want my browser's `zh-TW` read as Traditional Chinese, the
+  language I read in.
 
 ## Specification
 
@@ -70,19 +83,34 @@ model said, lightly cleaned.
 
 ```json
 {
-  "sr": { "name": "Serbian", "script": "Cyrl", "scripts": ["Cyrl", "Latn"],
-          "caseful": true, "rtl": false, "regions": [], "sign": false },
-  "pt": { "name": "Portuguese", "script": "Latn", "scripts": ["Latn"],
-          "caseful": true, "rtl": false, "regions": ["BR", "PT"], "sign": false },
-  "zh": { "name": "Chinese", "script": "Hans", "scripts": ["Hans", "Hant"], ... },
-  "ja": { "name": "Japanese", "script": "Jpan", "scripts": ["Jpan"], "caseful": false, ... }
+  "sr": { "endonym": "српски", "names": {"en": "Serbian", "es": "serbio"},
+          "script": "Cyrl", "scripts": ["Cyrl", "Latn"],
+          "caseful": true, "rtl": false, "regions": [], "base_regions": [], "sign": false },
+  "pt": { "endonym": "português", "names": {"en": "Portuguese", "es": "portugués"},
+          "script": "Latn", "scripts": ["Latn"],
+          "caseful": true, "rtl": false, "regions": ["BR", "PT"], "base_regions": ["BR", "PT"], "sign": false },
+  "es": { "endonym": "español", "names": {"en": "Spanish", "es": "español"},
+          "script": "Latn", "scripts": ["Latn"], "regions": ["ES", "MX", "419"], "base_regions": [], ... },
+  "en": { "endonym": "English", "names": {"en": "English", "es": "inglés"},
+          "script": "Latn", "scripts": ["Latn"], "regions": ["GB", "US"], "base_regions": [], ... },
+  "zh": { "endonym": "中文", "names": {"en": "Chinese", "es": "chino"},
+          "script": "Hans", "scripts": ["Hans", "Hant"], ... },
+  "ja": { "endonym": "日本語", "names": {"en": "Japanese", "es": "japonés"},
+          "script": "Jpan", "scripts": ["Jpan"], "caseful": false, ... }
 }
 ```
 
+`endonym` is the language's name in itself (CLDR), used by the server and in the prompt.
+`names` holds the CLDR name in every shipped interface locale ([50](../50-ui-localization-and-base-language/SPEC.md);
+`en` and `es` at launch), used by the server, by the bot's `/list <language>` search, and
+as the extension's fallback when `Intl.DisplayNames` has no answer. The generator adds a
+locale to `names` whenever a new interface locale ships. `regions` are the regions kept
+for target words; `base_regions` are the regions kept in base tags (section 6).
+
 `script` is the default (CLDR likely subtags). `scripts` lists the scripts that are
 normal for the language. `regions` lists regions kept as distinct groups. Coverage: all
-ISO 639-1 languages plus every ISO 639-3 code CLDR names in English (about 600 entries,
-about 60 KB, gzip about 12 KB). Both runtimes load the same file: the server at compile
+ISO 639-1 languages plus every ISO 639-3 code CLDR has a name for (about 600 entries,
+about 80 KB with two name locales, gzip about 16 KB). Both runtimes load the same file: the server at compile
 time, the extension from its copy (slice 09).
 
 ### 2. Canonicalisation algorithm
@@ -110,14 +138,16 @@ time, the extension from its copy (slice 09).
    `ar-DZ` → `arq`, `ar-TN` → `aeb`, `ar-LB`/`ar-SY`/`ar-JO`/`ar-PS` → `apc`,
    `ar-IQ` → `acm`, `ar-SA`/`ar-AE`/`ar-KW`/`ar-QA`/`ar-BH` → `afb`. Other regions are dropped (`ar`).
 7. **Other regions**: kept only if listed in the language's `regions` (initially `pt`:
-   BR, PT; `es`: ES, MX, 419; `fr`: CA; `en` is not a target language). Otherwise dropped.
+   BR, PT; `es`: ES, MX, 419; `fr`: CA; `en`: GB, US). Otherwise dropped. English is a
+   target like any other; a Spanish reader learning British English gets `en-GB`.
    `es-AR` and other Latin American regions map to `es-419`.
 8. **Default script dropped**: `ru-Cyrl` → `ru`, `ja-Jpan` → `ja`, `zh-Hans` → `zh`,
    `sr-Cyrl` → `sr`. Non-default scripts listed in `scripts` are kept (`sr-Latn`,
    `zh-Hant`, `pa-Arab`, `uz-Cyrl`, `az-Arab`, `ku-Arab` is mapped to `ckb`).
    A script not in `scripts` is dropped and step 10 decides.
-9. **Rejections**: `en` and any `en-*` (`english_not_a_target`); sign languages
-   (`sign: true`, e.g. `ase`, `bfi`): `sign_language_unsupported`.
+9. **Rejections**: sign languages (`sign: true`, e.g. `ase`, `bfi`):
+   `sign_language_unsupported`. No spoken language is rejected here; a word whose target
+   equals its own `base_lang` is rejected by slice 09, which knows the base.
 10. **Unknown languages**: a well-formed two- or three-letter code that isn't in
     `languages.json` is accepted as is, flagged `known: false`, name = the code.
     Private-use tags of the form `x-<2-8 letters>` are accepted for conlangs without a
@@ -150,15 +180,22 @@ popup shows their names, so this is visible and fixable by editing the word's la
 
 ### 4. Display names
 
-- **Extension**: `new Intl.DisplayNames(["en"], {type: "language"}).of(tag)` gives
-  "Cantonese", "Traditional Chinese", "Brazilian Portuguese", "Serbian (Latin)" (checked
-  in Node 22). On a `RangeError` or when it returns the code itself, fall back to
-  `languages.json`, then the code.
-- **Server**: `languages.json` name, plus region and script names from small tables in
-  the same file (`"regions": {"BR": "Brazil"}`, `"scriptNames": {"Latn": "Latin"}`),
-  formatted as CLDR does: "Portuguese (Brazil)", "Serbian (Latin)". Exact string parity
-  with `Intl` is not required; both must be correct.
-- The `language` field in API output is computed, never stored. Migration step 3 below
+- **Extension**: `new Intl.DisplayNames([uiLocale], {type: "language"}).of(tag)`, where
+  `uiLocale` is the interface locale (slice 50's `MiraI18n.locale()`). In English that
+  gives "Cantonese", "Traditional Chinese", "Brazilian Portuguese", "Serbian (Latin)"; in
+  Spanish "cantonés", "chino tradicional", "portugués de Brasil", "serbio (latino)". On a
+  `RangeError` or when it returns the code itself, fall back to `languages.json`'s
+  `names[uiLocale]`, then `endonym`, then the code.
+- **Server**: `Mira.Lang.name(tag, locale)` uses `names[locale]` (falling back to
+  `endonym`), plus region and script names from small per-locale tables in the same file
+  (`"regionNames": {"en": {"BR": "Brazil"}, "es": {"BR": "Brasil"}}`, `"scriptNames"`
+  likewise), formatted as CLDR does: "Portuguese (Brazil)", "portugués (Brasil)". The bot
+  (slice 41) passes the learner's locale. Exact string parity with `Intl` is not
+  required; both must be correct.
+- The `language` field in API output is the **endonym** ("español", "日本語", "粵語"),
+  computed, never stored. It is a neutral label for clients that can't derive names;
+  the extension never shows it and always uses `Intl.DisplayNames` in the interface
+  language. Migration step 3 below
   drops the column; `Words.keep_language_name/1` and its sticky behaviour
   (`words.ex:70-82`) are deleted.
 - The model's `language` field is ignored. The prompt (slice 09) may keep asking for it
@@ -172,9 +209,37 @@ popup shows their names, so this is visible and fixable by editing the word's la
 - Extension: `extension/lib/lang.js`, a pure module (slice 02's pattern) used by the
   validator (slice 09), local store (slice 11), import (slice 12) and bulk add (slice 13).
 - Telegram `/list <language>` (`server/lib/slovo/bot.ex:127-128`) resolves names through
-  `languages.json` names and codes, so "/list cantonese" and "/list yue" both work.
+  `languages.json` names in every shipped locale, endonyms and codes, so "/list
+  cantonese", "/list cantonés", "/list 粵語" and "/list yue" all work.
 
-### 6. Migration
+### 6. Base tags
+
+Implements [50](../50-ui-localization-and-base-language/SPEC.md) section 2 in both
+runtimes (`Mira.Lang.base_tag/1`, `MiraLang.baseTagOf()` in `extension/lib/lang.js`):
+
+`baseTagOf(input) -> tag | null`:
+
+1. `canonical_lang(input)` (section 2); `null` on error or for a sign language.
+2. Chinese: `zh` → `zh-Hans`, `zh-Hant` stays. For every language whose `scripts` lists
+   more than one script, a base tag always names its script (`sr` → `sr-Cyrl`,
+   `sr-Latn` stays), so the two bases of one language are named symmetrically and
+   `spec/lang/<base>/` folders are unambiguous. This is the only place a default script
+   is kept.
+3. Drop the region unless it is in the language's `base_regions` (at launch only `pt`:
+   BR, PT). `es-PR`, `es-419` and `es-ES` give `es`; `en-US` and `en-GB` give `en`;
+   `ar-EG` (canonical `arz`) gives `arz`, which is its own base, because a page in
+   Egyptian Arabic is written in it.
+
+`sameBase(a, b)`: true when the primary language subtags match and, if both name a
+script, the scripts match; a page tagged `zh` (canonical, Simplified) matches base
+`zh-Hans`; `pt-BR` and `pt-PT` are the same base. Slices 14, 16 and 32 use `sameBase` to
+decide which base index applies to a text's declared or detected language.
+
+`spec/fixtures/base-tags.json` (at least 30 cases) covers every row above plus the
+detection examples in slice 50 (`es-PR` → `es`, `pt-BR` → `pt-BR`, `zh-TW` → `zh-Hant`,
+`zh-SG` → `zh-Hans`, `iw` → `he`, `ja-JP` → `ja`).
+
+### 7. Migration
 
 A server migration after slice 07's:
 
@@ -194,11 +259,14 @@ sync; in local mode (slice 11) the same migration runs over the local store.
       Arabic regions, kept and dropped regions, default and non-default scripts, legacy
       tags, private use, sign languages, garbage) passes in both Elixir and JavaScript.
 - [ ] `zh-TW` → `zh-Hant`; `cmn` → `zh`; `iw` → `he`; `i-klingon` → `tlh`; `pt-BR` stays
-      `pt-BR`; `de-AT` → `de`; `ar-EG` → `arz`; `en` is rejected.
+      `pt-BR`; `de-AT` → `de`; `ar-EG` → `arz`; `en` and `en-GB` are accepted.
+- [ ] `baseTagOf` gives `es` for `es-PR`, `zh-Hant` for `zh-TW`, `zh-Hans` for `zh-CN`,
+      `pt-BR` for `pt-BR`, `en` for `en-US`, in both runtimes (`base-tags.json`).
 - [ ] `sr` with native "hvala" becomes `sr-Latn`; `ru` with native "spasibo" is rejected
       with `script_mismatch`; `ja` with "ありがとう" passes.
 - [ ] No API response or bot message shows a name the model invented; Cantonese words
-      show "Cantonese".
+      show "Cantonese" in an English interface, "cantonés" in a Spanish one, and the
+      API's `language` field is "粵語".
 - [ ] The bot never crashes on any tag in the fixtures (F17).
 - [ ] The migration merges a `cmn` and a `zh` copy of the same word into one, keeps the
       user's note, and logs suspect rows without deleting them.
@@ -206,6 +274,7 @@ sync; in local mode (slice 11) the same migration runs over the local store.
 
 ## Test plan
 
+- `base-tags.json` run the same way as `lang-tags.json`.
 - Shared fixture file run by ExUnit (`Mira.LangTest`) and `node --test`
   (`test/unit/lang.test.mjs`) in slice 09's shared-spec CI job.
 - Script detection table: one native word per script in `languages.json` with a non-Latin
@@ -216,15 +285,16 @@ sync; in local mode (slice 11) the same migration runs over the local store.
 
 ## Rollout and migration
 
-Ships with or right after slice 07, before slice 09. Server and extension changes go in
+Ships with or right after slice 07, before slices 09 and 50. Server and extension changes go in
 the same release. Changelog: "Language names now come from the language code, so
 Cantonese is always Cantonese. Words saved under old codes such as cmn or iw were merged
 into their languages."
 
 ## Open questions
 
-1. **Which regions to keep at launch?** Recommendation: pt-BR/pt-PT, es-ES/es-MX/es-419,
-   fr-CA. Others on request, by adding to `regions`.
+1. **Which regions to keep at launch?** Recommendation: for targets pt-BR/pt-PT,
+   es-ES/es-MX/es-419, fr-CA, en-GB/en-US; for bases only pt-BR/pt-PT (slice 50). Others
+   on request, by adding to `regions` or `base_regions`.
 2. **Private-use tags for conlangs.** Recommendation: allow `x-` tags; they are rare and
    harmless, and the alternative is a confusing rejection.
 3. **Simplified vs Traditional detection.** A character table could catch a Traditional
@@ -234,4 +304,4 @@ into their languages."
 ## Future work
 
 - Per-language variant and script preferences passed to the prompt: slice 36.
-- Interface-language display names (`Intl.DisplayNames` in the user's UI language): slice 50.
+- More `base_regions` (es-ES vs es-419 everyday words) if learners ask: slice 50's future work.

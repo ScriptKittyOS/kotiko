@@ -79,7 +79,10 @@ way Mira itself shows you words from many languages:
 | Everywhere | Mira | a name people give to cats, easy to say in almost any language |
 
 Store and docs line: **"Mira means 'look' in Spanish, 'world' in Russian and 'wonderful' in
-Latin. Mira does the same with your words."** If the final logo is a cat, the line adds "and
+Latin. Mira does the same with your words."** In Spanish (the listing and docs ship in
+English and Spanish, [50](../50-ui-localization-and-base-language/SPEC.md)): **"Mira significa
+'mira' en español, 'mundo' en ruso y 'maravillosa' en latín. Mira hace lo mismo con tus
+palabras."** If the final logo is a cat, the line adds "and
 it's a good name for a cat." Only meanings confirmed by a fluent speaker are claimed; the
 table is the confirmed set. The publisher is ScriptKittyOS ([DECISIONS](../DECISIONS.md)).
 
@@ -88,7 +91,8 @@ never uses a yellow field. The legal name check is in [04](../04-rename-to-mira/
 
 ### 2. Promise and personality
 
-Promise: **"Read the web in the words you're learning."**
+Promise: **"Read the web in the words you're learning."** Spanish: **"Lee la web con las
+palabras que estás aprendiendo."**
 
 | Mira is | Mira is not |
 |---|---|
@@ -100,7 +104,9 @@ Promise: **"Read the web in the words you're learning."**
 
 ### 3. Voice and tone
 
-Rules, each with an example; slices 13-37 write their copy to these.
+Rules, each with an example; slices 13-37 write their copy to these. The rules apply to
+every interface language: the English and Spanish launch locales are written to them from
+the start, and translators get them in the glossary ([50](../50-ui-localization-and-base-language/SPEC.md) section 9).
 
 1. **Plain words, short sentences.** "Added gracias." not "Your vocabulary item was
    successfully created."
@@ -108,7 +114,10 @@ Rules, each with an example; slices 13-37 write their copy to these.
    (catalog in [25](../25-plain-language-errors/SPEC.md)).
 3. **Second person, active voice, no blame.** "That key wasn't accepted." not "You entered an
    invalid key."
-4. **Name languages, not codes;** show endonyms where space allows ("العربية · Arabic").
+4. **Name languages, not codes;** show endonyms where space allows, beside the name in the
+   interface language ("العربية · Arabic" in English, "العربية · árabe" in Spanish).
+   Never assume the learner reads English: no "English" as a stand-in for "the page's
+   language" or "your language".
 5. **Sentence case everywhere,** including buttons; never all caps (it breaks caseless scripts
    and shouts).
 6. **No exclamation marks** except in milestone moments
@@ -123,16 +132,22 @@ Rules, each with an example; slices 13-37 write their copy to these.
     never "you can read".
 11. **Translatable:** whole sentences, named placeholders, plurals via `Intl.PluralRules`
     ([50](../50-ui-localization-and-base-language/SPEC.md)), no text in images.
-12. **Spelling:** US English in UI strings (see Open questions).
+12. **Spelling and register per locale:** US spelling in the `en` strings; neutral Latin
+    American Spanish with informal `tú` and gender-neutral wording where Spanish allows it
+    ("Te damos la bienvenida") in `es` (see Open questions). Other locales follow their
+    translators' glossary.
 
-| Moment | Copy |
-|---|---|
-| Empty word list | "No words yet. Type one above, in any language." |
-| Adding | "Looking up shukran…" |
-| Added | "Added شكرا (shukran) = thanks · Arabic" |
-| Already had it | "Already in your list: gracias = thanks · Spanish" |
-| Offline | "You're offline. Your words still work on pages; new ones will be looked up when you're back." |
-| Milestone | "Half of the words on this page could be in your languages." |
+The same moments in both launch locales. The learner's base language decides the meaning
+shown after "="; here, an English reader and a Spanish reader:
+
+| Moment | en | es |
+|---|---|---|
+| Empty word list | "No words yet. Type one above, in any language." | "Todavía no hay palabras. Escribe una arriba, en cualquier idioma." |
+| Adding | "Looking up shukran…" | "Buscando shukran…" |
+| Added | "Added شكرا (shukran) = thanks · Arabic" | "Agregada شكرا (shukran) = gracias · árabe" |
+| Already had it | "Already in your list: Hund = dog · German" | "Ya está en tu lista: Hund = perro · alemán" |
+| Offline | "You're offline. Your words still work on pages; new ones will be looked up when you're back." | "Estás sin conexión. Tus palabras siguen funcionando en las páginas; las nuevas se buscarán cuando vuelvas." |
+| Milestone | "Half of the words on this page could be in your languages." | "La mitad de las palabras de esta página podrían estar en tus idiomas." |
 
 ### 4. The logo: final artwork pending
 
@@ -295,8 +310,10 @@ artwork. Changelog: "Slovo is now Mira, with a new look."
    different name and logo"), so forks can't pass as official builds.
 4. **Tile purple.** Recommendation: a value between #8A63EA and #9370F0 (A3); whatever the
    artist picks, 06's ramp is regenerated from it.
-2. **US or British spelling in the UI?** Recommendation: US English, matching browser UI
-   conventions; docs may follow the author.
+2. **Spelling and register per launch locale.** Recommendation: US spelling for `en`,
+   matching browser UI conventions; neutral Latin American Spanish with `tú` for `es`
+   ([50](../50-ui-localization-and-base-language/SPEC.md) open question 4); docs may follow
+   the author.
 3. **Character states.** If the final logo is a character, should it appear in empty states
    and milestones (F7)? Recommendation: yes, sparingly, under the rules in F7.
 

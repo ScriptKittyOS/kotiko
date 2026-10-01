@@ -5,7 +5,7 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | L (several weeks) |
-| **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md), [09-shared-word-spec-and-prompt](../09-shared-word-spec-and-prompt/SPEC.md), [10-llm-client-resilience](../10-llm-client-resilience/SPEC.md) |
+| **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md), [09-shared-word-spec-and-prompt](../09-shared-word-spec-and-prompt/SPEC.md), [10-llm-client-resilience](../10-llm-client-resilience/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages) |
 | **Unblocks** | [22-first-run-onboarding](../22-first-run-onboarding/SPEC.md), [28-privacy-and-store-readiness](../28-privacy-and-store-readiness/SPEC.md), [39-multi-device-sync](../39-multi-device-sync/SPEC.md), [45-firefox-android](../45-firefox-android/SPEC.md); soft for [13](../13-bulk-add/SPEC.md), [21](../21-dashboard/SPEC.md), [33](../33-context-menu-and-shortcuts/SPEC.md) |
 | **Sources** | [04 summary, S1-S5, S16-S19, S22, S24, section 3](../../docs/research/04-architecture-release.md); [03 C2, C4-C7, E3](../../docs/research/03-browser-extension.md); [05 S1-S3, S13, S19, S34](../../docs/research/05-learner-ux.md); [06 F09, F10, F11, F14, F36](../../docs/research/06-adversarial-qa.md); [DECISIONS: Local first; the server becomes optional](../DECISIONS.md) |
 
@@ -111,7 +111,8 @@ Two settings replace today's single "server" assumption:
   (a connected Mira server owns them; the extension mirrors them).
 - **Who looks words up** (`lookup.kind`): `"provider"` (the extension calls a model
   directly), `"server"` (the server looks up with its own key), or `"none"` (manual
-  add, "native = english" lines and bulk add with translations only).
+  add, "native = gloss" lines such as "犬 = perro" or "犬 = dog", and bulk add with
+  meanings only).
 
 The UI presents these as two choices, not as infrastructure: "Keep my words in this
 browser" or "Use my Mira server", and "Look words up with: OpenRouter (free) ▾". The
@@ -132,7 +133,7 @@ Why, with the numbers:
 |---|---|---|
 | Quota | 10 MB without `unlimitedStorage` (Chrome 114+); unlimited with it | Shared origin quota; with `unlimitedStorage`, unlimited and exempt from eviction (Chrome); persistent without a prompt (Firefox, per MDN) |
 | Readable by content scripts | Yes by default. `setAccessLevel` can restrict it in Chrome 102+ and Safari 17.1+, but **Firefox does not implement `setAccessLevel`** (MDN browser-compat-data, checked 2026-10-01) | No. Content scripts use the page's origin for IndexedDB in all three engines |
-| Atomic "find by (lang, native), merge, write" | No transactions; a read-modify-write across keys can interleave | Yes, one `readwrite` transaction over a unique index |
+| Atomic "find by (lang, native, base), merge, write" | No transactions; a read-modify-write across keys can interleave | Yes, one `readwrite` transaction over a unique index |
 | Query by `updated_at` (delta sync), by language, by text | Load everything, filter in JS | Indexes and cursors |
 | Change notification to every tab | `storage.onChanged` built in | None; needs a signal |
 
@@ -151,7 +152,7 @@ which sits below the `<all_urls>` warning Mira already carries.
 
 | Store | Key | Indexes | Contents |
 |---|---|---|---|
-| `words` | `id` (UUIDv7, slice 07) | `natural` = `[lang, native_key, sense]` unique where `deleted_at` is null (enforced in code, see below); `updated_at`; `lang` | The slice 07 word record exactly as `spec/word.schema.json` defines it, plus `serverId` (legacy integer alias, optional) |
+| `words` | `id` (UUIDv7, slice 07) | `natural` = `[lang, native_key, sense, base_lang]` unique where `deleted_at` is null (enforced in code, see below); `group` = `[lang, native_key]` (a target word's records across bases, for slices 21 and 19); `updated_at`; `lang`; `base_lang` | The slice 07 word record exactly as `spec/word.schema.json` defines it, plus `serverId` (legacy integer alias, optional) |
 | `outbox` | auto-increment | none | Edits and deletes waiting for a server (section 5) |
 | `secrets` | `id` | none | `{id: "provider:openrouter", key}`, `{id: "server", token}` |
 | `meta` | `key` | none | `schema`, `migratedFrom`, `lastExportAt`, `projectionVersion` |
@@ -172,13 +173,20 @@ per word (`w:<id>`) and keep secrets in IndexedDB, which that setting would then
 clear (the user re-enters a key, and words survive).
 
 **Projection for content scripts.** After any committed write, the background
-debounces for 100 ms, then writes two `storage.local` keys in one `set` call:
+debounces for 100 ms, then writes three `storage.local` keys in one `set` call. A
+change to `s:ui.baseLangs` also triggers it:
 
 - `words`: an array of non-deleted words whose status is `active` or `well_known`
   (slice 35 keeps swapping well-known words, without the underline), in the compact shape
   the matcher needs (slices 14, 18 and 19 define the fields; at minimum `id`, `lang`,
-  `language`, `native`, `sense`, `status`, `romanization`, `forms` with their flags,
-  `note`, `created_at`).
+  `native`, `base_lang`, `gloss`, `sense`, `status`, `romanization`, `forms` with their
+  flags, `note`, `created_at`). Words whose `base_lang` is not one of the learner's
+  current bases are left out (they are kept in the store; slice 50 section 2, "Removing
+  a base"), so content scripts only build indexes they can use. `language` is not
+  projected: content scripts name languages with `Intl.DisplayNames` in the interface
+  language (slice 50).
+- `baseLangs`: the learner's base tags, mirrored from `s:ui.baseLangs` (slice 50) in the
+  same `set` call, so a tab always sees words and bases that agree.
 - `wordsVersion`: an increasing integer, so tabs that adopt slice 15's visible-only
   re-read can check a small key first ([03 C3](../../docs/research/03-browser-extension.md)).
 
@@ -301,7 +309,7 @@ popup "shukran" + Enter
   -> slice 24 creates the job (returns at once; input clears, focus stays)
   -> background calls lookup(job) for the current lookup.kind:
        provider: slice 10 client -> preset request -> slice 09 validator
-       server:   POST /api/v1/words {text, client_request_id: job.id, lang hint}
+       server:   POST /api/v1/words {text, client_request_id: job.id, hint_lang, base_langs}
        none:     error lookup_not_set_up (slice 24 offers "Add it yourself" and the provider setup)
   -> store.upsertByNatural (slice 07 merge) -> results {created, updated, unchanged}
   -> projection -> every tab swaps the new word
@@ -327,7 +335,8 @@ the runtime files into `extension/spec/` and generates `extension/spec/spec.js`
 (`globalThis.MIRA_SPEC`), with a CI check that the copy is current. The background builds
 the request exactly as the server does, including the recent-languages hint (today
 `llm.ex:165-173` and `server/lib/slovo/words.ex:35-43`), computed locally from the
-`updated_at` index: the five most recently touched languages. Slice 09's JS validator runs
+`updated_at` index: the five most recently touched languages. `base_langs` is the
+learner's bases, narrowed by the add box's chips (slice 24). Slice 09's JS validator runs
 on every model answer before anything is written; rejected words go into the job's
 result with a reason.
 
@@ -384,14 +393,18 @@ if `meta.schema` is missing (so an interrupted migration resumes). Every step is
    token see a one-time "Finish setting up" card in the popup).
 3. Seed the local store from the cached `storage.local.words` (`background.js:28-38`) so
    pages keep working immediately. Each cached word gets a new UUIDv7, `serverId` set to
-   the old integer id, and `updated_at` set to now. Fields the cache lacks (`status`,
+   the old integer id, `updated_at` set to now, the cached `english` stored as `gloss`
+   and `base_lang: "en"` (every pre-v2 word was looked up for English pages; slice 07's
+   server migration does the same). Fields the cache lacks (`status`,
    `source_text`, timestamps; `word.ex:57-68`) stay empty until the first pull.
 4. If the server answers slice 07's v1 API, do a full pull; server UUIDs replace the
    seeded ones, matched by `serverId`, then by the natural key. If the server is
    older, keep using `GET /api/words`, `POST /api/words` and `DELETE /api/words/:id`
    (`router.ex:17-68`) through a legacy adapter, and show "Update your Mira server to
    get editing and faster sync" once.
-5. Remove `token` and `serverUrl` from `storage.local`. Write `meta.schema = 1`.
+5. Run slice 50's base-language detection, and add `en` to `s:ui.baseLangs` if any
+   seeded word has `base_lang: "en"` and it isn't there, so swaps never silently stop.
+6. Remove `token` and `serverUrl` from `storage.local`. Write `meta.schema = 1`.
 
 No step deletes a word. A failure in step 4 leaves the seeded store in place and retries
 on the next alarm.
@@ -412,7 +425,8 @@ on the next alarm.
 ## Acceptance criteria
 
 - [ ] A fresh profile with no server and no key can add a word manually (typed as
-      "native = english" or through the manual form) and see it swapped on a page, with
+      "native = gloss", e.g. "犬 = perro" with base Spanish or "犬 = dog" with base
+      English, or through the manual form) and see it swapped on a page, with
       no network requests from the extension at all (verified in the network log).
 - [ ] With an OpenRouter key and the mock provider, typing a word and pressing Enter
       clears the input and shows "looking up" within 100 ms, and the add button is never
@@ -439,15 +453,23 @@ on the next alarm.
 - [ ] The extension and the server produce the same normalised words for every fixture
       in `spec/fixtures/` (slice 09's shared CI job).
 - [ ] Projection write for 5,000 words stays under 50 ms (median of 10 runs in CI).
+- [ ] With bases `es` and `en`, adding 犬 stores two records under one `group` key, and
+      `(ja, 犬, "", es)` and `(ja, 犬, "", en)` never merge into each other.
+- [ ] Removing `en` from the bases drops `en` records from the projection within one
+      debounce and keeps them in the store; adding it back restores them.
+- [ ] An upgraded profile whose browser is in Spanish keeps its cached English-gloss words
+      swapping on English pages (`en` is added to the bases).
 
 ## Test plan
 
 Uses slice [02](../02-test-harness-and-ci/SPEC.md)'s harness.
 
 - **Unit (Node, `node --test`, `fake-indexeddb` as a dev dependency only)**: store
-  upsert and merge through the `natural` index including tombstones; projection shape;
+  upsert and merge through the `natural` index (with `base_lang`) including tombstones;
+  projection shape and base filtering;
   `lookup(job)` per backend against slice 24's job fixtures; outbox draining and
-  rejection; preset request building per provider; migration steps 1-5 with interrupted
+  rejection; preset request building per provider (with `base_langs`); migration steps
+  1-6 with interrupted
   runs at each step; sender checks for every privileged message type.
 - **Shared spec tests**: the slice 09 fixtures run against the JS validator and
   `Mira.LLM` normalisation in the same CI job.

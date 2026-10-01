@@ -5,9 +5,9 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
-| **Depends on** | [06-design-system](../06-design-system/SPEC.md); uses [24-add-flow-safety](../24-add-flow-safety/SPEC.md) and [25-plain-language-errors](../25-plain-language-errors/SPEC.md) |
+| **Depends on** | [06-design-system](../06-design-system/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (`t()`, base languages); uses [24-add-flow-safety](../24-add-flow-safety/SPEC.md) and [25-plain-language-errors](../25-plain-language-errors/SPEC.md) |
 | **Unblocks** | [22-first-run-onboarding](../22-first-run-onboarding/SPEC.md); hosts controls from [18](../18-language-precedence-and-mixing/SPEC.md), [31](../31-density-and-amount/SPEC.md), [32](../32-page-coverage-and-celebrations/SPEC.md), [38](../38-per-site-rules/SPEC.md) |
-| **Sources** | Maintainer ("as few steps as possible… regardless of the load on the backend"); [05 S5, S6, S10, S13, S33, S35, §3.4](../../docs/research/05-learner-ux.md); [01 S11](../../docs/research/01-language-mixing.md); [06 F16, F37](../../docs/research/06-adversarial-qa.md) |
+| **Sources** | [DECISIONS 2026-10-01, base language](../DECISIONS.md); Maintainer ("as few steps as possible… regardless of the load on the backend"); [05 S5, S6, S10, S13, S33, S35, §3.4](../../docs/research/05-learner-ux.md); [01 S11](../../docs/research/01-language-mixing.md); [06 F16, F37](../../docs/research/06-adversarial-qa.md) |
 
 ## Problem
 
@@ -30,6 +30,11 @@ The popup is where learners spend most of their time in Mira, and today it:
   (`popup.js:74-76`; [06 F37](../../docs/research/06-adversarial-qa.md)), and a sync can
   overwrite Connection fields mid-edit (`popup.js:107-108`; [06 F16](../../docs/research/06-adversarial-qa.md)).
 - Is 300 px wide with 13 px text over graph paper (`popup.html:31-40`).
+- Is English only: every label is a literal in `popup.html` and `popup.js`, language names
+  come from `Intl.DisplayNames(["en"], …)` (`popup.js:32`), and each word is shown as
+  "native = english" (`popup.js:165`). A learner with a Spanish browser gets English
+  buttons, and nothing tells them why their Spanish pages aren't changing
+  ([50](../50-ui-localization-and-base-language/SPEC.md)).
 
 ## Goals
 
@@ -41,12 +46,19 @@ The popup is where learners spend most of their time in Mira, and today it:
 - Connection and other settings move out to the dashboard ([21](../21-dashboard/SPEC.md)); the
   popup stays small.
 - Full keyboard operation with a visible focus order.
+- Every string is in Mira's interface language through `MiraI18n.t()`, with English and
+  Spanish complete at launch; language names follow the interface language.
+- The popup tells the learner when the current page is in a language they don't read, so
+  "nothing happened" is never a mystery.
 
 ## Non-goals
 
 - The add queue, result model and copy: [24](../24-add-flow-safety/SPEC.md).
 - Error wording: [25](../25-plain-language-errors/SPEC.md).
 - Focus mode semantics and weights: [18](../18-language-precedence-and-mixing/SPEC.md).
+- Editing base languages (the languages the learner reads in): dashboard settings
+  ([21](../21-dashboard/SPEC.md)) and the welcome tab ([22](../22-first-run-onboarding/SPEC.md)).
+  The popup only shows the page's state and links there ([50 §2](../50-ui-localization-and-base-language/SPEC.md)).
 - The Amount control's behavior: [31](../31-density-and-amount/SPEC.md); coverage numbers:
   [32](../32-page-coverage-and-celebrations/SPEC.md); site rules:
   [38](../38-per-site-rules/SPEC.md). The popup reserves their places and shows them when
@@ -62,6 +74,8 @@ The popup is where learners spend most of their time in Mira, and today it:
   at a glance that it's paused.
 - As a new learner, I want the popup to point me to setup in a friendly way, not show an
   error.
+- As a reader in Puerto Rico with a Spanish browser, I want the popup in Spanish and, on an
+  English page, a plain note that Mira only changes pages in the languages I read.
 
 ## Specification
 
@@ -79,7 +93,7 @@ sections separated by the dotted rule ([06 §10](../06-design-system/SPEC.md)). 
 │ ┌──────────────────────────────┐ ┌────────┐ │
 │ │ Add a word, any language     │ │ Auto ▾ │ │  add box + language hint (24 §8)
 │ └──────────────────────────────┘ └────────┘ │
-│  Added شكرا (shukran) = thanks               │  up to 3 recent jobs (24 §4)
+│  Added شكرا (shukran) = thanks               │  up to 3 recent jobs (24 §4); gloss in the page's base
 │        [Arabic ▾]                     Undo   │
 ├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
 │ Languages                                    │
@@ -93,6 +107,31 @@ sections separated by the dotted rule ([06 §10](../06-design-system/SPEC.md)). 
 │ All 46 words                              →  │  footer: opens dashboard
 └──────────────────────────────────────────────┘
 ```
+
+The same popup with the interface in Spanish (base `es`), on a Spanish news site:
+
+```
+┌──────────────────────────────────────────────┐
+│ (•) Mira                    [Activo ◉] ⚙ ↗ │
+├──────────────────────────────────────────────┤
+│ ┌──────────────────────────────┐ ┌────────┐ │
+│ │ Agrega una palabra, en cualq…│ │ Auto ▾ │ │
+│ └──────────────────────────────┘ └────────┘ │
+│  Agregada 犬 (inu) = perro          Deshacer │
+├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+│ Idiomas                                      │
+│ [✓ 日本語 12 ◎] [✓ English 8 ◎]               │
+├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+│ Esta página · elnuevodia.com                 │
+│ Pausar en este sitio                   [○ ]  │
+├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┤
+│ Tus 20 palabras                           →  │
+└──────────────────────────────────────────────┘
+```
+
+All strings are keys in `extension/_locales/<locale>/messages.json` read through
+`MiraI18n.t()` ([50 §8](../50-ui-localization-and-base-language/SPEC.md)); the add box
+placeholder's Spanish form is truncated with an ellipsis only in this drawing.
 
 - **Header:** the mark (16 px) and "Mira" in `--font-display`; the master switch
   ("On"/"Off", `role="switch"`, label "Swap words on pages"); a settings button (sliders
@@ -110,9 +149,12 @@ sections separated by the dotted rule ([06 §10](../06-design-system/SPEC.md)). 
   [24 §4](../24-add-flow-safety/SPEC.md); the newest gets the swap motion
   ([06 §9](../06-design-system/SPEC.md)). Older jobs are in the dashboard.
 - **Languages:** one chip per language, ordered by word count then name (as
-  `popup.js:44-46` does). Chip label is the endonym (from
-  `Intl.DisplayNames([lang], {type: "language"})`), with the English name in the chip's
-  tooltip and accessible name ("Spanish, Español, 30 words, shown"). Clicking the chip
+  `popup.js:44-46` does, with names compared by `Intl.Collator(uiLocale)`). Chip label is
+  the endonym (from `Intl.DisplayNames([lang], {type: "language"})`), with the name in the
+  interface language in the chip's tooltip and accessible name ("Spanish, Español, 30
+  words, shown"; in Spanish, "japonés, 日本語, 12 palabras, visible"). These are target
+  languages; a word counted under a chip is a group of records (same `lang` and
+  `native_key`, [07](../07-word-model-v2/SPEC.md)), so a bilingual learner's 犬 counts once. Clicking the chip
   toggles shown/hidden. The trailing ◎ button ("Focus on Spanish") sets Focus. With more than
   six languages, the row wraps to at most three lines, then "+4 more" opens the full list in
   place.
@@ -169,8 +211,19 @@ but stay operable; a banner: "Mira is off on all sites. [Turn on]". Toolbar badg
 **G. Unsupported page.** The This page section is replaced by "Mira can't run on browser
 pages like this one." (`unsupported_page`). Everything else works.
 
-**H. Page not in English.** "This page isn't in English, so Mira leaves it alone. [Swap here
-anyway]" ([16](../16-what-not-to-swap/SPEC.md)).
+**H. Page in a language you don't read.** The page's declared or detected language
+([16](../16-what-not-to-swap/SPEC.md)) isn't one of the learner's base languages
+(`s:ui.baseLangs`, [50 §2](../50-ui-localization-and-base-language/SPEC.md)). The This page
+section reads `base_page_other`: "This page is in German, which isn't one of your
+languages. Mira leaves it alone." / "Esta página está en alemán, que no es uno de tus
+idiomas. Mira no la toca." with two quiet links: "I read German too" (opens
+`dashboard.html#settings-languages` with German ready to add) and "Swap here anyway"
+(a per-site override, 16). When the page language can't be determined, nothing is shown.
+
+**H2. Page in a base language with no words for it.** The page is in one of the bases, but
+no word has a gloss in that base (for example the learner just added French as a base).
+"No words have meanings in French yet. [Add meanings]" opens the dashboard's "Add meanings
+in French" action ([21](../21-dashboard/SPEC.md)).
 
 **I. Offline.** A small "Offline" pill in the header (info icon, `--blue-soft`). Pending jobs
 show their waiting line. No banner unless an add is waiting.
@@ -199,7 +252,7 @@ entry. Opening the popup counts as a step (toolbar click or the shortcut from
 |---|---|---|---|
 | Add a word | 3 (open, type, Enter), then blocked until the model answers | 3 | No: input clears at once |
 | Add three words in a row | 7 plus three waits | 7 (open, then type + Enter × 3) | No |
-| Add a word you know the meaning of ("gracias = thanks") | not possible without the model | 3 | No, and no model call |
+| Add a word you know the meaning of, in any base ("gracias = thanks"; "犬 = perro") | not possible without the model | 3 | No, and no model call |
 | Fix the wrong language on a just-added word | delete, retype, wait (5+) | 2 (chip, pick language) | Lookup runs in the background |
 | Undo one of several added words | not possible (one Undo for all) | 1 | No |
 | Hide a language | 2 | 2 | No |
@@ -241,8 +294,9 @@ The background computes the badge per tab and sets it with `action.setBadgeText(
 (per-tab values override a global one, so nothing is set globally); it recomputes the active
 tab on tab switches and every tab when a job starts or ends.
 
-The toolbar tooltip (`action.setTitle`) mirrors the state: "Mira", "Mira · paused on
-example.com", "Mira · off".
+The toolbar tooltip (`action.setTitle`) mirrors the state through `t()`: "Mira", "Mira ·
+paused on example.com" / "Mira · en pausa en example.com", "Mira · off" / "Mira ·
+desactivado". The badge text "off" is a key too (`badge_off`; es "no").
 
 ### 6. Behavior and correctness
 
@@ -252,28 +306,48 @@ example.com", "Mira · off".
 - **Partial re-render.** `storage.onChanged` updates only the sections whose keys changed
   (`addJobs` → recent jobs; `words` → chips and footer; `prefs` → controls). Inputs are never
   overwritten while focused or dirty ([06 F16](../../docs/research/06-adversarial-qa.md)).
-- **Counts.** "All {n} words" counts active and paused words (not tombstones). Chip counts
-  count active words in that language.
+- **Counts.** "All {n} words" counts active and paused word groups (records sharing `lang`
+  and `native_key` count once; not tombstones). Chip counts count active groups in that
+  language. Numbers use `Intl.NumberFormat(uiLocale)` and plural keys
+  (`words_count_one` / `_other`).
 - **Host.** The host is computed as today (`popup.js:179-180`); pausing stores the hostname
   in `pausedHosts` as today until [38](../38-per-site-rules/SPEC.md) replaces it.
 
 ### 7. Copy
 
-| Element | Copy |
-|---|---|
-| Add placeholder | "Add a word, any language" |
-| Add box label (accessible) | "Add a word" |
-| Hint chip | "Auto" / language endonym; accessible name "Language for new words: Auto" |
-| Master switch label | "Swap words on pages" |
-| Languages title | "Languages" |
-| Chip accessible name | "{English name}, {endonym}, {n} words, shown/hidden" |
-| Focus button | "Focus on {English name}" |
-| Focus strip | "Focusing on {endonym} · Stop" |
-| This page title | "This page · {host}" |
-| Pause | "Pause on this site" |
-| Footer | "All {n} words" |
-| Settings button | "Settings" |
-| Open button | "Open your words" |
+Keys in `_locales`; English and Spanish ship complete at launch. `{lang}` and `{base}` are
+names from `Intl.DisplayNames([uiLocale], {type: "language"})`.
+
+| Key | en | es |
+|---|---|---|
+| `popup_add_placeholder` | Add a word, any language | Agrega una palabra, en cualquier idioma |
+| `popup_add_label` (accessible) | Add a word | Agregar una palabra |
+| `popup_hint_auto` | Auto; accessible "Language for new words: Auto" | Auto; accesible "Idioma de las palabras nuevas: Auto" |
+| `popup_switch_label` | Swap words on pages | Cambiar palabras en las páginas |
+| `popup_languages_title` | Languages | Idiomas |
+| `popup_chip_name` | {lang}, {endonym}, {n} words, shown/hidden | {lang}, {endonym}, {n} palabras, visible/oculto |
+| `popup_focus_button` | Focus on {lang} | Concentrarte en {lang} |
+| `popup_focus_strip` | Focusing on {endonym} · Stop | Concentrada en {endonym} · Parar |
+| `popup_this_page` | This page · {host} | Esta página · {host} |
+| `popup_pause_site` | Pause on this site | Pausar en este sitio |
+| `popup_footer` | All {n} words | Tus {n} palabras |
+| `popup_settings` | Settings | Ajustes |
+| `popup_open` | Open your words | Abrir tus palabras |
+| `popup_first_run_title` | Finish setting up Mira | Termina de configurar Mira |
+| `popup_first_run_body` | Choose your first word, in any language. It takes under a minute. | Elige tu primera palabra, en cualquier idioma. Toma menos de un minuto. |
+| `popup_get_started` | Get started | Empezar |
+| `popup_empty` | No words yet. Type one above, in any language. | Aún no hay palabras. Escribe una arriba, en cualquier idioma. |
+| `base_page_other` | This page is in {lang}, which isn't one of your languages. Mira leaves it alone. | Esta página está en {lang}, que no es uno de tus idiomas. Mira no la toca. |
+| `popup_read_too` | I read {lang} too | También leo {lang} |
+| `popup_swap_anyway` | Swap here anyway | Cambiar aquí de todos modos |
+| `popup_no_meanings_base` | No words have meanings in {base} yet. | Aún no hay palabras con significado en {base}. |
+| `error_unsupported_page` (25) | Mira can't run on browser pages like this one. | Mira no puede funcionar en páginas del navegador como esta. |
+| `popup_off_banner` | Mira is off on all sites. | Mira está desactivado en todos los sitios. |
+| `popup_lookups_left` | {r} free lookups left today | Te quedan {r} búsquedas gratis hoy |
+
+"Concentrada" in the focus strip describes the list (la lista), so it doesn't gender the
+learner; the Spanish copy uses `tú` and gender-neutral phrasing per
+[50 §8](../50-ui-localization-and-base-language/SPEC.md).
 
 ### 8. Performance
 
@@ -295,13 +369,23 @@ request is awaited on open.
 - [ ] The popup's first paint happens within 100 ms on a mid-range laptop (Performance
       timeline in CI, median of 10 runs, budget 150 ms in CI).
 - [ ] No string in the popup contains "sync", "token" or "known" (string lint).
+- [ ] With the browser in Spanish, every visible and accessible string in states A-L and H2
+      is Spanish (screenshot review plus slice 50's literal-string check).
+- [ ] With base `es`, on an English fixture page the popup shows state H with "inglés"
+      named; "También leo inglés" opens settings with English ready to add; on a Spanish
+      page state H is not shown.
+- [ ] A bilingual learner's 犬 (two records, `es` and `en`) counts as one word in the footer
+      and the 日本語 chip.
 
 ## Test plan
 
-- **Unit:** language ordering and endonyms; the badge precedence function; the multi-line
+- **Unit:** language ordering (with `Intl.Collator` in `en` and `es`) and endonyms; page
+  state H/H2 selection from page language and `baseLangs`; group counting; the badge precedence function; the multi-line
   paste detector.
 - **End-to-end (Playwright):** each state via storage fixtures; step-count scripts for §3;
-  keyboard traversal; the 30 s slow-backend add; RTL endonym rendering.
+  keyboard traversal; the 30 s slow-backend add; RTL endonym rendering; every state with
+  the browser launched with `--lang=es` and with slice 50's `en-XA` pseudo-locale (no
+  truncation at 360 px).
 - **Manual:** Chrome and Firefox, light and dark toolbar themes, 200 % zoom, Windows High
   Contrast, NVDA and VoiceOver passes per [27](../27-accessibility-baseline/SPEC.md).
 
@@ -317,7 +401,10 @@ users find their connection in Settings → Connection (the changelog says where
 
 1. **Header order.** Recommendation: master switch in the header (it's a global state), pause
    in This page (it's per site), as above.
-2. **Popup width.** Recommendation: 360 px; it fits endonyms like "Bahasa Indonesia" in a chip
+2. **Show state H on every page in another language, or only once per site?**
+   Recommendation: every time, as a quiet line in This page, never a banner; it is the
+   answer to "why isn't anything changing here?".
+3. **Popup width.** Recommendation: 360 px; it fits endonyms like "Bahasa Indonesia" in a chip
    and stays narrow enough to feel like a popup.
 
 ## Future work

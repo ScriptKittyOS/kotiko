@@ -3,11 +3,11 @@
 | | |
 |---|---|
 | **Status** | Proposed |
-| **Priority** | P1 (soon after release) |
-| **Size** | S (a day or two) |
-| **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md) |
+| **Priority** | P1 (soon after release), except section 9 (the bot speaks the learner's language), which is P0 and ships with [50](../50-ui-localization-and-base-language/SPEC.md) |
+| **Size** | M (about a week) |
+| **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md); section 9 on [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md), [08](../08-language-tags/SPEC.md) (names per locale) and [09](../09-shared-word-spec-and-prompt/SPEC.md) (`base_langs` in the request) |
 | **Unblocks** | [48-multi-user-and-classroom](../48-multi-user-and-classroom/SPEC.md) (Telegram identities) |
-| **Sources** | [06 F17, F18, F33, F38](../../docs/research/06-adversarial-qa.md); [04 S27, S28](../../docs/research/04-architecture-release.md); [05 S18, S22](../../docs/research/05-learner-ux.md) |
+| **Sources** | [DECISIONS 2026-10-01, "English is not the base language"](../DECISIONS.md); [06 F17, F18, F33, F38](../../docs/research/06-adversarial-qa.md); [04 S27, S28](../../docs/research/04-architecture-release.md); [05 S18, S22](../../docs/research/05-learner-ux.md) |
 
 ## Problem
 
@@ -35,6 +35,12 @@ mobile story Mira has ([05 S18](../../docs/research/05-learner-ux.md)). Its edge
   ([06 F33](../../docs/research/06-adversarial-qa.md)).
 - **Buttons carry integer ids** (`bot.ex:228`, `bot.ex:242`), which slice 07 replaces
   with UUIDs; "del" deletes outright, so Undo can't restore.
+- **The bot only speaks English, and assumes the learner does.** Every reply is a
+  hard-coded English string (`bot.ex:28`: "Tap Add on a card and that word starts
+  replacing its English on web pages"); cards show `native = english`
+  (`bot.ex:145`, `bot.ex:291`); "Removed … Pages show the English again." (`bot.ex:171`).
+  A Spanish speaker who writes "¿cómo se dice perro en japonés?" gets an English card with
+  an English gloss that never matches their Spanish pages.
 - **Polling errors**: a fixed 3 s sleep on any error (`bot.ex:58-61`); a 409 (another
   copy polling with the same token) loops forever with a generic log line.
 
@@ -45,6 +51,9 @@ mobile story Mira has ([05 S18](../../docs/research/05-learner-ux.md)). Its edge
 - No model answer or Telegram error can crash a handler or leak internals into the chat.
 - Every reply fits Telegram's limits.
 - Pending lookups clean themselves up.
+- The bot speaks the learner's language: every fixed string comes from
+  `server/priv/locales/<locale>/messages.json` (English and Spanish at launch), lookups use
+  the learner's base languages, and cards show glosses in those languages.
 
 ## Non-goals
 
@@ -59,6 +68,11 @@ mobile story Mira has ([05 S18](../../docs/research/05-learner-ux.md)). Its edge
 - As a learner who sent `/remove thanks`, I want to pick which "thanks" to remove.
 - As a learner who tapped Remove by mistake, I want Undo to bring the word back.
 - As a learner adding by voice, I want a long transcript not to swallow my word card.
+- As a learner in Puerto Rico whose Telegram is in Spanish, I want to write "¿cómo se dice
+  perro en japonés?" and get a Spanish card ("犬 (inu) = perro · japonés") with Spanish
+  buttons.
+- As a bilingual reader of Spanish and English, I want one message to add a word for both
+  my Spanish and my English pages.
 
 ## Specification
 
@@ -93,10 +107,15 @@ mobile story Mira has ([05 S18](../../docs/research/05-learner-ux.md)). Its edge
 ### 2. Safe `/remove`
 
 - Matching uses slice 07's `native_key` normalisation for native, plus case-folded
-  romanization and English, against live words with status `active` or `paused` only
+  romanization and `gloss` (in any base language; case-folded with the record's
+  `base_lang` locale), against live words with status `active` or `paused` only
   (never pending or deleted).
 - **No match**: "No saved word matches "<arg>"." (unchanged).
-- **One match**: a card "Remove спасибо (spasibo) = thanks · Russian?" with [Remove] [Cancel].
+- **One match**: a card "Remove спасибо (spasibo) = thanks · Russian?" with [Remove]
+  [Cancel] (Spanish: "¿Quitar спасибо (spasibo) = gracias · ruso?" [Quitar] [Cancelar]).
+  A target word with records in several bases (slice 50) is one match, shown with every
+  gloss ("犬 (inu) = perro · dog · Japanese"); Remove tombstones all of them and Undo
+  restores all of them.
 - **Several**: "Which one?" with one button per word (up to 10, then "and 4 more: be more
   specific"), each labelled `спасибо · Russian`.
 - After removing: the card is edited to "Removed спасибо · Russian." with [Undo], which
@@ -156,7 +175,62 @@ that no longer exists answers "That word is already gone." (as today, `bot.ex:27
 ### 8. Copy
 
 `/help` gains a first line naming Mira (slice 04) and lists `/invite` and `/members` for
-the owner. `/start` without a code from an allowed user shows `/help`.
+the owner. `/start` without a code from an allowed user shows `/help`. Every string in this
+spec is a key in `server/priv/locales/<locale>/messages.json` (section 9); the English
+wording above is the `en` text, and the Spanish text ships with it.
+
+### 9. The bot speaks the learner's language
+
+Implements [50](../50-ui-localization-and-base-language/SPEC.md) for the bot. This section
+is P0.
+
+**Strings.** All bot text goes through `Mira.I18n.t(key, params, locale)` (50 section 8),
+with keys prefixed `bot_` (`bot_help_intro`, `bot_card_added`, `bot_remove_confirm`,
+`bot_rejected_latin_spelling`). Plurals use the same CLDR suffixes as the extension.
+Language names come from `Mira.Lang.name(tag, locale)` (08), so a Spanish user sees
+"japonés". Error lines use slice 25's codes mapped to bot keys.
+
+**Which locale.** Per Telegram user, the first that applies:
+
+1. An explicit choice: `/language es` (alias `/idioma`), stored in a new column
+   `telegram_users.locale`; `/language auto` clears it.
+2. The `language_code` Telegram sends with each update (`from.language_code`, an IETF tag
+   from the user's Telegram app, sometimes absent), if a shipped locale matches it by
+   primary subtag (`es-419` → `es`).
+3. The learner's primary base language (below), if it is a shipped locale.
+4. `en`, the source locale, with a one-line note in that locale's place once: "Mira isn't
+   translated into <language> yet."
+
+**Base languages on the server.** The server needs the learner's bases to ask the model
+for the right glosses. A new single-row table `profile (id INTEGER PRIMARY KEY CHECK
+(id = 1), base_langs TEXT NOT NULL, updated_at TEXT NOT NULL)` holds them, exposed as
+`GET /api/v1/profile` and `PUT /api/v1/profile` (`{"base_langs": ["es", "en"]}`, each
+through 08's `baseTagOf`, at most 4; 400 otherwise). The extension writes it whenever
+`s:ui.baseLangs` changes while connected to a server (slice 11's connection, slice 39's
+settings). Slice 48 moves the row to per-user. If the server has no profile yet, the bot
+uses `baseTagOf(language_code)` from the first message and says so on the first card:
+"Meanings in español. Change with /bases." `/bases es en` (alias `/idiomas_que_leo`) sets
+the profile from Telegram.
+
+**Lookups.** Each lookup sends the learner's text verbatim plus `base_langs` from the
+profile (09's request contract). The model's reply language follows the language the
+learner wrote in (09); cards show one line per base record:
+
+```
+犬 (inu) · japonés
+= perro
+= dog
+[Agregar] [Omitir]
+```
+
+Tapping Add saves every base record of the card (slice 07's one record per base); pending
+rows are per record and cleaned up together (section 6).
+
+**Commands.** Telegram command names must be ASCII lowercase, so the canonical names stay
+(`/remove`, `/list`, `/languages`, `/help`), with Spanish aliases (`/quitar`, `/lista`,
+`/idiomas`, `/ayuda`). `setMyCommands` is called at boot once per shipped locale with
+`language_code` set, so the command menu in a Spanish Telegram app shows Spanish
+descriptions ("quitar — quitar una palabra de tu lista").
 
 ## Acceptance criteria
 
@@ -173,10 +247,21 @@ the owner. `/start` without a code from an allowed user shows `/help`.
 - [ ] A pending row older than 7 days is gone after the janitor runs.
 - [ ] A 409 from `getUpdates` produces the specific log line and a 60 s backoff.
 - [ ] Existing `ALLOWED_TELEGRAM_IDS` users keep working after the update.
+- [ ] A Telegram user whose updates carry `language_code: "es"` gets every reply, card,
+      button and command description in Spanish; `/language en` switches to English.
+- [ ] With profile `base_langs: ["es"]`, "¿cómo se dice perro en japonés?" yields a card
+      "犬 (inu) · japonés = perro", and Add saves `{lang: "ja", base_lang: "es",
+      gloss: "perro"}`.
+- [ ] With profile `["es", "en"]`, one message yields one card with both glosses and Add
+      saves two records; `/remove perro` finds the group and Undo restores both.
+- [ ] No string literal in `server/lib/mira/bot.ex` reaches the chat outside
+      `Mira.I18n.t/3` (slice 50's literal check, server variant).
 
 ## Test plan
 
-- ExUnit with slice 02's `Req.Test` Telegram stub recording outgoing calls: pairing
+- ExUnit with slice 02's `Req.Test` Telegram stub recording outgoing calls: locale
+  resolution (each of the four steps), Spanish and English replies, `setMyCommands` per
+  locale, profile routes, bilingual cards; pairing
   (valid, expired, wrong, rate limit, deep-link payload), stranger silence, `/invite`,
   `/members`; `/remove` with 0, 1, 3 and 12 matches; callbacks with UUID and legacy
   integer data; per-word error handling; message splitting; polling backoff with a fake clock.
@@ -185,12 +270,15 @@ the owner. `/start` without a code from an allowed user shows `/help`.
 
 ## Rollout and migration
 
-- Migration creates `telegram_users` and seeds it from `ALLOWED_TELEGRAM_IDS`.
+- Migration creates `telegram_users` (with `locale`) and `profile`, and seeds
+  `telegram_users` from `ALLOWED_TELEGRAM_IDS`. `profile` starts empty; the extension
+  fills it on its next sync, and the existing owner's words keep their `base_lang: "en"`
+  from slice 07's migration.
 - `.env.example`: `ALLOWED_TELEGRAM_IDS` becomes optional ("Leave empty and link the bot
   with the code from the server log").
 - Changelog: "Link the Telegram bot by sending it a code from your server; no more
   editing .env. /remove now asks which word and can be undone. Long replies no longer
-  get lost."
+  get lost. The bot now speaks Spanish too, and gives meanings in the languages you read."
 
 ## Open questions
 
@@ -198,6 +286,9 @@ the owner. `/start` without a code from an allowed user shows `/help`.
    Recommendation: yes for now (today any allowed ID can), with Undo making it safe.
 2. **Pairing code lifetime.** Recommendation: 30 minutes for the owner code, 24 hours for
    member invites.
+3. **Spanish command aliases.** They make the bot friendlier but double the command
+   surface. Recommendation: ship the four aliases above and show only the canonical names
+   plus localized descriptions in the command menu.
 
 ## Future work
 

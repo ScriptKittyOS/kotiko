@@ -50,8 +50,8 @@ Today, on Firefox for Android (read from the code; not yet run on a device):
 ## User stories
 
 - As a learner reading news on my phone, I want my Spanish words swapped there too.
-- As a learner, I want to tap a swapped word and see the English, without accidentally
-  opening a link.
+- As a learner, I want to tap a swapped word and see the word the page had ("dog", or
+  "perro" on my Spanish pages), without accidentally opening a link.
 - As a learner with a server at home, I want my phone to sync with it over Tailscale.
 
 ## Specification
@@ -106,7 +106,11 @@ Firefox for Android opens the popup as a full-screen sheet.
 - The dashboard (slice 21) uses one column; editing a word opens a full-screen sheet with
   a "Done" button at the top; bulk actions move to a bottom bar.
 - The welcome page (slice 22) works in portrait at 360 px; "Connect OpenRouter" opens a
-  tab and returns to the welcome tab when done.
+  tab and returns to the welcome tab when done. Base languages are detected the same way as
+  on desktop ([50](../50-ui-localization-and-base-language/SPEC.md);
+  `i18n.getUILanguage()` and `i18n.getAcceptLanguages()` follow the phone's Firefox
+  language settings), and the confirmation chips wrap onto several lines at 360 px. Spanish
+  strings, about a quarter longer than English, are part of the 360 px layout check.
 
 ### 5. Backends on a phone
 
@@ -128,7 +132,8 @@ On a mid-range Android phone (a 2022-era device with 6 GB of RAM, such as a Pixe
 as the reference):
 
 - The first viewport is swapped within 200 ms of the content script starting, with 2,000
-  words.
+  words, on an English page, on a Spanish page and on a Japanese page (whose tokenizing
+  through `Intl.Segmenter` is the slowest path, slice 14).
 - No main-thread task from Mira longer than 50 ms (slice 15's time-slicing).
 - The projection read on page load costs under 30 ms for 2,000 words.
 
@@ -137,7 +142,8 @@ as the reference):
 - [ ] The AMO listing offers Mira on Firefox for Android, and it installs on Firefox
       release for Android.
 - [ ] With a few words typed as “word = meaning” and no server, a news article shows swaps
-      on the phone.
+      on the phone, with the phone's Firefox in English and in Spanish (Spanish article,
+      Spanish interface).
 - [ ] Tapping a swapped word outside a link opens the popover; tapping one inside a link
       follows the link; long-pressing it opens the popover (or the fallback setting works).
 - [ ] The popup, dashboard and welcome page have no horizontal scrolling at 360 px and

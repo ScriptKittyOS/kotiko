@@ -5,9 +5,9 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
-| **Depends on** | [11-local-first-mode](../11-local-first-mode/SPEC.md), [20-popup-redesign](../20-popup-redesign/SPEC.md), [24-add-flow-safety](../24-add-flow-safety/SPEC.md); uses [06](../06-design-system/SPEC.md), [08](../08-language-tags/SPEC.md), [09](../09-shared-word-spec-and-prompt/SPEC.md), [13](../13-bulk-add/SPEC.md) (its line parser and, from the done state, its sheet), [14](../14-matcher-engine/SPEC.md), [18](../18-language-precedence-and-mixing/SPEC.md), [19](../19-word-popover/SPEC.md), [25](../25-plain-language-errors/SPEC.md), [32](../32-page-coverage-and-celebrations/SPEC.md) (confetti) |
+| **Depends on** | [11-local-first-mode](../11-local-first-mode/SPEC.md), [20-popup-redesign](../20-popup-redesign/SPEC.md), [24-add-flow-safety](../24-add-flow-safety/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base-language detection, `t()`, `spec/lang/`); uses [06](../06-design-system/SPEC.md), [08](../08-language-tags/SPEC.md), [09](../09-shared-word-spec-and-prompt/SPEC.md), [13](../13-bulk-add/SPEC.md) (its line parser and, from the done state, its sheet), [14](../14-matcher-engine/SPEC.md), [18](../18-language-precedence-and-mixing/SPEC.md), [19](../19-word-popover/SPEC.md), [25](../25-plain-language-errors/SPEC.md), [32](../32-page-coverage-and-celebrations/SPEC.md) (confetti) |
 | **Unblocks** | [28-privacy-and-store-readiness](../28-privacy-and-store-readiness/SPEC.md) (store screenshots of the first run) |
-| **Sources** | Maintainer: "prompt the user to talk to the LLM and ask how to teach the word hello in whatever language, and then it can say congrats you got your first word with confetti, or some other word, let the user choose. It will be their favorite, they will get a reward and remember it even if it is the only one they see."; [DECISIONS: every word is one the learner chose; own key on a full page](../DECISIONS.md); [05 S1, S2, S3, §3.1](../../docs/research/05-learner-ux.md); [04 §3 local-first](../../docs/research/04-architecture-release.md); [03 C4, C8, D6](../../docs/research/03-browser-extension.md) |
+| **Sources** | Maintainer: "prompt the user to talk to the LLM and ask how to teach the word hello in whatever language, and then it can say congrats you got your first word with confetti, or some other word, let the user choose. It will be their favorite, they will get a reward and remember it even if it is the only one they see."; [DECISIONS: every word is one the learner chose; own key on a full page; English is not the base language](../DECISIONS.md); [05 S1, S2, S3, §3.1](../../docs/research/05-learner-ux.md); [04 §3 local-first](../../docs/research/04-architecture-release.md); [03 C4, C8, D6](../../docs/research/03-browser-extension.md) |
 
 ## Problem
 
@@ -24,17 +24,33 @@ new learner still has no words, and Mira will never pick words for them
 one job: help the learner choose their first word, make that moment feel like a reward, and
 show the word working, in under a minute.
 
+And it has to do that in the learner's own language. The maintainer's test: someone in
+Puerto Rico with an all-Spanish browser installs Mira. As first planned, they would get an English
+welcome, be asked for a word as if they read English, get an English meaning, and see a
+preview on an English sentence; on their own Spanish pages nothing would ever swap, and
+the confetti would be "waiting on English to be done"
+([DECISIONS](../DECISIONS.md), [50](../50-ui-localization-and-base-language/SPEC.md)).
+
 ## Goals
 
-- The welcome tab is a short conversation, not a form: connect your own AI, ask for the first
-  word you'd love to learn in your own words, confirm it, celebrate it, see it swap.
+- The welcome tab is a short conversation, not a form: see the languages you read, connect
+  your own AI, ask for the first word you'd love to learn in your own words, confirm it,
+  celebrate it, see it swap.
+- The whole page is in Mira's interface language (the browser's, [50 §8](../50-ui-localization-and-base-language/SPEC.md)),
+  complete in English and Spanish at launch, and the learner's base languages are detected
+  from the browser and confirmed here with no extra step when the guess is right
+  ([50 §2](../50-ui-localization-and-base-language/SPEC.md)).
+- The first-word conversation works in the learner's language: "¿Cómo se dice hola en
+  japonés?" gets こんにちは with the meaning "hola", and the preview swaps it into a Spanish
+  sentence.
 - The learner chooses both the word and the language. Nothing is added to their vocabulary
   until they press "Make it my first word".
 - First word celebrated in **4 steps plus OpenRouter's own sign-in** with an OpenRouter
   account (one-click connect), and in **3 to 4 steps with no key at all** when the learner types the word with its meaning
-  ("hola = hello"), which Mira parses locally with no model and no network.
-- A live preview shows the learner's own word swapped into an English sentence by the real
-  matcher, before they leave the page.
+  ("hola = hello"; for a Spanish reader, "hello = hola"), which Mira parses locally with no
+  model and no network.
+- A live preview shows the learner's own word swapped into a sentence in their primary base
+  language by the real matcher, before they leave the page.
 - The key is entered on this full page, never in the popup
   ([DECISIONS](../DECISIONS.md), [11 §3](../11-local-first-mode/SPEC.md)).
 - Skipping is always possible, and nothing about setup has to be redone later.
@@ -45,7 +61,10 @@ show the word working, in under a minute.
 - Provider presets, key storage, the PKCE connect flow and server connection mechanics:
   [11](../11-local-first-mode/SPEC.md).
 - Suggesting words to learn, or offering ready-made lists. Never
-  ([DECISIONS](../DECISIONS.md)). "hello" appears only as an example of what to ask.
+  ([DECISIONS](../DECISIONS.md)). "hello" (in the learner's language: "hola") appears only
+  as an example of what to ask.
+- Editing base languages beyond the first-run confirmation, and the support levels per
+  base: [21](../21-dashboard/SPEC.md) and [50](../50-ui-localization-and-base-language/SPEC.md).
 - Adding a list during first run: the done state links to bulk add
   ([13](../13-bulk-add/SPEC.md)), which has its own review step.
 - Page milestones and the general celebration rules: [32](../32-page-coverage-and-celebrations/SPEC.md).
@@ -66,6 +85,13 @@ show the word working, in under a minute.
   before anything is saved.
 - As a self-hoster, I want to connect my existing Mira server from the same page.
 - As someone who doesn't want a tour, I want to skip it and use the popup.
+- As a learner in Puerto Rico with an all-Spanish browser, I want the welcome in Spanish,
+  to ask "¿cómo se dice hola en japonés?", and to see こんにちは in a Spanish sentence, with
+  confetti for my first word.
+- As a reader of Spanish and English, I want to see both languages already ticked, and my
+  first word's meaning in both.
+- As a learner whose browser lists Japanese because I'm learning it, I want to untick it
+  before I start.
 
 ## Specification
 
@@ -95,8 +121,10 @@ No "Next" buttons, no wizard.
 ┌──────────────────────────────────────────────────────────────────┐
 │ (•) Mira                                          Skip for now   │
 │                                                                  │
-│ (=^.^=) Hi, I'm Mira. I swap English words on the pages you      │
-│         read for words you're learning, one word at a time.      │
+│ (=^.^=) Hi, I'm Mira. I swap words on the pages you read for     │
+│         words you're learning, one word at a time.               │
+│                                                                  │
+│ (=^.^=) The pages you read are in: [✓ English] [+ Another]       │
 │                                                                  │
 │ (=^.^=) First, connect your own AI. It looks words up for you.   │
 │         [ Connect OpenRouter (free) ]                            │
@@ -114,15 +142,83 @@ No "Next" buttons, no wizard.
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-The placeholder cycles every 4 s through "how do you say hello in Japanese", "hola", "dog in
-Arabic" and "merci = thank you" (static under reduced motion: the first one). It is a
-placeholder only; the box starts empty. **Try “hello”** puts the text "how do you say hello
-in " into the box, moves focus there with the caret at the end, and saves nothing; the
-learner types the language.
+**The same arrival for the Puerto Rico learner** (browser `es-PR, es`; interface in
+Spanish; detected bases `["es"]`):
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ (•) Mira                                     Omitir por ahora    │
+│                                                                  │
+│ (=^.^=) Hola, soy Mira. Cambio palabras en las páginas que lees  │
+│         por palabras que estás aprendiendo, una a la vez.        │
+│                                                                  │
+│ (=^.^=) Las páginas que lees están en: [✓ español] [+ Otro]      │
+│                                                                  │
+│ (=^.^=) Primero, conecta tu propia IA. Busca palabras por ti.    │
+│         [ Conectar OpenRouter (gratis) ]                         │
+│         Pegar una clave · Otro servicio o mi propio modelo ·     │
+│         Mi servidor de Mira                                      │
+│                                                                  │
+│ (=^.^=) ¿Cuál es la primera palabra que te encantaría aprender?  │
+│         Pregunta con tus propias palabras, en cualquier idioma.  │
+│         ┌──────────────────────────────────────────────┐         │
+│         │ ¿cómo se dice hola en japonés?               │[Preguntar]
+│         └──────────────────────────────────────────────┘         │
+│         [ Prueba con “hola” ]                                    │
+│         ¿Aún no tienes IA? Escribe la palabra y su significado,  │
+│         como “hello = hola”. Funciona sin IA.                    │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+The placeholder cycles every 4 s through four examples from the interface locale's
+`welcome_placeholder_1`…`_4` keys (static under reduced motion: the first one). English:
+"how do you say hello in Japanese", "hola", "dog in Arabic", "merci = thank you". Spanish:
+"¿cómo se dice hola en japonés?", "hello", "perro en árabe", "merci = gracias". It is a
+placeholder only; the box starts empty.
+
+**Try “hello”** suggests the word "hello" in the learner's **primary base** (the first of
+`s:ui.baseLangs`): "hello" for `en`, "hola" for `es`, "bonjour" for `fr`, "こんにちは" for
+`ja`. The word and the question prefix come from `spec/lang/<base>/welcome.json`
+(`{"hello": "hola", "ask_prefix": "¿cómo se dice hola en ", "no_ai_example": "hello = hola"}`),
+shipped for every Full and Good base ([50 §5](../50-ui-localization-and-base-language/SPEC.md));
+for a base without the file, the chip uses the interface locale's `welcome_try_hello` and
+`welcome_ask_prefix` keys. Pressing it puts the prefix into the box ("how do you say hello
+in " / "¿cómo se dice hola en " / "「こんにちは」は"), moves focus there with the caret at
+the end, and saves nothing; the learner types the language ("japonés?"). The meanings'
+language is set by the base languages, not by the language of the question, so a Polish
+reader with an English interface who types "how do you say hello in Japanese" still gets
+the meaning "cześć".
 
 Styling per [06](../06-design-system/SPEC.md): `--canvas` background, Mira's lines in
 `--t-lead` on `--canvas`, controls on `--surface`, the word card (§5) at `--r-xl` on
 `--surface` with `--e-1`. The page is usable at 320 px width.
+
+### 2b. The languages you read
+
+The line "The pages you read are in:" shows `s:ui.baseLangsDetected`
+([50 §2](../50-ui-localization-and-base-language/SPEC.md): the browser's interface
+language and accept-languages, reduced to base tags, at most three) as checked chips, by
+name in the interface language with the endonym as a tooltip when they differ.
+
+- **Right guess, no step.** Nothing needs to be pressed. `baseLangsConfirmed` becomes true
+  when the learner saves their first word or presses Skip for now, with the chips as they
+  are.
+- **Untick** a chip to remove that language (at least one must stay ticked; unticking the
+  last is refused with "Mira needs at least one language you read."). A learner whose
+  browser lists a language they are learning unticks it here.
+- **+ Another** opens a searchable list of languages (names in the interface language,
+  endonyms and tags, about 180) and adds the pick as a ticked chip; at most four
+  ([50 §2](../50-ui-localization-and-base-language/SPEC.md)). Order is the chips' order;
+  the first ticked chip is the primary base.
+- A chip whose base is at the Basic support level carries a small "basic" tag with 50's
+  `base_level_basic` explanation on focus or hover.
+- Changes write `s:ui.baseLangs` at once. A card already on screen (states C and C2) is
+  looked up again for the new set of bases, since its meanings depend on them.
+- The interface language is **not** chosen here; it follows the browser
+  ([50 §8](../50-ui-localization-and-base-language/SPEC.md)). If the browser's language has
+  no Mira translation, the page is in English (the manifest's source locale) and the base
+  chips still show the browser's language, so a Polish reader sees "The pages you read are
+  in: [✓ polski]".
 
 ### 3. Step 0, only when needed: page permission (Firefox)
 
@@ -170,10 +266,17 @@ without connecting, nothing changes and the button works again.
 ### 5. Ask for the first word
 
 The box accepts anything the popup's add box does, with add-box semantics
-([09](../09-shared-word-spec-and-prompt/SPEC.md): the add box means add): a question ("how do
-you say hello in Japanese"), a word in any language ("hola"), an English word with a language
-("dog in Arabic"), or a word with its meaning ("hola = hello", "es: hola = hello",
-"спасибо (spasibo) = thanks"). Enter or **Ask** submits. One entry at a time.
+([09](../09-shared-word-spec-and-prompt/SPEC.md): the add box means add), in any language
+the learner writes in: a question ("how do you say hello in Japanese", "¿cómo se dice hola
+en japonés?"), a word in any language ("hola", "hello"), a word in the learner's own
+language with a target language ("dog in Arabic", "perro en árabe"), or a word with its
+meaning ("hola = hello", "es: hola = hello", "hello = hola", "спасибо (spasibo) = gracias").
+Enter or **Ask** submits. One entry at a time.
+
+**Which meanings are asked for.** The lookup carries `base_langs` = the ticked chips
+([09](../09-shared-word-spec-and-prompt/SPEC.md)'s request contract, [50 §3](../50-ui-localization-and-base-language/SPEC.md)).
+The learner's text is sent verbatim; the model writes gloss, forms and note in each base,
+and any base equal to the word's own language is dropped. One model call, one card.
 
 **Nothing is saved yet.** The welcome page creates a [24](../24-add-flow-safety/SPEC.md) add
 job flagged `preview: true`: the background looks up and validates exactly as for any add,
@@ -183,14 +286,19 @@ lookups, this uses the `preview` flag on 07's add route that
 [24](../24-add-flow-safety/SPEC.md)'s Open question 2 recommends; it is a prerequisite for
 the server option on this page.
 
-**Lines with a meaning never touch the model.** "native = english" (and the other one-line
+**Lines with a meaning never touch the model.** "native = meaning" (and the other one-line
 forms) is parsed locally by [13](../13-bulk-add/SPEC.md)'s `extension/bulk/parse.js`, as the
-add box does ([24 §7](../24-add-flow-safety/SPEC.md)). This works with no key, no account and
-no network, so a learner can see a swap within a minute before setting up anything. The
-language comes from, in order: a prefix ("es: hola = hello"); the native word's script when
-exactly one language in [08](../08-language-tags/SPEC.md)'s `languages.json` uses it by
-default (Hangul is Korean, kana is Japanese, Thai, Georgian, Armenian, Greek, and so on); or
-the learner, in one tap (state D below).
+add box does ([24 §7](../24-add-flow-safety/SPEC.md)). This works in any base language with
+no key, no account and no network, so a learner can see a swap within a minute before
+setting up anything. The meaning is the gloss in the **primary base** (one record; with
+several bases, the card shows a "Meaning in: [español ▾]" chip to pick another ticked
+base). The word's language comes from, in order: a prefix ("es: hola = hello", "en: hello =
+hola"); the native word's script when exactly one language in
+[08](../08-language-tags/SPEC.md)'s `languages.json` uses it by default (Hangul is Korean,
+kana is Japanese, Thai, Georgian, Armenian, Greek, and so on); or the learner, in one tap
+(state D below). The word's language can't be the base its meaning is in
+([50 §1](../50-ui-localization-and-base-language/SPEC.md)), so a Spanish reader's "hello =
+hola" never offers Español as the word's language.
 
 **States of the ask step:**
 
@@ -219,9 +327,27 @@ are [10](../10-llm-client-resilience/SPEC.md)'s add-box values.
 │ └──────────────────────────────────────────────────────────────┘ │
 ```
 
+The same card in Spanish, for "¿cómo se dice hola en japonés?" (base `es`):
+
+```
+│ (=^.^=) Aquí está:                                               │
+│ ┌──────────────────────────────────────────────────────────────┐ │
+│ │  こんにちは                                                   │ │
+│ │  konnichiwa                                                  │ │
+│ │  hola  ·  japonés                                            │ │
+│ │                                                              │ │
+│ │  [ Que sea mi primera palabra ]   Probar otra                │ │
+│ └──────────────────────────────────────────────────────────────┘ │
+```
+
+With two bases ticked (español and English), the meaning line becomes two lines,
+"hola · en páginas en español" and "hello · en páginas en inglés", and confirming saves
+both records ([50 §3](../50-ui-localization-and-base-language/SPEC.md)).
+
 Native in `--t-specimen` (the display role, [06 §5](../06-design-system/SPEC.md)) with `lang` and `dir="auto"` ([17](../17-casing-and-script-display/SPEC.md)
-fonts), romanization when present, then the English forms and the language name. **Try
-another** discards the card and returns focus to the box with the learner's text restored.
+fonts), romanization when present, then the gloss in each base (each in `<bdi lang>`) and
+the language name from `Intl.DisplayNames` in the interface language. **Try another**
+discards the card and returns focus to the box with the learner's text restored.
 
 **C2. Several results** (the model returned 2 to 5 words, [09](../09-shared-word-spec-and-prompt/SPEC.md)'s
 cap):
@@ -239,7 +365,7 @@ cap):
 A radio group, first option selected. Only the chosen word is saved; the others are
 discarded. One first word, chosen by the learner.
 
-**D. Which language?** (a "native = english" line whose script doesn't name the language):
+**D. Which language?** (a "native = meaning" line whose script doesn't name the language):
 
 ```
 │ ┌──────────────────────────────────────────────────────────────┐ │
@@ -252,10 +378,13 @@ discarded. One first word, chosen by the learner.
 │ └──────────────────────────────────────────────────────────────┘ │
 ```
 
+For a Spanish reader typing "hello = hola", the chips read [English] [Português]
+[Italiano] [Français] [Deutsch] …, with Español left out because the meaning is in Spanish.
+
 Chips are the most-learned languages written in that script (a static list in 08's data, by
-endonym), no preselection; the search covers about 180 languages (English names, endonyms
-and tags). Picking one turns the card into state C and the button into "Make it my first
-word".
+endonym), minus the base the meaning is in, no preselection; the search covers about 180
+languages (names in the interface language, endonyms and tags). Picking one turns the card
+into state C and the button into "Make it my first word".
 
 **E. A bare word or question with no AI connected:**
 
@@ -265,6 +394,10 @@ word".
 │         hola = [ hello                    ]  [ Add ]             │
 ```
 
+In Spanish: "Para buscar “hello”, conecta tu IA arriba. O dime qué significa: hello =
+[ hola ] [Agregar]". The meaning field's placeholder is "meaning in {primary base}"
+("significado en español").
+
 The meaning field is a one-line form; Add builds the card locally (state C, or D when the
 language is needed). If the learner connects instead, the lookup runs as soon as the key is
 saved (24's `lookup_not_set_up` waiting rule), with no retyping.
@@ -273,8 +406,12 @@ saved (24's `lookup_not_set_up` waiting rule), with no retyping.
 then the same "Or tell me what it means" form as E. Codes: `key_rejected`,
 `quota_exhausted`, `rate_limited`, `offline`, `lookup_timeout`, `model_unavailable`. For
 `no_word_found`: "I couldn't find a word in that. Try “hello in Japanese”, or type it as
-“hola = hello”." For `rejected_english`: "That looks like English. Which language would you
-like it in? Try “hello in Spanish”."
+“hola = hello”." / "No encontré ninguna palabra ahí. Prueba “hola en japonés”, o escríbela
+como “hello = hola”." For `rejected_same_as_gloss` (the word is already in a language the
+learner reads, [09](../09-shared-word-spec-and-prompt/SPEC.md)): "That looks like a word in
+{base} already. Which language would you like it in? Try “hello in Spanish”." / "Eso
+parece una palabra en {base}. ¿En qué idioma la quieres? Prueba “hola en inglés”." The
+examples come from the primary base's `welcome.json`.
 
 ### 6. Make it my first word
 
@@ -282,9 +419,10 @@ Pressing **Make it my first word** (one step):
 
 1. saves the chosen word through [24](../24-add-flow-safety/SPEC.md)'s add path (07's
    merge-not-overwrite add, idempotent by the job's `client_request_id`), with `origin: "add"`
-   for a looked-up word or `"manual"` for a "native = english" one
-   ([07](../07-word-model-v2/SPEC.md));
-2. sets `onboarding.completedAt`;
+   for a looked-up word or `"manual"` for a "native = meaning" one
+   ([07](../07-word-model-v2/SPEC.md)); one record per ticked base the card has a meaning
+   for;
+2. sets `onboarding.completedAt` and `s:ui.baseLangsConfirmed = true`;
 3. claims the first-word milestone (`vocab:first`, [32 §3](../32-page-coverage-and-celebrations/SPEC.md))
    and shows the celebration (§7).
 
@@ -302,6 +440,9 @@ Pressing **Make it my first word** (one step):
 └──────────────────────────────────────────────────────────────────┘
 ```
 
+In Spanish: "¡Felicidades, ya tienes tu primera palabra!", the card "こんにちは konnichiwa /
+hola · japonés", and "Desactivar celebraciones".
+
 - Confetti is [32 §5](../32-page-coverage-and-celebrations/SPEC.md)'s renderer, full viewport
   on the welcome page: same particles, palette, 1.6 s duration, no sound, nothing loops, Esc
   or any click or key stops it. It fires once in a lifetime (`celebrations.done["vocab:first"]`).
@@ -311,6 +452,9 @@ Pressing **Make it my first word** (one step):
   sets `prefs.celebrations = false` and shows "Off. You can turn them back on in Settings."
   A learner who turned them off before saving their first word gets the message without
   confetti.
+- The first swap on a real page happens on a page in one of the learner's base languages
+  (§8, Try it on a page); [32](../32-page-coverage-and-celebrations/SPEC.md) counts it in
+  that base, so the Puerto Rico learner's first page milestone fires on a Spanish page.
 - If [32](../32-page-coverage-and-celebrations/SPEC.md) hasn't shipped yet, this slice ships
   the confetti renderer and `prefs.celebrations` exactly as 32 §5 and §8 specify, and 32
   reuses them.
@@ -327,7 +471,7 @@ Directly below the celebration, without another step:
 │ │          ┄┄┄┄┄                                     Edit       │ │
 │ └──────────────────────────────────────────────────────────────┘ │
 │                                                                  │
-│ (=^.^=) From now on, こんにちは shows up on English pages         │
+│ (=^.^=) From now on, こんにちは shows up on pages in English      │
 │         wherever “hello” does. Point at it, or tap it, to see    │
 │         what it means. Even if it's the only one you see,        │
 │         it's yours.                                              │
@@ -342,13 +486,46 @@ Directly below the celebration, without another step:
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-**The sample sentence.** `extension/welcome/sentences.json` holds about 1,000 short, plain
-English sentences (6 to 12 words) written for Mira, covering every word in
-[09](../09-shared-word-spec-and-prompt/SPEC.md)'s list of about 3,000 common English words at
-least once (checked in CI). The page picks the shortest sentence the real matcher
-([14](../14-matcher-engine/SPEC.md)) finds one of the word's English forms in, so inflections
-and multi-word forms count. If none matches (a rare word), it uses "Today I learned the word
-{english}." The sentences are English text for the preview, never words to learn.
+The same step in Spanish:
+
+```
+│ (=^.^=) Así es como te la vas a encontrar:                       │
+│ ┌──────────────────────────────────────────────────────────────┐ │
+│ │ Ella dijo hola y saludó desde el autobús.                    │ │
+│ │ Ella dijo こんにちは y saludó desde el autobús.                │ │
+│ │           ┄┄┄┄┄                                    Editar     │ │
+│ └──────────────────────────────────────────────────────────────┘ │
+│                                                                  │
+│ (=^.^=) Desde ahora, こんにちは aparece en páginas en español     │
+│         donde diga “hola”. Señálala o tócala para ver qué        │
+│         significa. Aunque sea la única que veas, es tuya.        │
+│                                                                  │
+│    [ Probar en una página ]   Agregar otra   Abrir tus palabras  │
+```
+
+**The sample sentence** is in the learner's primary base, the language the word will
+actually meet them in. Each base has its own sentences in
+`spec/lang/<base>/sentences.json` ([50 §5](../50-ui-localization-and-base-language/SPEC.md)),
+short plain sentences (6 to 12 words, or about 10 to 25 characters for Chinese and
+Japanese) written by speakers for Mira:
+
+| Base level | Sentences | Coverage check (CI) |
+|---|---|---|
+| Full (`en`, `es` at launch) | about 1,000 | every word in the base's list of about 3,000 common words (`spec/lang/<base>/common.txt`) appears at least once |
+| Good (`fr`, `de`, `it`, `pt`, `ja`, `zh-Hans`, `zh-Hant`, `ko`, `th`) | at least 150 | none; valid and NFC |
+| Basic | none | |
+
+Examples: `en` "She said hello and waved from the bus."; `es` "Ella dijo hola y saludó
+desde el autobús."; `ja` "彼女は手を振って「こんにちは」と言った。".
+
+The page picks the shortest sentence in which the real matcher ([14](../14-matcher-engine/SPEC.md),
+with the base's tokenizer, so Japanese without spaces works) finds one of the word's forms
+in that base, so inflections and multi-word forms count. If none matches, it uses the
+base's `fallback` template from the same file (`en` "Today I learned the word {gloss}.",
+`es` "Hoy aprendí la palabra {gloss}."). A Basic base with no file shows the word alone,
+"{gloss} → {native}", swapped with the same motion. With two or more bases, a second
+before/after pair for the next base appears under the first. The sentences are text for
+the preview, never words to learn.
 
 - The welcome page runs the matcher module and precedence
   ([18](../18-language-precedence-and-mixing/SPEC.md)) itself, because content scripts don't
@@ -357,22 +534,28 @@ and multi-word forms count. If none matches (a rare word), it uses "Today I lear
   (instant under reduced motion).
 - Hovering, tapping or focusing the swapped word opens the real popover
   ([19](../19-word-popover/SPEC.md)), so the learner learns how to check a word.
-- **Edit** turns the before line into a text field; the learner can type any English
-  sentence and the after line updates as they type (one frame).
+- **Edit** turns the before line into a text field (`lang` set to the base); the learner
+  can type any sentence in that language and the after line updates as they type (one
+  frame).
 - The preview region is a `<figure>` with `<figcaption>` "Preview"; it is not an `aria-live`
   region, and the after line is real text.
 
-**Try it on a page** opens Simple English Wikipedia's search for the word's first English
-form (`https://simple.wikipedia.org/w/index.php?search={english}&fulltext=1&ns0=1`), whose
-result snippets contain the word several times. The button's description reads "Opens a
-Simple English Wikipedia search for “hello”." The welcome tab stays open behind it.
+**Try it on a page** opens a Wikipedia full-text search, in the primary base's language,
+for the word's first form in that base, whose result snippets contain the word several
+times: `https://{wiki}.wikipedia.org/w/index.php?search={form}&fulltext=1&ns0=1`. `{wiki}`
+is the base's `wikipedia` field in [08](../08-language-tags/SPEC.md)'s `languages.json`
+(`simple` for `en`, because plain English snippets read best; `es` for `es`; `zh` plus
+`&variant=zh-tw` for `zh-Hant`; the primary subtag otherwise). The button's description
+reads "Opens a Wikipedia search for “hello”." / "Abre una búsqueda de Wikipedia de “hola”."
+The page is in a base language, so the swap appears there, and slice 32 counts it. The
+welcome tab stays open behind it.
 
 **Add another word** returns to the box (no celebration for later words; 32's vocabulary
 milestones take over). **Open your words** opens the dashboard ([21](../21-dashboard/SPEC.md)).
 **Add it in one go** opens bulk add ([13](../13-bulk-add/SPEC.md)) in the dashboard, where
 every row is reviewed before saving. Pin instructions are browser-specific: Chrome and Edge as
 above; Firefox: "click the extensions button, then the gear next to Mira, then Pin to
-Toolbar". When no AI is connected, one more line: "To look up words you don't know yet,
+Toolbar" (each a localized key). When no AI is connected, one more line: "To look up words you don't know yet,
 connect your AI in Settings." ([21](../21-dashboard/SPEC.md)).
 
 ### 9. Skip for now
@@ -398,6 +581,9 @@ a step. Steps on another site (OpenRouter's sign-in) are listed separately.
 | "ありがとう = thanks" (script names the language), no key | 3 (type, Enter, Make it my first word) | +1 (Try it on a page) |
 | "hola = hello", no key | 4 (type, Enter, pick language, Make it) | +1 |
 | "es: hola = hello", no key | 3 | +1 |
+| Spanish reader: "hello = hola", no key | 4 (type, Enter, pick English, Que sea mi primera palabra) | +1 |
+| Spanish reader: Connect OpenRouter, then "¿cómo se dice hola en japonés?" | 4, plus OpenRouter's sign-in | +1 |
+| Bases detected wrong (untick one, or add one) | +1 per chip changed | |
 | Connect OpenRouter, then "how do you say hello in Japanese" | 4 (Connect OpenRouter, type, Enter, Make it), plus OpenRouter's own sign-in and Authorize | +1 |
 | Paste a key, then ask | 5 (Paste a key instead, paste, type, Enter, Make it), plus getting the key on OpenRouter's site | +1 |
 | Try “hello”, then ask (connected) | 4 (Try “hello”, type the language, Enter, Make it) | +1 |
@@ -406,8 +592,10 @@ a step. Steps on another site (OpenRouter's sign-in) are listed separately.
 
 The preview shows the word swapped at the moment it is celebrated, with no extra step.
 
-Targets, measured in a five-person usability test with first-time participants: median under
-**60 s** from install to the first swap in the preview on the no-key "native = english" path,
+Targets, measured in a five-person usability test with first-time participants (at least
+two of them using a browser in Spanish, and at least one whose base is neither English nor
+Spanish): median under
+**60 s** from install to the first swap in the preview on the no-key "native = meaning" path,
 and under **2 minutes** on the Connect OpenRouter path for participants who already have an
 OpenRouter account; none needing help.
 
@@ -416,7 +604,8 @@ OpenRouter account; none needing help.
 | State | Behavior |
 |---|---|
 | Loading | Everything is bundled; the page renders complete on first paint. |
-| A. Arrival | §2. Focus on the ask box. |
+| A. Arrival | §2. Focus on the ask box. Base chips preselected (§2b). |
+| Bases changed | §2b. A card on screen is looked up again. |
 | Connecting / connected / check failed | §4. |
 | B. Looking up | §5. Box usable. |
 | C. One result / C2. Several | §5. Nothing saved. |
@@ -432,28 +621,43 @@ OpenRouter account; none needing help.
 
 ### 13. Copy
 
-| Element | Copy |
-|---|---|
-| Greeting | "Hi, I'm Mira. I swap English words on the pages you read for words you're learning, one word at a time." |
-| AI step | "First, connect your own AI. It looks words up for you." |
-| AI buttons | "Connect OpenRouter (free)" · "Paste a key instead" · "Another service or my own model" · "My Mira server" |
-| Connected | "✓ Connected to {Provider}." (OpenRouter: "✓ Connected to OpenRouter, free models.") |
-| Ask | "What's the first word you'd love to learn?" / "Ask in your own words, in any language." |
-| Hello chip | "Try “hello”" |
-| No-AI hint | "No AI yet? Type the word and its meaning, like “hola = hello”. That works without one." |
-| Looking up | "Looking up “{text}”…" |
-| One result | "Here it is:" |
-| Several | "I found a few. Which one is yours?" |
-| Language needed | "Which language is this?" / button "Choose a language first" |
-| No AI, bare word | "To look up “{text}”, connect your AI above. Or tell me what it means:" |
-| Primary | "Make it my first word" · secondary "Try another" |
-| Celebration | "Congrats, you got your first word!" |
-| Preview intro | "This is how you'll meet it:" |
-| What's next | "From now on, {native} shows up on English pages wherever “{english}” does. Point at it, or tap it, to see what it means. Even if it's the only one you see, it's yours." |
-| Buttons | "Try it on a page" · "Add another word" · "Open your words" |
-| List link | "Have a list already? Add it in one go." |
-| Skip | "Skip for now" |
-| Reopened ask | "What would you like to learn next?" |
+Every string is a key in `extension/_locales/<locale>/messages.json`, read with
+`MiraI18n.t()` ([50 §8](../50-ui-localization-and-base-language/SPEC.md)); both columns
+ship at launch. `{lang}` and `{base}` are names from `Intl.DisplayNames` in the interface
+language. `{hello}` and `{example}` come from the primary base's `welcome.json`.
+
+| Key | en | es |
+|---|---|---|
+| `welcome_greeting` | Hi, I'm Mira. I swap words on the pages you read for words you're learning, one word at a time. | Hola, soy Mira. Cambio palabras en las páginas que lees por palabras que estás aprendiendo, una a la vez. |
+| `welcome_bases` | The pages you read are in: | Las páginas que lees están en: |
+| `welcome_bases_add` | Another | Otro |
+| `welcome_bases_last` | Mira needs at least one language you read. | Mira necesita al menos un idioma que leas. |
+| `welcome_ai_step` | First, connect your own AI. It looks words up for you. | Primero, conecta tu propia IA. Busca palabras por ti. |
+| `welcome_ai_buttons` | Connect OpenRouter (free) · Paste a key instead · Another service or my own model · My Mira server | Conectar OpenRouter (gratis) · Pegar una clave · Otro servicio o mi propio modelo · Mi servidor de Mira |
+| `welcome_connected` | ✓ Connected to {provider}. (OpenRouter: "✓ Connected to OpenRouter, free models.") | ✓ Conectado a {provider}. (OpenRouter: "✓ Conectado a OpenRouter, modelos gratis.") |
+| `welcome_ask` | What's the first word you'd love to learn? / Ask in your own words, in any language. | ¿Cuál es la primera palabra que te encantaría aprender? / Pregunta con tus propias palabras, en cualquier idioma. |
+| `welcome_try_hello` | Try “{hello}” | Prueba con “{hello}” |
+| `welcome_no_ai_hint` | No AI yet? Type the word and its meaning, like “{example}”. That works without one. | ¿Aún no tienes IA? Escribe la palabra y su significado, como “{example}”. Funciona sin IA. |
+| `welcome_looking_up` | Looking up “{text}”… | Buscando “{text}”… |
+| `welcome_one_result` | Here it is: | Aquí está: |
+| `welcome_several` | I found a few. Which one is yours? | Encontré varias. ¿Cuál es la tuya? |
+| `welcome_meaning_on_pages` | {gloss} · on pages in {base} | {gloss} · en páginas en {base} |
+| `welcome_which_language` | Which language is this? / button "Choose a language first" | ¿En qué idioma está? / botón "Primero elige un idioma" |
+| `welcome_no_ai_word` | To look up “{text}”, connect your AI above. Or tell me what it means: | Para buscar “{text}”, conecta tu IA arriba. O dime qué significa: |
+| `welcome_confirm` | Make it my first word · secondary "Try another" | Que sea mi primera palabra · secundario "Probar otra" |
+| `welcome_celebration` | Congrats, you got your first word! | ¡Felicidades, ya tienes tu primera palabra! |
+| `welcome_preview_intro` | This is how you'll meet it: | Así es como te la vas a encontrar: |
+| `welcome_whats_next` | From now on, {native} shows up on pages in {base} wherever “{form}” does. Point at it, or tap it, to see what it means. Even if it's the only one you see, it's yours. | Desde ahora, {native} aparece en páginas en {base} donde diga “{form}”. Señálala o tócala para ver qué significa. Aunque sea la única que veas, es tuya. |
+| `welcome_buttons` | Try it on a page · Add another word · Open your words | Probar en una página · Agregar otra · Abrir tus palabras |
+| `welcome_list_link` | Have a list already? Add it in one go. | ¿Ya tienes una lista? Agrégala de una vez. |
+| `welcome_skip` | Skip for now | Omitir por ahora |
+| `welcome_reopened_ask` | What would you like to learn next? | ¿Qué te gustaría aprender ahora? |
+| `celebrations_off` | Turn off celebrations | Desactivar celebraciones |
+
+With two or more bases, `welcome_whats_next` names them all ("on pages in Spanish and
+English", joined with `Intl.ListFormat(uiLocale, {type: "conjunction"})`). The Spanish copy
+uses `tú` and gender-neutral wording per [50 §8](../50-ui-localization-and-base-language/SPEC.md)
+("la tuya" and "Señálala" refer to la palabra, not the learner).
 
 The celebration line is the one exclamation mark [05 §3](../05-brand-identity/SPEC.md)
 allows for milestones.
@@ -467,20 +671,38 @@ allows for milestones.
   results card is a `fieldset` with a legend and a radio group.
 - The celebration message is announced through the log; confetti is `aria-hidden`; focus
   moves to "Try it on a page".
-- Language chips announce as "Spanish, Español". Everything works with keyboard only, at
+- Language chips announce as "Spanish, Español" (in Spanish, "inglés, English"); base chips
+  are checkboxes named in the interface language. Everything works with keyboard only, at
   320 px and at 200 % zoom; see [27](../27-accessibility-baseline/SPEC.md).
 
 ### 15. Privacy
 
 The welcome page makes no network request until the learner acts: Connect OpenRouter (to
 OpenRouter), a pasted key's check and each Ask (to the provider they chose, carrying only
-what they typed), and Try it on a page (to Wikipedia, with the word's English form). Lines
+what they typed and the ticked base languages), and Try it on a page (to Wikipedia in the
+base's language, with the word's form in that base). Base-language detection reads the
+browser's settings locally and sends nothing. Lines
 with a meaning never leave the browser. No analytics. The permission line in step 0 is the
 same as in the store listing ([28](../28-privacy-and-store-readiness/SPEC.md)).
 
 ## Acceptance criteria
 
 - [ ] Installing the extension opens `welcome.html` once; updating does not.
+- [ ] **Puerto Rico** ([50](../50-ui-localization-and-base-language/SPEC.md)): in a profile
+      with interface and accept languages `es-PR, es`, the welcome tab is entirely Spanish
+      and shows "[✓ español]" as the only base; "Prueba con “hola”" inserts "¿cómo se dice
+      hola en "; typing "japonés?" with the mock provider returns こんにちは with gloss
+      "hola"; confirming fires confetti, the preview reads "Ella dijo こんにちは y saludó
+      desde el autobús.", and Try it on a page opens es.wikipedia.org where こんにちは
+      replaces "hola". No English string appears in the flow (literal-string check plus a
+      DOM text scan against the `en` catalog).
+- [ ] With bases `es` and `en` ticked, the card shows "hola" and "hello", and confirming
+      saves two records from one model call.
+- [ ] Unticking a detected base before confirming removes it from `s:ui.baseLangs`;
+      unticking the last is refused.
+- [ ] A Spanish reader's "hello = hola" shows language chips without Español, and saves
+      `{lang: "en", native: "hello", base_lang: "es", gloss: "hola"}` with no network
+      request.
 - [ ] On a fresh profile with no key, typing "ありがとう = thanks", Enter, then Make it my first
       word saves exactly one word (Japanese, ありがとう, thanks) in 3 steps, with no network
       request from the extension (Playwright request log), and the preview shows it swapped.
@@ -497,13 +719,14 @@ same as in the store listing ([28](../28-privacy-and-store-readiness/SPEC.md)).
       message under reduced motion; `celebrations.done["vocab:first"]` is set and a second
       word never fires it.
 - [ ] With celebrations turned off before confirming, the message appears without confetti.
-- [ ] The preview's after line contains the confirmed native word in a sentence from
-      `sentences.json`, produced by the real matcher module; editing the sentence updates it
-      within one frame.
-- [ ] Try it on a page opens the Simple English Wikipedia search and the word is swapped
-      there.
+- [ ] The preview's after line contains the confirmed native word in a sentence from the
+      primary base's `sentences.json`, produced by the real matcher module (English,
+      Spanish, and a Japanese base with no spaces); editing the sentence updates it within
+      one frame.
+- [ ] Try it on a page opens the Wikipedia search in the primary base's language (Simple
+      English for `en`, Spanish for `es`) and the word is swapped there.
 - [ ] With the mock provider returning 401 after a pasted key, the field shows "OpenRouter
-      didn't accept your key…" and the "native = english" path still completes.
+      didn't accept your key…" and the "native = meaning" path still completes.
 - [ ] A bare word asked with no AI connected shows the meaning form; connecting afterwards
       looks it up without retyping and shows the card (still unsaved).
 - [ ] The key field exists only on `welcome.html` and the dashboard settings; the popup has
@@ -518,17 +741,22 @@ same as in the store listing ([28](../28-privacy-and-store-readiness/SPEC.md)).
 ## Test plan
 
 - **Unit:** script-to-language rule against `languages.json` (unique scripts set the
-  language, Latin and Cyrillic don't); the welcome page's use of `parse.js` for one line;
-  sentence choice (shortest match, inflected forms, multi-word forms, fallback sentence);
-  `sentences.json` coverage of 09's common-word list (CI check).
+  language, Latin and Cyrillic don't; the meaning's base is excluded); the welcome page's
+  use of `parse.js` for one line in `en` and `es`; base chips (preselect, untick, add, cap,
+  last-chip refusal); sentence choice per base (shortest match, inflected forms, multi-word
+  forms, Japanese without spaces, fallback template, Basic base with no file); each Full
+  base's `sentences.json` coverage of its `common.txt` (CI check); every Full and Good base
+  has a valid `welcome.json`.
 - **Integration:** the `preview: true` add job ends in `needs_choice` for one candidate and
   never writes to the store; confirming writes once with the job's `client_request_id`;
   discarding removes the job.
-- **End-to-end (Playwright, Chrome and Firefox):** install flow; every path in §11 with step
+- **End-to-end (Playwright, Chrome and Firefox):** install flow in English and in Spanish
+  (`--lang=es-PR` and accept-languages set), including the Puerto Rico journey above; every path in §11 with step
   counting; several results; each failure code in §5 F with the mock provider; offline;
   reduced motion (emulated media) and celebrations off; skip; reopen with words; no network
   requests on the no-key path.
-- **Manual:** the five-person usability test; screen readers per
+- **Manual:** a native Spanish speaker reviews the whole Spanish flow in context; the
+  five-person usability test; screen readers per
   [27](../27-accessibility-baseline/SPEC.md) (log announcements, card focus); RTL words
   (Arabic, Hebrew) and CJK on the card and in the preview; the real OpenRouter connect flow
   once per browser before release.
@@ -538,15 +766,21 @@ same as in the store listing ([28](../28-privacy-and-store-readiness/SPEC.md)).
 New page in the first Mira release. Existing users updating from Slovo don't see it; they
 keep their server connection and their words ([11](../11-local-first-mode/SPEC.md)), and
 their `vocab:first` milestone is marked done silently so they never get a first-word
-celebration for an old list. Changelog: "A welcome page that helps you pick your first word,
+celebration for an old list. Their base languages follow
+[50 §2](../50-ui-localization-and-base-language/SPEC.md)'s upgrade rule (detected languages
+plus English, since their words have English meanings). Changelog: "A welcome page that helps you pick your first word,
 in any language, and shows it on a page in under a minute."
 
 ## Open questions
 
-1. **Which page does "Try it on a page" open?** Recommendation: Simple English Wikipedia's
-   search for the word's English form (plain English, no tracking, and the snippets contain
-   the word). The alternative, a fixed article, can't contain every learner's word.
-2. **Offer a hosted lookup option?** Recommendation: no, per [DECISIONS](../DECISIONS.md)
+1. **Which page does "Try it on a page" open?** Recommendation: a Wikipedia search in the
+   primary base's language for the word's form in that base (Simple English for English
+   readers; no tracking, and the snippets contain the word). The alternative, a fixed
+   article, can't contain every learner's word.
+2. **Show the detected languages, or ask?** Recommendation: show them as a line in the
+   conversation that needs no action when right (most learners), rather than a question;
+   asking would add a step to every first run to fix the few wrong guesses.
+3. **Offer a hosted lookup option?** Recommendation: no, per [DECISIONS](../DECISIONS.md)
    (no shared hosted instance; learners bring their own key); OpenRouter's free key is the
    easy path.
 

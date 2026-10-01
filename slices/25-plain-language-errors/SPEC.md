@@ -5,9 +5,9 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | S (a day or two, plus server changes) |
-| **Depends on** | None |
-| **Unblocks** | [13-bulk-add](../13-bulk-add/SPEC.md), [20-popup-redesign](../20-popup-redesign/SPEC.md), [21-dashboard](../21-dashboard/SPEC.md), [22-first-run-onboarding](../22-first-run-onboarding/SPEC.md), [24-add-flow-safety](../24-add-flow-safety/SPEC.md), [41-telegram-improvements](../41-telegram-improvements/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) |
-| **Sources** | [05 §1, S1, S19, S34, S35, §3.5](../../docs/research/05-learner-ux.md); [06 F09, F14, F30, F31, F32](../../docs/research/06-adversarial-qa.md); [03 C4, C6](../../docs/research/03-browser-extension.md) |
+| **Depends on** | [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (`_locales`, `t()`, `Mira.I18n`) |
+| **Unblocks** | [13-bulk-add](../13-bulk-add/SPEC.md), [20-popup-redesign](../20-popup-redesign/SPEC.md), [21-dashboard](../21-dashboard/SPEC.md), [22-first-run-onboarding](../22-first-run-onboarding/SPEC.md), [24-add-flow-safety](../24-add-flow-safety/SPEC.md), [41-telegram-improvements](../41-telegram-improvements/SPEC.md) |
+| **Sources** | [DECISIONS 2026-10-01, base language and localized interface](../DECISIONS.md); [05 §1, S1, S19, S34, S35, §3.5](../../docs/research/05-learner-ux.md); [06 F09, F14, F30, F31, F32](../../docs/research/06-adversarial-qa.md); [03 C4, C6](../../docs/research/03-browser-extension.md) |
 
 ## Problem
 
@@ -29,8 +29,15 @@ Errors reach the learner straight from internals, in red, with no next step:
 - No message says what still works. Swapping keeps working from cached words in
   `storage.local` (`content.js:173`), but the popup's red status line suggests everything is
   broken ([05 S34](../../docs/research/05-learner-ux.md)).
-- Strings are hard-coded English in three places (popup, background, server), so they can't
-  be translated later ([05 S38](../../docs/research/05-learner-ux.md)).
+- Strings are hard-coded English in three places (popup, background, server), so a learner
+  whose browser is in Spanish gets English errors ([05 S38](../../docs/research/05-learner-ux.md)).
+  The maintainer decided Mira's interface follows the browser's language, with error
+  messages localized from the first release ([DECISIONS](../DECISIONS.md),
+  [50](../50-ui-localization-and-base-language/SPEC.md)).
+- Some messages assume the learner reads English: "That looks like English" for a word in
+  the learner's own language, and "This page isn't in English" for any other page
+  ([16](../16-what-not-to-swap/SPEC.md) as first written). For a Spanish reader both are
+  wrong.
 
 ## Goals
 
@@ -41,15 +48,21 @@ Errors reach the learner straight from internals, in red, with no next step:
 - Technical detail is available behind "Details" for self-hosters, never in the main line.
 - Offline and backend outages are shown as calm states, not red errors, and always say that
   existing words keep working.
-- Messages live in one catalog keyed by code, ready for `_locales`
-  ([50](../50-ui-localization-and-base-language/SPEC.md)).
+- Every message is a key in `_locales` (extension) or `server/priv/locales` (Telegram bot),
+  keyed by code, complete in English and Spanish at launch
+  ([50 §8](../50-ui-localization-and-base-language/SPEC.md)). Codes travel on the wire;
+  words are chosen at the edge, in the learner's interface language.
+- No message assumes which language the learner reads; messages about languages name them
+  with `Intl.DisplayNames` in the interface language.
 
 ## Non-goals
 
 - Retrying, deadlines and quota tracking: [10](../10-llm-client-resilience/SPEC.md).
 - Response validation and credential-change races: [26](../26-background-sync-correctness/SPEC.md).
   This slice gives their failures a code and a message.
-- Translating the catalog: [50](../50-ui-localization-and-base-language/SPEC.md).
+- Locales beyond English and Spanish: community translation through
+  [50 §9](../50-ui-localization-and-base-language/SPEC.md)'s workflow; missing keys fall
+  back per key.
 
 ## User stories
 
@@ -58,6 +71,8 @@ Errors reach the learner straight from internals, in red, with no next step:
 - As a learner who has used today's free lookups, I want to know I can still add words myself
   and when lookups come back.
 - As a self-hoster, I want the technical cause one click away, so that I can fix my setup.
+- As a learner in Puerto Rico with a Spanish browser, I want "Estás sin conexión. Tus 42
+  palabras siguen funcionando en las páginas.", not an English sentence.
 
 ## Specification
 
@@ -76,7 +91,9 @@ Errors reach the learner straight from internals, in red, with no next step:
 passes through unchanged. `extension/errors.js` exports `CODES` (the catalog below, the single
 list [44](../44-docs-site/SPEC.md) checks its `/help/errors/#<code>` anchors against),
 `toError(anything)` (normalizes exceptions, HTTP responses and provider bodies),
-`message(code, vars)` and `isTransient(code)`. Background handlers only
+`message(code, vars)` (looks up `error_<code>`, `error_<code>_action` and, for reasons,
+`error_<code>_<reason>` with `MiraI18n.t()`, so it returns text in the interface language)
+and `isTransient(code)`. Background handlers only
 ever store or return this shape; `syncError` becomes `{code, details, at}` instead of a
 string (`background.js:40` today).
 
@@ -84,21 +101,32 @@ string (`background.js:40` today).
 shape:
 
 ```json
-{ "error": { "code": "quota_exhausted", "message": "Plain message in English",
+{ "error": { "code": "quota_exhausted", "message": "Plain message for clients that show text",
              "details": { "reason": "daily_limit", "retry_at": "2026-10-02T00:00:00.000Z" } } }
 ```
+
+The extension ignores `message` and renders `code` with its own catalog. `message` exists
+for other clients (curl, scripts): the server picks its locale from the request's
+`Accept-Language` among the shipped server locales (`en`, `es` at launch) with
+`Mira.I18n.t/3` ([50 §8](../50-ui-localization-and-base-language/SPEC.md)), and uses the
+server's `default_locale` when nothing matches.
 
 The legacy routes kept for 0.2 extensions (`/api/words`) keep `{"error": "<string>"}`, so those
 extensions still show something sensible (`background.js:24` reads `body.error`). Upstream
 text (provider bodies, model ids) goes into `details.text` only when the server runs with
 `MIRA_ERROR_DETAILS=true` (the default for local binds), because it may contain more than
 the user should share. The Telegram bot ([41](../41-telegram-improvements/SPEC.md)) uses the same
-codes and messages.
+codes, with messages from `server/priv/locales/<locale>/messages.json` (the same `error_<code>`
+keys) in the learner's language as 41 chooses it.
 
 ### 2. Catalog
 
-`{n}` is the learner's active word count; `{provider}` the configured lookup service name;
-`{time}` a local time ("after 2:00 pm"). Severity decides the presentation (§3).
+Each code's main line is the key `error_<code>` and its action label `error_<code>_action`.
+`{n}` is the learner's active word count (plural keys, `Intl.NumberFormat`); `{provider}` the
+configured lookup service name; `{time}` a local time from `Intl.DateTimeFormat(uiLocale,
+{timeStyle: "short"})` ("after 2:00 pm" / "después de las 14:00"); `{lang}` and `{base}`
+language names in the interface language. The table gives the English source; the Spanish
+launch copy for the most-seen codes follows it. Severity decides the presentation (§3).
 
 | Code | Severity | Main line | Next step (action) | Detected when |
 |---|---|---|---|---|
@@ -120,7 +148,7 @@ codes and messages.
 | `lookup_timeout` | waiting | "That lookup took too long. Mira will try again." | "Add it yourself" | [10](../10-llm-client-resilience/SPEC.md) deadline exceeded |
 | `bad_lookup_result` | failed | "The lookup came back garbled. Try again, or add it yourself." | "Try again", "Add it yourself" | output fails [09](../09-shared-word-spec-and-prompt/SPEC.md) validation |
 | `no_word_found` | failed | "Couldn't find a word in “{text}”. Try the word on its own, or add it yourself." | "Add it yourself" | lookup returned no words |
-| `rejected_english` | failed | "“{text}” looks like English. Which language do you want it in?" | language picker | 09 rejects `en` or native equal to English |
+| `rejected_same_as_gloss` | failed | "“{text}” is already a word in {base}. Which language do you want it in?" | language picker | every word was rejected by [09](../09-shared-word-spec-and-prompt/SPEC.md) as `same_as_gloss` (its native equals its meaning in that base) or `target_is_base` (its language is that base); `{base}` is the base it matched |
 | `input_too_long` | failed | "That's a lot of text for one word. To add a list, use bulk add." | "Bulk add" ([13](../13-bulk-add/SPEC.md)) | over [09](../09-shared-word-spec-and-prompt/SPEC.md)'s `rules.max_input_chars` (200), checked before any model call |
 | `word_conflict` (`details.reason: "stale"`) | failed | "This word changed since. Open it to fix." | "Open" | 409 from PATCH with `if_updated_at` ([07](../07-word-model-v2/SPEC.md)) |
 | `word_conflict` (`details.reason: "duplicate"`) | failed | "You already have {native} in {Language}. Merge them?" | "Merge", "Cancel" | 409 on edit or restore when another live word holds the natural key |
@@ -131,15 +159,50 @@ codes and messages.
 | `server_reset` | blocking | "All words on your Mira server were deleted from another device. Keep the words in this browser, or match the server?" | "Keep mine", "Match the server" | 409 `server_reset` from [39](../39-multi-device-sync/SPEC.md) |
 | `import_unreadable` | failed | "Couldn't read that file. Mira reads .txt, .csv, .tsv and .json files." | "Choose another file" | [13](../13-bulk-add/SPEC.md) parser |
 | `unsupported_page` | state | "Mira can't run on browser pages like this one." | none | `chrome://`, `about:`, `edge://`, store pages, PDF viewer, `view-source:` |
-| `page_not_english` | state | "This page isn't in English, so Mira leaves it alone." | "Swap here anyway" | [16](../16-what-not-to-swap/SPEC.md) |
+| `page_not_in_base` | state | "This page is in {lang}, which isn't one of your languages. Mira leaves it alone." | "I read {lang} too" (settings, [21](../21-dashboard/SPEC.md)), "Swap here anyway" | the page language isn't one of `s:ui.baseLangs` ([16](../16-what-not-to-swap/SPEC.md), [50 §2](../50-ui-localization-and-base-language/SPEC.md)) |
+| `base_no_words` | info | "No words have meanings in {base} yet." | "Add meanings" ([21](../21-dashboard/SPEC.md)) | the page is in a base no record has a gloss in |
 | `internal` | failed | "Something went wrong in Mira. Try again; if it keeps happening, please report it." | "Copy details" | anything unmapped |
+
+**Spanish launch copy** (`es`, informal `tú`, gender-neutral per
+[50 §8](../50-ui-localization-and-base-language/SPEC.md)); every other key also ships in
+`es` at launch, reviewed with the rest of the locale:
+
+| Key | es |
+|---|---|
+| `error_offline` | Estás sin conexión. Tus {n} palabras siguen funcionando en las páginas. Las nuevas se buscarán cuando vuelvas. |
+| `error_server_unreachable` | No se puede contactar tu servidor de Mira. Tus {n} palabras siguen funcionando en las páginas; podrás agregar nuevas cuando vuelva. |
+| `error_server_address_invalid` | Esa dirección de servidor no parece correcta. Prueba una como http://localhost:4747. |
+| `error_permission_missing` | Mira necesita permiso para leer las páginas y cambiar palabras. |
+| `error_lookup_not_set_up` | Para buscar palabras nuevas, configura la búsqueda. Tus palabras, y las que escribas como “palabra = significado”, funcionan sin ella. |
+| `error_key_rejected` | {provider} no aceptó tu clave. Revísala en los ajustes. |
+| `error_quota_exhausted` | Ya usaste las búsquedas gratis de hoy. Agrega palabras tú, o Mira lo intentará de nuevo {time}. |
+| `error_rate_limited` | La búsqueda de palabras está ocupada. Mira lo intentará de nuevo en un minuto. |
+| `error_model_unavailable` | La búsqueda de palabras no responde ahora. Mira seguirá intentando. |
+| `error_lookup_timeout` | Esa búsqueda tardó demasiado. Mira lo intentará de nuevo. |
+| `error_bad_lookup_result` | La búsqueda volvió con algo ilegible. Inténtalo de nuevo, o agrégala tú. |
+| `error_no_word_found` | No encontré ninguna palabra en “{text}”. Prueba con la palabra sola, o agrégala tú. |
+| `error_rejected_same_as_gloss` | “{text}” ya es una palabra en {base}. ¿En qué idioma la quieres? |
+| `error_input_too_long` | Es mucho texto para una palabra. Para agregar una lista, usa agregar en bloque. |
+| `error_storage_full` | El almacenamiento de Mira en este navegador está lleno. Exporta tus palabras y quita las que no necesites. |
+| `error_unsupported_page` | Mira no puede funcionar en páginas del navegador como esta. |
+| `error_page_not_in_base` (an alias of 50's `base_page_other`, one translation) | Esta página está en {lang}, que no es uno de tus idiomas. Mira no la toca. |
+| `error_internal` | Algo salió mal en Mira. Inténtalo de nuevo; si sigue pasando, avísanos. |
+| `error_add_yourself_action` | Agrégala tú |
+| `error_try_again_action` | Reintentar |
+| `error_details` | Detalles |
 
 Rules for the catalog:
 
 - No main line contains "token", "API", "LLM", "model", ".env", an HTTP status, a model id or
-  a stack trace. "Access key" is the user-facing term for the server's `API_TOKEN`; "key" alone
-  for a provider key, named after the provider ("your OpenRouter key").
-- Lines are whole sentences with named placeholders, never concatenated.
+  a stack trace, in any locale (the lint runs on every `_locales` file, with each locale's
+  translations of those words listed in `scripts/i18n-banned-terms.json`). "Access key"
+  ("clave de acceso") is the user-facing term for the server's `API_TOKEN`; "key" ("clave")
+  alone for a provider key, named after the provider ("your OpenRouter key").
+- No main line assumes the learner reads a particular language ("looks like English",
+  "isn't in English"); languages are always placeholders filled from the learner's settings.
+- Lines are whole sentences with named placeholders, never concatenated; translators can
+  reorder placeholders freely.
+- "Details" content (request lines, exception text) is technical and never translated.
 - `{n}` is omitted gracefully when 0: "Your words still work on pages" becomes "Words you
   type as “word = meaning” still work" when the list is empty.
 
@@ -208,7 +271,16 @@ word data, no URLs other than the server's).
 - [ ] Every `throw` and error response in `extension/` and `server/` produces a code from the
       catalog; a test fails on an unmapped code.
 - [ ] A string lint finds no "token", "API", "LLM", "model", ".env" or digits-followed-by-HTTP
-      status patterns in catalog main lines.
+      status patterns in catalog main lines, in `en` and `es`.
+- [ ] Every code in `CODES` has `error_<code>` in `en` and `es`; slice 50's parity check
+      fails the build otherwise.
+- [ ] With the browser in Spanish and the server stopped, the popup shows
+      `error_server_unreachable` in Spanish with the correct word count.
+- [ ] A Spanish-base learner adding "perro" gets `rejected_same_as_gloss` naming "español"
+      (in Spanish: "“perro” ya es una palabra en español…"); no message contains "English"
+      unless English is one of the learner's languages.
+- [ ] `POST /api/v1/words` with `Accept-Language: es` returns a Spanish `message`; with no
+      header, the server's default; the extension shows its own catalog text either way.
 - [ ] With the server stopped, the popup shows the `server_unreachable` state with the
       correct word count, and a test page still has its swaps.
 - [ ] A server address of `localhost:4747` shows `server_address_invalid`, not "Can't reach".
@@ -228,25 +300,31 @@ word data, no URLs other than the server's).
 - **Unit:** `toError` with fixtures: fetch `TypeError` online and offline, 401, 402, 404, 409,
   429 with and without daily markers (OpenRouter, OpenAI, Anthropic, Gemini, Groq body
   shapes), 500, 502, HTML 200, invalid JSON, `storage.local` quota error. `message()` for every
-  code with and without placeholders.
+  code with and without placeholders, in `en` and `es`, including plural `{n}` and a
+  locale-formatted `{time}`.
 - **Server (ExUnit):** each `/api/v1` error path returns `{error: {code, message, details}}` with `details.retry_at` where
-  relevant; `details` omitted when disabled.
+  relevant; `details` omitted when disabled; `message` follows `Accept-Language` (`en`, `es`,
+  fallback); `Mira.I18n` has every `error_<code>` key in both server locales.
 - **End-to-end:** server stopped, wrong key, wrong address, offline emulation, mock provider
-  returning 429; screenshots of each popup state in light and dark.
+  returning 429; screenshots of each popup state in light and dark, with the browser in
+  English and in Spanish.
 
 ## Rollout and migration
 
 Ships with the popup rewrite. `syncError` strings already in storage are converted to
-`{code: "internal", details: <old string>}` on first run. Changelog: "Clearer messages that
-tell you what still works and what to do next."
+`{code: "internal", details: <old string>}` on first run. `page_not_english` and
+`rejected_english` don't ship; nothing stored refers to them. Changelog: "Clearer messages,
+in your language, that tell you what still works and what to do next."
 
 ## Open questions
 
 1. **Show details by default for self-hosters?** Recommendation: no; always collapsed, but
    remember the expanded state per browser so people who want it keep it open.
+2. **Should the server's `message` follow `Accept-Language`?** Recommendation: yes; it costs
+   one lookup and makes curl and third-party clients friendly in Spanish too, while the
+   extension keeps using codes.
 
 ## Future work
 
-- Translate the catalog ([50](../50-ui-localization-and-base-language/SPEC.md)).
 - A diagnostics page in the dashboard that runs connection, key and lookup checks in one go
   (shares the key check from [22](../22-first-run-onboarding/SPEC.md)).

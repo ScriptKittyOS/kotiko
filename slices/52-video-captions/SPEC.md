@@ -5,7 +5,7 @@
 | **Status** | Proposed |
 | **Priority** | P2 (later) |
 | **Size** | M (about a week) |
-| **Depends on** | [15-framework-safe-swapping](../15-framework-safe-swapping/SPEC.md); uses [31](../31-density-and-amount/SPEC.md) for caption amount |
+| **Depends on** | [15-framework-safe-swapping](../15-framework-safe-swapping/SPEC.md); uses [31](../31-density-and-amount/SPEC.md) for caption amount; [50](../50-ui-localization-and-base-language/SPEC.md) for base languages |
 | **Unblocks** | None |
 | **Sources** | [03 B4, A4, A5, open question 5](../../docs/research/03-browser-extension.md) |
 
@@ -16,7 +16,7 @@ they work badly (03 B4, read from the code):
 
 - **Flicker.** YouTube renders caption segments as DOM text that changes several times a second.
   Mira swaps them after a 250 ms timer (`extension/content.js:169`), so each line appears in
-  English and then jumps.
+  its original wording and then jumps.
 - **Churn.** Rolling automatic captions rebuild their segments as words arrive; each rebuild is
   matched again, and the next update lands on a node Mira replaced (the 06 F02 pattern).
 - **Too dense to follow.** Captions disappear in seconds; the page density rules (none today,
@@ -26,7 +26,10 @@ they work badly (03 B4, read from the code):
 
 ## Goals
 
-- Caption lines are swapped before they are painted, with no visible English-then-foreign flash.
+- Caption lines are swapped before they are painted, with no visible original-then-foreign flash.
+- Captions in any of the learner's base languages are swapped, with that base's words;
+  captions in other languages are left alone
+  ([50](../50-ui-localization-and-base-language/SPEC.md)).
 - A word swapped in a line stays swapped while that line is on screen, even as the line grows.
 - Captions get their own, lighter amount, and their own setting.
 - YouTube and native `<track>` captions are supported; adapters make other players addable.
@@ -40,8 +43,10 @@ they work badly (03 B4, read from the code):
 
 ## User stories
 
-- As a learner watching a YouTube video with English captions, one word per line appears in my
-  language, steady, without flashing.
+- As a learner watching a YouTube video with English captions, one word per line appears in the
+  language I'm learning, steady, without flashing.
+- As a Spanish reader watching a video with Spanish subtitles, the same happens with my Spanish
+  words; a video with Korean captions I can't read is left alone.
 - As a learner who finds swapped captions distracting, I turn captions off without affecting pages.
 - As someone watching a video with my own subtitle track, Mira swaps those cues too.
 
@@ -85,10 +90,11 @@ churn budget; the revert budget still applies.
 ```
 handle(lineEl):
   text = lineEl's text (segments joined in order)
-  if !englishCaptions(): return
+  base = captionBase(); if !base: return                      // not one of the learner's bases
   lineKey = adapterId + video id (from URL) + first 3 tokens of text   // stable as the line grows
   state = lines.get(lineKey) ?? { swapped: Map<tokenOffset, Choice> }
-  matches = run 14 + 16 + 18 on text (page context from 18: same choices as the page)
+  matches = run 14 (base's tokenizer and index) + 16 + 18 on text
+            (page context from 18: same choices as the page)
   keep every match whose token offset is in state.swapped (sticky)
   budget per line = 1 for "light"; for "page": 1 at Light or Medium, 2 at Heavy,
                     every match at Everything
@@ -101,20 +107,24 @@ The sticky map is what prevents mid-line flips: when automatic captions extend "
 to "thank you for watching", the swap chosen for "thank you" stays and the budget counts it.
 Per-word page caps (31) don't apply to captions; they are a stream.
 
-**Language.** `englishCaptions()` uses the adapter's `trackLang()` when known. Otherwise it
-collects caption text per video until it has 200 characters and runs slice 16's stopword
-heuristic once; until then it swaps nothing. The result resets when the video changes (URL
-`v=` parameter or `src`).
+**Language.** `captionBase()` returns the learner's base language that the captions are in
+(08's `sameBase`), or null. It uses the adapter's `trackLang()` when known (YouTube exposes the
+track's language code; automatic captions are in the video's spoken language). Otherwise it
+collects caption text per video until it has 200 characters (60 for bases written without
+spaces, whose characters carry more per character) and runs slice 16's detection once, with each
+base's `detect.json`; until then it swaps nothing. The result resets when the video changes
+(URL `v=` parameter or `src`). A translated caption track (YouTube's auto-translate into
+Spanish) counts as machine output, as in slice 43: it is not swapped.
 
 ### Native text tracks
 
 ```
-for each showing track of kind "subtitles" or "captions" with an English language:
+for each showing track of kind "subtitles" or "captions" whose srclang is one of the learner's bases:
   track.addEventListener("cuechange", () => {
     for cue of track.activeCues:
       if processed.has(cue): continue
       original.set(cue, cue.text); processed.add(cue)
-      cue.text = swapPlain(cue.text)    // same pipeline, plain text only, light budget
+      cue.text = swapPlain(cue.text, base)  // same pipeline for that base, plain text only, light budget
   })
 ```
 
@@ -144,10 +154,14 @@ screen reader that reads captions switches voice (27).
 
 ## Acceptance criteria
 
-- [ ] On the recorded YouTube stream fixture, no animation frame ever shows the English for a word
-      that is swapped in that line (Playwright checks with `requestAnimationFrame` sampling).
+- [ ] On the recorded YouTube stream fixture, no animation frame ever shows the original word for a
+      word that is swapped in that line (Playwright checks with `requestAnimationFrame` sampling),
+      for an English stream with base `en` and a Spanish stream with base `es`.
 - [ ] A swapped word stays swapped as its line grows, and each line has at most its budget of swaps.
-- [ ] Non-English caption tracks are left alone.
+- [ ] Caption tracks in a language that isn't one of the learner's bases are left alone; with bases
+      `es` and `en`, a Spanish track uses Spanish-base words and an English track English-base words.
+- [ ] A Japanese caption track with base `ja` is swapped using `Intl.Segmenter` tokens within the
+      2 ms budget.
 - [ ] Native `<track>` cues are swapped on `cuechange` and restored when captions are turned off.
 - [ ] Caption handling stays within 2 ms per mutation at p95.
 - [ ] "Captions: Off" leaves captions untouched while pages are still swapped.
@@ -158,8 +172,9 @@ screen reader that reads captions switches voice (27).
   YouTube caption DOM stream (manual and rolling automatic captions) and `captions-track.html`
   with a WebVTT file, both added by this slice.
 - **Unit:** line keys, sticky decisions, budget per level, language heuristic.
-- **Manual:** YouTube with manual English captions, automatic captions, a non-English video, and
-  an embedded YouTube player inside an article (with 42).
+- **Manual:** YouTube with manual English and Spanish captions, automatic captions, a video in a
+  language that isn't a base, an auto-translated track, and an embedded YouTube player inside an
+  article (with 42).
 
 ## Rollout and migration
 

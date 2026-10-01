@@ -144,13 +144,18 @@ A sync result is accepted only if all of these hold:
    slice 09 lands; until then, these constants): `id` is a string or integer; `lang` is a
    non-empty string up to 35 characters; `native` 1-64 characters with no newline;
    `forms` (strings, or slice 07 Form objects with `text`) each 2-40 characters, at most
-   10. Invalid words are dropped and counted, never inserted into pages ([03 E2](../../docs/research/03-browser-extension.md)).
+   10; `base_lang`, when present (slice 07 v2 words), is a non-empty tag up to 35
+   characters, and a legacy word without it is read as `base_lang: "en"` (what every 0.2
+   server word is). Invalid words are dropped and counted, never inserted into pages ([03 E2](../../docs/research/03-browser-extension.md)).
 
 The written result is `{words, lastSync, syncError: null, syncWarnings: {dropped} | null}`
 on success, or `{syncError: {code, message, at}}` on failure. `words` and `lastSync` are
 left as they were on failure, so pages keep working from the cache ([05 S34](../../docs/research/05-learner-ux.md)).
-`syncError` changes from a string to an object; the popup reads `syncError.message`
-(slice 25 owns the text) and treats an old string value as a message for one release.
+`syncError` changes from a string to an object; the popup reads `syncError.code` and shows
+slice 25's text for it in the interface language through `MiraI18n.t()`
+([50](../50-ui-localization-and-base-language/SPEC.md)). `message` is a technical English
+detail for logs and "Details", never the main line. An old string value is shown as a
+detail under the generic sync error for one release.
 
 Words are written only when they changed, compared by a cheap fingerprint (count plus a
 hash of ids and `updated_at`, or the JSON string for legacy responses), as today

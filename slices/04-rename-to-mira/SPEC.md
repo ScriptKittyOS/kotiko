@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | On hold: "Mira" withdrawn after trademark screening ([DECISIONS](../DECISIONS.md)). The final name replaces "Mira" throughout this spec. |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
 | **Depends on** | [02-test-harness-and-ci](../02-test-harness-and-ci/SPEC.md) |
@@ -203,7 +203,8 @@ case where they forget.
 - **Leftover DOM.** After an update, Chrome tabs may still contain spans from the old
   content script with class `slovo-w` (`content.js:91-97`). When the new content script
   starts (slice 15 re-injects into open tabs), it first replaces every `span.slovo-w`
-  with a text node holding its `data-en` value, once. This code is removed one release later.
+  with a text node holding its `data-en` value (the original page text; the 0.2 script
+  only ran on English pages), once. This code is removed one release later.
 - **Alarm.** On `runtime.onInstalled` with reason `update`, `alarms.clear("slovo-sync")`;
   slice 26 creates `mira-sync`.
 - **Storage keys** need no migration (none contain the name). Slice 11's IndexedDB
@@ -228,7 +229,11 @@ case where they forget.
 - README title "Mira", tagline from slice 05, all commands and paths updated, a short
   "Formerly Slovo" note under the title for one release, then in the changelog only.
 - Telegram bot `/help` gains one first line: "Mira: send me a word and it starts
-  replacing its English on your web pages." (Telegram's bot name and username are set in
+  appearing on your web pages in place of the word you'd normally read there." Like all
+  bot text it lives in `server/priv/locales/<locale>/messages.json` (key `bot_help_intro`)
+  and is translated (Spanish: "Mira: mándame una palabra y empezará a aparecer en tus
+  páginas web en lugar de la palabra que leerías ahí."), per slices
+  [41](../41-telegram-improvements/SPEC.md) and [50](../50-ui-localization-and-base-language/SPEC.md). (Telegram's bot name and username are set in
   @BotFather by each self-hoster; the README suggests "Mira" and a username like
   `yourname_mira_bot`.)
 - User-agent for outgoing HTTP from the server: `Mira/<version> (+https://github.com/ScriptKittyOS/mira)`.
@@ -239,11 +244,13 @@ case where they forget.
 
 1. Chrome Web Store and Firefox Add-ons: search "Mira" and "Mira language", note every
    listing in education, translation or language learning.
-2. Apple App Store and Google Play: "Mira" plus "language", "vocabulary", "English".
+2. Apple App Store and Google Play: "Mira" plus "language", "vocabulary", "English",
+   and the Spanish equivalents ("idiomas", "vocabulario", "inglés"), since the listing
+   ships in Spanish too (slice 28).
 3. GitHub, npm and Hex: repositories and packages named `mira` in this space.
 4. Trademark databases: USPTO (TESS successor search) and EUIPO eSearch for "MIRA" in
    Nice classes 9 (software) and 41 (education), status live.
-5. A general web search for "Mira" + "language learning".
+5. A general web search for "Mira" + "language learning" and "Mira" + "aprender idiomas".
 
 **What's acceptable.** The word "Mira" is common (a star, a name, many products), and a
 common word can't be owned in general. Coexistence is acceptable when the other product
@@ -297,7 +304,7 @@ is "Mira" alone and does the same job.
 - [ ] `install-service.sh` on a machine with `slovo.service` running leaves exactly one
       running unit, `mira.service`, and `slovo.service.bak` on disk.
 - [ ] Updating the unpacked extension in place keeps token, server URL, hidden languages
-      and paused sites; old `slovo-w` spans in open tabs are restored to English.
+      and paused sites; old `slovo-w` spans in open tabs are restored to the page's original text.
 - [ ] The manifest's gecko id is `mira@scriptkittyos.com` and `web-ext lint` passes.
 - [ ] The collision check is recorded with its date in this slice before store submission.
 

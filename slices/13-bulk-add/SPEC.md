@@ -5,8 +5,8 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
-| **Depends on** | [09-shared-word-spec-and-prompt](../09-shared-word-spec-and-prompt/SPEC.md), [24-add-flow-safety](../24-add-flow-safety/SPEC.md); lives in [21-dashboard](../21-dashboard/SPEC.md) |
-| **Unblocks** | [22-first-run-onboarding](../22-first-run-onboarding/SPEC.md) (reuses the one-line parser), [48-multi-user-and-classroom](../48-multi-user-and-classroom/SPEC.md) (students review a list a teacher offers in the same table) |
+| **Depends on** | [09-shared-word-spec-and-prompt](../09-shared-word-spec-and-prompt/SPEC.md), [24-add-flow-safety](../24-add-flow-safety/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages); uses [14](../14-matcher-engine/SPEC.md)'s tokenizer; lives in [21-dashboard](../21-dashboard/SPEC.md) |
+| **Unblocks** | [22-first-run-onboarding](../22-first-run-onboarding/SPEC.md) (reuses the one-line parser), [48-multi-user-and-classroom](../48-multi-user-and-classroom/SPEC.md) (students review a list a teacher offers in the same table), [50](../50-ui-localization-and-base-language/SPEC.md) ("Add meanings in a new base" reuses the batched lookup) |
 | **Sources** | Maintainer: "Users should be able to paste a full list of words and add them all. Bulk upload; since it's local you can even drop files." ([DECISIONS](../DECISIONS.md)); [05 S17](../../docs/research/05-learner-ux.md); [04 S6 Anki and CSV](../../docs/research/04-architecture-release.md); [06 F14, F21](../../docs/research/06-adversarial-qa.md) |
 
 ## Problem
@@ -16,7 +16,11 @@ spreadsheet) has to type each word into the popup, one model call each
 (`extension/popup.js:185-203`, `extension/background.js:74-82`). With a free quota of about
 50 requests a day ([05 §1](../../docs/research/05-learner-ux.md)), a 200-word list takes four
 days and the learner's patience. Most such lists already contain the meaning, so the model
-isn't needed at all. Nothing accepts a file, and the server caps request bodies at 64 KB
+isn't needed at all. Those meanings are in whatever language the learner reads: an English
+reader's sheet says "gato - cat", a Spanish reader learning English has "dog - perro", a
+Japanese reader learning Korean has "고양이：猫". Mira must read all three without
+assuming the meaning side is English ([DECISIONS 2026-10-01](../DECISIONS.md)).
+Nothing accepts a file, and the server caps request bodies at 64 KB
 ([DECISIONS](../DECISIONS.md), commit 4705cb0), so a big paste couldn't go through the add
 endpoint anyway.
 
@@ -24,7 +28,11 @@ endpoint anyway.
 
 - Paste any list, or drop or choose a TXT, CSV, TSV, JSON or Anki plain-text export, and get
   all of it into Mira in three steps.
-- Lines that already have a meaning are parsed locally and never touch the model.
+- Lines that already have a meaning are parsed locally and never touch the model, whatever
+  the learner's base language, including bases without spaces (Japanese, Chinese, Thai).
+- Which side of a line is the word being learned and which is the meaning is decided from
+  the learner's base languages and the scripts and language of each column, never by
+  assuming the meaning is English.
 - Lines without a meaning are looked up in batches that respect the quota, and the learner
   can finish them by hand if lookups run out.
 - A review table before saving: every row's status visible, any row editable or untickable,
@@ -45,6 +53,13 @@ endpoint anyway.
 
 - As a learner with a vocabulary sheet "gato - cat, perro - dog, …", I want to paste it and
   have every word saved in seconds, without lookups.
+- As a Spanish speaker learning English with a sheet "dog - perro, cat - gato, …", I want
+  Mira to know that "dog" is the word I'm learning and "perro" the meaning, without
+  choosing columns.
+- As a Japanese reader learning Korean, I want "고양이：猫" (full-width colon, no spaces)
+  read as one row.
+- As a Spanish reader, I want to paste a list of Spanish words ("perro, gato, mariposa")
+  and have Mira find their Japanese words.
 - As a learner with an Anki deck, I want to export it as text, drop the file on Mira, and
   pick which column is which.
 - As a learner with a bare list of 40 Russian words, I want Mira to look them up within my
@@ -89,9 +104,27 @@ Dragging is never the only way: every drop target also has a "Choose a file" but
 │                                                                          │
 │ ┆ Or drop a .txt, .csv, .tsv or .json file.   [ Choose a file ]        ┆ │
 │ └ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┄ ┘ │
-│ These words are in  [ Spanish ▾ ]   (rows can override)                  │
+│ Learning  [ Spanish ▾ ]  (rows can override)   Meanings in  [ English ▾ ] │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
+
+The same sheet for a Spanish reader learning English (interface in Spanish; the example
+lines are the `bulk_example_*` messages of the interface locale, slice 50):
+
+```
+│   Pega una lista aquí, una palabra por línea.                            │
+│ ┆ Por ejemplo:                                                         ┆ │
+│     dog = perro                                                          │
+│ ┆   cat - gato                                                         ┆ │
+│     спасибо (spasibo) = gracias                                          │
+│ ┆   butterfly                                                          ┆ │
+│ Aprendiendo  [ inglés ▾ ]               Significados en  [ español ▾ ]   │
+```
+
+**Meanings in** is the list's base language: default the learner's primary base
+(`s:ui.baseLangs[0]`, slice 50), with the other bases in the menu; it is shown only when
+the learner has more than one base. Every meaning in the list is stored as `gloss` and
+forms in that base. "Learning" is the target language, as before.
 
 The paste area is a `<textarea>` (so keyboard and screen-reader users can paste normally),
 styled with a dotted border. Parsing runs 150 ms after the last change and the review table
@@ -108,7 +141,7 @@ All parsing is local, in a pure module `extension/bulk/parse.js` shared with the
 inline syntax ([24 §7](../24-add-flow-safety/SPEC.md)).
 
 **Decoding.** Files up to 5 MB. UTF-8 (BOM stripped); UTF-16 LE/BE by BOM; if strict UTF-8
-decoding fails, decode as windows-1252 and warn: "Some characters may be wrong. Save the file
+decoding fails, decode as windows-1252 and warn (in the interface language): "Some characters may be wrong. Save the file
 as UTF-8 and try again." Line endings `\r\n`, `\r`, `\n`. Text is NFC-normalized
 ([07](../07-word-model-v2/SPEC.md)).
 
@@ -116,75 +149,139 @@ as UTF-8 and try again." Line endings `\r\n`, `\r`, `\n`. Text is NFC-normalized
 
 1. `.json`: if it has Mira's `schemaVersion`, hand to [12](../12-export-import-and-delete/SPEC.md);
    if it is an array of objects, map keys case-insensitively (`native|word|front|term`,
-   `english|meaning|back|translation|definition`, `romanization|reading|pronunciation`,
-   `lang|language`, `note|notes`); otherwise `import_unreadable`.
+   `gloss|meaning|back|translation|definition|english`, `romanization|reading|pronunciation`,
+   `lang|language`, `base_lang|base_language`, `note|notes`, plus the localized column
+   names below); a key that is a language tag or name (`"es"`, `"en"`, `"Japanese"`) is
+   that language's column (see Columns); otherwise `import_unreadable`.
 2. **Anki plain-text export:** header lines starting with `#` (`#separator:tab`,
    `#html:true`, `#columns:Front\tBack`, `#notetype column:`, `#deck column:`,
    `#tags column:`) are read and removed. With `#html:true`, field HTML is reduced to text
    (parsed in an inert `DOMParser` document, `textContent` only; `<br>` becomes "; ");
    `[sound:…]` and `{{c1::…}}` cloze markup are stripped (cloze keeps the answer text).
 3. **CSV / TSV:** by extension, or when more than half the non-empty lines contain the same
-   count (≥ 2) of tabs, or of commas outside quotes. RFC 4180 quoting. A first row whose cells
-   match known header names (as in 1, plus `front`, `back`, `es`, `en`, language names) is a
-   header.
+   count (≥ 2) of tabs, or of commas outside quotes, or of `；` (full-width semicolons, common
+   in CJK spreadsheets). RFC 4180 quoting. A first row whose cells match known header names
+   is a header: the names in 1; every shipped locale's `export_csv_col_*` messages (so a
+   Spanish Mira CSV's `palabra, significado, …` header round-trips, slice 12); `front`,
+   `back`; and language tags or names in any shipped interface locale (`es`, `en`,
+   `Spanish`, `español`, `日本語`).
 4. **Line list:** everything else, one item per line.
 
 **Columns.** For tables, the review shows a mapping row above the table ("Column 1: Word ·
 Column 2: Meaning · Column 3: Ignore") with menus: Word, Meaning, Romanization, Note,
-Language, Ignore. Defaults: header names; else the first column whose cells are mostly
-non-Latin script is Word; else column 1 = Word, column 2 = Meaning (the common textbook
-order "native = english"). A "Swap" button exchanges Word and Meaning in one click.
+Language, Ignore. A "Swap" button exchanges Word and Meaning in one click. Defaults come
+from the orientation rules below, applied to whole columns.
+
+**Orientation: which side is the word being learned.** Decided once per list (or per
+table), never per row and never by assuming the meaning is English. With `B` = the list's
+base ("Meanings in") and `T` = the target ("Learning", if set), in order:
+
+1. **Headers.** A column headed with a language tag or name is that language: the one
+   matching `B` (slice 50's "same base" test) is Meaning, the other is Word. Known
+   header names (`word`, `meaning`, `palabra`, `significado`, …) decide directly.
+2. **Script.** Using [08](../08-language-tags/SPEC.md)'s script table: if `B`'s script and
+   `T`'s script differ, the side whose text is mostly in `B`'s script is Meaning
+   (Spanish base and Russian target: "собака = perro" puts собака as Word; Japanese base
+   and Korean target: "고양이：猫" puts 고양이 as Word). When `T` is unset, a side mostly
+   in a script that `B` doesn't use is Word.
+3. **Language of each column.** When scripts don't settle it (Spanish base, English
+   target: both Latin), each side's text across all rows is joined and passed to
+   `i18n.detectLanguage` (available in extension pages in Chrome and Firefox), plus a
+   count of tokens found in `spec/lang/<B>/stopwords.txt` and `detect.json` (slice 50).
+   The side that detects as `B` with reliability, or that has clearly more of `B`'s
+   common words, is Meaning. "dog = perro / cat = gato / house = casa" with base `es`
+   puts dog, cat, house as Word.
+4. **Undecided** (short lists, cognates): column 1 = Word, column 2 = Meaning, the most
+   common textbook order, with a visible question above the table: "Are you learning
+   **dog** or **perro**?" [dog] [perro], which sets the orientation for the whole list.
+
+A side detected as `B` is never saved as a word to learn in `B` (slice 09's
+`target_is_base` rule).
 
 **One line,** for line lists (and the add box):
 
 | Pattern | Result |
 |---|---|
-| `native = english` (also ` — `, ` – `, ` - ` with spaces, `:` followed by a space, a tab) | split at the first separator |
-| `native (romanization) = english` | romanization from the parentheses after the native |
-| `english = native` | detected when the left side is Latin and the right is not; otherwise needs the Swap button |
-| `english, english` on the meaning side | several English forms |
-| `… # note` or `… // note` | note |
-| `es: gracias = thanks` | per-line language prefix, a known language name or tag followed by `:` |
+| `native = gloss` (also `→`, ` — `, ` – `, ` - ` with spaces, `:` followed by a space, a tab, and the full-width `＝` and `：` with or without spaces) | split at the first separator; sides oriented by the rules above |
+| `native (romanization) = gloss` | romanization from the parentheses (`()` or full-width `（）`) after the native |
+| `gloss = native` | the same line reversed; the list's orientation decides, so "dog = perro" and "perro = dog" both work for a Spanish reader learning English once the list is oriented |
+| `gloss, gloss` on the meaning side (also `;`, `/`, `、`, `，`, `／`) | several forms of the meaning in the base language |
+| `… # note` or `… // note` | note, in the base language |
+| `es: gracias = thanks`, `ja：猫 = gato` | per-line target-language prefix, a known language tag or name (in any shipped interface locale) followed by `:` or `：` |
 | bare `native` | needs a lookup |
-| a bare English word (Latin script, found in the list of about 3,000 common English words that [09](../09-shared-word-spec-and-prompt/SPEC.md) ships for its "reject English" rule, while the batch language isn't Latin-script) | flagged "This looks like English", needs a language and a lookup |
-| empty lines, lines of only punctuation, numbered prefixes (`1.`, `12)`, `- `, `• `) | prefixes stripped; empty lines skipped |
+| a bare word in the list's base language (scripts per rule 2, or the whole bare column detecting as `B` per rule 3) | "In español: Mira will find the japonés word" when a target is set: the lookup asks for the target word for this base-language word ("perro" → 犬), and the line becomes the meaning; with no target set, it needs one |
+| empty lines, lines of only punctuation, numbered prefixes (`1.`, `12)`, `- `, `• `, `①`, `一、`) | prefixes stripped; empty lines skipped |
 
-Hyphenated words (`well-known`) are never split, because a dash separator requires spaces
-around it.
+Separators are matched on the raw line before any tokenizing. Hyphenated words
+(`well-known`, `bien-estar`) are never split, because an ASCII dash separator requires
+spaces around it; `→`, `＝` and `：` need no spaces, since base languages without spaces
+("猫＝gato", "고양이：猫") write them that way. A plain `:` without a following space is
+not a separator (times, URLs, `C:`). The leading `¿` and `¡` and trailing `?` and `!` are
+stripped from each side ("¿perro? = dog" reads as perro), per slice 09's normalisation.
 
-**Language.** "These words are in [language ▾]" applies to every row without its own
-language. Default: the language hint from the add box, else Focus, else the most recently
-used language, else unset (the Add button then reads "Choose a language"). If most native
-words are in a script that rules out the chosen language (Han text with Spanish selected),
-the selector shows a warning: "These look like Chinese. Change to Chinese?" with one-click
-accept. Script checks come from [08](../08-language-tags/SPEC.md).
+**Examples** (fixtures in the test plan):
+
+| Line | Base | Target | Word | Meaning (gloss, forms) |
+|---|---|---|---|---|
+| `gato = cat` | en | es | gato | cat |
+| `dog - perro` | es | en | dog | perro |
+| `perro → dog` | es | en | dog | perro (list oriented by rule 3) |
+| `собака (sobaka) = perro, perros` | es | ru | собака | perro; forms perro, perros |
+| `고양이：猫` | ja | ko | 고양이 | 猫 |
+| `猫＝gato` | es | ja | 猫 | gato |
+| `water = l'eau` | fr | en | water | eau (the elided article is dropped from the meaning with a note, because slice 14 splits l' from eau on French pages, so "l'eau" as a form would never match) |
+| `Hund = perro` | es | de | Hund (capital kept: German nouns, slice 50 `casing.json`) | perro |
+| `perro` (bare) | es | ja | looked up | perro |
+
+**Language.** "Learning [language ▾]" applies to every row without its own language.
+Default: the language hint from the add box, else Focus, else the most recently used
+language, else unset (the Add button then reads "Choose a language"). If most words are
+in a script that rules out the chosen language (Han text with Spanish selected), the
+selector shows a warning: "These look like Chinese. Change to Chinese?" with one-click
+accept. Script checks come from [08](../08-language-tags/SPEC.md). A target equal to the
+list's base is refused in the selector ("You read español already; choose the language
+you're learning").
+
+**Several bases.** A list's meanings are in one base, so its rows create records for that
+base only. When the learner has other bases, the review shows an unticked option: "Also
+add meanings in English (uses about {k} lookups)", which sends the ready rows through the
+batch lookup for the other bases (section 5). Rows that need a lookup anyway are looked
+up for every base by default, as slice 50 section 3 specifies.
+
+**Splitting text into words** anywhere in this slice ("Split into words" for long rows,
+counting words in a column, picking words from a paragraph) uses
+[14](../14-matcher-engine/SPEC.md)'s tokenizer for the language of that text
+(`Intl.Segmenter` with the base's boundary rules), never a split on spaces, so a pasted
+Japanese line "犬が好きです" splits into 犬 / が / 好き / です.
 
 **Limits.** At most 5,000 rows per batch; beyond that: "Mira can add 5,000 words at a time.
 The first 5,000 are below; add the rest after." Each field is validated by
-[09](../09-shared-word-spec-and-prompt/SPEC.md) (native 1-64 characters, forms ≥ 2 letters,
-not English, and so on).
+[09](../09-shared-word-spec-and-prompt/SPEC.md) with the list's base data (native 1-64
+characters, form length per base, stopwords of that base, the word's language not equal
+to the base, and so on).
 
 ### 4. Review table
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────┐
 │ 48 words · 41 ready · 4 need a meaning · 2 already in your list · 1 problem      │
-│ These words are in [ Spanish ▾ ]                          Columns: Word | Meaning │
+│ Learning [ Spanish ▾ ]   Meanings in [ English ▾ ]        Columns: Word | Meaning │
 │ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄ │
 │ [x] gato         cat                 Spanish   Ready                              │
 │ [x] perro        dog                 Spanish   Ready                              │
 │ [x] mariposa     —                   Spanish   Needs a meaning                    │
 │ [ ] gracias      thanks              Spanish   Already in your list               │
 │ [x] gracias      thanks, thank you   Spanish   Adds 1 meaning to your word        │
-│ [ ] hotel        hotel               Spanish   (!) Same as the English            │
+│ [ ] hotel        hotel               Spanish   (!) Same as the meaning            │
 │ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄ │
 │ 4 words need a meaning.  [ Look them up ]  uses about 1 of your 37 lookups left   │
 │                                                     [ Add 43 words ]   Cancel     │
 └──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- Columns: checkbox, Word (native, `dir="auto"`), Meaning (English forms), Romanization
-  (shown when any row has one), Language (only when rows differ), Status.
+- Columns: checkbox, Word (native, `dir="auto"`), Meaning (gloss and forms in the list's
+  base, `dir="auto"`), Romanization (shown when any row has one), Language (only when rows
+  differ), Status. Column titles and statuses are in the interface language.
 - Every cell is editable in place (Enter or blur commits). Editing a "Needs a meaning" row's
   meaning makes it Ready.
 - **Statuses** (icon plus words, [06 §4.2](../06-design-system/SPEC.md)):
@@ -192,13 +289,13 @@ not English, and so on).
 | Status | Meaning | Ticked by default |
 |---|---|---|
 | Ready | Has word, meaning and language; new | yes |
-| Needs a meaning | No English yet | yes (saved only after a lookup or an edit) |
+| Needs a meaning | No meaning in the list's base yet | yes (saved only after a lookup or an edit) |
 | Looking up… | In a lookup batch | yes |
-| Already in your list | Same (lang, native) exists and nothing would change | no |
+| Already in your list | Same (lang, native, base) exists and nothing would change | no |
 | Adds {k} meanings to your word | Exists; would union new forms or fill empty fields (07 merge) | yes |
-| Duplicate in this list | Same (lang, native) appears earlier in this batch; merged into the first | no |
-| Same as the English | native equals an English form ([01 S7](../../docs/research/01-language-mixing.md)) | no |
-| Problem: {reason} | Fails validation (too long, empty, English language) | no, and can't be ticked until fixed |
+| Duplicate in this list | Same (lang, native, base) appears earlier in this batch; merged into the first | no |
+| Same as the meaning | native equals the gloss or a form (hotel = hotel; [01 S7](../../docs/research/01-language-mixing.md); 09's `same_as_gloss`) | no |
+| Problem: {reason} | Fails validation (too long, empty, a word in a language you read) | no, and can't be ticked until fixed |
 
 - Header line counts each status; clicking a count filters the table to it.
 - "Untick all", "Tick all ready", and sorting by status are in a small menu.
@@ -207,10 +304,13 @@ not English, and so on).
 ### 5. Lookups for rows without a meaning
 
 - "Look them up" sends **only** the ticked "Needs a meaning" rows, in batches of up to 20
-  words per request, with the batch language as `hint_lang`. The batch prompt is this slice's
-  addition to [09](../09-shared-word-spec-and-prompt/SPEC.md)'s `spec/` folder
-  (`prompt-batch.md`: input is a numbered list of native words plus the language; output is
-  one entry per input index, validated by 09's validator entry by entry). It ships only if
+  words per request, with the batch language as `hint_lang` and the learner's bases as
+  `base_langs` (09's request contract). The batch prompt is this slice's addition to
+  [09](../09-shared-word-spec-and-prompt/SPEC.md)'s `spec/` folder (`prompt-batch.md`:
+  input is a numbered list of words plus the target language, each marked as a target
+  word to explain or a base-language word to find in the target; output is one entry per
+  input index and base, in 09's output schema, validated by 09's validator entry by
+  entry). It ships only if
   09's golden-set evaluation, run in batch form, scores within 2 points of single lookups;
   otherwise each row becomes its own add job ([24](../24-add-flow-safety/SPEC.md)) and the
   cost line counts one lookup per word. Calls go through
@@ -227,7 +327,8 @@ not English, and so on).
   meanings yourself, or save these {k} words for later." The second option queues them as
   waiting add jobs that resume when quota returns.
 - A lookup result whose native differs from the input (the model corrected spelling) shows
-  "Mira read “spaseeba” as спасибо" in the row, pre-ticked, editable. If that result
+  "Mira read “spaseeba” as спасибо" (es: "Mira leyó «spaseeba» como спасибо") in the row,
+  pre-ticked, editable. If that result
   arrives after "Add {n} words" (a pending lookup finishing as an add job), it is not saved
   on its own: the job waits in 24's `needs_choice` state with the line "Mira read
   “spaseeba” as спасибо. Add it?" so the learner sees the word Mira will add before it
@@ -241,6 +342,7 @@ batch add: locally in one IndexedDB transaction ([11](../11-local-first-mode/SPE
 causes a single projection write; with a server holding the words, `POST
 /api/v1/words/batch` with up to 500 words per call (its 1 MB body limit), each call with its
 own `client_request_id` so retries are idempotent ([24 §3](../24-add-flow-safety/SPEC.md)).
+Every word carries the list's `base_lang` and its meaning as `gloss` plus forms.
 Words get 07's provenance: `origin: "bulk"` for pasted lists and `origin: "import"` for
 files, with `source_text` set to the original line (so the dashboard can show "Added from
 “gato - cat”"). The batch's created and updated word ids are kept in the bulk job record, which
@@ -264,11 +366,20 @@ word and restores every updated word from this batch (per-word rules from
 ### 7. Edge cases
 
 - **Mixed languages in one paste:** rows with a language prefix or a Language column keep
-  theirs; the rest take the batch language.
+  theirs; the rest take the batch language. Meanings in mixed base languages (some rows
+  in Spanish, some in English) aren't detected per row; a Base Language column (as in
+  slice 12's export) is honoured, otherwise the list's base applies.
+- **Base without spaces:** `cat = 猫` with base `ja` and target `en` orients by script
+  (rule 2). A list with Japanese on both sides (`猫＝ねこ`, a reading list) for a learner
+  whose base is `ja` is refused row by row as "a word in a language you read", with the
+  hint to map the second column to Romanization/Reading instead.
 - **Right-to-left words:** every cell is `<bdi>`; separators are detected on logical order, so
-  `شكرا = thanks` parses correctly whatever the display direction.
+  `شكرا = thanks` and `شكرا = gracias` parse correctly whatever the display direction,
+  including for an Arabic or Hebrew base (`perro = كلب` with base `ar` puts perro as Word
+  by rule 2).
 - **Very long lines** (sentences): rows over 64 characters native become "Problem: too long
-  for a word", with "Split into words" that replaces the row with one row per token.
+  for a word", with "Split into words" that replaces the row with one row per token (14's
+  tokenizer for that text's language).
 - **Spreadsheets saved as .xlsx:** "Mira reads .csv files. In your spreadsheet app choose
   Save as → CSV, then drop that file."
 - **Huge files** over 5 MB: `import_unreadable` with "This file is bigger than 5 MB."
@@ -290,13 +401,23 @@ lives in `storage.session` and is cleared after saving or cancelling.
 
 ## Acceptance criteria
 
-- [ ] Pasting 200 lines of `native = english` and pressing "Add 200 words" saves them with
+- [ ] Pasting 200 lines of `native = gloss` and pressing "Add 200 words" saves them with
       zero model calls (verified by the mock backend's request log) in 3 steps from the
-      dashboard.
+      dashboard, for an English base ("gato = cat") and a Spanish base ("dog = perro").
+- [ ] With base `es` and target `en`, a 20-line list "dog = perro, cat = gato, …" and the
+      same list reversed ("perro = dog, …") both save `lang: "en"`, `native: "dog"`,
+      `gloss: "perro"`, `base_lang: "es"`, without the learner touching Swap.
+- [ ] With base `ja`, `고양이：猫` and `고양이 ： 猫` both parse as Korean 고양이 with gloss 猫;
+      with base `es`, `猫＝gato` parses as Japanese 猫 with gloss gato.
+- [ ] No row is ever saved with `lang` equal to its `base_lang`.
+- [ ] A Spanish Mira CSV export (slice 12, Spanish headers) imports with no column mapping.
+- [ ] With base `es` and target `ja`, a bare list "perro, gato" becomes two lookup rows that
+      save 犬 and 猫 with glosses perro and gato.
 - [ ] Dropping an Anki "Notes in Plain Text" export with `#separator:tab`, `#html:true` and
       `#columns:` headers produces a correctly mapped table with HTML and `[sound:]` removed.
 - [ ] A CSV with a BOM, quoted commas and a header row maps columns from the header.
-- [ ] `well-known = conocido` is not split at the hyphen; `gato - cat` is.
+- [ ] `well-known = conocido` and `bien-estar = wellbeing` are not split at the hyphen;
+      `gato - cat` is; `10:30 = once` is not split at the colon.
 - [ ] Existing words show "Already in your list" (unticked) or "Adds {k} meanings" correctly
       against a fixture word list.
 - [ ] 45 bare words with a batch size of 20 cause exactly 3 lookup requests; with the quota
@@ -310,9 +431,13 @@ lives in `storage.session` and is cleared after saving or cancelling.
 ## Test plan
 
 - **Unit (Node):** `parse.js` against a fixture folder: textbook lists in 12 languages and 8
-  scripts, Anki exports from Anki 2.1.55+ and older (no headers), Excel CSV (windows-1252 and
-  UTF-8 with BOM), Google Sheets TSV, Quizlet export ("term\tdefinition"), JSON arrays,
-  RTL lines, numbered lists, cloze notes, malformed quoting.
+  scripts, each with meanings in English and in Spanish, plus Japanese-base and
+  Arabic-base lists; every row of the Examples table above; Anki exports from Anki
+  2.1.55+ and older (no headers), Excel CSV (windows-1252 and UTF-8 with BOM), Google
+  Sheets TSV, Quizlet export ("term\tdefinition"), JSON arrays, Mira CSV exports with
+  English and Spanish headers, RTL lines, numbered lists, cloze notes, malformed quoting.
+- **Orientation:** a table of lists with expected orientation for each rule (headers,
+  script, detected language with a stubbed `i18n.detectLanguage`, undecided).
 - **Integration:** batch lookup with a mock model returning good, partial, corrected and
   invalid entries; quota exhaustion mid-run; idempotent retries.
 - **End-to-end:** paste, drop and choose-file paths; popup handoff; review edits; summary and
@@ -328,12 +453,17 @@ file to add many words at once. Lines with meanings never use your lookups."
 
 ## Open questions
 
-1. **Default column order for two-column lists without headers.** Recommendation: Word then
-   Meaning ("gato = cat"), with automatic swap when the script makes it obvious and a one-click
-   Swap otherwise.
+1. **Default column order for two-column lists without headers.** Recommendation: orient by
+   script, then by the detected language of each column against the learner's base, and
+   only when both are inconclusive fall back to Word then Meaning with the "Are you
+   learning dog or perro?" question; never assume the meaning is English.
 2. **Batch size per lookup.** Recommendation: 20, tuned with the golden set in
    [09](../09-shared-word-spec-and-prompt/SPEC.md); larger batches save quota but raise the
    error rate on small free models.
+3. **Same-script orientation by language detection.** `i18n.detectLanguage` is unreliable
+   on a handful of words. Recommendation: use it only on the whole column, require
+   "reliable", and ask the one-tap question otherwise; measure on the fixture lists and
+   lower or raise the bar from there.
 
 ## Future work
 

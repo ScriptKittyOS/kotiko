@@ -5,7 +5,7 @@
 | **Status** | Proposed |
 | **Priority** | P1 (soon after release) |
 | **Size** | M (about a week) |
-| **Depends on** | [28-privacy-and-store-readiness](../28-privacy-and-store-readiness/SPEC.md); uses [05-brand-identity](../05-brand-identity/SPEC.md) and [06-design-system](../06-design-system/SPEC.md) |
+| **Depends on** | [28-privacy-and-store-readiness](../28-privacy-and-store-readiness/SPEC.md); uses [05-brand-identity](../05-brand-identity/SPEC.md), [06-design-system](../06-design-system/SPEC.md) and [50](../50-ui-localization-and-base-language/SPEC.md)'s locales, glossary and translation workflow |
 | **Unblocks** | The `/connect/` callback for [11](../11-local-first-mode/SPEC.md)'s "Connect OpenRouter"; "Learn more" links from [25](../25-plain-language-errors/SPEC.md) |
 | **Sources** | [04 summary, S29, S31, section 3 release plan, docs-site slice](../../docs/research/04-architecture-release.md); [03 B9, D6, D8](../../docs/research/03-browser-extension.md); [05 S34, S39](../../docs/research/05-learner-ux.md) |
 
@@ -21,7 +21,9 @@ Elixir 1.15+" (`README.md:30-32`), troubleshooting assumes you can read server l
 - a stable public URL for the privacy policy (slice 28 needs it before submission);
 - one page per error that the extension's "Learn more" links can point to (slice 25);
 - a server guide for those who want Telegram, written for people who use Docker but not Elixir;
-- a home for the OAuth callback page (slice 11).
+- a home for the OAuth callback page (slice 11);
+- all of it in the learner's language: a Spanish speaker whose Mira is in Spanish would
+  otherwise follow a "Learn more" link into English pages.
 
 The org can host static content safely and for free ([04 S31](../../docs/research/04-architecture-release.md)).
 
@@ -34,13 +36,18 @@ The org can host static content safely and for free ([04 S31](../../docs/researc
 - No analytics, no cookies, no third-party requests: the site follows the privacy policy
   it hosts.
 - Contributors find architecture, the `spec/` folder, tests and the release process.
+- The pages a learner needs to start and stay safe (install, first word, privacy,
+  troubleshooting and errors) exist in English and Spanish at launch, and the extension
+  links to the page in its interface language
+  ([50](../50-ui-localization-and-base-language/SPEC.md) rule 13).
 
 ## Non-goals
 
 - Writing the privacy policy text: slice [28](../28-privacy-and-store-readiness/SPEC.md).
   This slice publishes it.
-- Translating the site: slice [50](../50-ui-localization-and-base-language/SPEC.md);
-  the tool chosen here supports it.
+- Translating contributor and server pages: English only at launch (their readers work in
+  English on GitHub anyway); other learner pages and other locales arrive through slice
+  [50](../50-ui-localization-and-base-language/SPEC.md)'s translation workflow.
 - Word lists to download or subscribe to: never ([DECISIONS](../DECISIONS.md)). The site
   explains how to add words; it never supplies them.
 - A blog or newsletter.
@@ -55,6 +62,8 @@ The org can host static content safely and for free ([04 S31](../../docs/researc
 - As a teacher, I want one page I can send my class that shows how to paste or drop the
   list I hand out into Mira and review it before saving.
 - As a contributor, I want to know how the extension and server share `spec/`.
+- As a learner in Puerto Rico with Mira in Spanish, I want "Más información" to open a
+  Spanish page.
 
 ## Specification
 
@@ -101,9 +110,37 @@ entry here with: what happened, what still works, what to do, and a "For self-ho
 detail block. The extension's link is `<site>/help/errors/#<code>`; a CI check compares
 the codes in slice 25's `extension/errors.js` with the anchors on the page.
 
-### 3. Content rules
+### 3. Languages (i18n plan)
 
-- Plain English, short sentences, second person, no emojis, matching slice 05's voice.
+- **Starlight i18n** with English as the root locale at `/` and Spanish under `/es/`:
+  `locales: { root: { label: "English", lang: "en" }, es: { label: "Español", lang: "es" } }`.
+  Starlight's language picker, `hreflang` links and per-page fallback notice (shown in the
+  visitor's locale) come built in. English is the root only because it is the source the
+  pages are written in (as with slice 50's `default_locale`).
+- **Launch set in Spanish**: `/es/` home, `/es/install/`, `/es/start/`, `/es/privacy/`,
+  `/es/help/` and `/es/help/errors/` (every slice 25 code), `/es/help/faq/`, and the
+  OpenRouter provider page. Other pages fall back to English with Starlight's notice.
+- **Extension links** use the interface locale: with Mira in Spanish they point to
+  `<site>/es/help/errors/#<code>`, else the root. Anchors (error codes) are identical in
+  every locale, so one CI check covers both. `stable-urls.txt` lists the Spanish URLs too.
+- **Privacy policy**: the Spanish page is a translation of slice 28's policy with the same
+  version number and date, and a line saying which version governs if they differ (slice
+  28 decides); CI fails if their versions differ.
+- **Source and translation**: English Markdown in `site/src/content/docs/`; Spanish in
+  `site/src/content/docs/es/`. Spanish pages are written or reviewed by a Spanish speaker
+  before launch; after launch the `docs` component on Weblate (50 section 9) handles more
+  locales. Front matter `sourceHash` records the English version a translation was made
+  from; CI lists translations whose English source changed since, as a warning.
+- **Examples for more than one base language**: the docs explain Mira with an English
+  reader and a Spanish reader side by side ("dog" becomes 犬 on English pages, "perro"
+  becomes 犬 on Spanish pages), and never say Mira "replaces English words".
+- **Screenshots** are generated per locale (section 6) so a Spanish page shows the Spanish
+  interface.
+
+### 4. Content rules
+
+- Plain language in every locale, short sentences, second person, no emojis, matching
+  slice 05's voice and slice 50's glossary.
 - Every procedure is numbered steps, one action each, with a screenshot where a button is
   hard to find.
 - Each page starts with a one-sentence answer, then detail.
@@ -112,7 +149,7 @@ the codes in slice 25's `extension/errors.js` with the anchors on the page.
 - Provider pages link to the provider's own pricing and privacy pages rather than
   restating them.
 
-### 4. Design
+### 5. Design
 
 - Slice 06's tokens mapped onto Starlight's CSS custom properties; slice 05's logo and
   favicon; light and dark follow the system with a toggle.
@@ -121,15 +158,17 @@ the codes in slice 25's `extension/errors.js` with the anchors on the page.
   (it is plain JS) to swap a sample paragraph as the visitor picks a language. Optional; a
   static before/after image is the fallback.
 
-### 5. Screenshots
+### 6. Screenshots
 
 Generated, not hand-made: `site/scripts/screenshots.mjs` uses slice 02's Playwright
 setup to load the unpacked extension on fixture pages and capture the popup, dashboard,
-popover and welcome page in light and dark at fixed sizes. CI regenerates them on
+popover and welcome page in light and dark at fixed sizes, once per docs locale (`en` and
+`es`, with slice 02's browser-language profiles and a Spanish fixture page for the Spanish
+shots). CI regenerates them on
 release so the docs match the shipped UI. Slice 28's store screenshots can use the same
 script at 1280x800.
 
-### 6. Build, checks and deploy
+### 7. Build, checks and deploy
 
 - GitHub Actions workflow `site.yml`: on pushes to `main` that touch `site/**`,
   `CHANGELOG.md` or `extension/errors.js`, and on every release tag.
@@ -143,7 +182,7 @@ script at 1280x800.
 - The README shrinks to a short description, a screenshot, install links and a link to
   the site; developer setup moves to `/contribute/`.
 
-### 7. Privacy of the site
+### 8. Privacy of the site
 
 No analytics, cookies, embedded videos or third-party scripts. GitHub Pages itself sees
 visitors' IP addresses under GitHub's privacy statement; the privacy policy says so in the
@@ -161,14 +200,18 @@ row for dictionary downloads (slice 28 section 1).
 - [ ] The built site makes no request to any host other than its own (checked with
       Playwright's request log on every page).
 - [ ] The privacy page matches the extension's bundled `privacy.html` byte for byte in
-      its content section (CI diff).
+      its content section (CI diff), in English and in Spanish.
+- [ ] Every page in section 3's Spanish launch set exists under `/es/`, and with the
+      extension in Spanish every "Learn more" link opens a Spanish page.
+- [ ] A Spanish speaker outside the project installs and adds a first word using only
+      `/es/install/` and `/es/start/`.
 
 ## Test plan
 
-- CI as in section 6, run on every PR that touches `site/**` (deploy only on `main`).
+- CI as in section 7, run on every PR that touches `site/**` (deploy only on `main`).
 - A Playwright smoke test that opens `/connect/?code=test` with the unpacked extension and
   asserts the extension receives the code (slice 11's callback).
-- Manual review of each page against section 3's rules before launch, and of provider
+- Manual review of each page against section 4's rules before launch, and of provider
   pages each release.
 
 ## Rollout and migration
@@ -190,6 +233,6 @@ row for dictionary downloads (slice 28 section 1).
 
 ## Future work
 
-- Translated docs with slice 50.
+- More docs locales through Weblate, and Spanish for the remaining learner pages.
 - A "what's new" page per release with short clips.
 - Server API reference generated from route definitions.
