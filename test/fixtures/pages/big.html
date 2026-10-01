@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Big fixture</title>
+</head>
+<body>
+  <!-- Slices 14, 15 perf: about 100,000 text nodes (about 2 MB of text) generated at load. -->
+  <div id="root"></div>
+  <script>
+    const filler = ["the", "quick", "brown", "fox", "jumps", "over", "a", "lazy", "dog", "near", "the", "house"];
+    const root = document.getElementById("root");
+    const frag = document.createDocumentFragment();
+    let n = 0;
+    for (let i = 0; i < 20000; i++) {
+      const p = document.createElement("p");
+      for (let j = 0; j < 5; j++) {
+        const words = [];
+        for (let k = 0; k < 3; k++) words.push(filler[(i * 7 + j * 3 + k) % filler.length]);
+        const text = document.createTextNode(`Line ${i}.${j}: ${words.join(" ")}, thanks. `);
+        if (j % 2) {
+          const span = document.createElement("span");
+          span.append(text);
+          p.append(span);
+        } else {
+          p.append(text);
+        }
+        n++;
+      }
+      frag.append(p);
+    }
+    root.append(frag);
+    document.body.dataset.textNodes = String(n);
+  </script>
+</body>
+</html>

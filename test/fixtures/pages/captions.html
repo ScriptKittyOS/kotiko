@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Captions fixture</title>
+</head>
+<body>
+  <!-- Slice 52: a fake caption track whose text updates every 100 ms, like a video player. -->
+  <div id="player" style="position:relative;width:480px;height:270px;background:#111">
+    <div id="captions" aria-live="off"
+         style="position:absolute;bottom:12px;width:100%;text-align:center;color:#fff">
+      <span class="caption-line"></span>
+    </div>
+  </div>
+  <script>
+    const cues = [
+      "Welcome to the house.",
+      "Thanks for watching.",
+      "The dog is in the house.",
+      "Thank you, and good night.",
+    ];
+    const line = document.querySelector(".caption-line");
+    let i = 0;
+    setInterval(() => {
+      line.textContent = cues[Math.floor(i / 10) % cues.length];
+      i++;
+    }, 100);
+  </script>
+</body>
+</html>

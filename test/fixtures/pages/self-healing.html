@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Self-healing fixture</title>
+</head>
+<body>
+  <!-- Slice 15 (research 06 F08): the page reverts any change to its paragraph. -->
+  <p id="owned">A good house and a good dog.</p>
+  <p id="reverts">0</p>
+  <script>
+    const p = document.getElementById("owned");
+    const original = p.textContent;
+    let reverts = 0;
+    new MutationObserver(() => {
+      if (p.textContent !== original || p.childNodes.length !== 1) {
+        reverts++;
+        document.getElementById("reverts").textContent = String(reverts);
+        p.textContent = original;
+      }
+    }).observe(p, { childList: true, subtree: true, characterData: true });
+  </script>
+</body>
+</html>

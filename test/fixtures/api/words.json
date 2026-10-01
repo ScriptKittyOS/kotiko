@@ -1,0 +1,54 @@
+{
+  "words": [
+    {
+      "id": 5,
+      "lang": "ru",
+      "language": "Russian",
+      "native": "дом",
+      "romanization": "dom",
+      "english": "house",
+      "forms": ["house", "houses"],
+      "note": null
+    },
+    {
+      "id": 4,
+      "lang": "ar",
+      "language": "Arabic",
+      "native": "بيت",
+      "romanization": "bayt",
+      "english": "house",
+      "forms": ["house", "houses"],
+      "note": "Masculine."
+    },
+    {
+      "id": 3,
+      "lang": "ar",
+      "language": "Arabic",
+      "native": "شكرا",
+      "romanization": "shukran",
+      "english": "thanks",
+      "forms": ["thanks"],
+      "note": null
+    },
+    {
+      "id": 2,
+      "lang": "zh",
+      "language": "Mandarin",
+      "native": "谢谢",
+      "romanization": "xièxie",
+      "english": "thanks",
+      "forms": ["thanks", "thank you"],
+      "note": null
+    },
+    {
+      "id": 1,
+      "lang": "ru",
+      "language": "Russian",
+      "native": "спасибо",
+      "romanization": "spasibo",
+      "english": "thanks",
+      "forms": ["thanks", "thank you"],
+      "note": "Most common way to say thanks."
+    }
+  ]
+}

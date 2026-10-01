@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-License-Identifier: Apache-2.0
+
 const ext = globalThis.browser ?? globalThis.chrome;
 const $ = (id) => document.getElementById(id);
 

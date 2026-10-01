@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Shadow DOM fixture</title>
+</head>
+<body>
+  <!-- Slice 42 (research 06 F26): open and closed shadow roots, nested custom elements. -->
+  <p id="light">A house in the light DOM.</p>
+  <open-card id="open"></open-card>
+  <closed-card id="closed"></closed-card>
+  <outer-card id="nested"></outer-card>
+  <script>
+    customElements.define("open-card", class extends HTMLElement {
+      connectedCallback() {
+        const root = this.attachShadow({ mode: "open" });
+        const p = document.createElement("p");
+        p.textContent = "A house in an open shadow root. Thanks!";
+        root.append(p);
+      }
+    });
+    customElements.define("closed-card", class extends HTMLElement {
+      connectedCallback() {
+        const root = this.attachShadow({ mode: "closed" });
+        const p = document.createElement("p");
+        p.textContent = "A house in a closed shadow root.";
+        root.append(p);
+      }
+    });
+    customElements.define("outer-card", class extends HTMLElement {
+      connectedCallback() {
+        const root = this.attachShadow({ mode: "open" });
+        const p = document.createElement("p");
+        p.textContent = "Outer house, ";
+        const slot = document.createElement("slot");
+        const inner = document.createElement("open-card");
+        root.append(p, slot, inner);
+      }
+    });
+  </script>
+</body>
+</html>
