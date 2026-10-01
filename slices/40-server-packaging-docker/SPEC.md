@@ -26,7 +26,8 @@ documented way to restore.
 - A `mix release` build usable without Elixir installed, attached to each GitHub release
   for Linux (x86_64, arm64).
 - Service definitions for Linux (user and system), macOS (launchd) and Windows (Task
-  Scheduler), with Docker and Linux officially supported.
+  Scheduler). Docker, Linux, macOS and Windows are all officially supported (maintainer
+  decision): each is tested in CI or before every release.
 - Backups on demand, before migrations, and a documented restore.
 
 ## Non-goals
@@ -141,10 +142,11 @@ pairing string.
 - **macOS**: `deploy/macos/org.scriptkittyos.mira.plist`, a LaunchAgent with
   `RunAtLoad`, `KeepAlive` (`SuccessfulExit: false`), logs to `~/Library/Logs/Mira/`,
   plus `deploy/macos/install.sh` that fills in paths and runs `launchctl bootstrap gui/$UID`.
-  Best effort: tested manually before each minor release.
+  Officially supported: CI runs the release build and a launchd smoke test on a macOS runner.
 - **Windows**: `deploy/windows/install.ps1` registers a Task Scheduler task "at log on"
   running `bin\mira.bat start` with restart on failure (simpler than a Windows service,
-  [04 S12](../../docs/research/04-architecture-release.md)). Best effort, community-tested.
+  [04 S12](../../docs/research/04-architecture-release.md)). Officially supported: CI runs the
+  install script and a health check on a Windows runner.
   The release tarball for Windows is Future work (exqlite needs a Windows build).
 
 ### 5. Backups
@@ -191,8 +193,10 @@ pairing string.
 
 ## Open questions
 
-1. **Supported platforms.** Recommendation: Docker and Linux official; macOS and Windows
-   best effort and community-tested (as in the index's open question 6).
+1. **Supported platforms.** Decided by the maintainer: all of them (Docker, Linux, macOS,
+   Windows). Open: whether the Windows release tarball (blocked on an exqlite Windows build,
+   Future work) is needed for launch or Docker Desktop covers Windows until then.
+   Recommendation: Docker Desktop for launch.
 2. **Publish `:latest`?** Recommendation: yes, but the compose file pins the minor (`:0.3`)
    so upgrades across minors are deliberate.
 

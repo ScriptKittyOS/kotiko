@@ -6,6 +6,25 @@ and why. Open questions live in each slice's own "Open questions" section and in
 
 ## 2026-10-01
 
+**Security and conduct reports go to security@scriptkittyos.com.** *Maintainer.* SECURITY.md's
+email fallback and the code of conduct's enforcement contact. `hello@scriptkittyos.com`
+stays the general and store-listing contact. See [03](03-oss-foundations/SPEC.md).
+
+**Buttons and menus stay in the learner's own language.** *Maintainer.* Words inside
+buttons, menus and labels are never swapped by default, so controls like "Delete" and
+"Send" always read as expected. See [16](16-what-not-to-swap/SPEC.md).
+
+**Learners bring their own key and their own model, entered on a full extension page.**
+*Maintainer.* Each learner uses their own LLM: an OpenRouter key (free models by default),
+another provider, or a model on their own machine. The key is typed on the welcome tab or in
+the dashboard's settings, never in the popup, and is stored where web pages can't reach it.
+See [11](11-local-first-mode/SPEC.md), [21](21-dashboard/SPEC.md) and
+[22](22-first-run-onboarding/SPEC.md).
+
+**The server is supported on every platform we can: Docker, Linux, macOS and Windows.**
+*Maintainer.* All four are official and tested in CI. See
+[40](40-server-packaging-docker/SPEC.md).
+
 **Logo: the maintainer's kitten, on tile purple `#8E5EFA`.** *Maintainer.* A black kitten
 with orange eyes and a purple outline ([`brand/source/mira-original.png`](../brand/source/mira-original.png)),
 now the extension icon at every size on a `#8E5EFA` tile (from the artist's mockup; it

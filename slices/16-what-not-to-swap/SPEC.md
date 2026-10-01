@@ -299,9 +299,10 @@ last two in settings."
 
 ## Open questions
 
-1. **Swap inside buttons and menus by default?** (README question 5.) Recommendation: off.
-   Learning value is small compared with misclicks, voice-control breakage and Label in Name
-   failures; the setting is one click away.
+1. **Swap inside buttons and menus by default?** Decided by the maintainer: no. Buttons,
+   menus and labels stay in the learner's own language (the page's base language,
+   English today; slice [50](../50-ui-localization-and-base-language/SPEC.md) for others).
+   The setting stays available for learners who want it.
 2. **Sensitive-sites list contents.** Recommendation: start small (patterns above plus a few
    dozen widely used banks and payment providers), keep it in the repository, and accept
    additions by pull request; never fetch it remotely.

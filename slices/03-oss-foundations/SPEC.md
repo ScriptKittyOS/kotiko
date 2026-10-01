@@ -147,16 +147,16 @@ All under `.github/` unless noted; written in plain language, no emojis.
   5. Prompt or validator changes must include slice 09's eval summary.
   6. The contributor terms from section 2. Licensing of new files (SPDX header).
   7. Where to ask: GitHub Discussions.
-- **Contact.** The project's public contact everywhere (README, CONTRIBUTING, code of
-  conduct, store listings per slice 30) is `hello@scriptkittyos.com` (maintainer decision).
+- **Contact.** The project's general public contact (README, CONTRIBUTING, store listings
+  per slice 30) is `hello@scriptkittyos.com`. Security and code-of-conduct reports go to
+  `security@scriptkittyos.com` (maintainer decisions).
 - **`CODE_OF_CONDUCT.md`** (root): Contributor Covenant 2.1, unmodified except the
-  enforcement contact, `hello@scriptkittyos.com`.
+  enforcement contact, `security@scriptkittyos.com`.
 - **`SECURITY.md`** (root): supported versions (the latest minor release only, pre-1.0);
   report privately through GitHub's private vulnerability reporting ("Report a
   vulnerability" on the Security tab), which this slice switches on. Email fallback for
-  people without a GitHub account: `hello@scriptkittyos.com` with "Security" in the
-  subject. No separate `security@` alias: one monitored inbox beats a second one that may
-  go unread, and GitHub's form is the preferred channel anyway. What to include;
+  people without a GitHub account: `security@scriptkittyos.com` (maintainer decision).
+  GitHub's form stays the preferred channel. What to include;
   acknowledgement within 7 days and a fix or plan within 30; scope (server auth, token
   handling, extension pages, anything that runs on web pages) and out of scope (a
   self-hosted server deliberately exposed without a token, issues in Telegram or model
@@ -251,8 +251,8 @@ if the rename lands first. No user-facing change; no changelog entry beyond the 
 
 ## Open questions
 
-1. **Who reads `hello@scriptkittyos.com`?** It is now the conduct and security fallback
-   contact. Recommendation: make sure it reaches at least two people, so a report about a
+1. **Who reads `security@scriptkittyos.com`?** It receives security and conduct reports.
+   Recommendation: make sure it reaches at least two people, so a report about a
    maintainer has somewhere to go.
 2. **DCO.** Recommendation: none, as in section 2; revisit if a company asks to contribute
    large changes.

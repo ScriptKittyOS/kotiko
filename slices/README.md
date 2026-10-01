@@ -113,9 +113,12 @@ phases that can overlap:
 
 ## Open questions for the maintainers
 
-Collected from the slices; each slice repeats its own with a recommendation. Already
-decided: license (Apache-2.0), celebrations (on by default), store publisher
-(ScriptKittyOS, hello@scriptkittyos.com) and the logo (a black kitten on `#8E5EFA`); see [DECISIONS.md](DECISIONS.md).
+Collected from the slices; each slice repeats its own with a recommendation. Everything else
+is decided; see [DECISIONS.md](DECISIONS.md).
 
-1. **Swap inside buttons and menus?** Recommended off by default. ([16](16-what-not-to-swap/SPEC.md))
-2. **Supported server platforms.** Docker and Linux officially; macOS and Windows best effort? ([40](40-server-packaging-docker/SPEC.md))
+1. **Starter packs.** Should Mira ship ready-made word lists ("50 everyday Spanish
+   words") so a new learner sees words on pages right away, before typing any or setting up
+   a key? If yes: which languages first, and who checks each list for mistakes?
+   ([23](23-starter-packs/SPEC.md))
+2. **Who reads security@scriptkittyos.com?** Ideally at least two people.
+   ([03](03-oss-foundations/SPEC.md))

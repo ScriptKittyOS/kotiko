@@ -218,6 +218,13 @@ move with slice 39, not here.
   next to it would add nothing. The provider screen recommends an OpenRouter key with a
   credit limit ([04 S24](../../docs/research/04-architecture-release.md)).
 - Keys never go into `storage.sync`, exports (slice 12) or logs.
+- **Where the key is typed (maintainer decision):** only on full extension pages, the
+  welcome tab ([22](../22-first-run-onboarding/SPEC.md)) and the dashboard's settings
+  ([21](../21-dashboard/SPEC.md)), never in the popup. Both pages have the same isolation
+  as the popup, but a full page doesn't close when the learner switches tabs to copy the
+  key, and it has room for the provider choice, the masked key, "Test" and the privacy note.
+  The popup only links there. Any provider in section 4 works, including a model running
+  on the learner's own machine.
 
 ### 4. Provider presets
 
@@ -391,8 +398,9 @@ on the next alarm.
 
 ### 9. Edge cases
 
-- **No key yet**: see section 5; the popup offers the OpenRouter button and "Add it
-  myself".
+- **No key yet**: see section 5; the popup offers "Set up lookups", which opens the
+  dashboard's settings (or the welcome tab during first run). The key is never typed in
+  the popup.
 - **Key replaced or provider switched mid-lookup**: the attempt is aborted
   (`AbortController`) and the job retried with the new settings ([06 F11](../../docs/research/06-adversarial-qa.md)).
 - **Two windows add the same word**: the `natural` transaction merges them (slice 24
