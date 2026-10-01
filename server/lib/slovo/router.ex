@@ -4,8 +4,9 @@ defmodule Slovo.Router do
   alias Slovo.{LLM, Word, Words}
 
   plug :match
-  plug Plug.Parsers, parsers: [:json], json_decoder: Jason, pass: ["*/*"]
   plug :authorize
+  # Only after auth, so strangers can't make the server parse large bodies.
+  plug Plug.Parsers, parsers: [:json], json_decoder: Jason, pass: ["*/*"], length: 64_000
   plug :dispatch
 
   get "/health" do
@@ -82,8 +83,12 @@ defmodule Slovo.Router do
     |> send_resp(status, Jason.encode!(body))
   end
 
-  # Everything under /api needs the Bearer token; /health doesn't.
-  defp authorize(%{path_info: ["api" | _]} = conn, _opts) do
+  # Deny by default: only the exact /health path is open. path_info is not yet
+  # percent-decoded here, but routing decodes it, so matching on ["api" | _] let
+  # "/%61pi/words" through without a token.
+  defp authorize(%{path_info: ["health"]} = conn, _opts), do: conn
+
+  defp authorize(conn, _opts) do
     expected = Application.fetch_env!(:slovo, :api_token)
 
     case get_req_header(conn, "authorization") do
@@ -94,8 +99,6 @@ defmodule Slovo.Router do
         deny(conn)
     end
   end
-
-  defp authorize(conn, _opts), do: conn
 
   defp deny(conn), do: conn |> send_resp(401, "unauthorized") |> halt()
 end
