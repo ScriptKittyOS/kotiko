@@ -1,0 +1,19 @@
+name: Idea or feature request
+description: Suggest something Mira could do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's the problem or wish?
+      description: Start with what you were trying to do.
+    validations: { required: true }
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+  - type: input
+    id: slice
+    attributes:
+      label: Related slice, if any
+      description: The roadmap is in the slices folder.
