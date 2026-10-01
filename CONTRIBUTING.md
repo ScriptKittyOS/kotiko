@@ -1,10 +1,12 @@
-# Contributing to Mira
+# Contributing to Kotiko
 
-Mira swaps English words on web pages for the words you're learning, in any language. It's
+Kotiko swaps words on web pages, in your own language, for the words you're learning in any
+other language. It's
 a free, open-source project from ScriptKittyOS, and contributions are welcome.
 
-> The code still uses the project's old name, Slovo, in places (module names, paths). The
-> rename is [slice 04](slices/04-rename-to-mira/SPEC.md).
+> The code still uses the project's old name, Slovo, in places (module names, paths), and
+> the source headers still say Kotiko. The rename to Kotiko is
+> [slice 04](slices/04-rename-to-kotiko/SPEC.md).
 
 ## Where decisions live
 
@@ -57,13 +59,13 @@ the server.
 
 ## Licensing
 
-Mira is licensed under [Apache-2.0](LICENSE). By submitting a contribution, you license it
+Kotiko is licensed under [Apache-2.0](LICENSE). By submitting a contribution, you license it
 under the same terms (section 5 of the license); there is no CLA and no sign-off to add.
 
 New source files start with an SPDX header:
 
 ```
-// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 ```
 

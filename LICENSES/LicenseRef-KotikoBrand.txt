@@ -1,9 +1,9 @@
-Mira brand assets
+Kotiko brand assets
 Copyright 2026 ScriptKittyOS. All rights reserved.
 
-The Mira name, logo, icons and illustrations (the files under brand/ and the extension
+The Kotiko name, logo, icons and illustrations (the files under brand/ and the extension
 icons) are trademarks of ScriptKittyOS. They are not licensed under Apache-2.0.
 
-You may use them unmodified to refer to Mira, for example in articles, reviews and
+You may use them unmodified to refer to Kotiko, for example in articles, reviews and
 links to the project. You may not use them for a fork, a modified version, or any other
 product. Forks must use their own name and artwork.

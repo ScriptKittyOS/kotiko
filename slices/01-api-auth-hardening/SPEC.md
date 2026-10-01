@@ -25,7 +25,7 @@ only the exact raw path `["health"]` is open, everything else needs
 
 - **DNS rebinding.** Bandit doesn't check `Host`. A web page on `evil.example` can rebind
   its name to `127.0.0.1` and reach the server same-origin. It still lacks the token, so
-  today it learns only that Mira runs (`/health`), but any future unauthenticated route
+  today it learns only that Kotiko runs (`/health`), but any future unauthenticated route
   (Telegram pairing, slice 41) would be exposed ([06 F01](../../docs/research/06-adversarial-qa.md) impact, [04 S26](../../docs/research/04-architecture-release.md)).
 - **Weak or hand-made tokens.** The setup asks people to run `openssl rand -hex 24`
   (`README.md:37`, `server/.env.example:3`). Nothing enforces a length; any non-empty
@@ -63,7 +63,7 @@ only the exact raw path `["health"]` is open, everything else needs
 - As a self-hoster, I want the server to make its own strong token so setup is one step shorter.
 - As someone who exposed the server to my LAN, I want a clear warning and a pointer to a
   safer setup.
-- As a learner, I want no website I visit to be able to talk to my Mira server.
+- As a learner, I want no website I visit to be able to talk to my Kotiko server.
 
 ## Specification
 
@@ -74,7 +74,7 @@ only the exact raw path `["health"]` is open, everything else needs
   `/health` is let through to routing, where only GET matches; restricting it here makes
   the rule explicit.)
 - New routers (slice 07's `/api/v1`) are mounted under the same plug, never with their
-  own skip rules. If the API moves to `forward "/api/v1", to: Mira.API.V1`, auth stays in
+  own skip rules. If the API moves to `forward "/api/v1", to: Kotiko.API.V1`, auth stays in
   the parent pipeline.
 - `Authorization` must be exactly one header of the form `Bearer <token>`. Today's
   behaviour for a lowercase `bearer` and duplicate headers is already a 401 ([06 summary](../../docs/research/06-adversarial-qa.md)); tests pin it.
@@ -88,17 +88,17 @@ only the exact raw path `["health"]` is open, everything else needs
 
 ### 2. Host allowlist (DNS rebinding)
 
-A plug, `Mira.Plug.HostCheck`, runs before `authorize` on every request, `/health`
+A plug, `Kotiko.Plug.HostCheck`, runs before `authorize` on every request, `/health`
 included.
 
 - Parse the `Host` header (or `:authority`), drop the port, lowercase, strip the trailing
   dot and IPv6 brackets.
 - **Allowed**: `localhost`; any IP literal (IPv4 or IPv6); any name in `ALLOWED_HOSTS`
-  (comma-separated, e.g. `mira.tail1234.ts.net,mira.home.example`); the system hostname
+  (comma-separated, e.g. `kotiko.tail1234.ts.net,kotiko.home.example`); the system hostname
   and `<hostname>.local`. IP literals are always allowed because DNS rebinding needs a
   domain name; an attacker can't make a browser send `Host: 192.168.1.5` from their page.
 - **Refused**: anything else, with `421 Misdirected Request` and
-  `{"error": {"code": "server_address_invalid", "message": "This Mira server doesn't answer to <name>. Add it to ALLOWED_HOSTS in .env.", "details": {"reason": "host_not_allowed"}}}`.
+  `{"error": {"code": "server_address_invalid", "message": "This Kotiko server doesn't answer to <name>. Add it to ALLOWED_HOSTS in .env.", "details": {"reason": "host_not_allowed"}}}`.
   Logged at info once per name per hour (names only, no paths).
 - Missing `Host` (HTTP/1.0 tools): allowed only from a loopback peer address.
 - `ALLOWED_HOSTS=*` disables the check, with a startup warning, for unusual proxy setups.
@@ -112,18 +112,18 @@ included.
   `File.open/2` under a restrictive umask, then `File.chmod/2`), followed by a newline.
 - **Minimum**: 24 characters after trimming. Shorter (including whitespace-only) fails
   boot through slice 29's config error: "API_TOKEN is too short (12 characters). Use at
-  least 24, or delete it from .env and Mira will make a strong one for you." ([06 F34](../../docs/research/06-adversarial-qa.md))
+  least 24, or delete it from .env and Kotiko will make a strong one for you." ([06 F34](../../docs/research/06-adversarial-qa.md))
 - **Startup line** (info): "API token: from .env" or "API token: saved in
-  /home/ana/.local/share/mira/api-token". The token itself is printed only when standard
+  /home/ana/.local/share/kotiko/api-token". The token itself is printed only when standard
   output is a terminal (interactive `./run.sh`) and the token was just generated; it is
   never written to journald.
 - **Mix tasks** (and release equivalents in slice 40):
-  - `mix mira.token` prints the token and the pairing string (below).
-  - `mix mira.token --rotate` writes a new token file and tells the user to restart and
+  - `mix kotiko.token` prints the token and the pairing string (below).
+  - `mix kotiko.token --rotate` writes a new token file and tells the user to restart and
     update the extension. If `API_TOKEN` is set in `.env`, it refuses and says to edit
     `.env` instead.
 - `.env.example` changes `API_TOKEN=` to a commented line: "Optional. Leave empty and
-  Mira creates a strong token in the data folder." `README` drops the `openssl` step.
+  Kotiko creates a strong token in the data folder." `README` drops the `openssl` step.
 
 ### 4. Pairing string
 
@@ -131,18 +131,18 @@ So the extension (slice 11's server connection, slice 22's onboarding) can take 
 pasted value instead of a URL and a token:
 
 ```
-mira-pair:1:<base64url(JSON {"url": "http://100.101.102.103:4747", "token": "..."})>
+kotiko-pair:1:<base64url(JSON {"url": "http://100.101.102.103:4747", "token": "..."})>
 ```
 
 - `url` is built from `PUBLIC_URL` if set, else from `BIND` and `PORT`
   (`http://127.0.0.1:4747` for loopback; for `0.0.0.0`, the first non-loopback IPv4).
-- Printed by `mix mira.token`, never logged.
+- Printed by `mix kotiko.token`, never logged.
 - The extension parses it and fills both fields; a plain token still works. Parsing is
   slice 11's; the format is defined here.
 
 ### 5. Exposure warnings at startup
 
-`Mira.Exposure.classify(bind_ip)` after slice 29 resolves `BIND`:
+`Kotiko.Exposure.classify(bind_ip)` after slice 29 resolves `BIND`:
 
 | Bind address | Level | Message |
 |---|---|---|
@@ -152,7 +152,7 @@ mira-pair:1:<base64url(JSON {"url": "http://100.101.102.103:4747", "token": "...
 | 0.0.0.0, :: | warning | "Listening on every network interface over plain HTTP. ..." plus the same advice. |
 | Public address | warning, repeated every 24 h | "This address is reachable from the internet over plain HTTP. ..." |
 
-When `MIRA_IN_CONTAINER=1` (set by slice 40's image, where `BIND=0.0.0.0` is normal and
+When `KOTIKO_IN_CONTAINER=1` (set by slice 40's image, where `BIND=0.0.0.0` is normal and
 the compose file maps the port to `127.0.0.1`), the `0.0.0.0` warning is replaced by an
 info line explaining that exposure depends on the port mapping.
 
@@ -178,7 +178,7 @@ info line explaining that exposure depends on the port mapping.
 - [ ] With no `API_TOKEN`, first boot creates a 43-character token file with mode 0600;
       a second boot reuses it.
 - [ ] `API_TOKEN="   "` and `API_TOKEN=short` stop boot with the message in section 3.
-- [ ] `mix mira.token --rotate` changes the token and old requests then get 401.
+- [ ] `mix kotiko.token --rotate` changes the token and old requests then get 401.
 - [ ] The pairing string decodes to the configured URL and token.
 - [ ] Startup logs the right exposure line for each bind class in section 5.
 - [ ] `DELETE /api/words/99999999999999999999999` returns 404.
@@ -186,16 +186,16 @@ info line explaining that exposure depends on the port mapping.
 
 ## Test plan
 
-- ExUnit `Mira.RouterAuthTest` with `Plug.Test`: the matrix is generated from lists, so a
+- ExUnit `Kotiko.RouterAuthTest` with `Plug.Test`: the matrix is generated from lists, so a
   new route is added in one place. Encoded paths built with `Plug.Adapters.Test.Conn`
   so `path_info` stays raw, matching how Bandit delivers it.
 - One integration test against a real Bandit listener on a random port (`port: 0`) with
   raw `:gen_tcp` requests, because `Plug.Test` decodes nothing and Bandit's own handling
   of `%2F` and `..` must be covered too.
-- `Mira.Plug.HostCheckTest`: table of Host values.
+- `Kotiko.Plug.HostCheckTest`: table of Host values.
 - Token tests with a temp data dir: generation, permissions (`File.stat` mode), reuse,
   minimum length, rotation, `API_TOKEN` precedence.
-- `Mira.ExposureTest`: classification table including IPv6.
+- `Kotiko.ExposureTest`: classification table including IPv6.
 - Manual: a DNS-rebinding check with a hosts-file entry `127.0.0.1 evil.test` and a
   browser request to `http://evil.test:4747/health` returns 421.
 
@@ -207,8 +207,8 @@ info line explaining that exposure depends on the port mapping.
 - People who reach the server by a DNS name (MagicDNS, a reverse proxy) must add it to
   `ALLOWED_HOSTS`; the 421 message says exactly that. Release notes list this first.
 - Changelog: "Security: the server now refuses requests addressed to unknown host names
-  (protection against DNS rebinding). If you reach Mira by a name such as a Tailscale
-  MagicDNS name, add it to ALLOWED_HOSTS. Mira can now create its own API token: leave
+  (protection against DNS rebinding). If you reach Kotiko by a name such as a Tailscale
+  MagicDNS name, add it to ALLOWED_HOSTS. Kotiko can now create its own API token: leave
   API_TOKEN empty."
 
 ## Open questions

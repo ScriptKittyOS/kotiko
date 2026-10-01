@@ -17,11 +17,11 @@ Swapped words leak into everything the user does with a page (03, read from the 
   "Gracias for the coffee" in an email or a document (03 D1); for a Spanish reader learning
   Japanese, "Gracias por el café" becomes "ありがとう por el café".
 - **Printing** and "Save as PDF" print the swapped page (03 B10).
-- **Machine translation** collides with Mira. Chrome's built-in translation and Google Translate
-  wrap text in `<font>` elements and change `<html lang>`; Mira's observer then matches words
+- **Machine translation** collides with Kotiko. Chrome's built-in translation and Google Translate
+  wrap text in `<font>` elements and change `<html lang>`; Kotiko's observer then matches words
   inside translated output (an English page translated into Spanish would get Spanish-base
-  swaps on top of machine output), and the translator may translate Mira's words back into the
-  learner's language (03 D7). The translator also replaces the text nodes Mira's swap records
+  swaps on top of machine output), and the translator may translate Kotiko's words back into the
+  learner's language (03 D7). The translator also replaces the text nodes Kotiko's swap records
   point at, which slice 15's cleanup would otherwise read as the site removing them.
 
 ## Goals
@@ -30,7 +30,7 @@ Swapped words leak into everything the user does with a page (03, read from the 
   whatever language the page is in (setting, on by default), in plain text and HTML.
 - Printing shows the original page (setting, on by default) and the page returns to its
   swapped state afterwards, identically.
-- Swapped words survive page translation untouched, Mira stays out of the translator's way while
+- Swapped words survive page translation untouched, Kotiko stays out of the translator's way while
   a page is translated, and resumes cleanly when translation is turned off.
 
 ## Non-goals
@@ -46,8 +46,8 @@ Swapped words leak into everything the user does with a page (03, read from the 
 - As someone printing a recipe, the printout is the recipe as written, in English or in
   Spanish.
 - As a learner who translates a page into Portuguese, my Spanish words stay Spanish inside the
-  translated sentences, and Mira doesn't scramble the translation.
-- As a Spanish reader who translates an English page into Spanish, I don't want Mira to start
+  translated sentences, and Kotiko doesn't scramble the translation.
+- As a Spanish reader who translates an English page into Spanish, I don't want Kotiko to start
   swapping words in the machine's Spanish halfway through.
 
 ## Specification
@@ -63,7 +63,7 @@ run first.
 onCopy(e):
   if !settings.copyOriginal or e.defaultPrevented: return    // the site wrote its own data
   sel = getSelection(); if !sel or sel.isCollapsed: return
-  swaps = mira-w elements intersecting any range, in document order
+  swaps = kotiko-w elements intersecting any range, in document order
           (range.intersectsNode over querySelectorAll within each range's common ancestor,
            plus shadow roots from 42 where the selection's anchor lives)
   if swaps is empty: return                                     // default copy, untouched
@@ -84,7 +84,7 @@ onCopy(e):
   html = ""
   for range in ranges:
     frag = range.cloneContents()
-    clones = frag.querySelectorAll("mira-w")                    // same order as originals
+    clones = frag.querySelectorAll("kotiko-w")                    // same order as originals
     zip(clones, swaps in this range): replace each clone with a Text node of its original's surface
     html += serialize(frag)                                     // via a detached <div>
   e.clipboardData.setData("text/plain", text)
@@ -133,25 +133,25 @@ in the translated sentence.
 | `lang` changes from the page's original language to another one | Firefox Translations, Edge, others |
 | `_msttexthash` attributes appearing on elements under body (checked when an added `font` or text batch arrives) | Microsoft Translator in Edge |
 
-**While translated**, Mira is frozen:
+**While translated**, Kotiko is frozen:
 
 - no new swaps (the observer keeps running but only records);
 - slice 15's orphan cleanup is suspended, because the translator, not the site, is replacing nodes
-  Mira tracks, and it restores them when translation is undone;
+  Kotiko tracks, and it restores them when translation is undone;
 - existing swaps stay, untouched.
 
 **When translation is undone** (class removed, `lang` back to the original language): leave frozen mode, run
 slice 15's reconciliation (restore records whose original node is gone by replacing their
-`mira-w` elements with their original surface text, drop stale records), then re-apply. The page language gate
+`kotiko-w` elements with their original surface text, drop stale records), then re-apply. The page language gate
 (16) is re-evaluated at the same moment.
 
 **A page translated into one of the learner's base languages** stays frozen for as long as the
 translation is on, even though its new `lang` is a base: machine output is not what the author
 wrote, and swapping in it would mix two layers of substitution. The popup's page state says
-"This page is machine-translated. Mira waits until you switch back to the original."
-(Spanish: "Esta página está traducida automáticamente. Mira espera a que vuelvas al original.")
+"This page is machine-translated. Kotiko waits until you switch back to the original."
+(Spanish: "Esta página está traducida automáticamente. Kotiko espera a que vuelvas al original.")
 
-If translation is detected after Mira already processed some of the translator's mutations (the
+If translation is detected after Kotiko already processed some of the translator's mutations (the
 class can arrive a few milliseconds after the first replacements), the cleanup handler checks the
 class at handling time and skips removals whenever it is present.
 
@@ -164,7 +164,7 @@ class at handling time and skips removals whenever it is present.
       left to the browser.
 - [ ] A site that sets its own clipboard data (`preventDefault`) keeps it.
 - [ ] With "Print the original page" on, `page.emulateMedia({ media: "print" })` plus a `beforeprint`
-      dispatch shows no `mira-w`; after `afterprint`, the swapped DOM is identical to before.
+      dispatch shows no `kotiko-w`; after `afterprint`, the swapped DOM is identical to before.
 - [ ] On a fixture that simulates Chrome translation (class change plus `<font>` wrapping of text
       nodes), swaps survive, no new swaps are made inside `<font>`, and undoing translation
       returns a consistent page with no duplicated or missing text.
@@ -182,7 +182,7 @@ class at handling time and skips removals whenever it is present.
 ## Rollout and migration
 
 Both settings default on. Changelog: "Copying and printing now give you the page's original text,
-and Mira stays out of the way of page translation."
+and Kotiko stays out of the way of page translation."
 
 ## Open questions
 

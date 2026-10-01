@@ -11,7 +11,7 @@
 
 ## Problem
 
-When several of your languages know the same word of the page's language, Mira rotates through
+When several of your languages know the same word of the page's language, Kotiko rotates through
 them in page order: on an English page the first "thanks" is Spanish, the second Russian, the
 third Mandarin; on a Spanish page the first "gracias" is English, the second Japanese
 (`extension/content.js:87-89`). Read from the code (research 01):
@@ -57,7 +57,7 @@ Why not "most known": you'd mostly see what you already know. Why not "least kno
 gets harder, and your stronger languages starve. Why no proficiency setting: weights say what
 you want directly, and your word count per language is already visible (01 S3, S4). Note that
 "precedence" only matters for shared words: a language with 2,000 words still owns every word
-the others don't have. Focus and weights are the tools for that imbalance; Mira doesn't
+the others don't have. Focus and weights are the tools for that imbalance; Kotiko doesn't
 auto-weight by word count, because that is opaque (01 S4).
 
 ## Goals
@@ -322,7 +322,7 @@ these are the meanings each control must convey, with suggested wording.
 - Mixing options, under Languages: "Each word: **One language per page** (default) · Mix within
   the page · Always in this order".
 - Weights per language: "Less · Normal · More" (0.33, 1, 3), plus "Only when no other language
-  has it" (0). Help text: "Mira picks one of your languages for each word on a page.
+  has it" (0). Help text: "Kotiko picks one of your languages for each word on a page.
   'More' makes a language win more of the words your languages share."
 - Focus: the "only" link becomes a Focus button on each language, always visible (05 S33), and a
   strip shows while Focus is on, with a way to stop.

@@ -12,7 +12,7 @@
 ## Problem
 
 The Telegram bot is the maintainer's daily way to add words from the phone and the best
-mobile story Mira has ([05 S18](../../docs/research/05-learner-ux.md)). Its edges are rough:
+mobile story Kotiko has ([05 S18](../../docs/research/05-learner-ux.md)). Its edges are rough:
 
 - **Setup needs two restarts.** With `ALLOWED_TELEGRAM_IDS` empty the bot tells anyone
   who writes to it their ID and asks them to edit `.env` and restart
@@ -92,7 +92,7 @@ mobile story Mira has ([05 S18](../../docs/research/05-learner-ux.md)). Its edge
   - `GET /api/v1/telegram/pairing` (authenticated) → `{"code": "ABCD-2345",
     "expires_at": "...", "bot_username": "..."}`, so the extension's settings (slices 11
     and 21) can show it with a "Open in Telegram" link (`https://t.me/<bot>?start=ABCD2345`);
-  - `mix mira.telegram pair` (and `Mira.Release.telegram_pair/0`, slice 40).
+  - `mix kotiko.telegram pair` (and `Kotiko.Release.telegram_pair/0`, slice 40).
 - `/start ABCD-2345` (also accepted without the hyphen and in lowercase, and as the deep
   link payload) from any user, if the code matches and hasn't expired: insert them as
   owner, invalidate the code, reply "Linked. Send me a word in any language." Wrong code:
@@ -147,7 +147,7 @@ that no longer exists answers "That word is already gone." (as today, `bot.ex:27
 
 ### 5. Message limits (F33)
 
-- `Mira.Telegram.send_message/3` splits text over 4,000 characters at line breaks
+- `Kotiko.Telegram.send_message/3` splits text over 4,000 characters at line breaks
   (falling back to a hard cut) into several messages; buttons attach to the last one.
   Errors from `sendMessage` are logged at warning with the method name and status
   (slice 29 redacts the token).
@@ -158,7 +158,7 @@ that no longer exists answers "That word is already gone." (as today, `bot.ex:27
 ### 6. Pending cleanup (F38)
 
 - Pending rows are server-local and never synced (slice 07). The janitor (slice 07's
-  `Mira.Janitor`) hard-deletes pending rows older than 7 days.
+  `Kotiko.Janitor`) hard-deletes pending rows older than 7 days.
 - A tap on Add or Skip for an expired card: "That card expired. Send the word again."
 
 ### 7. Polling
@@ -174,7 +174,7 @@ that no longer exists answers "That word is already gone." (as today, `bot.ex:27
 
 ### 8. Copy
 
-`/help` gains a first line naming Mira (slice 04) and lists `/invite` and `/members` for
+`/help` gains a first line naming Kotiko (slice 04) and lists `/invite` and `/members` for
 the owner. `/start` without a code from an allowed user shows `/help`. Every string in this
 spec is a key in `server/priv/locales/<locale>/messages.json` (section 9); the English
 wording above is the `en` text, and the Spanish text ships with it.
@@ -184,10 +184,10 @@ wording above is the `en` text, and the Spanish text ships with it.
 Implements [50](../50-ui-localization-and-base-language/SPEC.md) for the bot. This section
 is P0.
 
-**Strings.** All bot text goes through `Mira.I18n.t(key, params, locale)` (50 section 8),
+**Strings.** All bot text goes through `Kotiko.I18n.t(key, params, locale)` (50 section 8),
 with keys prefixed `bot_` (`bot_help_intro`, `bot_card_added`, `bot_remove_confirm`,
 `bot_rejected_latin_spelling`). Plurals use the same CLDR suffixes as the extension.
-Language names come from `Mira.Lang.name(tag, locale)` (08), so a Spanish user sees
+Language names come from `Kotiko.Lang.name(tag, locale)` (08), so a Spanish user sees
 "japonés". Error lines use slice 25's codes mapped to bot keys.
 
 **Which locale.** Per Telegram user, the first that applies:
@@ -198,7 +198,7 @@ Language names come from `Mira.Lang.name(tag, locale)` (08), so a Spanish user s
    from the user's Telegram app, sometimes absent), if a shipped locale matches it by
    primary subtag (`es-419` → `es`).
 3. The learner's primary base language (below), if it is a shipped locale.
-4. `en`, the source locale, with a one-line note in that locale's place once: "Mira isn't
+4. `en`, the source locale, with a one-line note in that locale's place once: "Kotiko isn't
    translated into <language> yet."
 
 **Base languages on the server.** The server needs the learner's bases to ask the model
@@ -254,8 +254,8 @@ descriptions ("quitar — quitar una palabra de tu lista").
       gloss: "perro"}`.
 - [ ] With profile `["es", "en"]`, one message yields one card with both glosses and Add
       saves two records; `/remove perro` finds the group and Undo restores both.
-- [ ] No string literal in `server/lib/mira/bot.ex` reaches the chat outside
-      `Mira.I18n.t/3` (slice 50's literal check, server variant).
+- [ ] No string literal in `server/lib/kotiko/bot.ex` reaches the chat outside
+      `Kotiko.I18n.t/3` (slice 50's literal check, server variant).
 
 ## Test plan
 

@@ -6,12 +6,12 @@
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
 | **Depends on** | [14-matcher-engine](../14-matcher-engine/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages, `spec/lang/<base>/detect.json` and `casing.json`) |
-| **Unblocks** | [38-per-site-rules](../38-per-site-rules/SPEC.md), [32](../32-page-coverage-and-celebrations/SPEC.md) (coverage counts only text Mira would consider) |
+| **Unblocks** | [38-per-site-rules](../38-per-site-rules/SPEC.md), [32](../32-page-coverage-and-celebrations/SPEC.md) (coverage counts only text Kotiko would consider) |
 | **Sources** | [DECISIONS 2026-10-01, "English is not the base language"](../DECISIONS.md); [06 F13](../../docs/research/06-adversarial-qa.md), [02 B1-B3, C4, E6](../../docs/research/02-linguistics.md), [03 B1, B2, B5, B6, D5, E4](../../docs/research/03-browser-extension.md), [01 S10, S14](../../docs/research/01-language-mixing.md), [05 S23](../../docs/research/05-learner-ux.md) |
 
 ## Problem
 
-Mira swaps nearly everything it can see. Read from the code, and reproduced where noted:
+Kotiko swaps nearly everything it can see. Read from the code, and reproduced where noted:
 
 - **Pages in languages the learner doesn't read get "translated".** Nothing checks
   `<html lang>` or element `lang` (`extension/content.js:115-132`). For a learner who reads
@@ -20,7 +20,7 @@ Mira swaps nearly everything it can see. Read from the code, and reproduced wher
   IPA spans are treated as English (02 E6, 03 B5, B6).
 - **A rule that only allowed English pages would break everyone else.** The earlier draft of
   this slice swapped only English text. For the maintainer's example, a learner in Puerto Rico
-  who reads Spanish, that rule skips every page they read, and Mira never does anything
+  who reads Spanish, that rule skips every page they read, and Kotiko never does anything
   ([DECISIONS 2026-10-01](../DECISIONS.md)). The rule has to be "pages in one of *your*
   languages" (slice [50](../50-ui-localization-and-base-language/SPEC.md)'s base languages).
 - **Names and acronyms are swapped as words.** The regex is case-insensitive
@@ -32,14 +32,14 @@ Mira swaps nearly everything it can see. Read from the code, and reproduced wher
   `div`s and `span`s, and Monaco then misplaces the cursor (03 B1). Buttons, menus and labels
   change under the user's mouse, and voice-control users ("click Delete") no longer match the
   label (03 D5, 05 S23).
-- **Editors can capture foreign words.** An element that becomes editable after Mira swapped
+- **Editors can capture foreign words.** An element that becomes editable after Kotiko swapped
   it lets the user type around foreign words that then get saved into their document (03 B2).
 - **There is no notion of a sensitive site.** Banking and health pages get swapped like any
   other (03 E4, open question 2).
 
 ## Goals
 
-- Mira only swaps text in one of the learner's base languages (50): the page and each element
+- Kotiko only swaps text in one of the learner's base languages (50): the page and each element
   are judged by declared language, with detection as a fallback and a per-site override. Text
   in any other language, including English for a learner who doesn't read it, is left alone.
 - Each subtree is scanned with its own base's index, so a Spanish page quoting English text
@@ -48,7 +48,7 @@ Mira swaps nearly everything it can see. Read from the code, and reproduced wher
   acronyms and initials are left alone, with every example in this spec passing, using each
   base's own capitalization conventions (German nouns are capitalized and are not names;
   Spanish months and languages are lowercase; caseless scripts have no case evidence).
-- Code, editors, explicit opt-outs and Mira's own UI are never touched.
+- Code, editors, explicit opt-outs and Kotiko's own UI are never touched.
 - Controls (buttons, menus, labels) are left as the site wrote them, in the learner's own
   language, by default, with a setting to include them.
 - A built-in, transparent "sensitive sites" rule that the user can turn off.
@@ -64,9 +64,9 @@ Mira swaps nearly everything it can see. Read from the code, and reproduced wher
 
 ## User stories
 
-- As a reader of English and not German, learning Russian, Mira leaves a German news site
+- As a reader of English and not German, learning Russian, Kotiko leaves a German news site
   alone.
-- As a reader of Spanish in Puerto Rico, Mira swaps words on my Spanish news sites and leaves
+- As a reader of Spanish in Puerto Rico, Kotiko swaps words on my Spanish news sites and leaves
   English pages alone, because I didn't say I read English.
 - As a reader of Spanish and English, a Spanish article quoting an English speech gets Spanish
   swaps in the article and English swaps in the quote.
@@ -84,7 +84,7 @@ match). Files: `extension/content/skip.js` (page and element) and `extension/lib
 
 ### 1. Page gate
 
-Mira runs on a document only if all of these pass:
+Kotiko runs on a document only if all of these pass:
 
 1. URL is `http:`, `https:` or `file:`.
 2. Slice 38's `effective()` returns `swap: true`. It already folds in the global switch, the
@@ -142,7 +142,7 @@ Spanish runs. With bases `["es", "en"]`, both kinds run, each with its own index
 
 The decision is re-evaluated when the attribute observer from slice 15 sees `lang` change on
 `<html>`, and by slice 43 when the page is machine-translated. The gate result and reason are
-exposed to the popup ("This page is in German, which isn't one of your languages. Mira leaves it
+exposed to the popup ("This page is in German, which isn't one of your languages. Kotiko leaves it
 alone. [Run here anyway]", with 50's copy in the interface language), whose UI is slice 20's.
 
 ### 2. Element rules
@@ -155,11 +155,11 @@ is cached in a `WeakMap<Element, boolean>` so the check is O(1) after the first 
 | Non-text tags | `script, style, noscript, template, textarea, input, select, option, code, pre, kbd, samp, var, svg, math, canvas, iframe, object, embed, video, audio, title, head` | Existing list (`content.js:7-10`) plus template, var, object, embed and media |
 | Editable | `el.isContentEditable`, `[role=textbox]`, `[role=searchbox]`, `[role=combobox]` | Never type around foreign words (03 B2) |
 | Code editors and code views | `.monaco-editor, .cm-editor, .CodeMirror, .ace_editor, .react-code-lines, .blob-code, .highlight, [class*="language-"], [role=code]`, plus per-host extras in `extension/data/skip-selectors.json` | Code and editors that measure text (03 B1) |
-| Explicit opt-out | `[translate=no]`, `.notranslate`, `[data-mira-skip]`, `[data-slovo-skip]` (legacy) on any element **below** `body` | The site says this text isn't to be translated. Ignored on `html` and `body`, because many React sites set `translate="no"` there only to stop Google Translate crashing them; `<meta name="google" content="notranslate">` is ignored for the same reason |
+| Explicit opt-out | `[translate=no]`, `.notranslate`, `[data-kotiko-skip]`, `[data-slovo-skip]` (legacy) on any element **below** `body` | The site says this text isn't to be translated. Ignored on `html` and `body`, because many React sites set `translate="no"` there only to stop Google Translate crashing them; `<meta name="google" content="notranslate">` is ignored for the same reason |
 | Not one of the learner's languages | `baseFor(el)` is null: the nearest `[lang]` or `[xml:lang]` ancestor declares a language that isn't a base (empty `lang=""` inherits the page decision). A subtree declared in a *different* base is not skipped; it is scanned with that base's index | Quotes, names and IPA in other languages (03 B5); bilingual pages |
 | Controls (setting "Swap words in buttons and menus", **off** by default) | `button, summary, label, legend, select, nav, menu, [role=button], [role=link][aria-haspopup], [role=menu], [role=menubar], [role=menuitem], [role=menuitemcheckbox], [role=menuitemradio], [role=tab], [role=tablist], [role=option], [role=listbox], [role=switch], [role=checkbox], [role=radio], [role=toolbar], [role=navigation]` | Misclicks, voice control and WCAG 2.5.3 Label in Name (03 D5) |
 | Sensitive forms | `form` elements containing `input[type=password]` or `[autocomplete^="cc-"]`, `[autocomplete=one-time-code]` | Logins and payments anywhere |
-| Mira's own UI | the popover host (19), celebration overlay (32), `mira-w` | Never process ourselves |
+| Kotiko's own UI | the popover host (19), celebration overlay (32), `kotiko-w` | Never process ourselves |
 | Volatile | elements slice 15 marked volatile | Rewrite budget exceeded |
 
 Links in running text (`a` without a control role) are swapped; links inside `nav` are not,
@@ -167,7 +167,7 @@ because `nav` is a control region.
 
 **Editables that appear later.** A capture-phase `focusin` listener on `document` checks the
 target: if it is editable or matches the editable row above, call
-`MiraEngine.restoreWithin(target)` and add it to the skip cache. The `contenteditable`
+`KotikoEngine.restoreWithin(target)` and add it to the skip cache. The `contenteditable`
 attribute isn't observed globally, because observing attributes on the whole subtree is too
 costly; focus is the moment that matters.
 
@@ -254,7 +254,7 @@ Caseless bases have no case evidence at all: proper nouns there are protected on
 `case: "proper"` or `exact` flag, the never-swap list, and 36's senses.
 
 **Page evidence and deferral.** Capitalized matches at a sentence start or in a headline are
-ambiguous: "Apple is a company" and "Dog bites man". Mira decides them with what the rest of
+ambiguous: "Apple is a company" and "Dog bites man". Kotiko decides them with what the rest of
 the page shows:
 
 - `lowerSeen: Set<key>`: keys that appeared lowercase anywhere in scanned text (including
@@ -377,13 +377,13 @@ present in the index, so they stay small.
 - [ ] Every row of the worked-examples tables (English, Spanish, German, Japanese) passes as a
       unit test of `rules.js`.
 - [ ] Monaco, CodeMirror 6, Ace and a GitHub code-view snapshot are untouched.
-- [ ] `translate="no"` on `<html>` does not stop Mira; on a `div`, it does.
+- [ ] `translate="no"` on `<html>` does not stop Kotiko; on a `div`, it does.
 - [ ] With the default settings, `button`, `nav` and `[role=menuitem]` text is untouched;
       with "Swap words in buttons and menus" on, it is swapped.
 - [ ] Focusing an element that became `contenteditable` after swapping restores the original
       text in it before the first keystroke.
 - [ ] Password and payment forms are untouched on every site.
-- [ ] The popup can show why Mira isn't running on the current page.
+- [ ] The popup can show why Kotiko isn't running on the current page.
 
 ## Test plan
 
@@ -405,7 +405,7 @@ present in the index, so they stay small.
 ## Rollout and migration
 
 Ships with 14, 15 and 17. Defaults: controls off, sensitive sites on. Users who relied on
-swaps in buttons get the setting. Changelog: "Mira now swaps words only on pages in the languages you
+swaps in buttons get the setting. Changelog: "Kotiko now swaps words only on pages in the languages you
 read, and leaves other languages, names and acronyms, code, buttons and menus, and banking and payment pages. You can change the
 last two in settings."
 

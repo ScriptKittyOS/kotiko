@@ -55,8 +55,8 @@ hostnames (`extension/popup.js:208-213`) and checked against `location.hostname`
 - As a learner, I want my bank never touched unless I say so.
 - As a learner who paused a site last month, I want to see that it's paused when I'm on it.
 - As a Spanish reader whose favourite news site wrongly says it is English, I want to tell
-  Mira "this site is in Spanish" so my words appear there.
-- As a reader of Spanish and English, I want Mira to treat a bilingual site as Spanish
+  Kotiko "this site is in Spanish" so my words appear there.
+- As a reader of Spanish and English, I want Kotiko to treat a bilingual site as Spanish
   only, because that's where I want the practice.
 
 ## Specification
@@ -159,11 +159,11 @@ The pause control stays one click; customising is one disclosure away.
 - "Written in" offers "As the site says" plus the learner's base languages, named in the
   interface language ([50](../50-ui-localization-and-base-language/SPEC.md)). When the
   page's language isn't one of the bases, slice 50's page-state line in the popup links
-  here: "Is this page actually in Spanish? Tell Mira."
+  here: "Is this page actually in Spanish? Tell Kotiko."
 - When any rule applies, the section header shows a small "Custom" tag, and the toolbar
   badge shows slice 20's paused state for `swap: false`.
-- On pages Mira can't run on (browser pages, the stores, PDFs) the section is replaced by
-  "Mira can't run on this page" ([03 B9](../../docs/research/03-browser-extension.md)).
+- On pages Kotiko can't run on (browser pages, the stores, PDFs) the section is replaced by
+  "Kotiko can't run on this page" ([03 B9](../../docs/research/03-browser-extension.md)).
 
 ### 4. Dashboard: Sites
 
@@ -230,8 +230,8 @@ takes under 1 ms (it checks at most one key per hostname label).
 
 - Section 5's migration runs on update. No server change.
 - The sensitive-site defaults apply to existing users too, so the changelog says so:
-  "Mira now leaves sensitive sites such as banking and health alone unless you turn it on for them.
-  New: choose languages and amount per site, and tell Mira which language a site is
+  "Kotiko now leaves sensitive sites such as banking and health alone unless you turn it on for them.
+  New: choose languages and amount per site, and tell Kotiko which language a site is
   really written in."
 
 ## Open questions

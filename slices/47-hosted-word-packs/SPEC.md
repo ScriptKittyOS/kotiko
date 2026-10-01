@@ -19,7 +19,7 @@ kind:
 > full control and add either one at a time or bulk, no one wants to have to somehow delete
 > words or have to find them."
 
-Mira never adds a word the learner didn't explicitly choose: no bundled lists, no hosted or
+Kotiko never adds a word the learner didn't explicitly choose: no bundled lists, no hosted or
 subscribed lists, nothing pushed by a server or a teacher without the learner accepting it.
 See [DECISIONS.md](../DECISIONS.md#2026-10-01).
 

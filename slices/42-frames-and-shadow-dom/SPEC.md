@@ -11,7 +11,7 @@
 
 ## Problem
 
-Mira only sees the top frame's light DOM (06 F26, read from the code):
+Kotiko only sees the top frame's light DOM (06 F26, read from the code):
 
 - **Iframes are never processed.** The manifest has no `all_frames` (`extension/manifest.json:12-19`),
   so Disqus comments, embedded posts, AMP viewers and HTML email in Fastmail, Proton Mail and
@@ -42,7 +42,7 @@ frames, each of which would load the whole word list and build an index.
 
 - As a reader of comments in an embedded Disqus frame, my words are swapped there too.
 - As a Reddit user on the new interface, posts and comments are swapped.
-- As a reader of a page full of ads, Mira doesn't slow it down by working inside ad frames.
+- As a reader of a page full of ads, Kotiko doesn't slow it down by working inside ad frames.
 
 ## Specification
 
@@ -113,7 +113,7 @@ if root and !roots.has(root): addRoot(root)
 
 Property access is cheap; elements are visited anyway.
 
-**`addRoot(root)`** (slice 15's `MiraEngine.addRoot`):
+**`addRoot(root)`** (slice 15's `KotikoEngine.addRoot`):
 
 1. Register it in `roots: Set<WeakRef<ShadowRoot>>`, pruned when the host disconnects.
 2. `observer.observe(root, { childList: true, subtree: true, characterData: true })`; the same
@@ -125,7 +125,7 @@ Property access is cheap; elements are visited anyway.
    alike.
 
 **Roots attached later.** There is no event for `attachShadow`. When the observer reports an
-added element whose tag name contains "-" (custom elements, which upgrade asynchronously), Mira
+added element whose tag name contains "-" (custom elements, which upgrade asynchronously), Kotiko
 checks it for a root at once, after 100 ms and after 1 s. Declarative shadow DOM
 (`<template shadowrootmode>`) is already attached when the walk sees it. Once more, at `load`
 plus 2 s, the walker re-checks hosts it saw without a root. Content scripts can't use
@@ -133,9 +133,9 @@ plus 2 s, the walker re-checks hosts it saw without a root. Content scripts can'
 
 **Styling inside roots.** `content.css` doesn't reach into shadow trees. Swaps inside a shadow
 root get the same declarations as an inline `style` attribute, generated from the current
-settings (15's base style plus 35's and 37's classes resolved to declarations). Mira never edits
+settings (15's base style plus 35's and 37's classes resolved to declarations). Kotiko never edits
 the root's `adoptedStyleSheets` or inserts `<style>` elements into it, because component
-frameworks (Lit and others) reassign those and would either drop Mira's style or be surprised by
+frameworks (Lit and others) reassign those and would either drop Kotiko's style or be surprised by
 it.
 
 **Boundaries.** A shadow root is a block boundary for slice 14's edge context and slice 31's
@@ -181,7 +181,7 @@ Measured in slice 02's Playwright runs:
 ## Rollout and migration
 
 The manifest change needs no new permission (host access is already `<all_urls>`). Release
-notes: "Mira now works inside embedded comments, email bodies and modern web components."
+notes: "Kotiko now works inside embedded comments, email bodies and modern web components."
 Watch issue reports for webmail quoting (16, open question 3).
 
 ## Open questions

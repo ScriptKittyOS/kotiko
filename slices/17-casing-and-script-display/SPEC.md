@@ -72,7 +72,7 @@ Right-to-left isolation already works through `dir="auto"` (`content.js:95`) and
 File: `extension/lib/casing.js`, pure. One entry point, called by slice 15 for each planned swap:
 
 ```js
-MiraCasing.display({
+KotikoCasing.display({
   base,           // base the text was scanned in (50), e.g. "en", "es", "de", "ja"
   surface,        // the page's text, from 14
   shape,          // "lower" | "title" | "upper" | "mixed" | "caseless", from 14
@@ -111,7 +111,7 @@ lowercase, so on those pages a mid-sentence "lunes" is lowercase and gives no ca
 stored target ("Monday" for an English target) keeps its own capital because of the rule
 below.
 
-`"none"` means: show `native` exactly as stored. Mira never lowercases a stored word, so German
+`"none"` means: show `native` exactly as stored. Kotiko never lowercases a stored word, so German
 "Hund" stays "Hund" mid-sentence and a proper noun stored with a capital keeps it (02 B4).
 
 ### Step 2: does the script have case in practice
@@ -201,18 +201,18 @@ or Hebrew word next to the page's punctuation keeps the punctuation on the corre
 English page "thanks!" becomes "شكرا!" with the "!" after the word in visual order, and
 "(thanks)" keeps its parentheses. The same isolation keeps a left-to-right word in order on a
 right-to-left base page: for a reader of Arabic learning Spanish, "(شكرا)" becomes "(gracias)"
-with the parentheses mirrored as the Arabic text expects. Mira never inserts bidi control characters into the page. A possessive `'s` left
+with the parentheses mirrored as the Arabic text expects. Kotiko never inserts bidi control characters into the page. A possessive `'s` left
 outside the swap (slice 14) stays outside the isolate. Persian zero-width non-joiners in
-`native` are preserved: Mira applies no transform to caseless scripts and NFC keeps U+200C.
+`native` are preserved: Kotiko applies no transform to caseless scripts and NFC keeps U+200C.
 
 ### Line height and fonts
 
-- `mira-w { line-height: 1; }` (slice 15's stylesheet). An inline box whose `line-height` is a
+- `kotiko-w { line-height: 1; }` (slice 15's stylesheet). An inline box whose `line-height` is a
   number is sized from its first available font, which is the page's inherited font, so glyphs
   drawn from a taller fallback font (Noto CJK, Devanagari, Thai, Myanmar, Tibetan) don't
   enlarge the line box. A value of 1 is never larger than the parent's line height, so it can't
   add space either; the parent's strut keeps the original spacing.
-- Mira never sets `font-family`, `font-size` or `font-weight` on swaps; the site's typography
+- Kotiko never sets `font-family`, `font-size` or `font-weight` on swaps; the site's typography
   stays and the browser's fallback chooses glyphs by `lang`.
 - `lang` is the full canonical tag (`zh-Hant`, `ja`, `ko`, `sr-Latn`) so browsers pick the right
   Han glyph shapes and hyphenation (03 D4, 02 F3).

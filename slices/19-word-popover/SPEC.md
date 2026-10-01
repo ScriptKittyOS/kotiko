@@ -36,7 +36,7 @@ tooltip built from the `title` attribute (`extension/content.js:65-71, 96`):
 - It shows the native word, romanization, language, the gloss in the base language of the
   text the word replaced, note, and the other languages for the same base-language form,
   with correct bidi handling.
-- Every label, action and toast is in Mira's interface language ([50](../50-ui-localization-and-base-language/SPEC.md)),
+- Every label, action and toast is in Kotiko's interface language ([50](../50-ui-localization-and-base-language/SPEC.md)),
   and language names come from `Intl.DisplayNames` in that language.
 - It offers actions in a fixed slot: speak, edit, pause word, wrong meaning here.
 - Nothing about the learner's vocabulary is written into the page DOM beyond the visible
@@ -46,7 +46,7 @@ tooltip built from the `title` attribute (`extension/content.js:65-71, 96`):
 ## Non-goals
 
 - The swap element and the WeakMap that maps it to its entry: [15](../15-framework-safe-swapping/SPEC.md).
-  This spec calls that element `<mira-w>`; 15 owns its name and attributes.
+  This spec calls that element `<kotiko-w>`; 15 owns its name and attributes.
 - Audio: [34](../34-pronunciation-audio/SPEC.md) fills the speak action.
 - Reveal mode and knew-it buttons: [35](../35-reveal-mode-and-review/SPEC.md) uses the same
   popover with the gloss hidden.
@@ -61,7 +61,7 @@ tooltip built from the `title` attribute (`extension/content.js:65-71, 96`):
 - As a keyboard user, I want to select a swapped word and press a shortcut to see the same
   information and act on it.
 - As a phone reader, I want to tap a swapped word to see what it means.
-- As a learner who sees "like" swapped in "looks like rain", I want to tell Mira this is the
+- As a learner who sees "like" swapped in "looks like rain", I want to tell Kotiko this is the
   wrong meaning, right there.
 - As a privacy-minded user, I want sites not to see what I'm learning.
 - As a reader of Spanish and English pages learning Japanese, I want the popover on a
@@ -143,11 +143,11 @@ Writes go through background messages (sender-checked,
 
 | Input | Opens | Closes |
 |---|---|---|
-| Mouse / pen (`pointer: fine`) | Pointer rests on a `<mira-w>` for 300 ms (hover intent: the pointer has moved less than 4 px in the last 100 ms) | Pointer leaves both word and popover for 200 ms; Esc; click outside; scroll that moves the word out of view |
-| Click on a `<mira-w>` not inside a link or button | Immediately, and pinned (stays open while the pointer is away) | Esc; click outside; click on the word again |
-| Touch (`pointer: coarse`) | Tap on a `<mira-w>` not inside a link or button | Tap outside; Esc on attached keyboards |
-| Touch inside a link | Long press (500 ms) opens; `contextmenu` is suppressed only when its target is a `<mira-w>` | as above |
-| Keyboard | The "Show word" command ([33](../33-context-menu-and-shortcuts/SPEC.md)) with a selection or caret inside a `<mira-w>`; or, when keyboard mode is on ([27](../27-accessibility-baseline/SPEC.md)), Enter on a focused `<mira-w>` | Esc returns focus to where it was |
+| Mouse / pen (`pointer: fine`) | Pointer rests on a `<kotiko-w>` for 300 ms (hover intent: the pointer has moved less than 4 px in the last 100 ms) | Pointer leaves both word and popover for 200 ms; Esc; click outside; scroll that moves the word out of view |
+| Click on a `<kotiko-w>` not inside a link or button | Immediately, and pinned (stays open while the pointer is away) | Esc; click outside; click on the word again |
+| Touch (`pointer: coarse`) | Tap on a `<kotiko-w>` not inside a link or button | Tap outside; Esc on attached keyboards |
+| Touch inside a link | Long press (500 ms) opens; `contextmenu` is suppressed only when its target is a `<kotiko-w>` | as above |
+| Keyboard | The "Show word" command ([33](../33-context-menu-and-shortcuts/SPEC.md)) with a selection or caret inside a `<kotiko-w>`; or, when keyboard mode is on ([27](../27-accessibility-baseline/SPEC.md)), Enter on a focused `<kotiko-w>` | Esc returns focus to where it was |
 
 - A **click inside a link** never opens the popover and never prevents navigation; hover still
   works there.
@@ -175,12 +175,12 @@ The popover matches the page, not only the OS: on open, it reads the computed ba
 the word's nearest ancestor with a non-transparent background (up to `<html>`), and uses the
 dark tokens when that color's relative luminance is below 0.2, else light. If every ancestor
 is transparent, it follows `prefers-color-scheme` and `<meta name="color-scheme">`. The
-Mira theme preference ([06 §2](../06-design-system/SPEC.md)) does not override this: the
+Kotiko theme preference ([06 §2](../06-design-system/SPEC.md)) does not override this: the
 popover is part of the page.
 
 ### 6. DOM, isolation and privacy
 
-- One host element, `<mira-popover>`, created lazily on the first open and appended to
+- One host element, `<kotiko-popover>`, created lazily on the first open and appended to
   `document.documentElement` (not `body`, which some sites replace). It carries inline
   `style` with `all: initial !important; position: fixed !important; inset: auto
   !important; ...` so site CSS can't hide or move it, and `translate="no"`.
@@ -188,16 +188,16 @@ popover is part of the page.
   from `ui/popover-style.js` ([06 §2](../06-design-system/SPEC.md)) as a constructed
   stylesheet (`adoptedStyleSheets`), with a `<style>` fallback.
 - Content is built on demand from the content script's WeakMap entry for the word (from
-  [15](../15-framework-safe-swapping/SPEC.md), `MiraEngine.infoFor(el)`); the page's
-  `<mira-w>` carries only what 15 puts there: `lang` and `dir` (rendering and screen readers),
+  [15](../15-framework-safe-swapping/SPEC.md), `KotikoEngine.infoFor(el)`); the page's
+  `<kotiko-w>` carries only what 15 puts there: `lang` and `dir` (rendering and screen readers),
   `translate="no"` and `class="notranslate"` (machine translation, [43](../43-copy-print-translate-coexistence/SPEC.md)),
-  and `mira-*` state classes that carry no word data. No `title`, no `data-*`, no `aria-*`.
-- The page can still see the visible foreign word and that a `<mira-popover>` exists after
+  and `kotiko-*` state classes that carry no word data. No `title`, no `data-*`, no `aria-*`.
+- The page can still see the visible foreign word and that a `<kotiko-popover>` exists after
   first use; the privacy policy ([28](../28-privacy-and-store-readiness/SPEC.md)) says so.
 - Event listeners are delegated: one `pointerover`, `pointerout`, `pointerdown`, `click`
   and `keydown` listener on `document` in the capture phase, all passive except the
   long-press `contextmenu` suppression. They do nothing unless the target is inside a
-  `<mira-w>` or the popover.
+  `<kotiko-w>` or the popover.
 
 ### 7. Accessibility
 
@@ -217,7 +217,7 @@ popover is part of the page.
 
 ### 8. Standalone toast
 
-The same `<mira-popover>` host also renders a toast that works with no popover open, for
+The same `<kotiko-popover>` host also renders a toast that works with no popover open, for
 messages that start outside the page: [33](../33-context-menu-and-shortcuts/SPEC.md)'s
 context-menu add ("Learning “dog” in Spanish…", then "dog → perro · Spanish  Undo"; on a
 Spanish page with a Spanish interface, "Aprendiendo “perro” en japonés…", then "perro → 犬 ·
@@ -240,7 +240,7 @@ keyboard command feedback ("Select a swapped word first."), and pause or undo co
 ### 9. Copy
 
 Every string is a key in `extension/_locales/<locale>/messages.json`, looked up with
-`MiraI18n.t()` in the content script ([50 §8](../50-ui-localization-and-base-language/SPEC.md)).
+`KotikoI18n.t()` in the content script ([50 §8](../50-ui-localization-and-base-language/SPEC.md)).
 Placeholders are named; language names are `Intl.DisplayNames([uiLocale], {type: "language"})`
 on the canonical tag ([08](../08-language-tags/SPEC.md)), never the model's `language` field.
 
@@ -269,7 +269,7 @@ base.
 - **Word removed or edited while open:** the popover updates from the new entry, or closes with
   "That word was removed." if gone.
 - **Swap inside a contenteditable or form field:** never happens ([16](../16-what-not-to-swap/SPEC.md));
-  if a `<mira-w>` becomes editable, the popover doesn't open.
+  if a `<kotiko-w>` becomes editable, the popover doesn't open.
 - **Iframes:** each frame's content script owns its own popover ([42](../42-frames-and-shadow-dom/SPEC.md)).
 - **Fullscreen video:** the top layer handles it; if the word is outside the fullscreen
   element, the popover doesn't open.
@@ -288,8 +288,8 @@ base.
 ## Acceptance criteria
 
 - [ ] No swapped element on any fixture page has a `title` or any `data-*` attribute; the
-      only Mira elements in light DOM are `<mira-w>` and, after first use, `<mira-popover>`.
-- [ ] `document.querySelector("mira-popover").shadowRoot` is `null` from page script.
+      only Kotiko elements in light DOM are `<kotiko-w>` and, after first use, `<kotiko-popover>`.
+- [ ] `document.querySelector("kotiko-popover").shadowRoot` is `null` from page script.
 - [ ] Hovering a swapped word for 300 ms opens the popover; moving into the popover keeps it
       open; leaving both for 200 ms closes it.
 - [ ] Clicking a swapped word inside `<a href>` navigates and does not open the popover.
@@ -307,7 +307,7 @@ base.
       record in its group, and survives reload.
 - [ ] "Wrong meaning here" → "Never swap" removes the form from the word in storage, with a
       working Undo.
-- [ ] Site CSS `* { display: none !important }` on `mira-popover` does not hide it
+- [ ] Site CSS `* { display: none !important }` on `kotiko-popover` does not hide it
       (fixture).
 - [ ] axe-core finds no violations inside the popover in both themes.
 - [ ] A `{type: "toast", jobId}` message from the background shows the job's line in the

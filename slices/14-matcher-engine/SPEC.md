@@ -11,7 +11,7 @@
 
 ## Problem
 
-Mira finds base-language words with one giant regular expression: every form of every word,
+Kotiko finds base-language words with one giant regular expression: every form of every word,
 sorted by length, joined with `|` and wrapped in `\b…\b` with the flags `gi` and no `u`
 (`extension/content.js:47-51`). It was written for English pages only. Read from the code and
 reproduced in research 02 and 06:
@@ -103,18 +103,18 @@ extension/spec/lang/<base>/boundaries.json   copied from spec/lang/ by slice 09'
 ```
 
 Following slice 02's convention, each lib file is a classic script that attaches one
-namespace to `globalThis` (`MiraText`, `MiraMatcher`; later slices add `MiraRules`,
-`MiraPrecedence`, `MiraDensity`, `MiraCasing`, `MiraSpeak`) and assigns `module.exports` when
+namespace to `globalThis` (`KotikoText`, `KotikoMatcher`; later slices add `KotikoRules`,
+`KotikoPrecedence`, `KotikoDensity`, `KotikoCasing`, `KotikoSpeak`) and assigns `module.exports` when
 `module` exists, so Node tests load the same file with slice 02's `load-script.mjs`.
 
 ```js
 // Build once per word-list version and base-language set. Pure; no DOM.
-const indexes = MiraMatcher.buildIndexes(words, baseLangs, { maxPhraseTokens: 6 });
+const indexes = KotikoMatcher.buildIndexes(words, baseLangs, { maxPhraseTokens: 6 });
 // -> Map<baseTag, Index>; same as calling buildIndex(words, { base, ... }) per base
 
 // Scan one string in one base. 16 decides the base from the text's language;
 // text in a language that isn't a base is never scanned.
-const { matches, tokenCount } = MiraMatcher.scan(text, {
+const { matches, tokenCount } = KotikoMatcher.scan(text, {
   base: "es",
   before: "…up to 16 chars of preceding inline text, or U+2029 at block start",
   after:  "…up to 16 chars of following inline text, or U+2029 at block end",
@@ -180,7 +180,7 @@ Defined once in `text.js`, the same for every base:
 
 ### Tokenizer
 
-**Segmentation.** `MiraText.tokenize(full, base)` runs `Intl.Segmenter(segLocale(base),
+**Segmentation.** `KotikoText.tokenize(full, base)` runs `Intl.Segmenter(segLocale(base),
 { granularity: "word" })` over the string and keeps the segments with `isWordLike: true`.
 `segLocale` is the base tag (`zh-Hans`, `ja`, `th`, `pt-BR`). One segmenter instance per base
 is created lazily and cached for the life of the content script, because construction costs
@@ -527,8 +527,8 @@ Bases without their own `boundaries.json` use `_generic`: Segmenter tokens, `joi
 Slice 15 passes `ctx.before` and `ctx.after`: up to 16 characters of the neighbouring text in
 the same inline run, or U+2029 at a block boundary. A run continues across inline elements
 (`a, abbr, b, bdi, bdo, cite, data, del, dfn, em, font, i, ins, mark, q, s, small, span,
-strong, sub, sup, time, u, wbr`, and Mira's own `mira-w`) and stops at anything else,
-including `br` and any element slice 16 skips. Mira's own `mira-w` counts as a word character
+strong, sub, sup, time, u, wbr`, and Kotiko's own `kotiko-w`) and stops at anything else,
+including `br` and any element slice 16 skips. Kotiko's own `kotiko-w` counts as a word character
 for edge purposes, so nothing new can glue onto a swapped word. Tokens that straddle the edge
 are discarded, never truncated, which fixes rows 16 and 17. For `spaces: false` bases a
 16-character context can hold several words, and a token that straddles is still discarded;
@@ -575,7 +575,7 @@ from word data. `boundaries.json` lists are compared as strings, never compiled 
 ## Acceptance criteria
 
 - [ ] `content.js` no longer builds a regex from the vocabulary; all matching goes through
-      `MiraMatcher` (the symbolic list is the only regex, capped at 200 forms per index).
+      `KotikoMatcher` (the symbolic list is the only regex, capped at 200 forms per index).
 - [ ] All rows of every boundary table (en 1-32, es, fr, it, de, ja, zh, th) pass as unit
       tests on the matcher plus slice 16's filter, with exact offsets, in Node and in
       Chromium and Firefox.
@@ -619,9 +619,9 @@ from word data. `boundaries.json` lists are compared as strings, never compiled 
 
 No data migration: the indexes are rebuilt from the cached word list on load. Words migrated
 by slice 07 carry `base_lang: "en"` and land in the English index. Behaviour changes users
-will notice, for the changelog: "Mira no longer swaps parts of words: contractions like can't,
+will notice, for the changelog: "Kotiko no longer swaps parts of words: contractions like can't,
 hyphenated words, accented words and web addresses stay as they are. Phrases like 'thank you'
-and 'por favor' swap as one. Mira now finds words in Japanese, Chinese and Thai pages too."
+and 'por favor' swap as one. Kotiko now finds words in Japanese, Chinese and Thai pages too."
 Ship together with 15, 16, 17 and 50 in one release, because the boundary tables assume slice
 16's filter and 50's base languages.
 

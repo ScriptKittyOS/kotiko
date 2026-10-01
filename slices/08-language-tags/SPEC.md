@@ -62,7 +62,7 @@ model said, lightly cleaned.
   Portuguese words, because I asked for Brazilian.
 - As a learner of Cantonese, I want my words labelled Cantonese, not Mandarin.
 - As a learner of Serbian in both scripts, I want хвала and hvala in clearly named groups.
-- As a learner who typed "spasibo", I want Mira to save спасибо, not the Latin spelling.
+- As a learner who typed "spasibo", I want Kotiko to save спасибо, not the Latin spelling.
 - As a Spanish reader learning English, I want "dog" accepted as an English word, not
   rejected because English is assumed to be my language.
 - As a learner with a Spanish interface, I want my languages called "japonés" and
@@ -181,12 +181,12 @@ popup shows their names, so this is visible and fixable by editing the word's la
 ### 4. Display names
 
 - **Extension**: `new Intl.DisplayNames([uiLocale], {type: "language"}).of(tag)`, where
-  `uiLocale` is the interface locale (slice 50's `MiraI18n.locale()`). In English that
+  `uiLocale` is the interface locale (slice 50's `KotikoI18n.locale()`). In English that
   gives "Cantonese", "Traditional Chinese", "Brazilian Portuguese", "Serbian (Latin)"; in
   Spanish "cantonés", "chino tradicional", "portugués de Brasil", "serbio (latino)". On a
   `RangeError` or when it returns the code itself, fall back to `languages.json`'s
   `names[uiLocale]`, then `endonym`, then the code.
-- **Server**: `Mira.Lang.name(tag, locale)` uses `names[locale]` (falling back to
+- **Server**: `Kotiko.Lang.name(tag, locale)` uses `names[locale]` (falling back to
   `endonym`), plus region and script names from small per-locale tables in the same file
   (`"regionNames": {"en": {"BR": "Brazil"}, "es": {"BR": "Brasil"}}`, `"scriptNames"`
   likewise), formatted as CLDR does: "Portuguese (Brazil)", "portugués (Brasil)". The bot
@@ -204,8 +204,8 @@ popup shows their names, so this is visible and fixable by editing the word's la
 
 ### 5. Where it runs
 
-- Server: `Mira.Lang` replaces `Word.normalize_lang/1` and the `@lang_format` regex
-  (`word.ex:21`); the changeset calls `Mira.Lang.canonical/1` and `check_script/2`.
+- Server: `Kotiko.Lang` replaces `Word.normalize_lang/1` and the `@lang_format` regex
+  (`word.ex:21`); the changeset calls `Kotiko.Lang.canonical/1` and `check_script/2`.
 - Extension: `extension/lib/lang.js`, a pure module (slice 02's pattern) used by the
   validator (slice 09), local store (slice 11), import (slice 12) and bulk add (slice 13).
 - Telegram `/list <language>` (`server/lib/slovo/bot.ex:127-128`) resolves names through
@@ -215,7 +215,7 @@ popup shows their names, so this is visible and fixable by editing the word's la
 ### 6. Base tags
 
 Implements [50](../50-ui-localization-and-base-language/SPEC.md) section 2 in both
-runtimes (`Mira.Lang.base_tag/1`, `MiraLang.baseTagOf()` in `extension/lib/lang.js`):
+runtimes (`Kotiko.Lang.base_tag/1`, `KotikoLang.baseTagOf()` in `extension/lib/lang.js`):
 
 `baseTagOf(input) -> tag | null`:
 
@@ -275,7 +275,7 @@ sync; in local mode (slice 11) the same migration runs over the local store.
 ## Test plan
 
 - `base-tags.json` run the same way as `lang-tags.json`.
-- Shared fixture file run by ExUnit (`Mira.LangTest`) and `node --test`
+- Shared fixture file run by ExUnit (`Kotiko.LangTest`) and `node --test`
   (`test/unit/lang.test.mjs`) in slice 09's shared-spec CI job.
 - Script detection table: one native word per script in `languages.json` with a non-Latin
   default, plus mixed strings ("COVID-19 вирус", "iPhone 手机").

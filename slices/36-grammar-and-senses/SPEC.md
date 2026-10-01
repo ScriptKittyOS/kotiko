@@ -52,7 +52,7 @@ ones are added here):
 - Homographs coexist as separate senses, and a form is never silently claimed by the wrong one.
 - Each word can carry part of speech, article, gender, reading, vocalised form and IPA, and the
   popover shows them.
-- A cheap context check chooses between noun and verb senses where it can, and Mira skips the
+- A cheap context check chooses between noun and verb senses where it can, and Kotiko skips the
   swap where it can't decide and the user hasn't.
 - The user can state variant preferences that the model and the matcher respect.
 - Low-confidence or ambiguous adds ask "Did you mean" before saving.
@@ -82,8 +82,8 @@ ones are added here):
 - As a German learner, I see "Hund" inline and "der Hund (m), die Hunde" in the popover.
 - As a Japanese beginner, the popover shows 猫 with ねこ.
 - As a Brazilian Portuguese learner, new words come back as "trem", not "comboio".
-- As a learner who types "sol", Mira asks "Spanish or Portuguese 'sun', or Russian соль 'salt'?".
-- As a Spanish reader learning English, I add "cat" and Mira swaps "gato", "gata", "gatos" and
+- As a learner who types "sol", Kotiko asks "Spanish or Portuguese 'sun', or Russian соль 'salt'?".
+- As a Spanish reader learning English, I add "cat" and Kotiko swaps "gato", "gata", "gatos" and
   "gatas", but "wine" never replaces the "vino" in "él vino ayer".
 - As a German reader learning Spanish, "perro" replaces "Hund", "Hunde" and "Hunden", and keeps
   working when the noun starts a sentence or not.
@@ -150,9 +150,9 @@ senseFilter(match, candidates):
 Synonyms (casa and hogar for "home", both nouns) pass untouched and are rotated by 18.
 Ambiguous or noun/verb forms that end up skipped are listed in the dashboard (21) under "Words
 with two meanings": "'bank' could be banco (Spanish, money) or orilla (Spanish, river). Which
-should Mira show?" with "Show banco", "Show orilla", "Decide from context only" (Spanish
+should Kotiko show?" with "Show banco", "Show orilla", "Decide from context only" (Spanish
 interface, base `es`: "'banco' puede ser bank (inglés, dinero) o bench (inglés, asiento). ¿Cuál
-debería mostrar Mira?"). All copy comes from `_locales` (50). The popover (19)
+debería mostrar Kotiko?"). All copy comes from `_locales` (50). The popover (19)
 action "Wrong meaning here" offers the same choice and can also turn the form off for that word.
 The choice is stored as `formSense: Record<baseLang + U+001F + formKey, WordId[]>` in the
 `s:matching` settings group (39; slice 16 defines the group for its never-swap list), so a pin
@@ -380,7 +380,7 @@ New fields are nullable; existing words keep working. Forms without `ambiguous` 
 unambiguous, so existing behaviour doesn't change until words are re-checked. An optional
 "Improve my words" action in the dashboard re-asks the model for missing fields in small,
 quota-aware batches (10). Changelog: "Words can now have more than one meaning, plus grammar:
-articles, gender, readings and stress. Mira skips words when it can't tell which meaning a
+articles, gender, readings and stress. Kotiko skips words when it can't tell which meaning a
 sentence uses."
 
 ## Open questions

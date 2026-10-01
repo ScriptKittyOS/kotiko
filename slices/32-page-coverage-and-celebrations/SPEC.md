@@ -5,13 +5,13 @@
 | **Status** | Proposed |
 | **Priority** | P1 (soon after release) |
 | **Size** | M (about a week) |
-| **Depends on** | [14-matcher-engine](../14-matcher-engine/SPEC.md), [06-design-system](../06-design-system/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages, per-base data, `MiraI18n.t()`); uses [15](../15-framework-safe-swapping/SPEC.md)'s coverage hook, [16](../16-what-not-to-swap/SPEC.md)'s text language, [18](../18-language-precedence-and-mixing/SPEC.md)'s known signal, [36](../36-grammar-and-senses/SPEC.md)'s `spec/lang/<base>/no-standalone.json` |
+| **Depends on** | [14-matcher-engine](../14-matcher-engine/SPEC.md), [06-design-system](../06-design-system/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages, per-base data, `KotikoI18n.t()`); uses [15](../15-framework-safe-swapping/SPEC.md)'s coverage hook, [16](../16-what-not-to-swap/SPEC.md)'s text language, [18](../18-language-precedence-and-mixing/SPEC.md)'s known signal, [36](../36-grammar-and-senses/SPEC.md)'s `spec/lang/<base>/no-standalone.json` |
 | **Unblocks** | The popup's This page meter ([20](../20-popup-redesign/SPEC.md)); [31](../31-density-and-amount/SPEC.md)'s "showing" line |
 | **Sources** | Maintainer request (confetti) and [DECISIONS: celebrations on by default; English is not the base language](../DECISIONS.md); [01 S18, S19, S20, S21](../../docs/research/01-language-mixing.md); [05 S29, S30](../../docs/research/05-learner-ux.md) |
 
 ## Problem
 
-Learners can't see their progress on the page in front of them. Nothing in Mira measures
+Learners can't see their progress on the page in front of them. Nothing in Kotiko measures
 how much of a page is in the learner's languages: every match is swapped and nothing is
 counted (`extension/content.js:84-100`), and the popup shows only a total word count
 (`popup.js:128-129`). The maintainer wants the moment when most of a page is in your
@@ -67,7 +67,7 @@ whatever those are, with each base language's own rules for what counts as a wor
 
 Coverage is counted in the content script at [15](../15-framework-safe-swapping/SPEC.md)'s
 hook, `coverage.count(T, tokenCount, matches)`, which runs for every processed text node
-before rules, precedence and density are applied. Only text that Mira considers is counted:
+before rules, precedence and density are applied. Only text that Kotiko considers is counted:
 nodes inside regions [16](../16-what-not-to-swap/SPEC.md) skips never reach the hook.
 
 Each text node has a base language `B`: the language [16](../16-what-not-to-swap/SPEC.md)
@@ -107,9 +107,9 @@ For each text node `T` with base `B`:
   Reprocessing a node replaces its previous contribution; nodes that [15](../15-framework-safe-swapping/SPEC.md)'s
   cleanup finds removed are subtracted. Totals are plain integers per base per page view.
 
-Coverage is **potential** coverage: what Mira could swap, measured before
+Coverage is **potential** coverage: what Kotiko could swap, measured before
 [31](../31-density-and-amount/SPEC.md)'s caps, so a lower Amount never hides progress. The
-actually shown share ("showing") is counted from 15's `MiraEngine.onSwap` and used only by 31's
+actually shown share ("showing") is counted from 15's `KotikoEngine.onSwap` and used only by 31's
 popup line.
 
 Accuracy note: the hook runs before [16](../16-what-not-to-swap/SPEC.md)'s per-match name
@@ -129,7 +129,7 @@ background sums frames per tab.
   and on tab close. No URL is stored with it.
 - **Popup** ([20](../20-popup-redesign/SPEC.md) This page section). The page's **main
   base** is the base with the most counted tokens; the meter shows it. All text comes from
-  `MiraI18n.t()` in the interface language, and language names from
+  `KotikoI18n.t()` in the interface language, and language names from
   `Intl.DisplayNames([uiLocale])` (50 §7). English interface, English page:
 
 ```
@@ -158,7 +158,7 @@ background sums frames per tab.
   adds "Medium is showing 9 %". Pages under 50 counted tokens show "Not enough text in your
   languages here to measure." Paused, off and unsupported pages show their own states, and a
   page in none of the learner's bases shows 50's `base_page_other` state ("This page is in
-  German, which isn't one of your languages. Mira leaves it alone.") with no meter.
+  German, which isn't one of your languages. Kotiko leaves it alone.") with no meter.
 - **Badge** (setting "Toolbar badge": Coverage (default) · Nothing): the main base's rounded
   percentage, formatted with `Intl.NumberFormat(uiLocale, {style: "percent"})` ("18%",
   "18 %" where the locale puts a space), when the page has at least 150 counted tokens in
@@ -188,7 +188,7 @@ the learner's first word, seen where they actually read. It skips rule 3 below (
 page is fine) and keeps every other rule. Copy: "Your first word out in the wild: 犬." with
 the word in its own `lang`.
 
-**Vocabulary milestones** (inside Mira's own popup or dashboard only, never on pages):
+**Vocabulary milestones** (inside Kotiko's own popup or dashboard only, never on pages):
 first word in a new language, and 10, 50, 100, 250, 500, 1,000, 2,500 and 5,000 words. They
 are computed from the word store ([11](../11-local-first-mode/SPEC.md)) or
 [46](../46-local-stats-and-recap/SPEC.md)'s counters, and shown once as a milestone card at
@@ -204,7 +204,7 @@ All of these must hold, checked in this order (cheapest first):
 
 1. Celebrations are on (`prefs.celebrations`, default **on**) and the tab isn't private
    (`extension.inIncognitoContext` is false).
-2. Mira is on for this page: not off, not paused, not a site [16](../16-what-not-to-swap/SPEC.md)
+2. Kotiko is on for this page: not off, not paused, not a site [16](../16-what-not-to-swap/SPEC.md)
    or [38](../38-per-site-rules/SPEC.md) marks sensitive, and the text being measured is in
    one of the learner's bases.
 3. The page has at least **150 counted tokens** in the milestone's base, so a two-line page
@@ -274,7 +274,7 @@ styled as [06](../06-design-system/SPEC.md)'s milestone card, bottom center:
 **Confetti** (only when motion is allowed):
 
 - A full-viewport `<canvas>` inside the same closed shadow root as the popover and toast
-  (`<mira-popover>`, top layer via `popover="manual"`), `pointer-events: none`, `aria-hidden`.
+  (`<kotiko-popover>`, top layer via `popover="manual"`), `pointer-events: none`, `aria-hidden`.
   It never changes page layout or scroll.
 - Particles: `clamp(60, viewportArea / 12,000, 120)`, launched in two bursts from the lower
   left and lower right corners upward and inward, with gravity, air drag and spin; shapes
@@ -286,7 +286,7 @@ styled as [06](../06-design-system/SPEC.md)'s milestone card, bottom center:
 - No flashing (particles keep their color; nothing blinks), no sound.
 - Esc, any click or any key stops it immediately.
 
-**Reduced motion** (`prefers-reduced-motion: reduce` or Mira's "Reduce motion" setting): no
+**Reduced motion** (`prefers-reduced-motion: reduce` or Kotiko's "Reduce motion" setting): no
 confetti; the toast appears with a 120 ms fade. This is the full calm alternative, not a
 lesser one.
 
@@ -385,7 +385,7 @@ In Settings → Reading: "Toolbar badge: Coverage · Nothing".
 
 ## Rollout and migration
 
-Ships in P1. Mira knows nothing about pages from before the update, so `celebrations.done`
+Ships in P1. Kotiko knows nothing about pages from before the update, so `celebrations.done`
 starts empty (per base) and the first qualifying page shows only the highest milestone it crosses (the
 lower ones are marked done silently, §4). Vocabulary milestones already passed (a learner with 300 words) are marked
 done silently, except the next one up; `page:first-swap` is marked done for anyone who

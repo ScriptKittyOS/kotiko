@@ -6,7 +6,7 @@
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
 | **Depends on** | None |
-| **Unblocks** | [50](../50-ui-localization-and-base-language/SPEC.md)'s CI checks, [04](../04-rename-to-mira/SPEC.md), [07](../07-word-model-v2/SPEC.md), [14](../14-matcher-engine/SPEC.md), [30](../30-release-pipeline/SPEC.md); in practice every slice, since each one's test plan runs here |
+| **Unblocks** | [50](../50-ui-localization-and-base-language/SPEC.md)'s CI checks, [04](../04-rename-to-kotiko/SPEC.md), [07](../07-word-model-v2/SPEC.md), [14](../14-matcher-engine/SPEC.md), [30](../30-release-pipeline/SPEC.md); in practice every slice, since each one's test plan runs here |
 | **Sources** | [06 section 4 (items 1-8)](../../docs/research/06-adversarial-qa.md); [03 summary, section 3 "Matching engine", slices matcher-module-tests and e2e-fixture-corpus](../../docs/research/03-browser-extension.md); [04 S32, S33, slices ci-pipeline and dependency-automation](../../docs/research/04-architecture-release.md); [02 section 3 "Tests"](../../docs/research/02-linguistics.md) |
 
 ## Problem
@@ -68,7 +68,7 @@ playwright.config.mjs
 extension/
   lib/                     pure modules, no DOM or chrome APIs where possible
     matcher.js             today's buildMatcher/matchCase/escapeRe, moved verbatim
-  content.js               uses globalThis.MiraMatcher (manifest js: ["lib/matcher.js", "content.js"])
+  content.js               uses globalThis.KotikoMatcher (manifest js: ["lib/matcher.js", "content.js"])
 test/
   unit/                    node --test, pure modules (matcher, wordspec, lang, url, sync policy)
   dom/                     node --test + jsdom: content script behaviour, node identity
@@ -79,11 +79,11 @@ test/
     fake-chrome.mjs        storage (local, sync, session) with onChanged, runtime messaging
                            with sender objects, alarms, tabs; deterministic clock hooks
     load-script.mjs        evaluates an extension script in a jsdom window or vm context
-    fixture-server.mjs     one local HTTP server: static pages, fake Mira API, fake LLM
+    fixture-server.mjs     one local HTTP server: static pages, fake Kotiko API, fake LLM
   fixtures/
     pages/                 HTML corpus (section 4)
     vendor/                React 18 production UMD builds (MIT, with LICENSE), checked in
-    api/                   canned Mira API responses
+    api/                   canned Kotiko API responses
     llm/                   canned model answers and error responses
 server/
   config/test.exs
@@ -94,7 +94,7 @@ server/
       data_case.ex         Ecto sandbox setup, fixtures, clock control
       llm_stub.ex          Req.Test helpers: answer/1, rate_limited/1, stall/1
       telegram_stub.ex     Req.Test stub recording sent messages
-    mira/                  one file per module
+    kotiko/                  one file per module
     fixtures/              db/slovo-0.2.db, openrouter/models-2026-10-01.json
 .github/
   workflows/ci.yml
@@ -103,7 +103,7 @@ server/
 
 **Making the extension testable without a build step.** Content scripts can't be ES
 modules. Each file in `extension/lib/` is written as a classic script that attaches one
-namespace to `globalThis` (`globalThis.MiraMatcher = {...}`) and, when `module` exists,
+namespace to `globalThis` (`globalThis.KotikoMatcher = {...}`) and, when `module` exists,
 also assigns `module.exports`; tests load it with `load-script.mjs`. The manifest lists
 lib files before `content.js` in `content_scripts[].js`, and the background loads them
 with `importScripts` (Chrome) or the `background.scripts` array (Firefox). This pattern is
@@ -119,13 +119,13 @@ used by slices 08, 09, 14 and 26 for their pure modules.
   `start_http: false` (the application doesn't start Bandit in test; router tests call
   the plug directly, and the one real-socket test starts Bandit itself on port 0),
   no Telegram token, `llm_url: "http://llm.test"`, and
-  `req_options: [plug: {Req.Test, Mira.LLM}]` read by `Mira.LLM.Client` (and
-  `{Req.Test, Mira.Telegram}` for the bot). `Mira.Repo` uses
+  `req_options: [plug: {Req.Test, Kotiko.LLM}]` read by `Kotiko.LLM.Client` (and
+  `{Req.Test, Kotiko.Telegram}` for the bot). `Kotiko.Repo` uses
   `pool: Ecto.Adapters.SQL.Sandbox` with a database file in `System.tmp_dir!/0`.
   `config/runtime.exs` wraps environment parsing in `if config_env() != :test`.
 - **Sandbox**: `async: true` by default; concurrency tests (slice 07's 20 parallel adds)
   use `async: false` with `Sandbox.mode(Repo, {:shared, self()})`.
-- **Clock**: `Mira.Clock` (`now/0`, `monotonic/0`) with a test implementation that can be
+- **Clock**: `Kotiko.Clock` (`now/0`, `monotonic/0`) with a test implementation that can be
   advanced, so deadline, TTL and tombstone tests don't sleep.
 - **Required suites at the end of this slice** (later slices extend them):
   - `router_auth_test.exs`: slice 01's matrix against today's routes.
@@ -175,7 +175,7 @@ used by slices 08, 09, 14 and 26 for their pure modules.
   dependency is caught locally and in CI. Nothing needs DNS.
 - **`fixture-server.mjs`** (Node `http`, random port, started in `globalSetup`):
   - `/pages/*` static fixtures.
-  - `/mira/*` a fake Mira server: `GET /health`, `GET/POST/DELETE /api/words`, and later
+  - `/kotiko/*` a fake Kotiko server: `GET /health`, `GET/POST/DELETE /api/words`, and later
     `/api/v1/*`, backed by an in-memory list; switchable behaviours via
     `POST /__control` (slow, 401, HTML body, 500).
   - `/llm/v1/*` a fake OpenAI-compatible model: `/models`, `/key`, `/chat/completions`
@@ -250,7 +250,7 @@ slice 15 the long-task budget on `big.html`.
     placeholders match `en` per key; plural keys cover every `Intl.PluralRules` category
     of their locale; the launch locales (`en`, `es`) have 100% of keys.
   - `node scripts/check-i18n-literals.mjs`: no user-facing string literals outside
-    `MiraI18n.t()` in extension HTML and JS, with an allow-list for technical strings.
+    `KotikoI18n.t()` in extension HTML and JS, with an allow-list for technical strings.
   - `node scripts/check-base-neutral.mjs`: no `english`-named identifiers for base-side
     concepts in `extension/`, `server/lib/` or `spec/`, with an allow-list for code that
     reads old data (07's legacy API adapter, 09's legacy-key repair, 12's version-1
@@ -386,5 +386,5 @@ by the expected job.
 
 - Firefox end-to-end via `web-ext run` and geckodriver's `installAddon`, once there is a
   maintained way to drive it.
-- Mutation testing for `Mira.WordSpec` and the matcher.
+- Mutation testing for `Kotiko.WordSpec` and the matcher.
 - Visual regression snapshots for the popup and dashboard (slices 20, 21) in light and dark.

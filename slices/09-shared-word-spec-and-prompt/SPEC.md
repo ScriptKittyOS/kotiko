@@ -118,13 +118,13 @@ spec/
 
 **How each runtime reads it.**
 
-- **Server**: `Mira.Spec` reads the files at compile time with `@external_resource`, so
+- **Server**: `Kotiko.Spec` reads the files at compile time with `@external_resource`, so
   they are embedded in the BEAM files and a release or Docker image needs no `spec/` at
   runtime. The Docker build context is the repository root (slice 40).
 - **Extension**: it can't read files outside `extension/`, and the project has no build
   step ([03 section 3](../../docs/research/03-browser-extension.md)). `spec/tools/sync-extension.mjs`
   copies the runtime files into `extension/spec/` and writes `extension/spec/spec.js`, a
-  generated script that sets `globalThis.MIRA_SPEC = {rules, lang: {<base>: {stopwords,
+  generated script that sets `globalThis.KOTIKO_SPEC = {rules, lang: {<base>: {stopwords,
   stem, variants, …}}, languages, aliases, prompt}`. Every `spec/lang/` folder is copied
   (the whole tree is small: stopword lists are a few KB each). Both are committed, so the unpacked extension
   works straight from a clone. CI runs `sync-extension.mjs --check` and fails if the copy
@@ -255,7 +255,7 @@ the validator is strict.
 
 ### 4. Pipeline: input checks, extraction, normalisation, validation
 
-Implemented as `Mira.WordSpec` (Elixir) and `extension/lib/wordspec.js` (pure module).
+Implemented as `Kotiko.WordSpec` (Elixir) and `extension/lib/wordspec.js` (pure module).
 Input: `{text, mode: "add" | "auto", base_langs: [tag], raw_model_content}`. Output:
 `{intent, words: [Word], rejected: [{native?, gloss?, base_lang?, reason}], dropped_forms: [{native, base_lang, form, reason}], reply}`.
 Every rule below that reads language data uses `langData(word.base_lang)` (section 1).
@@ -278,7 +278,7 @@ string is expected → its string form; unknown keys ignored. **Legacy keys**: w
 request had exactly one base, `english` is read as `gloss` and `english_forms` as
 `forms` (old prompts, recorded eval answers, small models echoing the old shape), and a
 missing `base_lang` is that one base. With several bases, an entry without `base_lang`
-is rejected with `missing_field`, because Mira can't tell which pages it is for.
+is rejected with `missing_field`, because Kotiko can't tell which pages it is for.
 
 **C. Normalise each word.** Every string: NFC, trim, collapse internal whitespace, strip
 U+200B, U+FEFF and U+00AD (keep U+200C and U+200D, which Persian and Indic scripts
@@ -379,8 +379,8 @@ all of them in CI; a failure in either fails the build.
 
 ### 5. Using it on the server
 
-`Mira.LLM` calls `Mira.WordSpec.prepare_input/1`, builds the request from `Mira.Spec`,
-and passes the raw content to `Mira.WordSpec.process/3`. The router (`router.ex:32-59`
+`Kotiko.LLM` calls `Kotiko.WordSpec.prepare_input/1`, builds the request from `Kotiko.Spec`,
+and passes the raw content to `Kotiko.WordSpec.process/3`. The router (`router.ex:32-59`
 today) returns slice 07's `results` plus `rejected` and, outside add mode, `reply`. The
 bot shows rejected words with a one-line reason (wording in slice 25). `Word.forms/1`,
 `Word.normalize_lang/1`, `LLM.extract_json/1` and `LLM.normalize/1` are deleted.
@@ -520,7 +520,7 @@ feed `spec/models.json`'s preference order (slice 10).
 
 ## Test plan
 
-- Fixtures as above, in slice 02's `spec` CI job (ExUnit `Mira.WordSpecTest` and
+- Fixtures as above, in slice 02's `spec` CI job (ExUnit `Kotiko.WordSpecTest` and
   `test/unit/wordspec.test.mjs` read the same files).
 - Unit tests for the stemmer (a table of 200 pairs for each Full base, `en` and `es`, and
   30 for `_generic`), `langData` fallback, the brace scanner (strings with braces and
@@ -539,7 +539,7 @@ A request without `base_langs` (a 0.2 extension) is treated as `["en"]`, which i
 its words have always been. Words already saved are not re-validated (slice 07's
 migration normalises text and sets `base_lang: "en"` only);
 the dashboard (slice 21) can surface words with suspicious forms later. The extension
-picks up `extension/spec/` when slice 11 ships. Changelog: "Mira now checks every word
+picks up `extension/spec/` when slice 11 ships. Changelog: "Kotiko now checks every word
 the model suggests: it won't swap unrelated words like 'what' for как, never adds more
 than 5 words at once, and explains anything it rejects. Ask in your own language, and
 meanings come back in the languages you read."

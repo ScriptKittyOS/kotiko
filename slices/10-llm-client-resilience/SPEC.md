@@ -11,7 +11,7 @@
 
 ## Problem
 
-Every word Mira learns goes through a model, and by default that is a free OpenRouter
+Every word Kotiko learns goes through a model, and by default that is a free OpenRouter
 model: shared, often busy, rate limited, and renamed or retired every few weeks. The
 client treats it as if it were reliable.
 
@@ -26,7 +26,7 @@ client treats it as if it were reliable.
 - **The model list is frozen.** Five ids are hardcoded (`server/config/runtime.exs:35-42`):
   `apodex/apodex-1.1-mini:free`, `qwen/qwen3.8-27b:free`, `google/gemma-4-31b-it:free`,
   `dots-studio/dots-3-note-preview:free`, `nvidia/nemotron-3-super-120b-a12b:free`. All
-  five exist today, but `qwen/qwen3.8-27b:free` doesn't list `response_format`, which Mira
+  five exist today, but `qwen/qwen3.8-27b:free` doesn't list `response_format`, which Kotiko
   always sends (`llm.ex:112`) ([04 S17](../../docs/research/04-architecture-release.md)).
   A store-installed extension can't be hot-fixed in a day when an id disappears.
 - **No sense of quota.** The learner sees "all the free models are busy" (`llm.ex:95-98`)
@@ -50,7 +50,7 @@ and sometimes `Retry-After`.
 
 - An add never takes longer than 25 s end to end on the server, and never more than 3
   model requests.
-- The free-model chain is built from OpenRouter's live list, filtered for what Mira needs,
+- The free-model chain is built from OpenRouter's live list, filtered for what Kotiko needs,
   with a cached and a shipped fallback, and `LLM_MODEL` always wins.
 - Failures are classified so callers (popup, job queue in slice 11, Telegram) can say
   something true and know when to retry.
@@ -72,7 +72,7 @@ and sometimes `Retry-After`.
 - As a learner pressing Add, I want an answer or a clear "try again at 14:32" within
   seconds, not a spinner for five minutes.
 - As a free-tier learner, I want to see "38 free lookups left today" so I can plan a bulk add.
-- As a self-hoster, I want Mira to keep working when OpenRouter retires a model, without
+- As a self-hoster, I want Kotiko to keep working when OpenRouter retires a model, without
   editing `.env`.
 - As a privacy-minded user, I want the words I look up kept out of system logs.
 
@@ -80,7 +80,7 @@ and sometimes `Retry-After`.
 
 ### 1. Model catalog
 
-`Mira.LLM.Catalog` (GenServer; JavaScript twin `extension/lib/llm/catalog.js`).
+`Kotiko.LLM.Catalog` (GenServer; JavaScript twin `extension/lib/llm/catalog.js`).
 
 - **When**: 10 s after boot (never blocking startup), then every 24 h, and on demand when
   every model in the chain failed with "not found". Only when the LLM host is
@@ -114,7 +114,7 @@ and sometimes `Retry-After`.
 
 ### 2. One lookup: attempts, deadline, classification
 
-`Mira.LLM.interpret(text, context, opts)` where `context` is slice 09's request context.
+`Kotiko.LLM.interpret(text, context, opts)` where `context` is slice 09's request context.
 
 **Budgets** (`spec/models.json` `policy`, so both runtimes share them):
 
@@ -131,10 +131,10 @@ is enforced with a monotonic clock; an attempt is not started with less than 4 s
 **Request per attempt**: slice 09's messages; `temperature: 0.2`; `response_format:
 {type: "json_object"}` only if the model's `json_mode`; `reasoning: {enabled: false}`
 only on OpenRouter and if `reasoning_toggle`; `max_tokens: 1200` if supported; headers
-`X-Title: Mira` and `HTTP-Referer: https://github.com/ScriptKittyOS/mira` on OpenRouter
+`X-Title: Kotiko` and `HTTP-Referer: https://github.com/ScriptKittyOS/kotiko` on OpenRouter
 (app attribution, as slice 11 specifies); `Req` with `retry: false`.
 
-**Outcome of an attempt → next step** (`Mira.LLM.Policy.next/2`, a pure function, table
+**Outcome of an attempt → next step** (`Kotiko.LLM.Policy.next/2`, a pure function, table
 tested):
 
 | Outcome | Next step | Model health |
@@ -170,7 +170,7 @@ as the platform kind, which wastes nothing.
 
 ### 3. Quota awareness
 
-`Mira.LLM.Quota` (OpenRouter only):
+`Kotiko.LLM.Quota` (OpenRouter only):
 
 - `GET {LLM_URL}/key` at boot, then at most once every 5 minutes when lookups happen, and
   immediately after any 429. Stores `free_model_daily_requests` and `is_free_tier`.
@@ -200,11 +200,11 @@ as the platform kind, which wastes nothing.
 - **Storage**: server table `lookup_cache (key TEXT PRIMARY KEY, result TEXT, model TEXT,
   inserted_at, last_hit_at, hits)`; extension: IndexedDB store `lookupCache` (slice 11).
   TTL 30 days; at most 5,000 entries, least recently hit evicted by the daily
-  `Mira.Janitor` job (slice 07).
+  `Kotiko.Janitor` job (slice 07).
 - **Bypass**: `opts[:fresh]` (the popover's "wrong meaning", slice 19, and "try again").
 - **Missing bases**: an `ok` result with a non-empty `missing_bases` is cached with them,
   and the caller may ask again for just those bases (`base_langs` narrowed), which is a
-  different key. Mira never makes that follow-up call by itself unless slice 09's eval
+  different key. Kotiko never makes that follow-up call by itself unless slice 09's eval
   shows free models routinely skip bases (09 open question 5); then one follow-up call
   per lookup, counted against the same 3-request cap and deadline.
 - Cleared by delete-all (slice 12).
@@ -229,18 +229,18 @@ count against their own deadlines.
   after slice 29's redaction filter (keys, tokens).
 - Removes today's `Logger.info` and `Logger.warning` calls with text (`llm.ex:76`,
   `llm.ex:80-82`, `llm.ex:130`) and the raw changeset log (`server/lib/slovo/router.ex:45`).
-- Telemetry events `[:mira, :llm, :attempt, :stop]` and `[:mira, :llm, :lookup, :stop]`
+- Telemetry events `[:kotiko, :llm, :attempt, :stop]` and `[:kotiko, :llm, :lookup, :stop]`
   with the same metadata, for tests and anyone who wants metrics.
 
 ### 7. Module layout
 
 ```
-Mira.LLM            interpret/3: cache -> quota gate -> chain -> attempts -> WordSpec
-Mira.LLM.Catalog    GenServer: models, capabilities, health
-Mira.LLM.Quota      GenServer: key info, estimate
-Mira.LLM.Cache      Ecto-backed cache, single flight
-Mira.LLM.Policy     pure: next(outcome, state) -> action
-Mira.LLM.Client     one HTTP attempt -> outcome
+Kotiko.LLM            interpret/3: cache -> quota gate -> chain -> attempts -> WordSpec
+Kotiko.LLM.Catalog    GenServer: models, capabilities, health
+Kotiko.LLM.Quota      GenServer: key info, estimate
+Kotiko.LLM.Cache      Ecto-backed cache, single flight
+Kotiko.LLM.Policy     pure: next(outcome, state) -> action
+Kotiko.LLM.Client     one HTTP attempt -> outcome
 ```
 
 The extension mirrors `Policy` and `Client` in `extension/lib/llm/` with the same
@@ -295,7 +295,7 @@ The extension mirrors `Policy` and `Client` in `extension/lib/llm/` with the sam
   table is new), so no cache entry lacks base languages.
 - Extension: slice 11 uses the JavaScript twin from its first release.
 - Changelog: "Adding a word now answers within 25 seconds, uses at most 3 requests, and
-  remembers words it already looked up. Mira follows OpenRouter's current free models
+  remembers words it already looked up. Kotiko follows OpenRouter's current free models
   automatically and shows how many free lookups you have left today."
 
 ## Open questions

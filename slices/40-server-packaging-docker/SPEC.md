@@ -5,7 +5,7 @@
 | **Status** | Proposed |
 | **Priority** | P1 (soon after release) |
 | **Size** | M (about a week) |
-| **Depends on** | [04-rename-to-mira](../04-rename-to-mira/SPEC.md), [29-server-ops-hardening](../29-server-ops-hardening/SPEC.md) |
+| **Depends on** | [04-rename-to-kotiko](../04-rename-to-kotiko/SPEC.md), [29-server-ops-hardening](../29-server-ops-hardening/SPEC.md) |
 | **Unblocks** | [48-multi-user-and-classroom](../48-multi-user-and-classroom/SPEC.md); hosting templates (Future work) |
 | **Sources** | [04 S12, S13, S14, S15, section 3 "Release plan"](../../docs/research/04-architecture-release.md); [06 F19, F20](../../docs/research/06-adversarial-qa.md) |
 
@@ -48,19 +48,19 @@ documented way to restore.
 
 ### 1. Release build
 
-- `mix.exs` `releases: [mira: [include_executables_for: [:unix, :windows], steps: [:assemble, :tar]]]`.
-- `Mira.Release` module for operations without Mix: `migrate/0`, `backup/0`,
+- `mix.exs` `releases: [kotiko: [include_executables_for: [:unix, :windows], steps: [:assemble, :tar]]]`.
+- `Kotiko.Release` module for operations without Mix: `migrate/0`, `backup/0`,
   `token/0`, `rotate_token/0` (slice 01's tasks), called as
-  `bin/mira eval "Mira.Release.backup()"`. The mix tasks call the same functions.
-- `.env` loading for releases: `Mira.Config` reads `MIRA_ENV_FILE` (default `./.env`
+  `bin/kotiko eval "Kotiko.Release.backup()"`. The mix tasks call the same functions.
+- `.env` loading for releases: `Kotiko.Config` reads `KOTIKO_ENV_FILE` (default `./.env`
   next to the release, or none in Docker) with a strict `KEY=VALUE` parser (comments,
   blank lines, single and double quotes, no shell expansion), so behaviour doesn't depend
   on a shell. Real environment variables win over the file.
-- Data directory defaults per platform: Linux `$XDG_DATA_HOME/mira` or
-  `~/.local/share/mira`; macOS `~/Library/Application Support/Mira`; Windows
-  `%LOCALAPPDATA%\Mira`. If `~/.local/share/mira` already exists on macOS (people who ran
+- Data directory defaults per platform: Linux `$XDG_DATA_HOME/kotiko` or
+  `~/.local/share/kotiko`; macOS `~/Library/Application Support/Kotiko`; Windows
+  `%LOCALAPPDATA%\Kotiko`. If `~/.local/share/kotiko` already exists on macOS (people who ran
   from source), it keeps being used. Slice 04's legacy migration runs on every platform.
-- Release tarballs `mira-server-<version>-linux-x86_64.tar.gz` and `-linux-aarch64`,
+- Release tarballs `kotiko-server-<version>-linux-x86_64.tar.gz` and `-linux-aarch64`,
   built on native GitHub runners (`ubuntu-24.04`, `ubuntu-24.04-arm`) in slice 30's
   release workflow, with checksums and attestations. They need the target's glibc and
   OpenSSL; the README says which distributions are tested (Debian 12+, Ubuntu 22.04+).
@@ -82,22 +82,22 @@ RUN cd server && mix release
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 openssl ca-certificates curl tini \
- && rm -rf /var/lib/apt/lists/* && useradd --uid 10001 --create-home mira
-ENV LANG=C.UTF-8 MIRA_DATA_DIR=/data BIND=0.0.0.0 PORT=4747 MIRA_IN_CONTAINER=1
-COPY --from=build --chown=mira /src/server/_build/prod/rel/mira /app
-RUN mkdir /data && chown mira /data
-USER mira
+ && rm -rf /var/lib/apt/lists/* && useradd --uid 10001 --create-home kotiko
+ENV LANG=C.UTF-8 KOTIKO_DATA_DIR=/data BIND=0.0.0.0 PORT=4747 KOTIKO_IN_CONTAINER=1
+COPY --from=build --chown=kotiko /src/server/_build/prod/rel/kotiko /app
+RUN mkdir /data && chown kotiko /data
+USER kotiko
 VOLUME /data
 EXPOSE 4747
 HEALTHCHECK --interval=30s --timeout=3s --start-period=20s CMD curl -fsS http://127.0.0.1:4747/health || exit 1
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["/app/bin/mira", "start"]
+CMD ["/app/bin/kotiko", "start"]
 ```
 
 - Base images pinned by digest; Dependabot (`docker` ecosystem) updates them.
-- `MIRA_IN_CONTAINER=1` turns slice 01's `0.0.0.0` warning into an explanation of port
+- `KOTIKO_IN_CONTAINER=1` turns slice 01's `0.0.0.0` warning into an explanation of port
   mapping. The healthcheck's `Host: 127.0.0.1` passes slice 01's Host check.
-- Tags: `ghcr.io/scriptkittyos/mira:0.3.1`, `:0.3`, `:latest`. OCI labels for source,
+- Tags: `ghcr.io/scriptkittyos/kotiko:0.3.1`, `:0.3`, `:latest`. OCI labels for source,
   version, license (`Apache-2.0`). Built per architecture on native runners, then merged
   into one manifest list; `provenance: mode=max` and `sbom: true` in
   `docker/build-push-action`; `actions/attest-build-provenance` on the digest.
@@ -109,42 +109,42 @@ CMD ["/app/bin/mira", "start"]
 
 ```yaml
 services:
-  mira:
-    image: ghcr.io/scriptkittyos/mira:0.3
+  kotiko:
+    image: ghcr.io/scriptkittyos/kotiko:0.3
     restart: unless-stopped
     env_file: .env
     ports:
       - "127.0.0.1:4747:4747"     # this machine only; see the Tailscale example
     volumes:
-      - mira-data:/data
+      - kotiko-data:/data
 volumes:
-  mira-data: {}
+  kotiko-data: {}
 ```
 
 `deploy/docker-compose.tailscale.yml`: a `tailscale/tailscale` sidecar with
-`TS_AUTHKEY`, `TS_SERVE_CONFIG` serving `https://mira.<tailnet>.ts.net` to `mira:4747`,
-and `ALLOWED_HOSTS=mira.<tailnet>.ts.net` for slice 01. This is the recommended remote
+`TS_AUTHKEY`, `TS_SERVE_CONFIG` serving `https://kotiko.<tailnet>.ts.net` to `kotiko:4747`,
+and `ALLOWED_HOSTS=kotiko.<tailnet>.ts.net` for slice 01. This is the recommended remote
 setup: HTTPS, no open ports.
 
 First run: the token is generated into `/data/api-token` (slice 01);
-`docker compose exec mira /app/bin/mira eval "Mira.Release.token()"` prints it and the
+`docker compose exec kotiko /app/bin/kotiko eval "Kotiko.Release.token()"` prints it and the
 pairing string.
 
 ### 4. Service files
 
 - **Linux, user service** (today's path): `install-service.sh` gains `--release <dir>` to
-  use `bin/mira start` instead of `run.sh`, with slice 29's quoting and slice 04's
+  use `bin/kotiko start` instead of `run.sh`, with slice 29's quoting and slice 04's
   old-unit cleanup. Source installs keep working as before.
-- **Linux, system service**: `deploy/systemd/mira.service` for servers:
-  `DynamicUser=yes`, `StateDirectory=mira` (data in `/var/lib/mira`),
-  `EnvironmentFile=/etc/mira/env`, `ProtectSystem=strict`, `ProtectHome=yes`,
+- **Linux, system service**: `deploy/systemd/kotiko.service` for servers:
+  `DynamicUser=yes`, `StateDirectory=kotiko` (data in `/var/lib/kotiko`),
+  `EnvironmentFile=/etc/kotiko/env`, `ProtectSystem=strict`, `ProtectHome=yes`,
   `NoNewPrivileges=yes`, `PrivateTmp=yes`, `RestartPreventExitStatus=78`.
-- **macOS**: `deploy/macos/org.scriptkittyos.mira.plist`, a LaunchAgent with
-  `RunAtLoad`, `KeepAlive` (`SuccessfulExit: false`), logs to `~/Library/Logs/Mira/`,
+- **macOS**: `deploy/macos/org.scriptkittyos.kotiko.plist`, a LaunchAgent with
+  `RunAtLoad`, `KeepAlive` (`SuccessfulExit: false`), logs to `~/Library/Logs/Kotiko/`,
   plus `deploy/macos/install.sh` that fills in paths and runs `launchctl bootstrap gui/$UID`.
   Officially supported: CI runs the release build and a launchd smoke test on a macOS runner.
 - **Windows**: `deploy/windows/install.ps1` registers a Task Scheduler task "at log on"
-  running `bin\mira.bat start` with restart on failure (simpler than a Windows service,
+  running `bin\kotiko.bat start` with restart on failure (simpler than a Windows service,
   [04 S12](../../docs/research/04-architecture-release.md)). Officially supported: CI runs the
   install script and a health check on a Windows runner.
   The release tarball for Windows is Future work (exqlite needs a Windows build).
@@ -152,14 +152,14 @@ pairing string.
 ### 5. Backups
 
 - **Automatic** (slice 07): before pending migrations, `VACUUM INTO
-  <data>/backups/mira-pre-<version>-<timestamp>.db`; keep the newest five.
-- **On demand**: `mix mira.backup` / `bin/mira eval "Mira.Release.backup()"` writes
-  `<data>/backups/mira-manual-<timestamp>.db` and prints the path. Safe while the server
+  <data>/backups/kotiko-pre-<version>-<timestamp>.db`; keep the newest five.
+- **On demand**: `mix kotiko.backup` / `bin/kotiko eval "Kotiko.Release.backup()"` writes
+  `<data>/backups/kotiko-manual-<timestamp>.db` and prints the path. Safe while the server
   runs (`VACUUM INTO` takes a consistent snapshot).
 - **Restore** (documented, not automated): stop the server, copy a backup over
-  `mira.db`, delete `mira.db-wal` and `mira.db-shm`, start. A newer schema than the code
+  `kotiko.db`, delete `kotiko.db-wal` and `kotiko.db-shm`, start. A newer schema than the code
   expects stops boot with a message naming the version.
-- Docker: `docker compose exec mira /app/bin/mira eval "Mira.Release.backup()"`, then copy
+- Docker: `docker compose exec kotiko /app/bin/kotiko eval "Kotiko.Release.backup()"`, then copy
   out of the volume with `docker compose cp`.
 
 ## Acceptance criteria
@@ -170,8 +170,8 @@ pairing string.
 - [ ] The default compose file is not reachable from another machine.
 - [ ] The Tailscale example serves over HTTPS on the tailnet name with `ALLOWED_HOSTS` set.
 - [ ] A release tarball runs on a clean Debian 12 machine with no Elixir installed.
-- [ ] Upgrading the image across a migration leaves a `mira-pre-*.db` backup in `/data/backups`.
-- [ ] `Mira.Release.backup()` works while the server is serving requests.
+- [ ] Upgrading the image across a migration leaves a `kotiko-pre-*.db` backup in `/data/backups`.
+- [ ] `Kotiko.Release.backup()` works while the server is serving requests.
 - [ ] macOS LaunchAgent starts at login and restarts after `kill`.
 
 ## Test plan
@@ -185,8 +185,8 @@ pairing string.
 ## Rollout and migration
 
 - Source installs are unaffected; the README gains "Docker" as the first server option.
-- Moving from source to Docker: copy `~/.local/share/mira/mira.db` into the volume
-  (`docker compose cp mira.db mira:/data/mira.db` before first start) and the `.env`
+- Moving from source to Docker: copy `~/.local/share/kotiko/kotiko.db` into the volume
+  (`docker compose cp kotiko.db kotiko:/data/kotiko.db` before first start) and the `.env`
   values; documented step by step.
 - Changelog: "The server now ships as a Docker image for amd64 and arm64, and as a
   standalone release. Backups are taken before every database upgrade."

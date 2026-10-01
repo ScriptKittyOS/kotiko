@@ -11,7 +11,7 @@
 
 ## Problem
 
-Mira can't be listed in either store today, and a learner installing it has no written
+Kotiko can't be listed in either store today, and a learner installing it has no written
 answer to "what does this do with my data?"
 
 - There is no privacy policy. Both stores require one for an extension that handles
@@ -27,7 +27,7 @@ answer to "what does this do with my data?"
   confidence, [03 C5](../../docs/research/03-browser-extension.md)).
 - Firefox users can revoke host permissions at any time, and the README tells them to
   grant them by hand (`README.md:181-185`). Chrome users can also restrict site access to
-  "on click". Mira never checks, so it silently does nothing.
+  "on click". Kotiko never checks, so it silently does nothing.
 - The server token sits in `storage.local` (`extension/popup.js:215-219`), readable by
   every content script ([06 F36](../../docs/research/06-adversarial-qa.md)). Slice 11
   moves it; this slice verifies it, because store reviewers and the privacy policy rely on it.
@@ -35,8 +35,8 @@ answer to "what does this do with my data?"
   `title` (`extension/content.js:91-97`) ([03 E4](../../docs/research/03-browser-extension.md)).
 - There are no listing texts, screenshots or promo tiles, and the ScriptKittyOS publisher
   accounts the maintainer decided on don't exist yet.
-- The descriptions drafted so far say Mira swaps "English words", which is wrong since
-  the base-language decision: Mira swaps words in whatever languages the learner reads
+- The descriptions drafted so far say Kotiko swaps "English words", which is wrong since
+  the base-language decision: Kotiko swaps words in whatever languages the learner reads
   ([50](../50-ui-localization-and-base-language/SPEC.md)). A learner in Puerto Rico with a
   Spanish browser would see an English-only listing promising English pages.
 
@@ -47,7 +47,7 @@ answer to "what does this do with my data?"
 - Complete, accurate Chrome Web Store submission content: single purpose, permission
   justifications, data disclosures, certifications.
 - A manifest that AMO accepts: data collection declaration, minimum versions, CSP.
-- Mira notices when it lacks site access and offers a one-click fix.
+- Kotiko notices when it lacks site access and offers a one-click fix.
 - An automated check that no secret is reachable from a content script.
 - Listing copy and asset specs ready for slice 05's artwork and slice 30's upload.
 - The listing, screenshots and privacy policy exist in **English and Spanish** at launch,
@@ -73,10 +73,10 @@ answer to "what does this do with my data?"
 - As a cautious learner, I want to read in two minutes exactly what leaves my computer.
 - As a store reviewer, I want each permission explained in one sentence tied to a
   feature I can test.
-- As a Firefox user who revoked site access, I want Mira to tell me and fix it in one click.
+- As a Firefox user who revoked site access, I want Kotiko to tell me and fix it in one click.
 - As a self-hoster on Tailscale, I want my `http://100.x.y.z` server to keep working in Firefox.
 - As a Spanish speaker browsing the Chrome Web Store in Spanish, I want the listing, the
-  screenshots and the privacy policy in Spanish, and to see that Mira works on Spanish
+  screenshots and the privacy policy in Spanish, and to see that Kotiko works on Spanish
   pages.
 
 ## Specification
@@ -90,7 +90,7 @@ it (a checkbox in the PR template from slice 03).
 | Data | Stored where | Leaves the device? | To whom, when |
 |---|---|---|---|
 | Page text and URLs | Not stored; read in memory to swap words | Never | Nobody |
-| Your words (the word, its meaning in your language, notes, source text) | Extension (IndexedDB, slice 11) | Only if you connect a server | Your own Mira server |
+| Your words (the word, its meaning in your language, notes, source text) | Extension (IndexedDB, slice 11) | Only if you connect a server | Your own Kotiko server |
 | Text you type to add a word, plus the names of your five most recent languages | Job queue until done | Yes, when you add a word | The model provider you chose (OpenRouter by default), or your server, which forwards it to its provider |
 | Text you select and send with "Learn this in…" (slice 33), plus the page's declared language | Job queue until done | Yes, when you use the menu | Same as above. Never the URL |
 | API key, server token | Extension (IndexedDB, not readable by page-side scripts) | Only to the service it belongs to | Your provider or your server |
@@ -100,7 +100,7 @@ it (a checkbox in the PR template from slice 03).
 | Requests for dictionaries (slice 49) and the free-model list | Not stored | The request itself (your IP address) | GitHub Pages; OpenRouter's public models list |
 | Telegram messages and voice notes (server add-on) | Your server | Yes | Telegram; your transcription provider |
 
-Mira has no analytics, telemetry, crash reporting, ads or remote configuration. It does
+Kotiko has no analytics, telemetry, crash reporting, ads or remote configuration. It does
 not set an uninstall URL (`runtime.setUninstallURL`), because that is a network signal
 about the user.
 
@@ -123,25 +123,25 @@ them.
 Outline:
 
 1. **The short version** (five bullets): page content never leaves your browser; words
-   you add are looked up by the model provider you choose; Mira has no servers of its own
+   you add are looked up by the model provider you choose; Kotiko has no servers of its own
    and collects nothing; your words live in your browser unless you connect your own
    server; you can export or delete everything at any time.
-2. **Who makes Mira**: ScriptKittyOS, a free open-source project, with the repo link.
+2. **Who makes Kotiko**: ScriptKittyOS, a free open-source project, with the repo link.
 3. **What stays on your device**: section 1's "never leaves" rows.
 4. **What leaves your device, and only when you act**: the provider row, with a
    paragraph per preset linking to that provider's privacy policy, and a sentence on
    OpenRouter's training and retention settings and the "don't keep my text" option
    (slice 11, open question 1).
 5. **What websites can see**: swapped words are visible in the page, so a site's own
-   scripts or session-recording tools can see that you use Mira and which words appear.
-   Slice 19 removes the original words and Mira's attributes from the page; the
+   scripts or session-recording tools can see that you use Kotiko and which words appear.
+   Slice 19 removes the original words and Kotiko's attributes from the page; the
    visible words remain. "Pause on this site" (slice 38) stops it.
 6. **Your own server** (optional add-on): you are its operator; what it stores; Telegram.
 7. **Browser sync**: settings follow your browser account if sync is on.
 8. **Keeping and deleting data**: export, delete everything, uninstall (slice 12).
 9. **Security**: keys kept away from page scripts; how to report a vulnerability (slice
    03's SECURITY.md).
-10. **Children**: Mira is not directed at children under 13 and collects nothing from anyone.
+10. **Children**: Kotiko is not directed at children under 13 and collects nothing from anyone.
 11. **Changes**: announced in the changelog and the extension's "What's new" before they
     take effect, as CWS policy requires for changes in data practice.
 12. **Contact**: `hello@scriptkittyos.com` for questions about this policy. ScriptKittyOS
@@ -154,18 +154,18 @@ Outline:
 **Single purpose** (the form's text field; CWS takes one text, so it is in English and
 names no reading language):
 
-> Mira replaces words on the web pages you read, in your own language, with the words you
+> Kotiko replaces words on the web pages you read, in your own language, with the words you
 > are learning in other languages, so you pick up vocabulary while you browse.
 
 **Permissions and justifications** (final list once slices 11, 15 and 33 land):
 
 | Permission | Justification |
 |---|---|
-| Host `<all_urls>` and content script on `<all_urls>` | Mira's single purpose is to swap words on any page you read; it can't know in advance which sites you read. Page content is processed locally and never transmitted. Host access also lets Mira call the model provider or self-hosted server you configure. |
+| Host `<all_urls>` and content script on `<all_urls>` | Kotiko's single purpose is to swap words on any page you read; it can't know in advance which sites you read. Page content is processed locally and never transmitted. Host access also lets Kotiko call the model provider or self-hosted server you configure. |
 | `storage` | Keeps your words and settings in your browser. |
 | `unlimitedStorage` | Large vocabularies (up to 20,000 words) and keeping them safe from storage eviction. |
 | `alarms` | Retries word lookups when the free model quota resets, and refreshes from your own server. |
-| `scripting` | Starts Mira in tabs that were already open when it was installed or updated (slice 15). |
+| `scripting` | Starts Kotiko in tabs that were already open when it was installed or updated (slice 15). |
 | `contextMenus` | "Learn this in…" on selected text (slice 33). |
 | `identity` (only if slice 11's spike chooses `launchWebAuthFlow`) | Signs you in to OpenRouter to create a key without copying it. |
 
@@ -213,10 +213,10 @@ first word, then Try it on a page in that language."
   `data_collection_permissions` (MDN browser-compat-data); 140 is an ESR, so ESR users
   are covered.
 - **Why `none` is required and `websiteContent` optional.** Out of the box, with words
-  typed with their meaning (“hola = hello”, “dog = perro”), Mira transmits nothing. Text typed into the
+  typed with their meaning (“hola = hello”, “dog = perro”), Kotiko transmits nothing. Text typed into the
   add box is the user's own input sent to a provider they configured; it matches none of
   Mozilla's categories, which describe data about the user's browsing. Text selected on
-  a page and sent with "Learn this in…" is website content. Mira requests the optional
+  a page and sent with "Learn this in…" is website content. Kotiko requests the optional
   `websiteContent` consent (`permissions.request({data_collection: ["websiteContent"]})`) the first time
   the user uses that menu item with a remote provider; if refused, the menu still opens
   the popup with the text prefilled, so the user sends it by typing Enter. Confidence:
@@ -238,7 +238,7 @@ first word, then Try it on a page in that language."
 
 This is Chrome's MV3 default, stated explicitly. In Firefox it replaces the default that
 includes `upgrade-insecure-requests`, so `http://` servers on a LAN or Tailscale address
-keep working. Mira's own pages load nothing remote, so nothing else is lost.
+keep working. Kotiko's own pages load nothing remote, so nothing else is lost.
 
 Because plain HTTP sends the server token in cleartext, the server URL field shows, for
 any `http://` address that is not loopback: "This connection isn't encrypted. Use HTTPS
@@ -258,13 +258,13 @@ Both Firefox and Chrome let users withhold host access after install.
 
   ```
   +--------------------------------------------+
-  | Mira can't see this site yet.              |
+  | Kotiko can't see this site yet.              |
   | [Allow on all sites]   Allow only here     |
   +--------------------------------------------+
   ```
 
   Both buttons call `permissions.request` directly in the click handler (a user gesture
-  is required). "Allow on all sites" is the primary action because it is Mira's purpose.
+  is required). "Allow on all sites" is the primary action because it is Kotiko's purpose.
 - `permissions.onAdded` and `onRemoved` update the toolbar badge (slice 20's "off"
   state) and inject into the tab when access arrives (slice 15's injection).
 - The provider or server origin is checked the same way before a lookup; if missing, the
@@ -280,7 +280,7 @@ A CI end-to-end test (slice 02's Playwright harness) and a release checklist ite
    `storage.sync.get(null)`, and attempt `storage.session.get(null)`; assert no value
    contains either secret.
 3. From a page-world script, read `document.documentElement.outerHTML` after swaps, on an
-   English page and on a Spanish page; assert no original word, no word id, and no Mira attribute except what slice 19
+   English page and on a Spanish page; assert no original word, no word id, and no Kotiko attribute except what slice 19
    allows.
 4. Send every privileged message type from a content script; assert each is refused.
 5. Assert the manifest has no `externally_connectable`, and `web_accessible_resources`
@@ -299,8 +299,8 @@ dashboard; AMO takes per-locale name, summary and description through its API. L
 that are not 100% translated are not uploaded; the store falls back to the default
 locale for them.
 
-**Name**: "Mira" plus a descriptor, final wording after slice 04's name check, for
-example "Mira: learn languages while you browse" / "Mira: aprende idiomas mientras
+**Name**: "Kotiko" plus a descriptor, final wording after slice 04's name check, for
+example "Kotiko: learn languages while you browse" / "Kotiko: aprende idiomas mientras
 navegas" (CWS allows 75 characters).
 
 **Short description** (CWS summary, 132 characters max; AMO summary, 250 max):
@@ -358,7 +358,7 @@ under the ScriptKittyOS organization, and the public contact is
 - A group publisher account for ScriptKittyOS. CWS lets a developer account publish on
   behalf of a Google Group, so every member of the group can manage the item (high
   confidence; the dashboard calls this a group publisher).
-- The Google Group (for example `mira-publishers@` on the org's Google Workspace, or a
+- The Google Group (for example `kotiko-publishers@` on the org's Google Workspace, or a
   plain Google Group if the org has none) is private; its members are the maintainers who
   release. At least two people, so a release never depends on one account.
 - One-time $5 registration fee, paid once by the account that creates the publisher.
@@ -384,7 +384,7 @@ else. Adding or removing someone is a PR to that file plus the change in both da
 noted in the release checklist.
 
 **EU trader declaration (Digital Services Act)**: both stores ask developers whether they
-act as a trader; traders must show a postal address and phone number to EU users. Mira is
+act as a trader; traders must show a postal address and phone number to EU users. Kotiko is
 free, has no paid tier, ads or donations inside the product, and is published by an
 open-source project, so declare **non-trader** on the Chrome Web Store, and on AMO if it
 asks. Confidence: high that CWS asks for this declaration; medium on AMO's current form;
@@ -415,7 +415,7 @@ the declaration should be checked against that before submitting.
 - [ ] The listing (name, short and long description, screenshots with captions) and the
       privacy policy exist in English and Spanish; a native Spanish speaker has reviewed the
       Spanish texts (50's release sign-off).
-- [ ] No listing, policy or single-purpose text says Mira swaps English words or assumes
+- [ ] No listing, policy or single-purpose text says Kotiko swaps English words or assumes
       the reader reads English (checked by grep for "English" in `store/listing/` and
       `docs/privacy/`, with an allow-list for the language's own name in lists).
 - [ ] Viewing the CWS and AMO listings with the browser set to Spanish shows the Spanish

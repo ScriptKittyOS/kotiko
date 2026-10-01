@@ -11,7 +11,7 @@
 
 ## Problem
 
-Phones are where a lot of reading happens, and Mira has no mobile story except adding
+Phones are where a lot of reading happens, and Kotiko has no mobile story except adding
 words through Telegram. Chrome for Android has no extensions and nothing suggests that
 will change (high confidence, [03 C8](../../docs/research/03-browser-extension.md));
 Firefox for Android runs MV3 extensions and is the realistic first target.
@@ -31,7 +31,7 @@ Today, on Firefox for Android (read from the code; not yet run on a device):
 
 ## Goals
 
-- Mira installs from AMO on Firefox for Android and works in local mode with words typed
+- Kotiko installs from AMO on Firefox for Android and works in local mode with words typed
   as “word = meaning” or a provider key, with no server.
 - Tapping a swapped word shows its details; tapping a link still follows the link.
 - The popup, dashboard and welcome page are comfortable at 360 px wide with touch targets
@@ -79,7 +79,7 @@ stay on this phone").
 
 Slice 19 already defines the touch rules: a tap on a swapped word outside a link or
 button opens the popover, and inside a link a long press (500 ms) opens it while
-`contextmenu` is suppressed only for Mira's own element. This slice verifies them on real
+`contextmenu` is suppressed only for Kotiko's own element. This slice verifies them on real
 devices and adds what a phone needs:
 
 - **Fallback for links.** Long-press suppression on Firefox for Android is medium
@@ -134,12 +134,12 @@ as the reference):
 - The first viewport is swapped within 200 ms of the content script starting, with 2,000
   words, on an English page, on a Spanish page and on a Japanese page (whose tokenizing
   through `Intl.Segmenter` is the slowest path, slice 14).
-- No main-thread task from Mira longer than 50 ms (slice 15's time-slicing).
+- No main-thread task from Kotiko longer than 50 ms (slice 15's time-slicing).
 - The projection read on page load costs under 30 ms for 2,000 words.
 
 ## Acceptance criteria
 
-- [ ] The AMO listing offers Mira on Firefox for Android, and it installs on Firefox
+- [ ] The AMO listing offers Kotiko on Firefox for Android, and it installs on Firefox
       release for Android.
 - [ ] With a few words typed as “word = meaning” and no server, a news article shows swaps
       on the phone, with the phone's Firefox in English and in Spanish (Spanish article,
@@ -167,7 +167,7 @@ as the reference):
 ## Rollout and migration
 
 - Ships as an AMO compatibility flag on the existing add-on; desktop users are unaffected.
-- Changelog: "Mira now runs on Firefox for Android. Tap a swapped word to see what it means."
+- Changelog: "Kotiko now runs on Firefox for Android. Tap a swapped word to see what it means."
 
 ## Open questions
 

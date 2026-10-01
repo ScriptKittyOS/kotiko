@@ -11,17 +11,17 @@
 
 ## Problem
 
-Mira has no presence on Apple devices. Safari on macOS and iOS can run WebExtensions, but
+Kotiko has no presence on Apple devices. Safari on macOS and iOS can run WebExtensions, but
 only inside an app built with Xcode and distributed through the App Store (or, on macOS,
 a notarized app), which needs a paid Apple Developer Program membership
 ([03 C8](../../docs/research/03-browser-extension.md)). iPhone and iPad users have no other
-way to run a Mira-like extension in Safari, and Chrome on iOS has no extensions at all.
+way to run a Kotiko-like extension in Safari, and Chrome on iOS has no extensions at all.
 
 The extension code today is plain MV3 with no build step (`extension/manifest.json`), which
 is the easiest starting point for Apple's converter. Several APIs behave differently in
 Safari (from MDN browser-compat-data, checked 2026-10-01):
 
-| API | Safari behaviour | Effect on Mira |
+| API | Safari behaviour | Effect on Kotiko |
 |---|---|---|
 | `storage.sync` | Doesn't sync; acts like `local` | Settings stay per device (slice 39) |
 | `storage.session` | Supported (16.4) | Fine |
@@ -33,7 +33,7 @@ Safari (from MDN browser-compat-data, checked 2026-10-01):
 
 ## Goals
 
-- Mira for Safari on macOS and iOS (iPhone and iPad), built from the same `extension/`
+- Kotiko for Safari on macOS and iOS (iPhone and iPad), built from the same `extension/`
   source with no fork.
 - Local mode works fully on both; a server works over HTTPS.
 - The containing app is minimal: it explains how to turn the extension on, and nothing else.
@@ -58,13 +58,13 @@ Safari (from MDN browser-compat-data, checked 2026-10-01):
 ### 1. Project layout
 
 - `safari/` at the repo root holds the Xcode project created once by
-  `xcrun safari-web-extension-converter extension/ --app-name Mira --bundle-identifier com.scriptkittyos.mira --swift --copy-resources` (flags to confirm against the current Xcode;
+  `xcrun safari-web-extension-converter extension/ --app-name Kotiko --bundle-identifier com.scriptkittyos.kotiko --swift --copy-resources` (flags to confirm against the current Xcode;
   medium confidence), then edited so the extension target references `../extension` as a
   folder reference instead of a copy. One source of truth.
 - Targets: macOS app plus extension, iOS app plus extension (the converter's
   multiplatform template). Minimum OS: macOS 14 with Safari 17.1 and iOS 17.1, so the
   Popover API and every API slice 11 uses are present.
-- The containing app shows: what Mira is, one screen with steps to enable it (Safari
+- The containing app shows: what Kotiko is, one screen with steps to enable it (Safari
   Settings, Extensions on macOS; Settings, Apps, Safari, Extensions on iOS, wording to
   check on current iOS), and a button that opens the welcome page. SwiftUI, no network
   access, no data collection.
@@ -78,7 +78,7 @@ Safari (from MDN browser-compat-data, checked 2026-10-01):
   (`extension/background.js:3`).
 - Site access: on install nothing is allowed. Slice 28's access card is the main path;
   the welcome page's permission step asks the user to choose "Always allow on every website",
-  with a screenshot, because otherwise Mira asks site by site.
+  with a screenshot, because otherwise Kotiko asks site by site.
 - Touch: slice 45's rules apply on iOS and iPadOS (`pointerType === "touch"`). iOS has no
   `contextmenu` on long-press inside links in the same way; the fallback setting from slice
   45 (first tap shows the word) is the default on iOS.
@@ -150,7 +150,7 @@ Safari (from MDN browser-compat-data, checked 2026-10-01):
 
 - New platform; no migration. Users moving from Chrome on a Mac use slice 12's export
   and import.
-- Changelog: "Mira is now available for Safari on Mac, iPhone and iPad."
+- Changelog: "Kotiko is now available for Safari on Mac, iPhone and iPad."
 
 ## Open questions
 
@@ -163,6 +163,6 @@ Safari (from MDN browser-compat-data, checked 2026-10-01):
 ## Future work
 
 - iCloud key-value sync for settings, through the containing app.
-- A Share extension on iOS to add a word from any app ("Share, Add to Mira").
+- A Share extension on iOS to add a word from any app ("Share, Add to Kotiko").
 - Orion and other iOS browsers that run WebExtensions, if they become popular (low
   confidence on their current support).

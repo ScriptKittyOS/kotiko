@@ -6,7 +6,7 @@
 | **Priority** | P0 (before public release) |
 | **Size** | S (a day or two) |
 | **Depends on** | None (tests use slice [02](../02-test-harness-and-ci/SPEC.md)) |
-| **Unblocks** | [40-server-packaging-docker](../40-server-packaging-docker/SPEC.md); boot ordering used by [01](../01-api-auth-hardening/SPEC.md), [04](../04-rename-to-mira/SPEC.md), [07](../07-word-model-v2/SPEC.md) |
+| **Unblocks** | [40-server-packaging-docker](../40-server-packaging-docker/SPEC.md); boot ordering used by [01](../01-api-auth-hardening/SPEC.md), [04](../04-rename-to-kotiko/SPEC.md), [07](../07-word-model-v2/SPEC.md) |
 | **Sources** | [06 F19, F20, F34, F35, F40](../../docs/research/06-adversarial-qa.md); [04 S15, S28](../../docs/research/04-architecture-release.md) |
 
 ## Problem
@@ -71,18 +71,18 @@ who isn't watching journald. All read from the code; F40 was reproduced.
 
 ## Specification
 
-### 1. Boot order (`Mira.Application.start/2`)
+### 1. Boot order (`Kotiko.Application.start/2`)
 
 ```
-1. Mira.Config.load!()            parse and validate env (section 3); exit 78 on error
-2. Mira.DataDir.resolve_and_migrate!()   slice 04
-3. Mira.Token.ensure!()           slice 01
-4. Mira.Migrations.run!()         backup if pending (slice 07), then migrate, pool_size 1
+1. Kotiko.Config.load!()            parse and validate env (section 3); exit 78 on error
+2. Kotiko.DataDir.resolve_and_migrate!()   slice 04
+3. Kotiko.Token.ensure!()           slice 01
+4. Kotiko.Migrations.run!()         backup if pending (slice 07), then migrate, pool_size 1
 5. log startup summary            version, data dir, bind exposure (slice 01), bot on/off
 6. Supervisor.start_link(children)  Repo, TaskSup, LLM processes, Janitor, Bandit, Bot
 ```
 
-Step 4 uses `Ecto.Migrator.with_repo(Mira.Repo, fn repo -> ... end, pool_size: 1)`, so
+Step 4 uses `Ecto.Migrator.with_repo(Kotiko.Repo, fn repo -> ... end, pool_size: 1)`, so
 migrations finish on one connection before the real pool opens. This removes the
 `database is locked` noise (F40) and lets slice 07's backup run before anything else
 touches the file. `Ecto.Migrator` is removed from the children list.
@@ -104,22 +104,22 @@ The Repo is configured with `journal_mode: :wal`, `busy_timeout: 5_000`,
 ### 3. Configuration validation (F34)
 
 `config/runtime.exs` stops parsing: it only copies raw strings into the app env (trimmed,
-blank as nil), so it can never crash. `Mira.Config.load!/0` parses and validates
+blank as nil), so it can never crash. `Kotiko.Config.load!/0` parses and validates
 everything, collects **all** problems, and if there are any prints one block to stderr
 and exits with status 78 (`EX_CONFIG`; systemd unit sets `RestartPreventExitStatus=78`
 so it doesn't loop on a config error):
 
 ```
-Mira can't start: 2 problems in your settings (server/.env)
+Kotiko can't start: 2 problems in your settings (server/.env)
 
-  BIND=mira.local
-    Couldn't find an address for "mira.local". Use an IP address such as 127.0.0.1,
+  BIND=kotiko.local
+    Couldn't find an address for "kotiko.local". Use an IP address such as 127.0.0.1,
     100.101.102.103 (Tailscale) or 0.0.0.0.
 
   ALLOWED_TELEGRAM_IDS=123,abc
     "abc" isn't a Telegram ID. IDs are numbers; the bot tells you yours.
 
-Fix these and start Mira again.
+Fix these and start Kotiko again.
 ```
 
 Rules:
@@ -137,12 +137,12 @@ Rules:
 | `LLM_MODEL` | Required when `LLM_URL` isn't OpenRouter (slice 10). |
 | `LLM_API_KEY` | Warning (not error) when missing and `LLM_URL` is OpenRouter: "adding words won't work until you set LLM_API_KEY". |
 | `TRANSCRIBE_URL` | If set, `http(s)` URL. |
-| `MIRA_DATA_DIR` | Writable directory (created if missing; error if it can't be). |
+| `KOTIKO_DATA_DIR` | Writable directory (created if missing; error if it can't be). |
 | `LOG_LEVEL` | `debug`, `info`, `warning`, `error`. Default `info`. |
 | `LOG_LOOKUPS` | `true`/`false` (slice 10). |
-| Unknown `MIRA_*` variables | Warning with the closest known name ("MIRA_DATADIR: did you mean MIRA_DATA_DIR?"). |
+| Unknown `KOTIKO_*` variables | Warning with the closest known name ("KOTIKO_DATADIR: did you mean KOTIKO_DATA_DIR?"). |
 
-`Mira.Config.load!/0` is a pure function of a map of variables plus the resolver, so it
+`Kotiko.Config.load!/0` is a pure function of a map of variables plus the resolver, so it
 is table-tested without touching the environment.
 
 ### 4. `run.sh` (F20)
@@ -178,7 +178,7 @@ CONTRIBUTING and `.env.example` say to single-quote values containing `$`, space
 
   ```
   [Unit]
-  Description=Mira vocabulary server and Telegram bot
+  Description=Kotiko vocabulary server and Telegram bot
   After=network-online.target
   Wants=network-online.target
   StartLimitIntervalSec=300
@@ -203,8 +203,8 @@ CONTRIBUTING and `.env.example` say to single-quote values containing `$`, space
 
 - Level from `LOG_LEVEL` (default info). `config :logger` sets
   `level: :info` today (`server/config/config.exs:5-6`); that moves to runtime.
-- Repo `log: false` (no SQL at any level; a `MIRA_LOG_SQL=true` escape hatch for debugging).
-- A primary `:logger` filter, `Mira.Log.Redact`, rewrites every message and report before
+- Repo `log: false` (no SQL at any level; a `KOTIKO_LOG_SQL=true` escape hatch for debugging).
+- A primary `:logger` filter, `Kotiko.Log.Redact`, rewrites every message and report before
   any handler sees it:
   - `Bearer <anything>` → `Bearer [redacted]`
   - `sk-or-v1-[A-Za-z0-9]+`, `sk-[A-Za-z0-9_-]{20,}` → `[redacted-key]`
@@ -221,23 +221,23 @@ CONTRIBUTING and `.env.example` say to single-quote values containing `$`, space
 `GET /health` (open, slice 01) returns JSON:
 
 ```json
-{"ok": true, "name": "mira", "version": "0.3.0", "api": [1], "db": "ok"}
+{"ok": true, "name": "kotiko", "version": "0.3.0", "api": [1], "db": "ok"}
 ```
 
-- `version` from `Application.spec(:mira, :vsn)` (slice 03's single version).
+- `version` from `Application.spec(:kotiko, :vsn)` (slice 03's single version).
 - `api` lists supported API versions; legacy routes are implied while they exist.
 - `db` runs `SELECT 1` with a 1 s timeout; on failure `"db": "error"`, `ok: false`,
   HTTP 503.
 - `HEAD /health` returns the status only.
 - Nothing else (no word counts, no config): the route is unauthenticated.
 
-The extension (slice 11's "Test connection") uses it to check that an address is a Mira
+The extension (slice 11's "Test connection") uses it to check that an address is a Kotiko
 server and to warn when the server is older than the extension expects. Docker's
 healthcheck (slice 40) uses the status code.
 
 ## Acceptance criteria
 
-- [ ] Killing `Mira.Supervisor` with `Process.exit(pid, :kill)` makes the OS process exit
+- [ ] Killing `Kotiko.Supervisor` with `Process.exit(pid, :kill)` makes the OS process exit
       non-zero within 2 s (F19).
 - [ ] After changing `mix.lock` to a newer compatible version, `./run.sh` fetches and
       starts without manual steps (F20).
@@ -255,8 +255,8 @@ healthcheck (slice 40) uses the status code.
 
 ## Test plan
 
-- ExUnit: `Mira.ConfigTest` (table of variable maps → parsed config or the exact error
-  lines); `Mira.Log.RedactTest` (table of messages, plus `capture_log` around a forced
+- ExUnit: `Kotiko.ConfigTest` (table of variable maps → parsed config or the exact error
+  lines); `Kotiko.Log.RedactTest` (table of messages, plus `capture_log` around a forced
   Req error carrying a Telegram URL); `/health` with the sandbox and with a stopped Repo.
 - A boot test that starts the app in a subprocess (`System.cmd("mix", ["run", ...])` in
   a temp copy) with a bad `.env` and asserts exit status 78 and stderr text.
@@ -287,5 +287,5 @@ healthcheck (slice 40) uses the status code.
 
 - Read `.env` in Elixir instead of shell sourcing (exact parsing, works on Windows):
   slice 40.
-- `mix mira.doctor`: config, paths, service, health in one report.
+- `mix kotiko.doctor`: config, paths, service, health in one report.
 - Structured (JSON) log output option for Docker users.

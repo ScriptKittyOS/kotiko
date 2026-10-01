@@ -3,14 +3,14 @@ version = 1
 [[annotations]]
 path = ["**/*.json", "**/*.md", "**/*.toml", "**/*.txt", "**/*.yml", "**/*.yaml", ".editorconfig", ".gitattributes", ".gitignore", "**/.gitignore", "**/.formatter.exs", "server/mix.lock", "server/.env.example", "test/fixtures/**", "NOTICE"]
 precedence = "aggregate"
-SPDX-FileCopyrightText = "2026 ScriptKittyOS and the Mira contributors"
+SPDX-FileCopyrightText = "2026 ScriptKittyOS and the Kotiko contributors"
 SPDX-License-Identifier = "Apache-2.0"
 
 [[annotations]]
 path = ["brand/**", "extension/*.png"]
 precedence = "override"
 SPDX-FileCopyrightText = "2026 ScriptKittyOS"
-SPDX-License-Identifier = "LicenseRef-MiraBrand"
+SPDX-License-Identifier = "LicenseRef-KotikoBrand"
 
 [[annotations]]
 path = ["LICENSE", "LICENSES/**"]

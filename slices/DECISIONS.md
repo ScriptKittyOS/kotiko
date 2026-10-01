@@ -6,6 +6,13 @@ and why. Open questions live in each slice's own "Open questions" section and in
 
 ## 2026-10-01
 
+**The name is Kotiko.** *Maintainer.* Chosen after "Mira" was withdrawn. Slice 04 renames the
+code, data paths, service, extension and repository from Slovo to Kotiko, with the same safe
+data migration. The images that showed the name "Mira" (the mockup sheet and its source
+file) are deleted; the maintainer is making new artwork with the Kotiko name. Entries below
+this one use "Mira", the working name at the time; read it as Kotiko. The name's story and
+its collision screen are open ([05](05-brand-identity/SPEC.md), [04](04-rename-to-kotiko/SPEC.md)).
+
 **"Mira" is withdrawn; the final name is still to be chosen.** *Maintainer.* A trademark
 clearance screen rated "Mira" high risk (moderate-to-high even with a descriptor). Closest
 conflicts: Avant's "Mira powered by Avant", AI language-learning tools sold under the name
@@ -70,7 +77,7 @@ See [11](11-local-first-mode/SPEC.md), [21](21-dashboard/SPEC.md) and
 [40](40-server-packaging-docker/SPEC.md).
 
 **Logo: the maintainer's kitten, on tile purple `#8E5EFA`.** *Maintainer.* A black kitten
-with orange eyes and a purple outline ([`brand/source/mira-original.png`](../brand/source/mira-original.png)),
+with orange eyes and a purple outline (`brand/source/mira-original.png`, since deleted),
 now the extension icon at every size on a `#8E5EFA` tile (from the artist's mockup; it
 passes the contrast checks). The illustrations in `brand/illustrations/` (Mira on the moon
 with greetings in six languages, and curious, happy, sleepy and oops expressions) are
@@ -138,7 +145,7 @@ languages, which is what the tool does with words: "look!" in Spanish, Italian a
 Portuguese; "world" and "peace" in Russian (мир, мира); "wonderful" in Latin, the name of
 the star Mira Ceti. It replaces "Slovo" (Russian for "word"), which was tied to one
 language and collides with an existing language-learning app. See
-[04](04-rename-to-mira/SPEC.md).
+[04](04-rename-to-kotiko/SPEC.md).
 
 **Not a product; a free open-source tool from ScriptKittyOS.** *Maintainer.* No paid tier,
 no hosted accounts. Optimise for people running it themselves with as little setup as

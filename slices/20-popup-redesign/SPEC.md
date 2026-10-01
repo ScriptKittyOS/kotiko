@@ -11,7 +11,7 @@
 
 ## Problem
 
-The popup is where learners spend most of their time in Mira, and today it:
+The popup is where learners spend most of their time in Kotiko, and today it:
 
 - Leads with a server connection: on a fresh install it shows a red error and opens a
   Connection panel (`extension/popup.js:123-134`, `popup.html:138-151`).
@@ -23,7 +23,7 @@ The popup is where learners spend most of their time in Mira, and today it:
 - Says "12 words known, synced 3 min ago" (`popup.js:129`): "known" is wrong for new words and
   "synced" is jargon ([05 S5](../../docs/research/05-learner-ux.md)).
 - Shows a disabled "Pause on this site" on browser pages with no explanation
-  (`popup.js:116-119`), and leaves no trace when Mira is off or paused
+  (`popup.js:116-119`), and leaves no trace when Kotiko is off or paused
   ([05 S35](../../docs/research/05-learner-ux.md)).
 - Has no way to see your words ([05 S20](../../docs/research/05-learner-ux.md)).
 - Loses a language toggle when two are clicked quickly, because handlers use stale state
@@ -46,7 +46,7 @@ The popup is where learners spend most of their time in Mira, and today it:
 - Connection and other settings move out to the dashboard ([21](../21-dashboard/SPEC.md)); the
   popup stays small.
 - Full keyboard operation with a visible focus order.
-- Every string is in Mira's interface language through `MiraI18n.t()`, with English and
+- Every string is in Kotiko's interface language through `KotikoI18n.t()`, with English and
   Spanish complete at launch; language names follow the interface language.
 - The popup tells the learner when the current page is in a language they don't read, so
   "nothing happened" is never a mystery.
@@ -75,7 +75,7 @@ The popup is where learners spend most of their time in Mira, and today it:
 - As a new learner, I want the popup to point me to setup in a friendly way, not show an
   error.
 - As a reader in Puerto Rico with a Spanish browser, I want the popup in Spanish and, on an
-  English page, a plain note that Mira only changes pages in the languages I read.
+  English page, a plain note that Kotiko only changes pages in the languages I read.
 
 ## Specification
 
@@ -88,7 +88,7 @@ sections separated by the dotted rule ([06 §10](../06-design-system/SPEC.md)). 
 
 ```
 ┌──────────────────────────────────────────────┐
-│ (•) Mira                         [On ◉] ⚙ ↗ │  header
+│ (•) Kotiko                         [On ◉] ⚙ ↗ │  header
 ├──────────────────────────────────────────────┤
 │ ┌──────────────────────────────┐ ┌────────┐ │
 │ │ Add a word, any language     │ │ Auto ▾ │ │  add box + language hint (24 §8)
@@ -112,7 +112,7 @@ The same popup with the interface in Spanish (base `es`), on a Spanish news site
 
 ```
 ┌──────────────────────────────────────────────┐
-│ (•) Mira                    [Activo ◉] ⚙ ↗ │
+│ (•) Kotiko                    [Activo ◉] ⚙ ↗ │
 ├──────────────────────────────────────────────┤
 │ ┌──────────────────────────────┐ ┌────────┐ │
 │ │ Agrega una palabra, en cualq…│ │ Auto ▾ │ │
@@ -130,10 +130,10 @@ The same popup with the interface in Spanish (base `es`), on a Spanish news site
 ```
 
 All strings are keys in `extension/_locales/<locale>/messages.json` read through
-`MiraI18n.t()` ([50 §8](../50-ui-localization-and-base-language/SPEC.md)); the add box
+`KotikoI18n.t()` ([50 §8](../50-ui-localization-and-base-language/SPEC.md)); the add box
 placeholder's Spanish form is truncated with an ellipsis only in this drawing.
 
-- **Header:** the mark (16 px) and "Mira" in `--font-display`; the master switch
+- **Header:** the mark (16 px) and "Kotiko" in `--font-display`; the master switch
   ("On"/"Off", `role="switch"`, label "Swap words on pages"); a settings button (sliders
   icon, "Settings", opens `dashboard.html#settings`); an open button ("Open your words",
   opens the dashboard). Both open in a tab and close the popup.
@@ -183,7 +183,7 @@ presentation.
 
 ```
 │ ┌──────────────────────────────────────────┐ │
-│ │ Finish setting up Mira                   │ │
+│ │ Finish setting up Kotiko                   │ │
 │ │ Choose your first word, in any language. │ │
 │ │ It takes under a minute.                 │ │
 │ │                        [ Get started ]   │ │
@@ -203,20 +203,20 @@ dashboard). This page section shows, with the meter hidden.
 disabled.
 
 **E. Off everywhere.** The switch reads "Off"; Languages and This page dim to 60 % opacity
-but stay operable; a banner: "Mira is off on all sites. [Turn on]". Toolbar badge "off" (§5).
+but stay operable; a banner: "Kotiko is off on all sites. [Turn on]". Toolbar badge "off" (§5).
 
 **F. Paused on this site.** The switch row reads "Paused on en.wikipedia.org" with
 "[Resume]"; the meter and Amount are hidden. Badge "off".
 
-**G. Unsupported page.** The This page section is replaced by "Mira can't run on browser
+**G. Unsupported page.** The This page section is replaced by "Kotiko can't run on browser
 pages like this one." (`unsupported_page`). Everything else works.
 
 **H. Page in a language you don't read.** The page's declared or detected language
 ([16](../16-what-not-to-swap/SPEC.md)) isn't one of the learner's base languages
 (`s:ui.baseLangs`, [50 §2](../50-ui-localization-and-base-language/SPEC.md)). The This page
 section reads `base_page_other`: "This page is in German, which isn't one of your
-languages. Mira leaves it alone." / "Esta página está en alemán, que no es uno de tus
-idiomas. Mira no la toca." with two quiet links: "I read German too" (opens
+languages. Kotiko leaves it alone." / "Esta página está en alemán, que no es uno de tus
+idiomas. Kotiko no la toca." with two quiet links: "I read German too" (opens
 `dashboard.html#settings-languages` with German ready to add) and "Swap here anyway"
 (a per-site override, 16). When the page language can't be determined, nothing is shown.
 
@@ -232,7 +232,7 @@ show their waiting line. No banner unless an add is waiting.
 under the header, e.g. `server_unreachable` with the word count. Never red, never opens
 settings.
 
-**K. Missing permission (Firefox).** Banner: "Mira needs permission to read pages to swap
+**K. Missing permission (Firefox).** Banner: "Kotiko needs permission to read pages to swap
 words. [Allow]". The button calls `permissions.request({origins: ["<all_urls>"]})` (a user
 gesture).
 
@@ -259,7 +259,7 @@ entry. Opening the popup counts as a step (toolbar click or the shortcut from
 | Focus on one language | 2, hover-only | 2 (open, ◎) | No |
 | Stop focusing | 2 | 2 (open, Stop) | No |
 | Pause on this site | 2 | 2 | No |
-| Turn Mira off everywhere | 2 | 2 | No |
+| Turn Kotiko off everywhere | 2 | 2 | No |
 | See all your words | not possible | 2 (open, footer) | No |
 | Finish setup on first run | n/a (red error) | 2 (open, Get started) | No |
 
@@ -294,8 +294,8 @@ The background computes the badge per tab and sets it with `action.setBadgeText(
 (per-tab values override a global one, so nothing is set globally); it recomputes the active
 tab on tab switches and every tab when a job starts or ends.
 
-The toolbar tooltip (`action.setTitle`) mirrors the state through `t()`: "Mira", "Mira ·
-paused on example.com" / "Mira · en pausa en example.com", "Mira · off" / "Mira ·
+The toolbar tooltip (`action.setTitle`) mirrors the state through `t()`: "Kotiko", "Kotiko ·
+paused on example.com" / "Kotiko · en pausa en example.com", "Kotiko · off" / "Kotiko ·
 desactivado". The badge text "off" is a key too (`badge_off`; es "no").
 
 ### 6. Behavior and correctness
@@ -333,16 +333,16 @@ names from `Intl.DisplayNames([uiLocale], {type: "language"})`.
 | `popup_footer` | All {n} words | Tus {n} palabras |
 | `popup_settings` | Settings | Ajustes |
 | `popup_open` | Open your words | Abrir tus palabras |
-| `popup_first_run_title` | Finish setting up Mira | Termina de configurar Mira |
+| `popup_first_run_title` | Finish setting up Kotiko | Termina de configurar Kotiko |
 | `popup_first_run_body` | Choose your first word, in any language. It takes under a minute. | Elige tu primera palabra, en cualquier idioma. Toma menos de un minuto. |
 | `popup_get_started` | Get started | Empezar |
 | `popup_empty` | No words yet. Type one above, in any language. | Aún no hay palabras. Escribe una arriba, en cualquier idioma. |
-| `base_page_other` | This page is in {lang}, which isn't one of your languages. Mira leaves it alone. | Esta página está en {lang}, que no es uno de tus idiomas. Mira no la toca. |
+| `base_page_other` | This page is in {lang}, which isn't one of your languages. Kotiko leaves it alone. | Esta página está en {lang}, que no es uno de tus idiomas. Kotiko no la toca. |
 | `popup_read_too` | I read {lang} too | También leo {lang} |
 | `popup_swap_anyway` | Swap here anyway | Cambiar aquí de todos modos |
 | `popup_no_meanings_base` | No words have meanings in {base} yet. | Aún no hay palabras con significado en {base}. |
-| `error_unsupported_page` (25) | Mira can't run on browser pages like this one. | Mira no puede funcionar en páginas del navegador como esta. |
-| `popup_off_banner` | Mira is off on all sites. | Mira está desactivado en todos los sitios. |
+| `error_unsupported_page` (25) | Kotiko can't run on browser pages like this one. | Kotiko no puede funcionar en páginas del navegador como esta. |
+| `popup_off_banner` | Kotiko is off on all sites. | Kotiko está desactivado en todos los sitios. |
 | `popup_lookups_left` | {r} free lookups left today | Te quedan {r} búsquedas gratis hoy |
 
 "Concentrada" in the focus strip describes the list (la lista), so it doesn't gender the

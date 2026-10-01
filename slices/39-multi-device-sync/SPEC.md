@@ -11,7 +11,7 @@
 
 ## Problem
 
-A learner with two laptops gets two different Mira setups.
+A learner with two laptops gets two different Kotiko setups.
 
 - Settings live per device: `enabled`, `pausedHosts` and `hiddenLangs` are in
   `storage.local` (`extension/popup.js:4-13`, `popup.js:49-51`, `popup.js:208-213`)
@@ -28,7 +28,7 @@ A learner with two laptops gets two different Mira setups.
 
 - Non-secret settings follow the learner between signed-in browsers through `storage.sync`,
   within its limits.
-- Words sync both ways between any number of browsers and a Mira server, with deltas,
+- Words sync both ways between any number of browsers and a Kotiko server, with deltas,
   tombstones and conditional requests, and converge to the same list.
 - Each conflict case has one written rule, and none loses a word silently.
 - An unchanged poll costs one small `304` response.
@@ -100,7 +100,7 @@ Firefox desktop syncs with a Mozilla account when add-on data sync is on (medium
 confidence on the exact setting name); Safari and Firefox for Android store sync items
 locally only. Brave's handling is unverified. In every case the code path is the same and
 nothing errors. A second device whose welcome page (slice 22) finds synced settings says
-"Found your Mira settings from another browser" and asks only for what's missing, usually
+"Found your Kotiko settings from another browser" and asks only for what's missing, usually
 the key.
 
 **Base and interface languages across devices** ([50](../50-ui-localization-and-base-language/SPEC.md)).
@@ -218,8 +218,8 @@ A change of one word is one word each way.
   the sync route, the extension switches `wordsHome` from `"server"` to `"synced"` by itself,
   runs a full pull, and marks everything clean. Nothing visible changes except that edits
   now work offline.
-- **Local users connecting a server**: slice 11's "Use my Mira server" becomes "Sync my
-  words with my Mira server": every local word is pushed as a change, then a full pull.
+- **Local users connecting a server**: slice 11's "Use my Kotiko server" becomes "Sync my
+  words with my Kotiko server": every local word is pushed as a change, then a full pull.
   Natural-key duplicates merge by rule 3. The dialog shows counts first.
 - **Turning sync off**: words stay in the browser (`wordsHome = "local"`); the server
   keeps its copy.
@@ -268,7 +268,7 @@ A change of one word is one word each way.
   slice 07's `sync_state` row. Old extensions keep using `/api/words`.
 - Extension: settings move from `storage.local` to the sync scheme on update (local copy
   kept). Word sync switches on automatically per section 5.
-- Changelog: "Your settings now follow you between browsers. With a Mira server, words
+- Changelog: "Your settings now follow you between browsers. With a Kotiko server, words
   sync both ways and work offline on every device."
 
 ## Open questions

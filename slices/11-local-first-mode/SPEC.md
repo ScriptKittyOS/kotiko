@@ -11,7 +11,7 @@
 
 ## Problem
 
-Today Mira only works for people who can run an Elixir server. The extension is a thin
+Today Kotiko only works for people who can run an Elixir server. The extension is a thin
 client: every word lives on the server, every lookup goes through it, and the extension
 only holds a cache.
 
@@ -72,7 +72,7 @@ The decision to go local first is made ([DECISIONS](../DECISIONS.md)). This slic
 
 ## User stories
 
-- As someone who found Mira in a store, I want to add my first word without installing
+- As someone who found Kotiko in a store, I want to add my first word without installing
   anything else, so that I see it working in a minute.
 - As a learner who doesn't know what an API key is, I want one obvious default and a
   "Connect OpenRouter" button, so that I'm not choosing between seven companies.
@@ -94,7 +94,7 @@ popup / dashboard / welcome / context menu
         |  runtime messages (privileged types only from extension pages, slice 26)
         v
 +---------------- background (service worker; event page in Firefox) ----------------+
-|  store/      IndexedDB "mira": words, outbox, secrets, meta (canonical)            |
+|  store/      IndexedDB "kotiko": words, outbox, secrets, meta (canonical)            |
 |  projector   writes the content-script view to storage.local                        |
 |  lookup/     per-backend lookup for slice 24's add jobs                            |
 |  llm/        slice 10 client + provider presets + spec/ prompt and validator        |
@@ -108,14 +108,14 @@ content scripts (read only; never see secrets)
 Two settings replace today's single "server" assumption:
 
 - **Where words live** (`wordsHome`): `"local"` (the extension owns them) or `"server"`
-  (a connected Mira server owns them; the extension mirrors them).
+  (a connected Kotiko server owns them; the extension mirrors them).
 - **Who looks words up** (`lookup.kind`): `"provider"` (the extension calls a model
   directly), `"server"` (the server looks up with its own key), or `"none"` (manual
   add, "native = gloss" lines such as "犬 = perro" or "犬 = dog", and bulk add with
   meanings only).
 
 The UI presents these as two choices, not as infrastructure: "Keep my words in this
-browser" or "Use my Mira server", and "Look words up with: OpenRouter (free) ▾". The
+browser" or "Use my Kotiko server", and "Look words up with: OpenRouter (free) ▾". The
 valid combinations are local/provider (the store default), local/none, server/server
 (today's setup) and server/provider (the extension looks up, then saves to the
 server).
@@ -123,7 +123,7 @@ server).
 ### 2. Storage: IndexedDB for the canonical store
 
 **Decision: the canonical word store, the server outbox and the secrets live in one
-IndexedDB database, `mira`, opened only from extension-origin contexts. The words that
+IndexedDB database, `kotiko`, opened only from extension-origin contexts. The words that
 content scripts need are projected into `storage.local`. The manifest adds
 `unlimitedStorage`.**
 
@@ -146,7 +146,7 @@ are covered by the projection below.
 
 `unlimitedStorage` shows no install warning in Chrome. In Firefox it adds the line
 "Store unlimited amount of client-side data" to the install prompt (high confidence),
-which sits below the `<all_urls>` warning Mira already carries.
+which sits below the `<all_urls>` warning Kotiko already carries.
 
 **Object stores** (database version 1):
 
@@ -244,7 +244,7 @@ same list in its own config. Each preset has: `id`, `label`, `baseUrl`, `keyRequ
 
 | Preset | Base URL | Key | JSON mode | Notes and confidence |
 |---|---|---|---|---|
-| OpenRouter (default) | `https://openrouter.ai/api/v1` | Yes; "Connect OpenRouter" or paste | `json_object` when the model lists it in `supported_parameters` (slice 10 filters) | Sends `HTTP-Referer: https://github.com/ScriptKittyOS/mira` and `X-Title: Mira` for app attribution, and `reasoning: {enabled: false}` as today (`llm.ex:116-118`). Free tier: 20 requests a minute, 50 a day, 1,000 a day after a one-time $10 credit. High confidence. |
+| OpenRouter (default) | `https://openrouter.ai/api/v1` | Yes; "Connect OpenRouter" or paste | `json_object` when the model lists it in `supported_parameters` (slice 10 filters) | Sends `HTTP-Referer: https://github.com/ScriptKittyOS/kotiko` and `X-Title: Kotiko` for app attribution, and `reasoning: {enabled: false}` as today (`llm.ex:116-118`). Free tier: 20 requests a minute, 50 a day, 1,000 a day after a one-time $10 credit. High confidence. |
 | OpenAI | `https://api.openai.com/v1` | Yes | `json_object` | High confidence. |
 | Anthropic | `https://api.anthropic.com/v1` (OpenAI compatibility layer) | Yes | `none`: the layer ignores `response_format` (Anthropic docs, checked 2026-10-01) | Sends `anthropic-dangerous-direct-browser-access: true`, which the API requires for requests carrying a browser `Origin`. Anthropic describes the layer as for testing, not production. Medium confidence that the header is honoured on the compatibility endpoint; verify in the spike. |
 | Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai` | Yes | `json_object` | Medium confidence on JSON mode; verify. |
@@ -281,8 +281,8 @@ a model id.
 
 1. The background makes a code verifier and S256 challenge and stores the verifier in
    `secrets` under `pkce:pending` with a 10-minute expiry.
-2. It opens a tab at `https://openrouter.ai/auth?callback_url=<docs site>/connect/&code_challenge=…&code_challenge_method=S256&key_label=Mira`.
-3. The docs site page (slice 44) needs no script of its own: Mira's content script,
+2. It opens a tab at `https://openrouter.ai/auth?callback_url=<docs site>/connect/&code_challenge=…&code_challenge_method=S256&key_label=Kotiko`.
+3. The docs site page (slice 44) needs no script of its own: Kotiko's content script,
    which runs on every page, recognises that exact origin and path, reads `?code=` and
    sends `{type: "oauth.code", code}` (the one extra content-script message type this
    slice allows). The code is useless without the verifier, which never leaves the
@@ -332,7 +332,7 @@ What this slice adds to that flow:
 
 **Prompt and validation from `spec/`.** Slice 09's `spec/tools/sync-extension.mjs` copies
 the runtime files into `extension/spec/` and generates `extension/spec/spec.js`
-(`globalThis.MIRA_SPEC`), with a CI check that the copy is current. The background builds
+(`globalThis.KOTIKO_SPEC`), with a CI check that the copy is current. The background builds
 the request exactly as the server does, including the recent-languages hint (today
 `llm.ex:165-173` and `server/lib/slovo/words.ex:35-43`), computed locally from the
 `updated_at` index: the five most recently touched languages. `base_langs` is the
@@ -349,14 +349,14 @@ and slice 25 reports it.
 ### 6. The server as an add-on
 
 Connecting is done from the settings page's "Server" section (slice 20/21 design):
-URL, token (or slice 01's `mira-pair:1:` pairing string), "Test". Test calls `/health` (slice 29/40's JSON
+URL, token (or slice 01's `kotiko-pair:1:` pairing string), "Test". Test calls `/health` (slice 29/40's JSON
 form), then an authenticated `GET /api/v1/words?limit=1`, and reports server, token and
 lookup status in one line.
 
 | From → to | What happens | Data safety |
 |---|---|---|
-| Local → server, "Use my Mira server" | The user sees "Upload your 312 words to the server?" Mira posts them through slice 07's structured `POST /api/v1/words/batch` (no model calls) in batches of 500 and shows created, merged and unchanged counts. Then `wordsHome = "server"`, and the next pull replaces the local store with the server's view. | The local store is kept as is until the upload has fully succeeded. On any failure nothing switches. |
-| Server → local, "Keep my words in this browser" | Mira pulls the full export (slice 12's `GET /api/v1/export`), imports it locally with ids preserved, then sets `wordsHome = "local"`. Asks whether to keep using the server for lookups. | The server's data is untouched. Telegram keeps writing to the server; the dialog says those words won't reach this browser unless the server is reconnected or slice 39 ships. |
+| Local → server, "Use my Kotiko server" | The user sees "Upload your 312 words to the server?" Kotiko posts them through slice 07's structured `POST /api/v1/words/batch` (no model calls) in batches of 500 and shows created, merged and unchanged counts. Then `wordsHome = "server"`, and the next pull replaces the local store with the server's view. | The local store is kept as is until the upload has fully succeeded. On any failure nothing switches. |
+| Server → local, "Keep my words in this browser" | Kotiko pulls the full export (slice 12's `GET /api/v1/export`), imports it locally with ids preserved, then sets `wordsHome = "local"`. Asks whether to keep using the server for lookups. | The server's data is untouched. Telegram keeps writing to the server; the dialog says those words won't reach this browser unless the server is reconnected or slice 39 ships. |
 | Disconnect | Same as server → local, with "Forget the server address and token" ticked. | As above. |
 
 While `wordsHome = "server"`:
@@ -385,7 +385,7 @@ is a no-op when `wordsHome = "local"`.
 Runs once in `runtime.onInstalled` with `reason: "update"`, and again on worker start
 if `meta.schema` is missing (so an interrupted migration resumes). Every step is idempotent.
 
-1. Open `mira` and create the stores.
+1. Open `kotiko` and create the stores.
 2. If `storage.local.token` is non-empty: copy it to `secrets["server"]`, copy
    `serverUrl` to settings, set `wordsHome = "server"` and `lookup.kind = "server"`.
    Otherwise set `wordsHome = "local"` and `lookup.kind = "none"` until the user picks a
@@ -400,7 +400,7 @@ if `meta.schema` is missing (so an interrupted migration resumes). Every step is
 4. If the server answers slice 07's v1 API, do a full pull; server UUIDs replace the
    seeded ones, matched by `serverId`, then by the natural key. If the server is
    older, keep using `GET /api/words`, `POST /api/words` and `DELETE /api/words/:id`
-   (`router.ex:17-68`) through a legacy adapter, and show "Update your Mira server to
+   (`router.ex:17-68`) through a legacy adapter, and show "Update your Kotiko server to
    get editing and faster sync" once.
 5. Run slice 50's base-language detection, and add `en` to `s:ui.baseLangs` if any
    seeded word has `base_lang: "en"` and it isn't there, so swaps never silently stop.
@@ -472,7 +472,7 @@ Uses slice [02](../02-test-harness-and-ci/SPEC.md)'s harness.
   1-6 with interrupted
   runs at each step; sender checks for every privileged message type.
 - **Shared spec tests**: the slice 09 fixtures run against the JS validator and
-  `Mira.LLM` normalisation in the same CI job.
+  `Kotiko.LLM` normalisation in the same CI job.
 - **Mock provider**: extend slice 02's mock OpenAI-compatible server with switchable
   behaviours: 200 JSON, prose-wrapped JSON, 429 with `retry-after`, daily-quota 429,
   401, 400 on `response_format`, a 35 s stall, and an `Origin` check that mimics Ollama.
@@ -494,9 +494,9 @@ Uses slice [02](../02-test-harness-and-ci/SPEC.md)'s harness.
 - Server side: no change is required for existing users. Server-mode features beyond
   today's (structured save, export and import) need the server release that carries
   slices 07 and 12.
-- Changelog: "Mira now works without a server. Your words live in your browser and
-  Mira looks new words up with your own free OpenRouter key, or any provider you like.
-  Already running a Mira server? Nothing changes; you can keep using it, or move your
+- Changelog: "Kotiko now works without a server. Your words live in your browser and
+  Kotiko looks new words up with your own free OpenRouter key, or any provider you like.
+  Already running a Kotiko server? Nothing changes; you can keep using it, or move your
   words into the browser from Settings, Server. Back up regularly with Export: uninstalling
   an extension deletes its data."
 

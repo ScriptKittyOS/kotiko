@@ -18,7 +18,7 @@ spreadsheet) has to type each word into the popup, one model call each
 days and the learner's patience. Most such lists already contain the meaning, so the model
 isn't needed at all. Those meanings are in whatever language the learner reads: an English
 reader's sheet says "gato - cat", a Spanish reader learning English has "dog - perro", a
-Japanese reader learning Korean has "고양이：猫". Mira must read all three without
+Japanese reader learning Korean has "고양이：猫". Kotiko must read all three without
 assuming the meaning side is English ([DECISIONS 2026-10-01](../DECISIONS.md)).
 Nothing accepts a file, and the server caps request bodies at 64 KB
 ([DECISIONS](../DECISIONS.md), commit 4705cb0), so a big paste couldn't go through the add
@@ -27,7 +27,7 @@ endpoint anyway.
 ## Goals
 
 - Paste any list, or drop or choose a TXT, CSV, TSV, JSON or Anki plain-text export, and get
-  all of it into Mira in three steps.
+  all of it into Kotiko in three steps.
 - Lines that already have a meaning are parsed locally and never touch the model, whatever
   the learner's base language, including bases without spaces (Japanese, Chinese, Thai).
 - Which side of a line is the word being learned and which is the meaning is decided from
@@ -42,8 +42,8 @@ endpoint anyway.
 
 ## Non-goals
 
-- Mira's own JSON backup import: [12](../12-export-import-and-delete/SPEC.md) (this slice
-  hands `.json` files with Mira's `schemaVersion` to it).
+- Kotiko's own JSON backup import: [12](../12-export-import-and-delete/SPEC.md) (this slice
+  hands `.json` files with Kotiko's `schemaVersion` to it).
 - Anki `.apkg` packages: P2 in [12](../12-export-import-and-delete/SPEC.md); here the learner
   is told how to export plain text.
 - Ready-made, bundled or hosted word lists: never ([DECISIONS](../DECISIONS.md)). Every
@@ -54,15 +54,15 @@ endpoint anyway.
 - As a learner with a vocabulary sheet "gato - cat, perro - dog, …", I want to paste it and
   have every word saved in seconds, without lookups.
 - As a Spanish speaker learning English with a sheet "dog - perro, cat - gato, …", I want
-  Mira to know that "dog" is the word I'm learning and "perro" the meaning, without
+  Kotiko to know that "dog" is the word I'm learning and "perro" the meaning, without
   choosing columns.
 - As a Japanese reader learning Korean, I want "고양이：猫" (full-width colon, no spaces)
   read as one row.
 - As a Spanish reader, I want to paste a list of Spanish words ("perro, gato, mariposa")
-  and have Mira find their Japanese words.
-- As a learner with an Anki deck, I want to export it as text, drop the file on Mira, and
+  and have Kotiko find their Japanese words.
+- As a learner with an Anki deck, I want to export it as text, drop the file on Kotiko, and
   pick which column is which.
-- As a learner with a bare list of 40 Russian words, I want Mira to look them up within my
+- As a learner with a bare list of 40 Russian words, I want Kotiko to look them up within my
   free quota and tell me if some have to wait.
 - As a learner who pasted a list containing words I already have, I want those marked and not
   overwritten.
@@ -147,7 +147,7 @@ as UTF-8 and try again." Line endings `\r\n`, `\r`, `\n`. Text is NFC-normalized
 
 **Format detection,** in order:
 
-1. `.json`: if it has Mira's `schemaVersion`, hand to [12](../12-export-import-and-delete/SPEC.md);
+1. `.json`: if it has Kotiko's `schemaVersion`, hand to [12](../12-export-import-and-delete/SPEC.md);
    if it is an array of objects, map keys case-insensitively (`native|word|front|term`,
    `gloss|meaning|back|translation|definition|english`, `romanization|reading|pronunciation`,
    `lang|language`, `base_lang|base_language`, `note|notes`, plus the localized column
@@ -162,7 +162,7 @@ as UTF-8 and try again." Line endings `\r\n`, `\r`, `\n`. Text is NFC-normalized
    count (≥ 2) of tabs, or of commas outside quotes, or of `；` (full-width semicolons, common
    in CJK spreadsheets). RFC 4180 quoting. A first row whose cells match known header names
    is a header: the names in 1; every shipped locale's `export_csv_col_*` messages (so a
-   Spanish Mira CSV's `palabra, significado, …` header round-trips, slice 12); `front`,
+   Spanish Kotiko CSV's `palabra, significado, …` header round-trips, slice 12); `front`,
    `back`; and language tags or names in any shipped interface locale (`es`, `en`,
    `Spanish`, `español`, `日本語`).
 4. **Line list:** everything else, one item per line.
@@ -209,7 +209,7 @@ A side detected as `B` is never saved as a word to learn in `B` (slice 09's
 | `… # note` or `… // note` | note, in the base language |
 | `es: gracias = thanks`, `ja：猫 = gato` | per-line target-language prefix, a known language tag or name (in any shipped interface locale) followed by `:` or `：` |
 | bare `native` | needs a lookup |
-| a bare word in the list's base language (scripts per rule 2, or the whole bare column detecting as `B` per rule 3) | "In español: Mira will find the japonés word" when a target is set: the lookup asks for the target word for this base-language word ("perro" → 犬), and the line becomes the meaning; with no target set, it needs one |
+| a bare word in the list's base language (scripts per rule 2, or the whole bare column detecting as `B` per rule 3) | "In español: Kotiko will find the japonés word" when a target is set: the lookup asks for the target word for this base-language word ("perro" → 犬), and the line becomes the meaning; with no target set, it needs one |
 | empty lines, lines of only punctuation, numbered prefixes (`1.`, `12)`, `- `, `• `, `①`, `一、`) | prefixes stripped; empty lines skipped |
 
 Separators are matched on the raw line before any tokenizing. Hyphenated words
@@ -254,7 +254,7 @@ counting words in a column, picking words from a paragraph) uses
 (`Intl.Segmenter` with the base's boundary rules), never a split on spaces, so a pasted
 Japanese line "犬が好きです" splits into 犬 / が / 好き / です.
 
-**Limits.** At most 5,000 rows per batch; beyond that: "Mira can add 5,000 words at a time.
+**Limits.** At most 5,000 rows per batch; beyond that: "Kotiko can add 5,000 words at a time.
 The first 5,000 are below; add the rest after." Each field is validated by
 [09](../09-shared-word-spec-and-prompt/SPEC.md) with the list's base data (native 1-64
 characters, form length per base, stopwords of that base, the word's language not equal
@@ -327,11 +327,11 @@ to the base, and so on).
   meanings yourself, or save these {k} words for later." The second option queues them as
   waiting add jobs that resume when quota returns.
 - A lookup result whose native differs from the input (the model corrected spelling) shows
-  "Mira read “spaseeba” as спасибо" (es: "Mira leyó «spaseeba» como спасибо") in the row,
+  "Kotiko read “spaseeba” as спасибо" (es: "Kotiko leyó «spaseeba» como спасибо") in the row,
   pre-ticked, editable. If that result
   arrives after "Add {n} words" (a pending lookup finishing as an add job), it is not saved
-  on its own: the job waits in 24's `needs_choice` state with the line "Mira read
-  “spaseeba” as спасибо. Add it?" so the learner sees the word Mira will add before it
+  on its own: the job waits in 24's `needs_choice` state with the line "Kotiko read
+  “spaseeba” as спасибо. Add it?" so the learner sees the word Kotiko will add before it
   is added.
 - Results failing validation become "Problem: the lookup came back unclear" with the row kept.
 
@@ -380,11 +380,11 @@ word and restores every updated word from this batch (per-word rules from
 - **Very long lines** (sentences): rows over 64 characters native become "Problem: too long
   for a word", with "Split into words" that replaces the row with one row per token (14's
   tokenizer for that text's language).
-- **Spreadsheets saved as .xlsx:** "Mira reads .csv files. In your spreadsheet app choose
+- **Spreadsheets saved as .xlsx:** "Kotiko reads .csv files. In your spreadsheet app choose
   Save as → CSV, then drop that file."
 - **Huge files** over 5 MB: `import_unreadable` with "This file is bigger than 5 MB."
 - **Binary or unknown files:** `import_unreadable`.
-- **Mira's own CSV exports:** [12](../12-export-import-and-delete/SPEC.md) prefixes cells that
+- **Kotiko's own CSV exports:** [12](../12-export-import-and-delete/SPEC.md) prefixes cells that
   start with `=`, `+`, `-`, `@`, a tab or a carriage return with an apostrophe to stop formula
   injection. When a CSV's header matches 12's export header, a leading apostrophe followed by
   one of those characters is stripped, so exports round-trip.
@@ -410,7 +410,7 @@ lives in `storage.session` and is cleared after saving or cancelling.
 - [ ] With base `ja`, `고양이：猫` and `고양이 ： 猫` both parse as Korean 고양이 with gloss 猫;
       with base `es`, `猫＝gato` parses as Japanese 猫 with gloss gato.
 - [ ] No row is ever saved with `lang` equal to its `base_lang`.
-- [ ] A Spanish Mira CSV export (slice 12, Spanish headers) imports with no column mapping.
+- [ ] A Spanish Kotiko CSV export (slice 12, Spanish headers) imports with no column mapping.
 - [ ] With base `es` and target `ja`, a bare list "perro, gato" becomes two lookup rows that
       save 犬 and 猫 with glosses perro and gato.
 - [ ] Dropping an Anki "Notes in Plain Text" export with `#separator:tab`, `#html:true` and
@@ -434,7 +434,7 @@ lives in `storage.session` and is cleared after saving or cancelling.
   scripts, each with meanings in English and in Spanish, plus Japanese-base and
   Arabic-base lists; every row of the Examples table above; Anki exports from Anki
   2.1.55+ and older (no headers), Excel CSV (windows-1252 and UTF-8 with BOM), Google
-  Sheets TSV, Quizlet export ("term\tdefinition"), JSON arrays, Mira CSV exports with
+  Sheets TSV, Quizlet export ("term\tdefinition"), JSON arrays, Kotiko CSV exports with
   English and Spanish headers, RTL lines, numbered lists, cloze notes, malformed quoting.
 - **Orientation:** a table of lists with expected orientation for each rule (headers,
   script, detected language with a stubbed `i18n.detectLanguage`, undecided).

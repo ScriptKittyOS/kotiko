@@ -12,10 +12,10 @@
 ## Problem
 
 Hovering a swapped word shows its meaning at once (`extension/content.js:96`, today always in
-English), so the learner never has to recall it: recognition without retrieval (05 S26). Mira also learns nothing from
+English), so the learner never has to recall it: recognition without retrieval (05 S26). Kotiko also learns nothing from
 use. A word you keep getting wrong appears exactly as often as one you've known for months, and
 there is no way to say "I know this one now" short of deleting it (05 S28). Retrieval practice
-and spacing are among the best-supported findings in learning research (01 section 3), and Mira
+and spacing are among the best-supported findings in learning research (01 section 3), and Kotiko
 already provides the spacing for free by showing words across pages and days.
 
 ## Goals
@@ -57,7 +57,7 @@ already provides the spacing for free by showing words across pages and days.
 
 The meaning shown is the `gloss` of the record that was swapped, so it is always in the
 language of the text the word replaced; the language name and buttons are in the interface
-language (`MiraI18n.t()`, 50). Normal mode (Reveal off), English page and interface, then
+language (`KotikoI18n.t()`, 50). Normal mode (Reveal off), English page and interface, then
 Spanish page and interface:
 
 ```
@@ -104,7 +104,7 @@ review: Record<WordId, {
   streak: number;                        // consecutive "knew" answers, reset by a miss
   knewDays: string[];                    // distinct local dates of the current streak, max 5
   lastAnswerAt: number; lastMissedAt: number | null;
-  autoMarkedAt: number | null;           // when Mira (not the user) marked it well known
+  autoMarkedAt: number | null;           // when Kotiko (not the user) marked it well known
 }>
 ```
 
@@ -113,7 +113,7 @@ word (50 §3): 犬 for Spanish pages and 犬 for English pages. Review is about 
 an answer updates the shown record's entry and its **siblings**: records in the learner's other
 bases with the same `lang` and `native_key`, when that base has exactly one such record. (When
 a base has several senses of the same native, such as замок "castle" and "lock", the answer
-stays on the shown record, because Mira can't tell which sense the sibling is.) Entries stay
+stays on the shown record, because Kotiko can't tell which sense the sibling is.) Entries stay
 keyed by UUID, so nothing changes for single-base learners.
 
 Writes are batched (2 s debounce) through the background worker so that tabs don't race. One
@@ -145,9 +145,9 @@ Signals feed three existing mechanisms; no new scheduling exists.
 
 | Signal | Precedence (18) `wordWeight` | Density (31) ranking | Display |
 |---|---|---|---|
-| Missed in the last 7 days | 2 (wins more often among same-language synonyms) | before other non-fresh words | class `mira-missed`: solid underline, design tokens from 06 |
+| Missed in the last 7 days | 2 (wins more often among same-language synonyms) | before other non-fresh words | class `kotiko-missed`: solid underline, design tokens from 06 |
 | Learning (default) | 1 | normal | dotted underline (15) |
-| Well known, keep swapping | 0.5 | after other words | class `mira-known`: no underline, `cursor: help` kept |
+| Well known, keep swapping | 0.5 | after other words | class `kotiko-known`: no underline, `cursor: help` kept |
 | Well known, stop swapping | removed as a candidate in 18's cleanup step | n/a | n/a |
 
 "Learning" in this table is the ordinary `active` status.
@@ -179,8 +179,8 @@ Stored in slice 39's `s:display` group. The popup (20) shows Reveal mode as one 
       same view changes the answer instead of adding one.
 - [ ] Three "knew" answers on three different days, with no miss in 14 days, mark a word well
       known (status `well_known`) with an undo; a miss returns it to `active`.
-- [ ] Missed words get `wordWeight` 2 and the `mira-missed` class; well-known words get 0.5 and
-      `mira-known`; "Stop swapping" removes them from candidates.
+- [ ] Missed words get `wordWeight` 2 and the `kotiko-missed` class; well-known words get 0.5 and
+      `kotiko-known`; "Stop swapping" removes them from candidates.
 - [ ] Review data never leaves the device except in a user-initiated export.
 
 ## Test plan
@@ -195,7 +195,7 @@ Stored in slice 39's `s:display` group. The popup (20) shows Reveal mode as one 
 ## Rollout and migration
 
 Off by default; no migration (empty store). Changelog: "Test yourself: turn on Reveal mode to
-guess before you see the meaning. Tell Mira when you knew a word, and words you've mastered fade
+guess before you see the meaning. Tell Kotiko when you knew a word, and words you've mastered fade
 into the page."
 
 ## Open questions

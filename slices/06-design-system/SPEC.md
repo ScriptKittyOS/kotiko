@@ -11,7 +11,7 @@
 
 ## Problem
 
-Mira's interface today is one 300 px popup with its own ad hoc styles
+Kotiko's interface today is one 300 px popup with its own ad hoc styles
 (`extension/popup.html:6-105`). It works, but it can't carry a dashboard, a welcome page, a
 popover on every website and a celebration layer, and it has real defects:
 
@@ -47,7 +47,7 @@ the purple ramp is generated from that one color.
   only.
 - Eight core components specified to the state level, plus a gallery page that renders them
   all in both themes for screenshot tests.
-- A short, enforceable statement of what makes Mira look like Mira.
+- A short, enforceable statement of what makes Kotiko look like Kotiko.
 
 ## Non-goals
 
@@ -68,22 +68,22 @@ the purple ramp is generated from that one color.
   words, so that I never have to guess.
 - As a learner of Japanese, I want 犬 drawn with Japanese glyph shapes, not Chinese ones, so
   that I learn the right forms.
-- As a contributor, I want ready components and tokens, so that a new screen looks like Mira
+- As a contributor, I want ready components and tokens, so that a new screen looks like Kotiko
   without design review for every pixel.
 
 ## Specification
 
-### 1. What makes Mira look like Mira
+### 1. What makes Kotiko look like Kotiko
 
 Generic dashboards share a template: a left rail of icons, a row of KPI cards, a chart nobody
 asked for, grey on grey, a blue primary, and lately purple gradients, glass and sparkles that
-say "AI". Mira avoids all of it. Its identity rests on seven rules:
+say "AI". Kotiko avoids all of it. Its identity rests on seven rules:
 
 1. **The word is the hero.** A learner's native word is set large, in a face suited to its
    script (§5.1), like a specimen in a type book. Its meaning in the learner's base language
    (the gloss: "dog", "perro") is small and secondary. Counts and
    chrome stay quiet.
-2. **One ornament: the dotted underline.** The mark Mira draws under swapped words
+2. **One ornament: the dotted underline.** The mark Kotiko draws under swapped words
    (`extension/content.css:2-6`) is the system's only decoration: section dividers, the
    selected-tab indicator and the coverage meter's track use dots. The only other decoration
    is the logo's character, in the few places [05](../05-brand-identity/SPEC.md) allows.
@@ -115,7 +115,7 @@ say "AI". Mira avoids all of it. Its identity rests on seven rules:
 - `extension/ui/icons.js`: inline SVG icon builder (no icon font, no remote assets).
 - `extension/ui/popover-style.js`: the popover's stylesheet as a string, loaded as a content
   script before `content.js`. A CSS file in a page's shadow root would need
-  `web_accessible_resources`, which lets any site detect Mira. A CI check
+  `web_accessible_resources`, which lets any site detect Kotiko. A CI check
   ([02](../02-test-harness-and-ci/SPEC.md)) asserts its token values equal `tokens.css`.
 - `extension/ui/gallery.html`: every component in every state, both themes side by side.
   Excluded from release builds by [30](../30-release-pipeline/SPEC.md).
@@ -188,7 +188,7 @@ input. Names are role-based; components never use raw hex.
 | `--focus` | Focus ring (derived; equals `--purple-text`) | #764DD2 | #A18BEC |
 | `--inverse-bg` / `--inverse-ink` | Toasts | #1F1A2B / #FAF6F0 | #F2EEF8 / #14121C |
 
-The neutrals are tinted toward a violet hue so paper and night both read as Mira's. If the
+The neutrals are tinted toward a violet hue so paper and night both read as Kotiko's. If the
 final brand hue moves far (more than 30° in OKLCH), the neutrals are re-tinted too (§3.1).
 
 #### 3.1 Deriving the purple ramp from the brand input
@@ -333,7 +333,7 @@ in [05 §7](../05-brand-identity/SPEC.md).
 #### 4.5 Language palette (used by 37)
 
 Six hues for optional per-language underlines and chips. Each keeps at least 3:1 against
-both pure white and #121212, so it works on light and dark websites, which Mira cannot style:
+both pure white and #121212, so it works on light and dark websites, which Kotiko cannot style:
 
 | Slot | Name | Hex | vs #FFFFFF | vs #121212 |
 |---|---|---|---|---|
@@ -345,7 +345,7 @@ both pure white and #121212, so it works on light and dark websites, which Mira 
 | 6 | Lagoon | #009EAF | 3.23 | 5.81 |
 
 Ember is the burnt-orange accent and Lilac a sibling of the brand purple, so the first two
-languages already look like Mira. Yellow is not a slot because no yellow keeps 3:1 on white.
+languages already look like Kotiko. Yellow is not a slot because no yellow keeps 3:1 on white.
 
 Validated as a categorical palette across all pairs (not only neighbours) with the
 data-visualization validator: lightness band, chroma floor, worst CVD separation ΔE 9.0

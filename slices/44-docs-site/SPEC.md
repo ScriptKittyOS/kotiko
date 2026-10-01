@@ -22,7 +22,7 @@ Elixir 1.15+" (`README.md:30-32`), troubleshooting assumes you can read server l
 - one page per error that the extension's "Learn more" links can point to (slice 25);
 - a server guide for those who want Telegram, written for people who use Docker but not Elixir;
 - a home for the OAuth callback page (slice 11);
-- all of it in the learner's language: a Spanish speaker whose Mira is in Spanish would
+- all of it in the learner's language: a Spanish speaker whose Kotiko is in Spanish would
   otherwise follow a "Learn more" link into English pages.
 
 The org can host static content safely and for free ([04 S31](../../docs/research/04-architecture-release.md)).
@@ -54,15 +54,15 @@ The org can host static content safely and for free ([04 S31](../../docs/researc
 
 ## User stories
 
-- As a newcomer, I want "Install Mira in Firefox" to be three steps with pictures.
+- As a newcomer, I want "Install Kotiko in Firefox" to be three steps with pictures.
 - As a learner who got "The free lookups are used up for today", I want the "Learn more"
   link to explain why and what to do.
 - As a self-hoster, I want a Docker compose file and a page on reaching my server from my
   laptop over HTTPS.
 - As a teacher, I want one page I can send my class that shows how to paste or drop the
-  list I hand out into Mira and review it before saving.
+  list I hand out into Kotiko and review it before saving.
 - As a contributor, I want to know how the extension and server share `spec/`.
-- As a learner in Puerto Rico with Mira in Spanish, I want "Más información" to open a
+- As a learner in Puerto Rico with Kotiko in Spanish, I want "Más información" to open a
   Spanish page.
 
 ## Specification
@@ -76,13 +76,13 @@ The org can host static content safely and for free ([04 S31](../../docs/researc
 - Alternatives considered: VitePress (similar, fine); MkDocs Material (Python; the project
   announced a move to maintenance in favour of a successor, medium confidence). Either
   would do; Starlight is recommended for i18n and search without a service.
-- **URL**: `https://scriptkittyos.github.io/mira/` at launch. A custom domain is an open
+- **URL**: `https://scriptkittyos.github.io/kotiko/` at launch. A custom domain is an open
   question; if one is added later, GitHub Pages redirects the old host.
 
 ### 2. Information architecture
 
 ```
-/                      What Mira is, a before/after sample, three ways to start
+/                      What Kotiko is, a before/after sample, three ways to start
 /install/              Chrome, Edge, Brave · Firefox · Firefox for Android · Safari (later) · from source
 /start/                Your first word, no key needed · Free OpenRouter key · Your own server
 /providers/<id>/       One page per slice 11 preset: get a key, paste it, notes (Ollama origins, LM Studio)
@@ -94,7 +94,7 @@ The org can host static content safely and for free ([04 S31](../../docs/researc
 /privacy/              The policy from slice 28, versioned, with its changelog
 /help/                 Troubleshooting index
 /help/errors/#<code>   One anchored entry per slice 25 error code
-/help/faq/             Pages Mira can't run on, Find in page, copying, page translation, other sites' tools
+/help/faq/             Pages Kotiko can't run on, Find in page, copying, page translation, other sites' tools
 /connect/              Landing page for "Connect OpenRouter" (slice 11)
 /contribute/           Dev setup · Architecture · spec/ folder · Tests · Releases · Translating
 /changelog/            Generated from CHANGELOG.md at build time
@@ -120,7 +120,7 @@ the codes in slice 25's `extension/errors.js` with the anchors on the page.
 - **Launch set in Spanish**: `/es/` home, `/es/install/`, `/es/start/`, `/es/privacy/`,
   `/es/help/` and `/es/help/errors/` (every slice 25 code), `/es/help/faq/`, and the
   OpenRouter provider page. Other pages fall back to English with Starlight's notice.
-- **Extension links** use the interface locale: with Mira in Spanish they point to
+- **Extension links** use the interface locale: with Kotiko in Spanish they point to
   `<site>/es/help/errors/#<code>`, else the root. Anchors (error codes) are identical in
   every locale, so one CI check covers both. `stable-urls.txt` lists the Spanish URLs too.
 - **Privacy policy**: the Spanish page is a translation of slice 28's policy with the same
@@ -131,9 +131,9 @@ the codes in slice 25's `extension/errors.js` with the anchors on the page.
   before launch; after launch the `docs` component on Weblate (50 section 9) handles more
   locales. Front matter `sourceHash` records the English version a translation was made
   from; CI lists translations whose English source changed since, as a warning.
-- **Examples for more than one base language**: the docs explain Mira with an English
+- **Examples for more than one base language**: the docs explain Kotiko with an English
   reader and a Spanish reader side by side ("dog" becomes 犬 on English pages, "perro"
-  becomes 犬 on Spanish pages), and never say Mira "replaces English words".
+  becomes 犬 on Spanish pages), and never say Kotiko "replaces English words".
 - **Screenshots** are generated per locale (section 6) so a Spanish page shows the Spanish
   interface.
 
@@ -224,8 +224,8 @@ row for dictionary downloads (slice 28 section 1).
 
 ## Open questions
 
-1. **Custom domain.** Keep `scriptkittyos.github.io/mira` or use something like
-   `mira.scriptkittyos.com`? Recommendation: a custom subdomain before launch if the org
+1. **Custom domain.** Keep `scriptkittyos.github.io/kotiko` or use something like
+   `kotiko.scriptkittyos.com`? Recommendation: a custom subdomain before launch if the org
    controls DNS, because the extension hard-codes these links and the OAuth callback;
    moving later needs a redirect and an extension update.
 2. **Tool.** Starlight as recommended, or VitePress if a maintainer prefers it?

@@ -11,7 +11,7 @@
 
 ## Problem
 
-There is no way to ship Mira to anyone who doesn't clone the repository. The extension is
+There is no way to ship Kotiko to anyone who doesn't clone the repository. The extension is
 loaded unpacked (`README.md:56-63`), Firefox users get a temporary add-on that disappears
 on restart (`README.md:181-185`), there are no tags or releases, and the version is
 defined in two disagreeing places (`extension/manifest.json:4` 0.2.0, `server/mix.exs:7`
@@ -116,12 +116,12 @@ jobs:
   publish-chrome:
     needs: build-extension
     environment: release               # required reviewer approval
-    steps: download mira-chrome-$VERSION.zip; upload and publish (section 4)
+    steps: download kotiko-chrome-$VERSION.zip; upload and publish (section 4)
 
   publish-firefox:
     needs: build-extension
     environment: release
-    steps: download mira-firefox-$VERSION.zip; web-ext sign (section 5)
+    steps: download kotiko-firefox-$VERSION.zip; web-ext sign (section 5)
 ```
 
 Slice 40 adds `build-server` (tarballs) and `publish-image` (GHCR) jobs gated the same
@@ -142,13 +142,13 @@ order, timestamps and permissions). Steps:
    - **Firefox**: delete `background.service_worker` (Firefox uses `background.scripts`
      as an event page; it has accepted both keys since Firefox 121, but a single key
      avoids review questions); keep `browser_specific_settings.gecko` (id
-     `mira@scriptkittyos.com` from slice 04, `strict_min_version`, and slice 28's
+     `kotiko@scriptkittyos.com` from slice 04, `strict_min_version`, and slice 28's
      `data_collection_permissions`).
    - Both: `key` must not be present (fail the build if it is).
 4. Zip deterministically: entries sorted by path, fixed timestamp (the tag's commit
    time), fixed permissions, no directory entries, deflate level 9. Rebuilding the same
    tag gives byte-identical zips (verified in CI by building twice).
-5. Outputs: `dist/mira-chrome-0.3.0.zip`, `dist/mira-firefox-0.3.0.zip`.
+5. Outputs: `dist/kotiko-chrome-0.3.0.zip`, `dist/kotiko-firefox-0.3.0.zip`.
 6. Run `web-ext lint --source-dir <firefox tree>` on the Firefox tree; fail on errors.
 
 No minification or bundling, so AMO needs no source code upload and reviewers read the
@@ -189,10 +189,10 @@ same files as the repository ([03 E7](../../docs/research/03-browser-extension.m
 ### 6. Secrets and approvals
 
 - All store credentials are GitHub Actions secrets of the **`release` environment** in
-  `ScriptKittyOS/mira` (repository renamed in slice 04), not repository-wide secrets, so
+  `ScriptKittyOS/kotiko` (repository renamed in slice 04), not repository-wide secrets, so
   PR workflows and forks can never read them.
 - The environment requires approval from at least one member of
-  `@ScriptKittyOS/mira-maintainers`, and only the `main` branch may deploy to it.
+  `@ScriptKittyOS/kotiko-maintainers`, and only the `main` branch may deploy to it.
 - Credentials are created on the organization's accounts (not a maintainer's personal
   Google or Mozilla account), documented in `docs/stores.md` with who can rotate them and
   how. Rotation at least yearly and whenever a maintainer leaves.
@@ -206,7 +206,7 @@ same files as the repository ([03 E7](../../docs/research/03-browser-extension.m
 
   ```
   sha256sum -c SHA256SUMS
-  gh attestation verify mira-chrome-0.3.0.zip --repo ScriptKittyOS/mira
+  gh attestation verify kotiko-chrome-0.3.0.zip --repo ScriptKittyOS/kotiko
   ```
 
 ### 8. Release notes
@@ -233,7 +233,7 @@ Spanish by a native speaker; the store listings in English and Spanish match the
 - Extension and server share a version and release together.
 - An extension version works with a server of the same minor and one minor older (slice
   07 keeps legacy routes for one minor; slice 29's `/health` lets the extension detect
-  the server's API versions and say "Update your Mira server" when needed).
+  the server's API versions and say "Update your Kotiko server" when needed).
 
 ### 10. Rollback
 
@@ -250,7 +250,7 @@ the bad version so users stay on the previous one. Documented in `docs/stores.md
 - [ ] Building the same tag twice gives byte-identical zips.
 - [ ] The Chrome zip's manifest has no `background.scripts`, `browser_specific_settings`
       or `key`; the Firefox zip's has no `background.service_worker` and has the gecko id
-      `mira@scriptkittyos.com`.
+      `kotiko@scriptkittyos.com`.
 - [ ] `web-ext lint` passes on the Firefox tree; Chrome accepts the zip without manifest
       warnings (checked on the first manual upload).
 - [ ] `gh attestation verify` succeeds for both zips.

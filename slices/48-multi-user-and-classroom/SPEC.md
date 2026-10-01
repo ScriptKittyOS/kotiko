@@ -19,7 +19,7 @@ Japanese words show up on a child's pages ([04 S9](../../docs/research/04-archit
 A teacher can't give a class a set of words except by sending a file around for each student
 to import ([04 S10](../../docs/research/04-architecture-release.md)).
 
-Mira is a free self-hosted tool, not a hosted service ([DECISIONS](../DECISIONS.md)).
+Kotiko is a free self-hosted tool, not a hosted service ([DECISIONS](../DECISIONS.md)).
 This slice is for people who run one server for a household or a classroom, on their own
 machine.
 
@@ -46,7 +46,7 @@ machine.
 
 ## User stories
 
-- As a parent running Mira at home, I want my children to have their own lists.
+- As a parent running Kotiko at home, I want my children to have their own lists.
 - As a teacher, I want to offer my class "Unit 3 animals" and have it waiting in their
   extensions tomorrow, ready to add with one or two clicks.
 - As a student, I want to look at the list my teacher offered and add only the words I don't
@@ -96,27 +96,27 @@ offer_views  (offer_id, user_id, opened_at NULL, dismissed_at NULL, added_count 
 
 - `authorize` (slice 01) resolves the token to a user and puts `current_user` on the
   connection; disabled users and revoked tokens get 401.
-- Every query in `Mira.Words` takes the user; there is no unscoped word function left
+- Every query in `Kotiko.Words` takes the user; there is no unscoped word function left
   (enforced by a test that greps for `Repo.all(Word)` and similar outside the scoped
   module). The recent-languages hint (slice 09) is per user.
 - `GET /api/v1/me` → `{id, name, role, classes: [...]}` so the extension can show "Signed
   in as Ana".
 - Telegram: a message is handled as the user linked to that Telegram ID. Slice 41's
-  pairing and `/invite` codes now carry the target user; `mira user add` creates one.
+  pairing and `/invite` codes now carry the target user; `kotiko user add` creates one.
 
 ### 3. Admin commands
 
-Mix tasks with release equivalents (`Mira.Release.user_*`, slice 40):
+Mix tasks with release equivalents (`Kotiko.Release.user_*`, slice 40):
 
 ```
-mira user add "Ana" [--role member|teacher|student]   prints a pairing string (slice 01)
+kotiko user add "Ana" [--role member|teacher|student]   prints a pairing string (slice 01)
                                                      and a Telegram link code (slice 41)
-mira user list                                       name, role, words, tokens, last used
-mira user token "Ana" [--label laptop]               new token + pairing string
-mira user revoke <token-prefix>
-mira user disable "Ana" | enable "Ana"
-mira user remove "Ana" --delete-words | --move-words-to "Owner"
-mira user limit "Ana" 20                             daily model lookups
+kotiko user list                                       name, role, words, tokens, last used
+kotiko user token "Ana" [--label laptop]               new token + pairing string
+kotiko user revoke <token-prefix>
+kotiko user disable "Ana" | enable "Ana"
+kotiko user remove "Ana" --delete-words | --move-words-to "Owner"
+kotiko user limit "Ana" 20                             daily model lookups
 ```
 
 An admin API under `/api/v1/admin/users` (admin role only) exposes the same operations
@@ -125,7 +125,7 @@ for a future UI.
 ### 4. Quota fairness
 
 - Each user has a daily lookup limit (`daily_lookup_limit`, default from
-  `MIRA_USER_DAILY_LOOKUPS`, default 30; admins unlimited). Counted per UTC day in a small
+  `KOTIKO_USER_DAILY_LOOKUPS`, default 30; admins unlimited). Counted per UTC day in a small
   table; cache hits don't count. Over the limit: `user_quota_exhausted` with `retry_at`
   (slice 25 wording: "You've used today's 30 lookups on this server. Adding words
   yourself still works.").
@@ -133,8 +133,8 @@ for a future UI.
 
 ### 5. Classes and offered lists
 
-- A teacher creates a class (`mira class add "7B" --teacher "Ms Ortiz"` or the admin
-  API); it gets a join code. Students are added by the admin (`mira user add "Sam"
+- A teacher creates a class (`kotiko class add "7B" --teacher "Ms Ortiz"` or the admin
+  API); it gets a join code. Students are added by the admin (`kotiko user add "Sam"
   --role student --class 7B`) or join with the code from the extension's server settings
   (`POST /api/v1/classes/join {code}`).
 - A teacher offers a list from a file or a pasted list, parsed by slice
@@ -221,14 +221,14 @@ for a future UI.
   offer delivery, acceptance (all, some, none), withdrawal, opt-in reporting; a test that
   fails if any server code path other than the student's own add and batch routes writes
   to that student's words.
-- A static test that fails if any `Mira.Words` query lacks a `user_id` condition.
+- A static test that fails if any `Kotiko.Words` query lacks a `user_id` condition.
 - Manual: a two-person household on the Docker image; a mock class of five students with
   the extension pointed at one server.
 
 ## Rollout and migration
 
 - Ships behind no flag; the migration is automatic and invisible to single-user servers.
-- New commands documented in the server guide (slice 44). Changelog: "One Mira server can
+- New commands documented in the server guide (slice 44). Changelog: "One Kotiko server can
   now host several people with separate word lists, and teachers can offer word lists to a
   class, which each student reviews and adds."
 

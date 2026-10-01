@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Mira is before 1.0. Only the latest minor release gets security fixes.
+Kotiko is before 1.0. Only the latest minor release gets security fixes.
 
 ## Reporting a vulnerability
 
@@ -17,7 +17,7 @@ Please include:
 - what an attacker can do, and what they need first (network access, a web page the user
   visits, access to the user's machine);
 - steps to reproduce, ideally with a request or a small page;
-- the Mira version, browser and operating system.
+- the Kotiko version, browser and operating system.
 
 We acknowledge reports within 7 days and send a fix or a plan within 30. If you'd like
 credit, we'll name you in the release notes.
@@ -30,7 +30,7 @@ In scope:
   over the network;
 - the extension's own pages (popup, dashboard, welcome tab) and how they store keys and
   tokens;
-- anything Mira runs on web pages, including what a page can learn about the user from it.
+- anything Kotiko runs on web pages, including what a page can learn about the user from it.
 
 Out of scope:
 

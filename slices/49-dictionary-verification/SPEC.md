@@ -11,7 +11,7 @@
 
 ## Problem
 
-Mira saves whatever the model returns once `lang`, `native` and `english` are non-blank
+Kotiko saves whatever the model returns once `lang`, `native` and `english` are non-blank
 (`server/lib/slovo/llm.ex:206`; slice 07 renames `english` to `gloss`, in the learner's base
 language); slice 09 adds shape and length checks but can't tell
 whether a word is real or means what the model says.
@@ -40,7 +40,7 @@ reader, but not that it means "gracias" for a Spanish reader
 - When no model is reachable, exact lookups still work from the dictionary.
 - Dictionary data stays out of the code repository and is attributed as its licence
   requires.
-- No dictionary is ever required; Mira behaves as today without one.
+- No dictionary is ever required; Kotiko behaves as today without one.
 - A check takes under 5 ms and never delays the add flow.
 
 ## Non-goals
@@ -53,13 +53,13 @@ reader, but not that it means "gracias" for a Spanish reader
 
 ## User stories
 
-- As a learner adding Mandarin words, I want to know the word Mira saved is a real word
+- As a learner adding Mandarin words, I want to know the word Kotiko saved is a real word
   with that meaning.
 - As a learner whose free lookups ran out, I want "perro" to still be added from the
   dictionary.
 - As a Spanish reader learning Japanese, I want 犬 checked against Spanish meanings where a
   dictionary has them, and at least confirmed as a real word where it only has English ones.
-- As a learner who typed "kot", I want Mira to tell me it read it as кот (cat) and show
+- As a learner who typed "kot", I want Kotiko to tell me it read it as кот (cat) and show
   that код means code.
 
 ## Specification
@@ -78,21 +78,21 @@ reader, but not that it means "gracias" for a Spanish reader
 
 Every pair's meaning language is a base tag ([08](../08-language-tags/SPEC.md)'s
 `baseTagOf`). The catalogue lists what exists; which pairs are built is decided by who
-uses Mira (Rollout).
+uses Kotiko (Rollout).
 
-Share-alike data is kept in a separate repository, `ScriptKittyOS/mira-dictionaries`,
+Share-alike data is kept in a separate repository, `ScriptKittyOS/kotiko-dictionaries`,
 whose build scripts are Apache-2.0 and whose output files carry their source licence.
 The code repository never contains dictionary data, so share-alike terms never touch
 the code licence ([04 S23](../../docs/research/04-architecture-release.md)).
 
 ### 2. Dictionary files
 
-Built by scripts in `mira-dictionaries`, published as GitHub Release assets (which allow
+Built by scripts in `kotiko-dictionaries`, published as GitHub Release assets (which allow
 large files; GitHub Pages limits files to 100 MB and sites to about 1 GB):
 
 ```json
 {
-  "format": "mira.dict", "version": 4, "lang": "zh", "gloss_lang": "en",
+  "format": "kotiko.dict", "version": 4, "lang": "zh", "gloss_lang": "en",
   "source": "CC-CEDICT", "sourceDate": "2026-09-15",
   "license": "CC BY-SA 4.0", "attribution": "CC-CEDICT, MDBG, https://…",
   "entries": [["狗", "gǒu", ["dog"], "n"], ["谢谢", "xièxie", ["thanks", "thank you"], "v"]]
@@ -101,7 +101,7 @@ large files; GitHub Pages limits files to 100 MB and sites to about 1 GB):
 
 - Gzipped; decompressed in the extension with `DecompressionStream("gzip")` (Chrome 80,
   Firefox 113, Safari 16.4).
-- One file per pair, named `<lang>.<gloss_lang>.mira.dict.gz` (`zh.en`, `ja.es`).
+- One file per pair, named `<lang>.<gloss_lang>.kotiko.dict.gz` (`zh.en`, `ja.es`).
 - Trimmed to headword, romanization or reading, glosses in `gloss_lang` (at most 6, each
   at most 40 characters) and part of speech. Wiktionary extracts keep the most frequent
   50,000 headwords per language where a frequency list with a compatible licence exists,
@@ -203,12 +203,12 @@ link. Words filled from a dictionary carry `source: "dictionary:<source>"`, and 
 - [ ] A corrupted download (bad SHA-256) is rejected and nothing is written.
 - [ ] Removing a dictionary deletes its stores and leaves words and their stored
       verification untouched.
-- [ ] The code repository contains no dictionary data (CI check for `mira.dict` files).
+- [ ] The code repository contains no dictionary data (CI check for `kotiko.dict` files).
 - [ ] With no dictionary installed, the add flow is byte-for-byte as without this slice.
 
 ## Test plan
 
-- **mira-dictionaries CI**: builds each source, validates the output schema, checks sizes,
+- **kotiko-dictionaries CI**: builds each source, validates the output schema, checks sizes,
   and runs a sample of known entries per language.
 - **Unit** (slice 02): verification rules and per-base inflection stripping (English and
   Spanish stem files); the phonetic

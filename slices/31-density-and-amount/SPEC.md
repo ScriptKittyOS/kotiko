@@ -16,7 +16,7 @@ words across three languages, long passages become mostly foreign, often with ad
 ("the большой 狗 corrió"), and a single function word such as "и" for "and" (or "and" for
 "y", for a Spanish reader learning English) replaces it on every page (01 S15, S16). Reading research commonly cited for this (Laufer 1989;
 Hu and Nation 2000) puts comfortable reading at roughly 95-98 % known running words, and
-Mira's swaps are by definition words still being learned. Past a point, more swaps stop
+Kotiko's swaps are by definition words still being learned. Past a point, more swaps stop
 teaching: the context in the learner's own language that makes a swapped word guessable
 disappears. This is true in every base language: a Spanish reader with 3,000 English and
 Japanese words loses their Spanish pages the same way.
@@ -157,7 +157,7 @@ two in a row. Two further rules apply on Light, Medium and Heavy:
   know. Pages can get hard to read; Heavy keeps about one word in three." Selecting it again on
   another site doesn't repeat the note.
 
-The popup's coverage line (32) shows how much more Mira *could* swap ("Medium is showing 14 % ·
+The popup's coverage line (32) shows how much more Kotiko *could* swap ("Medium is showing 14 % ·
 62 % of this page is in your languages"), so the cap never hides progress.
 
 ### The Amount control
@@ -217,7 +217,7 @@ then cached. No DOM reads beyond tag names. Adds under 2 % to slice 15's pipelin
 Existing users get Medium, which reduces swaps for anyone with a large list. Changelog: "New
 Amount setting: Light, Medium, Heavy or Everything. Medium, the new default, keeps pages readable
 by swapping about one word in seven. Choose Everything for the old behaviour." Because this
-lowers swaps for current users, the popup shows a one-time note after the update: "Mira now
+lowers swaps for current users, the popup shows a one-time note after the update: "Kotiko now
 keeps pages readable. Want every word? Set Amount to Everything."
 
 ## Open questions

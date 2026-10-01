@@ -11,7 +11,7 @@
 
 ## Problem
 
-Adding a word is Mira's most frequent action, and today it can lose data, hide what
+Adding a word is Kotiko's most frequent action, and today it can lose data, hide what
 happened, and block the learner for minutes:
 
 - **Re-adding a word you have says "Added", and Undo deletes your original.** The server
@@ -74,7 +74,7 @@ happened, and block the learner for minutes:
 
 ## User stories
 
-- As a learner who re-adds "gracias" by accident, I want Mira to tell me I already have it
+- As a learner who re-adds "gracias" by accident, I want Kotiko to tell me I already have it
   and to keep my note, so that nothing I wrote is lost.
 - As a learner adding several words in a row, I want to type the next one while the first is
   still being looked up, so that I'm never waiting.
@@ -207,7 +207,7 @@ queued ──> looking_up ──> done
 The popup ([20](../20-popup-redesign/SPEC.md)) shows the three most recent jobs, newest first;
 the dashboard ([21](../21-dashboard/SPEC.md)) shows pending jobs at the top of the list. Native
 words are in `<bdi lang="…">`, glosses in `<bdi lang="{base_lang}">`. Every line is a key in
-`_locales` read with `MiraI18n.t()` ([50 §8](../50-ui-localization-and-base-language/SPEC.md));
+`_locales` read with `KotikoI18n.t()` ([50 §8](../50-ui-localization-and-base-language/SPEC.md));
 English and Spanish are complete at launch:
 
 | Key | en | es | Actions |
@@ -433,7 +433,7 @@ what makes the popup closing harmless.
   `created` and hides Undo for words whose `created_at` is older than the request, so it never
   deletes an existing word.
 - No stored data migrates; `addJobs` starts empty.
-- Changelog: "Adding words never blocks: keep typing while Mira looks words up, see what was
+- Changelog: "Adding words never blocks: keep typing while Kotiko looks words up, see what was
   already in your list, and undo any single word."
 
 ## Open questions
@@ -453,6 +453,6 @@ what makes the popup closing harmless.
 
 ## Future work
 
-- An opt-in system notification ("Added perro · Spanish") when a job finishes with no Mira
+- An opt-in system notification ("Added perro · Spanish") when a job finishes with no Kotiko
   surface open (`notifications` as an optional permission).
 - "Did you mean" alternatives on the result line ([36](../36-grammar-and-senses/SPEC.md)).

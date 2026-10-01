@@ -11,7 +11,7 @@
 
 ## Problem
 
-Mira gives no sense of progress. The popup's status line shows a total and a sync time
+Kotiko gives no sense of progress. The popup's status line shows a total and a sync time
 (`extension/popup.js:127-130`). Nothing records which words a learner actually met while
 reading, how many swaps they saw this week, or which words they keep checking. Seeing
 progress keeps people going, but streak counters that reset on a missed day punish the
@@ -73,7 +73,7 @@ for a language across bases, "words met this week") count target words, the grou
 
 ### 2. Storage
 
-Two stores in slice 11's `mira` database:
+Two stores in slice 11's `kotiko` database:
 
 - `statsDaily`, key `[day, lang, base]`, where `day` is the local date `YYYY-MM-DD`.
   Fields as in section 1, plus `seenKeys`, the list of group keys seen that day (for
@@ -111,7 +111,7 @@ This week: 214 swaps · 63 words met · 9 new
 Esta semana: 214 cambios · 63 palabras vistas · 9 nuevas
 ```
 
-(English and Spanish interface; every string is a `MiraI18n.t()` key with plural forms.)
+(English and Spanish interface; every string is a `KotikoI18n.t()` key with plural forms.)
 
 **Weekly recap card**: shown once, on the first popup open after the week ends. The week
 starts on the interface locale's first day from `Intl.Locale(uiLocale).getWeekInfo()` where the browser

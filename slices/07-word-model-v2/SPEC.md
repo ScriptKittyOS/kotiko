@@ -11,7 +11,7 @@
 
 ## Problem
 
-A word is the unit everything else in Mira is built on, and today's record can't carry
+A word is the unit everything else in Kotiko is built on, and today's record can't carry
 the weight.
 
 - **Re-adding a word you already have destroys it.** `Words.upsert/2` looks the row up by
@@ -79,7 +79,7 @@ All of this is read from the code; F05, F06, F27 and F29 were reproduced by rese
 
 - As a learner who wrote a mnemonic in a word's note, I want re-adding that word to keep
   my note, so that I never lose my own work by accident.
-- As a learner who added a word twice by mistake, I want Mira to tell me it was already
+- As a learner who added a word twice by mistake, I want Kotiko to tell me it was already
   there, and Undo to do nothing harmful.
 - As a learner who sees a wrong romanization, I want to fix just that field.
 - As a learner on two devices, I want a word I delete on one to disappear on the other.
@@ -212,12 +212,12 @@ add_requests (client_request_id TEXT PRIMARY KEY, response TEXT NOT NULL,
   transaction takes the write lock before it reads. Read-merge-write is then serialised
   and F06 can't happen. The unique index stays as a backstop: a constraint error inside
   `Words.save/2` retries once as a merge, and never surfaces as a 500.
-- `Mira.Word` uses `@primary_key {:id, :id, autogenerate: true}` plus a `uuid` field, and
+- `Kotiko.Word` uses `@primary_key {:id, :id, autogenerate: true}` plus a `uuid` field, and
   `timestamps(inserted_at: :created_at, type: :utc_datetime_usec)`.
 
 ### 4. Writes and merge rules
 
-All writes go through one module, `Mira.Words`, with these functions. Each runs in one
+All writes go through one module, `Kotiko.Words`, with these functions. Each runs in one
 immediate transaction, bumps `seq`, and returns `{:ok, result}` or `{:error, reason}`;
 none raises on bad input.
 
@@ -250,7 +250,7 @@ optimistic concurrency: a mismatch returns `{:error, :stale}`.
 **`restore(id)`** can clear `deleted_at` if no live word now holds the same natural key
 (else `{:error, {:conflict, other_id}}`).
 
-**Tombstone lifecycle**, run once a day by a new `Mira.Janitor` process (a GenServer with
+**Tombstone lifecycle**, run once a day by a new `Kotiko.Janitor` process (a GenServer with
 a 24-hour timer and a first run 5 minutes after boot; slices 10 and 41 add their own
 cleanup jobs to it):
 
@@ -310,14 +310,14 @@ new server:
 
 A single Ecto migration, `20261015000000_word_model_v2.exs`, with an explicit `up/0`
 (no automatic `down`; the backup is the rollback). Before any pending migration runs, the
-server copies the database with `VACUUM INTO '<data_dir>/backups/mira-pre-<version>-<UTC timestamp>.db'`
+server copies the database with `VACUUM INTO '<data_dir>/backups/kotiko-pre-<version>-<UTC timestamp>.db'`
 and keeps the newest five (slice 29 runs migrations before the HTTP server starts; slice
 40 documents restore). Steps, in one transaction:
 
 1. Rename `inserted_at` to `created_at`. Rewrite `created_at` and `updated_at` from
    today's naive `YYYY-MM-DDTHH:MM:SS` text to `YYYY-MM-DDTHH:MM:SS.000000Z`.
 2. Add the new columns. Backfill `uuid` with a UUIDv7 whose timestamp is the row's
-   `created_at`, so ids sort in creation order. UUIDv7 comes from a 30-line `Mira.UUID7`
+   `created_at`, so ids sort in creation order. UUIDv7 comes from a 30-line `Kotiko.UUID7`
    module (no new dependency), tested against the RFC 9562 layout.
 3. Rename `english` to `gloss` and add `base_lang` with `'en'` for every existing row:
    every 0.2 word was looked up as an English meaning for English pages, so this records
@@ -375,12 +375,12 @@ never stop.
 
 ## Test plan
 
-- **ExUnit, `Mira.WordsTest`**: table-driven merge cases (each field rule, form flag
+- **ExUnit, `Kotiko.WordsTest`**: table-driven merge cases (each field rule, form flag
   preservation, cap overflow, status transitions), each run for a Spanish-base and an
   English-base word, plus a bilingual group; concurrency test with 20 tasks against
   a file-backed test database (sandbox in shared mode, `async: false`); tombstone,
   restore, scrub and purge with a controllable clock; `seq` monotonicity.
-- **ExUnit, `Mira.RouterV1Test`** (`Plug.Test`): every route, error shape, id
+- **ExUnit, `Kotiko.RouterV1Test`** (`Plug.Test`): every route, error shape, id
   validation, `if_updated_at` and `If-Match`, idempotency table, legacy routes' shapes.
 - **Migration test**: copy `test/fixtures/db/slovo-0.2.db` to a temp dir, run
   migrations, assert counts, merged duplicates, forms JSON, timestamps, backup file.
@@ -397,8 +397,8 @@ never stop.
   legacy routes on 404 (slice 11's legacy adapter). Legacy routes are removed one minor
   version later, with a changelog note.
 - Changelog: "Words now have permanent ids and keep a history of deletes. Adding a word
-  you already have no longer overwrites your notes; Mira tells you it's already in your
-  list. A word's meaning is stored in the language you read, so Mira works for readers
+  you already have no longer overwrites your notes; Kotiko tells you it's already in your
+  list. A word's meaning is stored in the language you read, so Kotiko works for readers
   of any language. Your database is backed up automatically before the upgrade."
 
 ## Open questions

@@ -49,7 +49,7 @@ Two more from research 03, read from the code:
   that moment.
 - Changing the server address or token cancels the old request and shows the result of
   the new credentials only.
-- Only a response that is a valid Mira word list is accepted; everything else is a
+- Only a response that is a valid Kotiko word list is accepted; everything else is a
   specific, honest error.
 - Server addresses are normalised and validated in one place.
 - The periodic sync always exists while the extension is enabled.
@@ -70,7 +70,7 @@ Two more from research 03, read from the code:
 - As a learner who just added a word, I want it on the page I open next, not a minute later.
 - As a learner who pasted the wrong token and then the right one, I want "connected", not
   a stale error.
-- As a learner on hotel Wi-Fi with a login page, I want "that address isn't a Mira server",
+- As a learner on hotel Wi-Fi with a login page, I want "that address isn't a Kotiko server",
   not "synced just now".
 - As a learner who typed `192.168.1.5:4747`, I want it to just work.
 
@@ -133,14 +133,14 @@ immediately, then request a sync:
 A sync result is accepted only if all of these hold:
 
 1. Status 200 and `Content-Type` contains `application/json`; otherwise
-   `not_mira_server` (F31), unless status is 401 (`server_key_rejected`), 404 on
+   `not_kotiko_server` (F31), unless status is 401 (`server_key_rejected`), 404 on
    `/api/v1/words` (fall back to legacy `/api/words` once, slice 07), 421
    (`server_address_invalid`, the server's Host check from slice 01), 5xx (`internal`
    with the status in `details`).
-2. Body parses as JSON and `Array.isArray(body.words)`; else `not_mira_server`.
+2. Body parses as JSON and `Array.isArray(body.words)`; else `not_kotiko_server`.
 3. At most 20,000 entries (slice 09's `max_vocabulary`); beyond that, keep the first
    20,000 and record `{dropped: n, reason: "too_many_words"}`.
-4. Each word passes the client checks from slice 09's `rules.json` (via `MIRA_SPEC` once
+4. Each word passes the client checks from slice 09's `rules.json` (via `KOTIKO_SPEC` once
    slice 09 lands; until then, these constants): `id` is a string or integer; `lang` is a
    non-empty string up to 35 characters; `native` 1-64 characters with no newline;
    `forms` (strings, or slice 07 Form objects with `text`) each 2-40 characters, at most
@@ -152,7 +152,7 @@ The written result is `{words, lastSync, syncError: null, syncWarnings: {dropped
 on success, or `{syncError: {code, message, at}}` on failure. `words` and `lastSync` are
 left as they were on failure, so pages keep working from the cache ([05 S34](../../docs/research/05-learner-ux.md)).
 `syncError` changes from a string to an object; the popup reads `syncError.code` and shows
-slice 25's text for it in the interface language through `MiraI18n.t()`
+slice 25's text for it in the interface language through `KotikoI18n.t()`
 ([50](../50-ui-localization-and-base-language/SPEC.md)). `message` is a technical English
 detail for logs and "Details", never the main line. An old string value is shown as a
 detail under the generic sync error for one release.
@@ -164,7 +164,7 @@ hash of ids and `updated_at`, or the JSON string for legacy responses), as today
 **Error codes** are slice 25's: `server_address_invalid` (bad URL, or a 421),
 `server_unreachable` (network error or timeout; `details.reason` says which),
 `local_network_blocked` (when slice 25's detection applies), `server_key_rejected`,
-`not_mira_server`, `internal` (5xx). An abort after a credential change is internal
+`not_kotiko_server`, `internal` (5xx). An abort after a credential change is internal
 to the controller and never written.
 
 ### 4. Server address normalisation (`extension/lib/url.js`)
@@ -177,7 +177,7 @@ to the controller and never written.
    `https://` otherwise (a MagicDNS name or a domain behind a proxy). (F32)
 3. Parse with `new URL()`. Only `http:` and `https:`. Reject user info
    (`user:pass@host`) with a hint to use the token field. Reject query and fragment.
-4. Keep an explicit port and any path (reverse proxies may mount Mira under `/mira`);
+4. Keep an explicit port and any path (reverse proxies may mount Kotiko under `/kotiko`);
    strip trailing slashes.
 5. Return the canonical string.
 
@@ -191,7 +191,7 @@ At the top level of the worker script (runs on every worker start, including aft
 re-enabling):
 
 ```js
-ext.alarms.get("mira-sync").then((a) => a || ext.alarms.create("mira-sync", { periodInMinutes: 1 }));
+ext.alarms.get("kotiko-sync").then((a) => a || ext.alarms.create("kotiko-sync", { periodInMinutes: 1 }));
 ```
 
 `onInstalled` and `onStartup` keep calling the same function (cheap and idempotent) and
@@ -246,15 +246,15 @@ that writes to IndexedDB instead of `storage.local`.
 - [ ] F11: a 401 in flight, then a token change: the final state has `syncError: null`
       and words from the new token; the first request was aborted.
 - [ ] Five sync requests during one run cause exactly one follow-up request.
-- [ ] F31: a 200 `text/html` response yields `not_mira_server`, leaves `words` and
+- [ ] F31: a 200 `text/html` response yields `not_kotiko_server`, leaves `words` and
       `lastSync` unchanged.
 - [ ] A response with a word whose form is "a" or whose `native` is 10 KB drops that word,
       keeps the rest, and records `syncWarnings.dropped`.
 - [ ] F32: `localhost:4747` → `http://localhost:4747`; `192.168.1.5:4747` →
-      `http://192.168.1.5:4747`; `mira.tail1234.ts.net` → `https://mira.tail1234.ts.net`;
+      `http://192.168.1.5:4747`; `kotiko.tail1234.ts.net` → `https://kotiko.tail1234.ts.net`;
       `http://user:pw@host` is rejected.
 - [ ] F39: after disable and enable (Playwright: `chrome://extensions` toggle, or the
-      harness restarting the worker with alarms cleared), the `mira-sync` alarm exists.
+      harness restarting the worker with alarms cleared), the `kotiko-sync` alarm exists.
 - [ ] A content-script `add` or `remove` message gets `forbidden` and the server receives
       no request; the popup's add works.
 - [ ] No sync request takes longer than 20 s before it is reported as `server_unreachable`
@@ -268,7 +268,7 @@ that writes to IndexedDB instead of `storage.local`.
 - **Unit**: `validate-words` table (good list, HTML, `{}`, wrong types, oversize, bad
   forms, legacy string forms, v1 Form objects); `normalizeServerUrl` table.
 - **Background harness** (`test/bg/background.test.mjs`, slice 02's fake chrome and the
-  fixture server's `/mira` API with `__control` delays): the F10, F11, F31, F32 and F39
+  fixture server's `/kotiko` API with `__control` delays): the F10, F11, F31, F32 and F39
   repros from research 06 turned into passing tests; sender checks with fake `sender`
   objects for popup, content script and another extension.
 - **E2E**: Playwright smoke where the fake server is slowed to 3 s, a word is added in the
@@ -278,10 +278,10 @@ that writes to IndexedDB instead of `storage.local`.
 
 - Ships in the next extension release; no server change needed.
 - `syncError` becomes an object; the popup handles both shapes for one release.
-- The alarm name changes to `mira-sync` together with slice 04; the old alarm is cleared.
+- The alarm name changes to `kotiko-sync` together with slice 04; the old alarm is cleared.
 - Changelog: "Sync is more reliable: a word you add shows up on the next page right away,
-  fixing the server address or token takes effect immediately, and Mira tells you when an
-  address isn't a Mira server."
+  fixing the server address or token takes effect immediately, and Kotiko tells you when an
+  address isn't a Kotiko server."
 
 ## Open questions
 

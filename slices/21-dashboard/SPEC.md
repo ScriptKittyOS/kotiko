@@ -22,7 +22,7 @@ original rather than like another admin template.
 
 Nothing lets a learner say which languages they read, either: the extension assumes
 English pages and English meanings (`server/lib/slovo/word.ex:13-14`, `extension/popup.js:165`),
-and there is no place to change Mira's interface language. The base-language decision
+and there is no place to change Kotiko's interface language. The base-language decision
 ([50](../50-ui-localization-and-base-language/SPEC.md)) needs a home for both settings.
 
 ## Goals
@@ -34,11 +34,11 @@ and there is no place to change Mira's interface language. The base-language dec
 - Bulk actions on many words: pause, resume, move language, export, delete.
 - A per-language overview that doubles as the language filter.
 - Settings for every slice in one place, so the popup stays small, including "Languages you
-  read in" (base languages) and "Mira's language" (interface override), per
+  read in" (base languages) and "Kotiko's language" (interface override), per
   [50 §2](../50-ui-localization-and-base-language/SPEC.md).
 - One row per word as the learner thinks of it: a bilingual learner's 犬 (records for `es`
   and `en`, [07](../07-word-model-v2/SPEC.md)) is one row showing both meanings.
-- Every string through `MiraI18n.t()`, complete in English and Spanish at launch.
+- Every string through `KotikoI18n.t()`, complete in English and Spanish at launch.
 - Smooth with 20,000 words; nothing waits on the network.
 
 ## Non-goals
@@ -66,8 +66,8 @@ and there is no place to change Mira's interface language. The base-language dec
   meaning without touching the other.
 - As a learner who just started reading French news, I want to add French as a language I
   read and get French meanings for the words I already have, after reviewing them.
-- As a learner whose browser is in Spanish but who wants Mira in English, I want to switch
-  Mira's language myself.
+- As a learner whose browser is in Spanish but who wants Kotiko in English, I want to switch
+  Kotiko's language myself.
 
 ## Specification
 
@@ -94,7 +94,7 @@ Wide (≥ 960 px):
 
 ```
 ┌───────────────────────────────────────────────────────────────────────────────────────┐
-│ (•) Mira    Your words                                  [ Add words ]   ⋯   Settings  │
+│ (•) Kotiko    Your words                                  [ Add words ]   ⋯   Settings  │
 │                                                                                       │
 │  ┌───────┐ ┌────────────┐ ┌────────────┐ ┌──────────┐ ┌──────────┐ ┌───────────────┐  │
 │  │ All   │ │ Español    │ │ العربية    │ │ 中文      │ │ Русский  │ │ + Start a      │  │
@@ -127,7 +127,7 @@ The same list for a Spanish reader, interface in Spanish:
 │   ありがとう  arigatō     gracias                 japonés  20 sept     │
 ```
 
-What makes it Mira rather than an admin template ([06 §1](../06-design-system/SPEC.md)):
+What makes it Kotiko rather than an admin template ([06 §1](../06-design-system/SPEC.md)):
 
 - **The language shelf** replaces a sidebar and KPI cards. Each language is a card titled by
   its endonym in the script's display face, with its name in the interface language, word count, words added in
@@ -137,7 +137,7 @@ What makes it Mira rather than an admin template ([06 §1](../06-design-system/S
 - **Rows lead with the native word** in `--t-word` and the right face for its script; the
   meaning in the learner's base language(s) is secondary. No avatars, no flags, no zebra stripes.
 - **The inspector is a specimen.** The selected word is set at `--t-specimen` with a line
-  showing how it appears on pages: "Mira shows **شكرا** where pages say “thanks”." / "Mira
+  showing how it appears on pages: "Kotiko shows **شكرا** where pages say “thanks”." / "Kotiko
   muestra **犬** donde las páginas dicen “perro”." with the dotted underline, one line per
   base the word has a meaning in.
 - **The live arrival** of a word uses the swap motion and a 2 s `--orange-soft` wash.
@@ -199,7 +199,7 @@ What makes it Mira rather than an admin template ([06 §1](../06-design-system/S
 │  شكرا                                │  --t-specimen, editable in place
 │  shukran                             │  romanization, editable
 │  Arabic · العربية            Move ▾  │
-│  Mira shows شكرا where pages say     │
+│  Kotiko shows شكرا where pages say     │
 │  “thanks”.                           │
 │ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄  │
 │  On pages in English                 │  one block per base record (heading: base name)
@@ -291,7 +291,7 @@ hint.
 
 - **Add words** (primary): opens `#add` ([13](../13-bulk-add/SPEC.md)) with a single-line add
   box on top (the same as the popup's) and the paste/drop area below.
-- **⋯**: Import a list or file ([13](../13-bulk-add/SPEC.md)), Import a Mira backup
+- **⋯**: Import a list or file ([13](../13-bulk-add/SPEC.md)), Import a Kotiko backup
   ([12](../12-export-import-and-delete/SPEC.md)), Export all words (JSON, CSV, Anki), Show
   keyboard shortcuts.
 - **Settings**: `#settings`.
@@ -305,7 +305,7 @@ Sections and their owners:
 | Section | Contents | Owner |
 |---|---|---|
 | Languages you read in | Base languages: chips in order (primary first), drag or ↑/↓ to reorder, "Add a language" from a searchable list of names in the interface language, remove (×), each with its support level (Full, Good, Basic) and "Add meanings in {base} for your {n} words" when words lack one; the detected list as a hint ("From your browser: español, English") | [50 §2](../50-ui-localization-and-base-language/SPEC.md), this slice |
-| Mira's language | Interface language: "Same as my browser ({name})" (default) or any shipped locale, by its endonym; "Help translate Mira" link to Weblate | [50 §8](../50-ui-localization-and-base-language/SPEC.md) |
+| Kotiko's language | Interface language: "Same as my browser ({name})" (default) or any shipped locale, by its endonym; "Help translate Kotiko" link to Weblate | [50 §8](../50-ui-localization-and-base-language/SPEC.md) |
 | Reading | Amount; skip buttons and menus; language colors; romanization above words; vowel marks; copy the original text (`copyOriginal`) | [31](../31-density-and-amount/SPEC.md), [16](../16-what-not-to-swap/SPEC.md), [37](../37-language-colors-and-reading-aids/SPEC.md), [43](../43-copy-print-translate-coexistence/SPEC.md) |
 | Learning | Celebrations; reveal mode; weekly recap | [32](../32-page-coverage-and-celebrations/SPEC.md), [35](../35-reveal-mode-and-review/SPEC.md), [46](../46-local-stats-and-recap/SPEC.md) |
 | Word lookup and connection | Mode, provider, key, server address and access key, "Test" | [11](../11-local-first-mode/SPEC.md) |
@@ -321,7 +321,7 @@ are absent, not disabled.
 
 ```
   Languages you read in
-  Mira swaps words on pages in these languages.
+  Kotiko swaps words on pages in these languages.
   ┌──────────────────────────────────────────────────────────────┐
   │ ⋮⋮ 1  español        Full    · primary                    ×  │
   │ ⋮⋮ 2  English        Full                                 ×  │
@@ -332,7 +332,7 @@ are absent, not disabled.
 ```
 
 - **Add a language** ([50 §2](../50-ui-localization-and-base-language/SPEC.md)): at most 4
-  bases; the fifth is refused with "Mira can follow up to 4 languages you read. Remove
+  bases; the fifth is refused with "Kotiko can follow up to 4 languages you read. Remove
   one first." Adding one writes `s:ui.baseLangs` at once; pages in that language start
   matching as soon as words have meanings in it.
 - **Add meanings in {base}** runs [13](../13-bulk-add/SPEC.md)'s batched lookup for every
@@ -340,14 +340,14 @@ are absent, not disabled.
   then shows 13's review table; nothing is saved until the learner accepts. Without a model,
   the button reads "Type meanings in {base}" and filters the list to "Missing a meaning in
   {base}", where each inspector shows an empty block for that base.
-- **Remove** keeps the words (they stop swapping) and shows an undoable toast: "Mira won't
+- **Remove** keeps the words (they stop swapping) and shows an undoable toast: "Kotiko won't
   swap words on pages in français. Your 214 meanings are kept. Undo".
 - **Support level** shows the label and a one-line explanation on hover and focus; Basic
   bases link to `spec/lang/README.md` ("help improve them").
 - **Primary base** is the first chip; it decides the language of suggestions on the
   welcome tab and the default gloss shown in single-meaning places.
 
-**Mira's language** changes take effect without a restart (50's `t()` override); the
+**Kotiko's language** changes take effect without a restart (50's `t()` override); the
 dashboard re-renders in place and keeps scroll position.
 
 ### 10. Live updates
@@ -373,7 +373,7 @@ dashboard re-renders in place and keeps scroll position.
 |---|---|
 | Loading | Header and shelf frame at once; if words haven't loaded in 150 ms, six skeleton rows (`--sunken` bars, no shimmer under reduced motion) |
 | No words | Illustration, "No words yet. Add the first one you'd love to learn, in any language, or a list you already have." / "Aún no hay palabras. Agrega la primera que te encantaría aprender, en cualquier idioma, o una lista que ya tengas.", [Add words] (primary), "Import a list or file" |
-| Upgraded with English meanings | One-time note after the base-language upgrade ([50 §2](../50-ui-localization-and-base-language/SPEC.md)): "Mira now follows the languages you read: {list}. Your words keep their English meanings. [Change]" |
+| Upgraded with English meanings | One-time note after the base-language upgrade ([50 §2](../50-ui-localization-and-base-language/SPEC.md)): "Kotiko now follows the languages you read: {list}. Your words keep their English meanings. [Change]" |
 | No results | §4 copy with "Add “{q}” as a new word" |
 | Filters exclude everything | "No paused words." (per filter) and "Clear filters" |
 | Offline / server unreachable | [25](../25-plain-language-errors/SPEC.md) state banner under the header; everything stays editable; edits queue and rows show "Waiting to save" |
@@ -451,7 +451,7 @@ toasts are `role="status"`; every icon button is labelled; the page works at 200
 - [ ] Removing a base keeps its records, stops their swaps, and lists them under "For pages
       in {base}"; Undo restores the base.
 - [ ] A fifth base is refused with the copy in §9.
-- [ ] Switching "Mira's language" to Español re-renders the dashboard in Spanish without a
+- [ ] Switching "Kotiko's language" to Español re-renders the dashboard in Spanish without a
       reload; with the browser in Spanish and the setting on "Same as my browser", every
       string is Spanish (slice 50's literal-string check passes).
 - [ ] Editing a field saves without a Save button, updates swaps on an open page, and can be

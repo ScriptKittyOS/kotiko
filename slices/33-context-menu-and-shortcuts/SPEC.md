@@ -11,7 +11,7 @@
 
 ## Problem
 
-The moment a learner meets a word is while reading, and Mira can't be reached from
+The moment a learner meets a word is while reading, and Kotiko can't be reached from
 there. There is no `contextMenus` permission (`extension/manifest.json:6`) and no
 `commands` key in the manifest, so:
 
@@ -33,7 +33,7 @@ there. There is no `contextMenus` permission (`extension/manifest.json:6`) and n
   is in one of your base languages), or to add it as a word you're learning (when it is in
   another language), in one click, with the selection's language as a hint.
 - The click returns immediately; the result appears in the page and in the popup.
-- Four keyboard shortcuts: open Mira, show the original text on this tab, open the
+- Four keyboard shortcuts: open Kotiko, show the original text on this tab, open the
   popover for the selected swapped word, and cycle the Focus language.
 - Menu titles, command descriptions and toasts are in the interface language, with language
   names from `Intl.DisplayNames([uiLocale])`.
@@ -67,7 +67,7 @@ also as `menus`). Created in `runtime.onInstalled` and rebuilt (debounced 1 s) w
 the set of languages in the store, the base languages or the interface language
 (`s:ui`, 50) changes.
 
-**Titles are localized.** Every title comes from `MiraI18n.t()` (50 §8) with `%s` kept
+**Titles are localized.** Every title comes from `KotikoI18n.t()` (50 §8) with `%s` kept
 inside the translated string, which `contextMenus` substitutes with the selection in any
 language. Language names come from `Intl.DisplayNames([uiLocale], {type: "language"})`,
 so a Spanish interface lists "inglés", "japonés". Keys: `menu_learn_in` ("Learn “%s” in" /
@@ -76,7 +76,7 @@ so a Spanish interface lists "inglés", "japonés". Keys: `menu_learn_in` ("Lear
 
 ```
 English interface                        Spanish interface
-Mira                                     Mira
+Kotiko                                     Kotiko
  ├─ Learn “%s” in  ▸  Spanish             ├─ Aprender “%s” en  ▸  inglés
  │                    Japanese            │                       japonés
  │                    Arabic              │                       árabe
@@ -119,7 +119,7 @@ Mira                                     Mira
    first, then the other bases; for "Add": all bases), and a new `clientId`. No URL, no
    surrounding text.
 2. Return. The badge shows a small dot while jobs are running (slice 20 owns the badge).
-3. If the tab has Mira's content script, send it `{type: "toast", jobId}`; slice 19's
+3. If the tab has Kotiko's content script, send it `{type: "toast", jobId}`; slice 19's
    in-page host shows:
 
    ```
@@ -158,7 +158,7 @@ browser's language:
 
 | Key | en | es |
 |---|---|---|
-| `cmd_open` | Open Mira | Abrir Mira |
+| `cmd_open` | Open Kotiko | Abrir Kotiko |
 | `cmd_toggle_tab` | Show the original text on this tab, or swap again | Mostrar el texto original en esta pestaña, o volver a cambiar |
 | `cmd_reveal_word` | Show details for the selected word | Ver detalles de la palabra seleccionada |
 | `cmd_cycle_focus` | Focus on the next language | Enfocar el siguiente idioma |
@@ -232,13 +232,13 @@ interface locale's key names where the platform has them (Mayús for Shift in Sp
   disable the extension; in Firefox it adds no prompt (medium confidence; check on the
   release build).
 - Changelog: "Right-click any word to learn it in one of your languages. New shortcuts:
-  Alt+Shift+M opens Mira, Alt+Shift+O shows the original text."
+  Alt+Shift+M opens Kotiko, Alt+Shift+O shows the original text."
 
 ## Open questions
 
 1. **Default shortcuts.** Alt+Shift+M/O/R/L as specified? Recommendation: yes; they avoid
    common browser shortcuts. Revisit if users report clashes with layout switching.
-2. **Menu when nothing is selected.** Add "Pause Mira on this site" to the page context
+2. **Menu when nothing is selected.** Add "Pause Kotiko on this site" to the page context
    menu? Recommendation: not now; the popup is one click away and menus get crowded.
 
 ## Future work

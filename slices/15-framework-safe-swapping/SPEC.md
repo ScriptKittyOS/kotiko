@@ -11,7 +11,7 @@
 
 ## Problem
 
-Mira can break the sites it runs on. Reproduced in research 06 with jsdom against the real
+Kotiko can break the sites it runs on. Reproduced in research 06 with jsdom against the real
 content script:
 
 - **It detaches text nodes the site owns** (06 F02). `processText` replaces the site's text
@@ -20,11 +20,11 @@ content script:
   stale text) or `removeChild` throws `NotFoundError`, which can blank the whole app. It is
   the same class of bug Google Translate causes on React sites (facebook/react#11538).
 - **It merges site text nodes on every settings change** (06 F03). `unwrapAll()` calls
-  `normalize()` on every parent (`content.js:140`), disconnecting nodes Mira never touched.
+  `normalize()` on every parent (`content.js:140`), disconnecting nodes Kotiko never touched.
   It runs in every open tab whenever a word or setting changes (`content.js:143-149`,
   `178-188`).
 - **It fights sites that restore their own text** (06 F08). A page that resets its text when
-  a swap appears and Mira re-swapping 250 ms later loop forever (11 cycles in 3 s).
+  a swap appears and Kotiko re-swapping 250 ms later loop forever (11 cycles in 3 s).
 - **It stops after a body swap** (06 F25). The observer watches the original `document.body`
   (`content.js:176`), so Turbo-style navigation and `document.open()` end swapping.
 - **Old copies keep running after an update** (06 F15, reasoned). In Chrome, an updated or
@@ -48,7 +48,7 @@ content script:
   nothing, through swap, re-render, unmount, settings change and disable.
 - New content is swapped before it is painted for small batches; no task longer than 50 ms.
 - Changing words or settings rewrites only the swaps whose outcome changed.
-- Exactly one live Mira instance per document, including across updates and reloads.
+- Exactly one live Kotiko instance per document, including across updates and reloads.
 - No original text, gloss, language list or word ID in page-visible attributes.
 
 ## Non-goals
@@ -61,12 +61,12 @@ content script:
 
 ## User stories
 
-- As someone using Mira on a React web app, the app keeps working exactly as without Mira.
+- As someone using Kotiko on a React web app, the app keeps working exactly as without Kotiko.
 - As a learner scrolling a feed, new posts arrive already swapped, without a flash of the
   unswapped text.
 - As a learner who adds a word on my phone, the page I'm reading doesn't reshuffle; at most
   the new word appears.
-- As someone who just installed or updated Mira, the tabs I already had open start working
+- As someone who just installed or updated Kotiko, the tabs I already had open start working
   without a reload.
 
 ## Specification
@@ -76,16 +76,16 @@ content script:
 ```
 extension/content/engine.js   swap, restore, bookkeeping, observer, scheduler
 extension/content/main.js     startup, settings, handoff, wiring of slices 16-18, 31, 32
-extension/content.css         mira-w styles
+extension/content.css         kotiko-w styles
 ```
 
 ### The swap element
 
-Every swap is an autonomous custom element `<mira-w>` (never registered; content scripts
+Every swap is an autonomous custom element `<kotiko-w>` (never registered; content scripts
 can't define custom elements, and an undefined element with a hyphen renders inline):
 
 ```html
-<mira-w lang="zh-Hans" dir="auto" translate="no" class="notranslate">谢谢</mira-w>
+<kotiko-w lang="zh-Hans" dir="auto" translate="no" class="notranslate">谢谢</kotiko-w>
 ```
 
 - `lang` is the chosen word's canonical tag ([08](../08-language-tags/SPEC.md)); it drives
@@ -98,7 +98,7 @@ can't define custom elements, and an undefined element with a hyphen renders inl
 - `content.css`:
 
 ```css
-mira-w {
+kotiko-w {
   display: inline;
   unicode-bidi: isolate;
   line-height: 1;          /* slice 17: never grows the line box */
@@ -111,14 +111,14 @@ mira-w {
 ```
 
 Colors and states come from [06](../06-design-system/SPEC.md) and
-[37](../37-language-colors-and-reading-aids/SPEC.md) as classes on `mira-w` (for example
-`mira-missed` from slice 35); classes never carry original text or word data. A custom element
+[37](../37-language-colors-and-reading-aids/SPEC.md) as classes on `kotiko-w` (for example
+`kotiko-missed` from slice 35); classes never carry original text or word data. A custom element
 name avoids nearly all site selectors aimed at `span`.
 
 ### Swapping a text node in place
 
 The site's node `T` stays in the document at its position and keeps the text before the first
-match. Everything after it is inserted as new siblings that Mira owns. Bookkeeping lives in
+match. Everything after it is inserted as new siblings that Kotiko owns. Bookkeeping lives in
 `swaps: WeakMap<Text, SwapRecord>` and `info: WeakMap<Element, SwapInfo>`.
 
 ```
@@ -129,7 +129,7 @@ swap(T, plan):                         // plan: matches with chosen display text
   cursor = first
   for m in plan:
     if m.start > cursor: frag.append(ownText(original.slice(cursor, m.start)))
-    el = createElement("mira-w"); set lang, dir, translate, class; el.textContent = m.display
+    el = createElement("kotiko-w"); set lang, dir, translate, class; el.textContent = m.display
     info.set(el, { T, surface: m.surface, base: ctx.base, key: m.key, choice: m.choice, entry: m.entry })
     frag.append(el)
     cursor = m.end
@@ -144,8 +144,8 @@ ownText(s): t = new Text(s); ownedText.add(t); return t     // WeakSet
 
 Why this is safe: the framework's reference to `T` still points at a connected node in the
 right place. `parent.removeChild(T)` works. `T.data = "new"` shows the new text immediately;
-Mira's observer then removes the stale siblings and re-swaps (below). New site nodes that the
-framework inserts before "the next sibling it knows" land after Mira's nodes, so order holds.
+Kotiko's observer then removes the stale siblings and re-swaps (below). New site nodes that the
+framework inserts before "the next sibling it knows" land after Kotiko's nodes, so order holds.
 A moment where both old and new text exist is never painted, because it is resolved in the
 observer callback, which runs as a microtask before rendering.
 
@@ -154,14 +154,14 @@ observer callback, which runs as a microtask before rendering.
 ```
 restore(T):
   r = swaps.get(T); if !r: return
-  for n in r.nodes: n.remove()                       // only Mira's nodes
+  for n in r.nodes: n.remove()                       // only Kotiko's nodes
   if T.isConnected and T.data === r.prefix: T.data = r.original
   swaps.delete(T)
 ```
 
-There is no `normalize()` anywhere (06 F03). `unwrapAll()` finds every `mira-w` with
+There is no `normalize()` anywhere (06 F03). `unwrapAll()` finds every `kotiko-w` with
 `querySelectorAll` (plus the shadow-root registry from 42), restores each distinct `T`, and
-removes any `mira-w` whose `T` is gone by replacing it with a text node holding its original
+removes any `kotiko-w` whose `T` is gone by replacing it with a text node holding its original
 surface.
 
 Legacy cleanup: on startup, every `span.slovo-w` from version 0.2 is replaced with a text node
@@ -191,7 +191,7 @@ process(T):
 `edges(T)` walks previous and next sibling text within the same inline run (the element list
 in 14) and returns up to 16 characters each side, or U+2029 at a block or skip boundary.
 
-`indexes` is `MiraMatcher.buildIndexes(words, storage.local.baseLangs)` (14, 50), rebuilt when
+`indexes` is `KotikoMatcher.buildIndexes(words, storage.local.baseLangs)` (14, 50), rebuilt when
 the words or the base languages change; a change to the base languages re-runs the page gate
 (16) and then re-applies like any other settings change. `skip.baseFor` is cached per element
 with the rest of 16's element rules, so a page in Spanish with an English quote scans each
@@ -204,7 +204,7 @@ processing slice, the nodes holding resolved deferrals are run through `process(
 ### Walking and scheduling
 
 - The walker is a `TreeWalker` with `SHOW_ELEMENT | SHOW_TEXT`. Elements that slice 16 skips
-  are `FILTER_REJECT` (whole subtree); `mira-w` is rejected; owned text is skipped.
+  are `FILTER_REJECT` (whole subtree); `kotiko-w` is rejected; owned text is skipped.
 - Work is queued as roots (elements or text nodes) in document order and processed in
   slices of at most **8 ms**, measured with `performance.now()`. Between slices, yield with
   `scheduler.yield()` where available, otherwise a `MessageChannel` post (faster than
@@ -235,39 +235,39 @@ onMutations(mutationRecords):
   if !contextValid(): return teardown()                  // F15
   for r in mutationRecords:
     if r.type == "characterData":
-      if ownedText.has(r.target): continue               // Mira's own tail text
+      if ownedText.has(r.target): continue               // Kotiko's own tail text
       rec = swaps.get(r.target)
-      if rec and r.target.data === rec.prefix: continue  // Mira's own write
+      if rec and r.target.data === rec.prefix: continue  // Kotiko's own write
       if rec: drop rec.nodes from DOM; swaps.delete(r.target); budget.revert(parentOf(r.target))
       enqueue(r.target)
     else:                                                 // childList
       for n in r.removedNodes:
         if swaps.has(n): remove its nodes; swaps.delete(n)     // site removed T
       for n in r.addedNodes:
-        if n is mira-w or ownedText.has(n): continue
-        if n was one of Mira's removed nodes being re-added by the site: budget.revert(parent)
+        if n is kotiko-w or ownedText.has(n): continue
+        if n was one of Kotiko's removed nodes being re-added by the site: budget.revert(parent)
         enqueue(n)
   if queue is small (under 200 text nodes and 20,000 characters): run it now, synchronously
   else: schedule time-sliced processing
 ```
 
-Mira's own writes must not be mistaken for the site's, and the site's must not be lost. Every
+Kotiko's own writes must not be mistaken for the site's, and the site's must not be lost. Every
 write batch therefore starts with `observer.takeRecords()` (those records are the site's and
-are handled first) and ends with `observer.takeRecords()` (those are Mira's and are dropped).
+are handled first) and ends with `observer.takeRecords()` (those are Kotiko's and are dropped).
 
 ### Rewrite budgets (06 F08, 03 A4)
 
 Two counters per element in a `WeakMap<Element, {reverts, churn, since}>`:
 
-- **reverts**: the site undid a swap (rewrote `T`, removed Mira's nodes, or re-set text Mira
-  had swapped) and Mira re-swapped. More than **5 in 10 s** marks the element volatile.
+- **reverts**: the site undid a swap (rewrote `T`, removed Kotiko's nodes, or re-set text Kotiko
+  had swapped) and Kotiko re-swapped. More than **5 in 10 s** marks the element volatile.
 - **churn**: the element's text changed for any reason. More than **30 in 60 s** marks it
   volatile (live clocks and tickers). Slice 52 exempts caption containers.
 
 A volatile element is restored and added to a `WeakSet` that 16's skip check consults for the
 rest of the page's life. Page-wide, more than **200 reverts in 10 s** puts the page in "stand
 down" mode: unwrap everything, disconnect, and report `{ status: "stood-down" }` to the
-popup, which says "Mira stepped back on this page because the page kept undoing its changes"
+popup, which says "Kotiko stepped back on this page because the page kept undoing its changes"
 (copy owned by [25](../25-plain-language-errors/SPEC.md)). A one-line console message is
 logged once, at debug level only.
 
@@ -283,16 +283,16 @@ When words or relevant settings change:
 
 All of this is time-sliced. The trigger is a change to slice 11's `wordsVersion` key (or to
 a settings group from 39). In a hidden tab, mark the document dirty and do the work on
-`visibilitychange` to visible, so one added word doesn't wake 40 tabs (03 C3). Turning Mira
+`visibilitychange` to visible, so one added word doesn't wake 40 tabs (03 C3). Turning Kotiko
 off or pausing the site runs `unwrapAll()`.
 
 ### One instance per document
 
 - Each instance has a random `instanceId`. On startup it dispatches
-  `document.dispatchEvent(new CustomEvent("mira:handoff", { detail: instanceId }))`. Any other
+  `document.dispatchEvent(new CustomEvent("kotiko:handoff", { detail: instanceId }))`. Any other
   instance listening tears itself down synchronously: disconnect observers, `unwrapAll()`,
   remove listeners. The new instance then walks the page. A page can fire this event too;
-  the worst it can do is make Mira re-render, which is acceptable.
+  the worst it can do is make Kotiko re-render, which is acceptable.
 - `contextValid()` is `try { return !!ext.runtime?.id } catch { return false }`. It is checked
   in every observer callback, timer and event listener; when false the instance tears down
   (06 F15).
@@ -305,22 +305,22 @@ off or pausing the site runs `unwrapAll()`.
 
 ### Element-level editability
 
-If an element becomes editable or receives focus as an editor, Mira restores the swaps
+If an element becomes editable or receives focus as an editor, Kotiko restores the swaps
 inside it before the user can type into swapped words. The trigger rules are in slice 16; the
 mechanism is `restoreWithin(element)`.
 
 ### Public surface for other slices
 
 ```js
-MiraEngine.infoFor(el)        // SwapInfo for a mira-w: surface, base, key, choice, entry, T
-MiraEngine.unwrapAll()        // used by 43 (print), popup "off", teardown
-MiraEngine.restoreWithin(el)  // used by 16 (editables)
-MiraEngine.reapply(reason)    // used by settings changes, 43 (afterprint)
-MiraEngine.suspend()          // pause processing, keep the queue; used by 43 (print)
-MiraEngine.freeze(on)         // no new swaps and no orphan cleanup while a page is
+KotikoEngine.infoFor(el)        // SwapInfo for a kotiko-w: surface, base, key, choice, entry, T
+KotikoEngine.unwrapAll()        // used by 43 (print), popup "off", teardown
+KotikoEngine.restoreWithin(el)  // used by 16 (editables)
+KotikoEngine.reapply(reason)    // used by settings changes, 43 (afterprint)
+KotikoEngine.suspend()          // pause processing, keep the queue; used by 43 (print)
+KotikoEngine.freeze(on)         // no new swaps and no orphan cleanup while a page is
                                // machine-translated; on release, reconcile then reapply (43)
-MiraEngine.onSwap(fn)         // used by 32 (coverage), 35 (exposure), 46 (stats)
-MiraEngine.addRoot(root)      // used by 42 for shadow roots
+KotikoEngine.onSwap(fn)         // used by 32 (coverage), 35 (exposure), 46 (stats)
+KotikoEngine.addRoot(root)      // used by 42 for shadow roots
 ```
 
 ## Acceptance criteria
@@ -343,14 +343,14 @@ MiraEngine.addRoot(root)      // used by 42 for shadow roots
 - [ ] No long task over 50 ms on the 100,000-node fixture; first viewport within 100 ms.
 - [ ] Adding one word rewrites only nodes containing its forms (count of DOM writes in test).
 - [ ] After an extension reload in Chromium, the old instance's swaps are gone, the new
-      instance swaps, and exactly one set of `mira-w` exists.
+      instance swaps, and exactly one set of `kotiko-w` exists.
 - [ ] On install, a tab opened before install gets swaps without reload (Chromium).
 - [ ] Legacy `span.slovo-w` elements are converted back to their original text on first run.
 
 ## Test plan
 
 - **jsdom (slice 02):** node-identity tests for swap and restore; F02, F03, F08, F25 repros as
-  regression tests; the self-write filter (site records arriving in the same task as Mira's
+  regression tests; the self-write filter (site records arriving in the same task as Kotiko's
   writes are not dropped); budgets for reverts and churn with fake timers; signature-based
   re-apply only touching changed nodes.
 - **Playwright with the unpacked extension:** slice 02's `react-list.html`, `turbo-swap.html`,
@@ -368,7 +368,7 @@ MiraEngine.addRoot(root)      // used by 42 for shadow roots
 Ships with 14, 16 and 17 as one release. The new element and handoff replace the old span
 immediately; legacy spans are cleaned on first run. Adds the `scripting` permission, which
 Chrome may surface as a permission change on update; mention it in the release notes and in
-slice 28's disclosures. Changelog: "Mira no longer interferes with web apps like React and
+slice 28's disclosures. Changelog: "Kotiko no longer interferes with web apps like React and
 Vue sites, keeps working after page navigations, and starts on open tabs right after you
 install or update."
 

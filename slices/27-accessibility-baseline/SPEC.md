@@ -5,13 +5,13 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week, spread across the UI slices) |
-| **Depends on** | [06-design-system](../06-design-system/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages, `MiraI18n.t()`) |
+| **Depends on** | [06-design-system](../06-design-system/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages, `KotikoI18n.t()`) |
 | **Unblocks** | Release sign-off for [19](../19-word-popover/SPEC.md), [20](../20-popup-redesign/SPEC.md), [21](../21-dashboard/SPEC.md), [22](../22-first-run-onboarding/SPEC.md), [13](../13-bulk-add/SPEC.md), [32](../32-page-coverage-and-celebrations/SPEC.md), [35](../35-reveal-mode-and-review/SPEC.md) |
 | **Sources** | [05 S36, S37, S35](../../docs/research/05-learner-ux.md); [03 D2, D3, D4, D5, D6](../../docs/research/03-browser-extension.md); WCAG 2.2 |
 
 ## Problem
 
-Mira changes text on every page a person reads, so its accessibility reaches beyond its own
+Kotiko changes text on every page a person reads, so its accessibility reaches beyond its own
 UI. Today, read from the code:
 
 - **Good foundations:** popup inputs have labels and visible focus rings
@@ -35,7 +35,7 @@ UI. Today, read from the code:
 
 ## Goals
 
-- Every Mira surface (popup, dashboard, welcome page, bulk add, popover, in-page toast,
+- Every Kotiko surface (popup, dashboard, welcome page, bulk add, popover, in-page toast,
   celebrations) meets **WCAG 2.2 level AA**, verified by automated checks in CI and a manual
   screen-reader pass before each release.
 - Every task can be done with a keyboard alone, with a visible focus indicator that is never
@@ -47,10 +47,10 @@ UI. Today, read from the code:
 
 ## Non-goals
 
-- Making third-party websites accessible. Mira's duty on pages is not to make them worse.
+- Making third-party websites accessible. Kotiko's duty on pages is not to make them worse.
 - The translation infrastructure itself: [50](../50-ui-localization-and-base-language/SPEC.md).
   This slice only requires that every accessible name, description and announcement comes
-  from `MiraI18n.t()` like any other string, and checks the English and Spanish locales.
+  from `KotikoI18n.t()` like any other string, and checks the English and Spanish locales.
 - Mobile screen readers in depth: [45](../45-firefox-android/SPEC.md) extends this baseline
   to TalkBack.
 
@@ -61,22 +61,22 @@ UI. Today, read from the code:
   when I ask for it.
 - As a screen reader user who reads Spanish and is learning English, I want to hear "dog"
   in an English voice where a page said "perro", and the rest of the page in my Spanish
-  voice, with every label and announcement of Mira's in Spanish.
+  voice, with every label and announcement of Kotiko's in Spanish.
 - As a keyboard user, I want to add, find, edit and delete words without a mouse.
 - As a person with low vision at 200 % zoom, I want the dashboard to reflow without
   horizontal scrolling.
 - As a person who gets motion sick, I want no confetti or sliding when I've asked my system
   to reduce motion.
-- As a voice-control user, I want "click Send" to keep working on sites where Mira runs.
+- As a voice-control user, I want "click Send" to keep working on sites where Kotiko runs.
 
 ## Specification
 
 ### 1. Standard and scope
 
-The bar is WCAG 2.2 AA for every Mira-owned UI. The table lists the criteria that most
-affect Mira and how each is met; the owning slice implements, this slice verifies.
+The bar is WCAG 2.2 AA for every Kotiko-owned UI. The table lists the criteria that most
+affect Kotiko and how each is met; the owning slice implements, this slice verifies.
 
-| Criterion | How Mira meets it | Where |
+| Criterion | How Kotiko meets it | Where |
 |---|---|---|
 | 1.3.1 Info and relationships | Real headings, lists, `fieldset`/`legend`, `role="grid"` for the word list, `<label>` on every field | 20, 21, 22, 13 |
 | 1.3.4 Orientation | No locked orientation | all pages |
@@ -104,10 +104,10 @@ affect Mira and how each is met; the owning slice implements, this slice verifie
 ### 2. Swapped words for screen readers
 
 **Default: the target word, in its own voice.** On an English page,
-`<mira-w lang="es">gracias</mira-w>` is read as "gracias" by NVDA, JAWS, VoiceOver and
+`<kotiko-w lang="es">gracias</kotiko-w>` is read as "gracias" by NVDA, JAWS, VoiceOver and
 Orca, switching to a Spanish voice where one is installed; on a Spanish page,
-`<mira-w lang="en">dog</mira-w>` in place of "perro" is read in an English voice and the
-reader switches back to Spanish for the text after it. The `lang` on `<mira-w>` is always
+`<kotiko-w lang="en">dog</kotiko-w>` in place of "perro" is read in an English voice and the
+reader switches back to Spanish for the text after it. The `lang` on `<kotiko-w>` is always
 the word's target `lang`, never inferred from the page. This is listening practice, and
 it matches what sighted readers see. The gloss (the meaning in the page's base language,
 [50 §3](../50-ui-localization-and-base-language/SPEC.md)) is reachable on demand with the "Show details" command (33's `reveal-word`, Alt+Shift+R by
@@ -134,12 +134,12 @@ element, which this slice asks to support an opt-in variant:
 - While reveal mode ([35](../35-reveal-mode-and-review/SPEC.md)) is on, the original never
   enters the accessibility tree until revealed; the setting is overridden and says why.
 
-**Restored text.** When Mira restores a page (off switch, 33's "Show the original" command,
+**Restored text.** When Kotiko restores a page (off switch, 33's "Show the original" command,
 an unswap in 15), the original text node comes back unchanged, so it carries whatever
-language the page declared; Mira never adds or changes `lang` on page text it didn't
+language the page declared; Kotiko never adds or changes `lang` on page text it didn't
 insert.
 
-No `aria-label` is ever put on `<mira-w>`: ARIA forbids naming generic elements and most
+No `aria-label` is ever put on `<kotiko-w>`: ARIA forbids naming generic elements and most
 screen readers ignore it ([03 D4](../../docs/research/03-browser-extension.md)).
 
 **Keyboard mode (off by default):** "Let me Tab to swapped words" adds `tabindex="0"` to
@@ -164,11 +164,11 @@ searching; onboarding mentions it ([22 §8](../22-first-run-onboarding/SPEC.md))
 | Menus (⋯, language picker) | Menu button with `aria-expanded`, `role="menu"` or a listbox combobox for searchable pickers | ↑/↓, type-ahead, Esc |
 | Toasts | `role="status"`, never focused | Esc dismisses the newest |
 | Bulk add review table | `role="grid"` with editable cells (Enter edits, Esc cancels) | Arrows move between cells |
-| Welcome conversation | Mira's lines in a polite `role="log"`, choice groups in `fieldset` | Standard |
+| Welcome conversation | Kotiko's lines in a polite `role="log"`, choice groups in `fieldset` | Standard |
 
 ### 4. Motion and sensory
 
-- `prefers-reduced-motion: reduce` and Mira's own "Reduce motion" setting (dashboard →
+- `prefers-reduced-motion: reduce` and Kotiko's own "Reduce motion" setting (dashboard →
   Appearance) apply [06 §9](../06-design-system/SPEC.md)'s reduced rules everywhere,
   including the in-page popover, the swap motion and celebrations
   ([32](../32-page-coverage-and-celebrations/SPEC.md) shows only its message).
@@ -177,7 +177,7 @@ searching; onboarding mentions it ([22 §8](../22-first-run-onboarding/SPEC.md))
   [06 §4.3](../06-design-system/SPEC.md); in forced colors, the dotted underline on pages uses
   `CanvasText` so swaps stay visible.
 
-### 5. Pages Mira changes
+### 5. Pages Kotiko changes
 
 Rules for content scripts, beyond the popover:
 
@@ -185,7 +185,7 @@ Rules for content scripts, beyond the popover:
 - Never insert announcements on a page except the in-page toast's polite status
   ([19 §8](../19-word-popover/SPEC.md)) and milestone messages, at most one at a time.
 - Every label, accessible name, `aria-description`, toast and milestone announcement comes
-  from `MiraI18n.t()` in the interface language ([50](../50-ui-localization-and-base-language/SPEC.md));
+  from `KotikoI18n.t()` in the interface language ([50](../50-ui-localization-and-base-language/SPEC.md));
   the in-page toast and popover set `lang` on their root to the interface language, so a
   Spanish interface on an English page is read in a Spanish voice.
 - Swapped words keep the surrounding text's font, size and color; the underline is the only
@@ -220,10 +220,10 @@ Rules for content scripts, beyond the popover:
 
 - [ ] axe-core reports zero A/AA violations on every page and state listed in §6, in both
       themes (CI).
-- [ ] Every interactive element on every Mira page is reachable by Tab or arrow keys and
+- [ ] Every interactive element on every Kotiko page is reachable by Tab or arrow keys and
       shows a focus ring; no focused element is covered (CI script).
 - [ ] The dashboard and welcome page have no horizontal page scroll at 320 CSS px.
-- [ ] With reduced motion, no transform animation runs on any Mira surface, and celebrations
+- [ ] With reduced motion, no transform animation runs on any Kotiko surface, and celebrations
       show only their message.
 - [ ] On an English fixture page, NVDA reads a swapped Spanish word with a Spanish voice by
       default, and Alt+Shift+R on it opens the popover and reads the gloss "thanks" in an
@@ -235,7 +235,7 @@ Rules for content scripts, beyond the popover:
       "gracias" on an English page and "perro" instead of "dog" on a Spanish page, with the
       hidden text's `lang` equal to the page text's language, and is unavailable while
       reveal mode is on.
-- [ ] Every accessible name and announcement on Mira pages comes from `_locales` (the
+- [ ] Every accessible name and announcement on Kotiko pages comes from `_locales` (the
       literal-string check from [50](../50-ui-localization-and-base-language/SPEC.md)
       covers `aria-label`, `title` and `alt`), and axe passes in `es`.
 - [ ] Every toast's Undo has a non-timed equivalent (manual check against §1 2.2.1).
@@ -254,7 +254,7 @@ sticky headers. Manual results are recorded per release in the release PR templa
 
 The checks land before the UI slices ship, so each UI slice is built against them. The
 screen-reader and keyboard-mode settings ship in dashboard Settings → Reading with their
-defaults. Changelog: "Mira's pages and popover work with keyboards and screen readers, and
+defaults. Changelog: "Kotiko's pages and popover work with keyboards and screen readers, and
 respect reduced motion."
 
 ## Open questions

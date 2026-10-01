@@ -15,10 +15,10 @@ Captions are a strong learning surface: short, spoken, repeated, and read with t
 they work badly (03 B4, read from the code):
 
 - **Flicker.** YouTube renders caption segments as DOM text that changes several times a second.
-  Mira swaps them after a 250 ms timer (`extension/content.js:169`), so each line appears in
+  Kotiko swaps them after a 250 ms timer (`extension/content.js:169`), so each line appears in
   its original wording and then jumps.
 - **Churn.** Rolling automatic captions rebuild their segments as words arrive; each rebuild is
-  matched again, and the next update lands on a node Mira replaced (the 06 F02 pattern).
+  matched again, and the next update lands on a node Kotiko replaced (the 06 F02 pattern).
 - **Too dense to follow.** Captions disappear in seconds; the page density rules (none today,
   31 later) don't fit a line on screen for two seconds.
 - **Browser-rendered captions** (`<track>` with WebVTT) aren't in the DOM at all, so they are
@@ -36,7 +36,7 @@ they work badly (03 B4, read from the code):
 
 ## Non-goals
 
-- Subtitle files, dual-subtitle displays or a caption overlay of Mira's own.
+- Subtitle files, dual-subtitle displays or a caption overlay of Kotiko's own.
 - Audio, dubbing or pausing the video automatically.
 - Streaming services whose terms or DRM make DOM changes unwise; adapters are added only for
   players whose captions are ordinary DOM text.
@@ -48,7 +48,7 @@ they work badly (03 B4, read from the code):
 - As a Spanish reader watching a video with Spanish subtitles, the same happens with my Spanish
   words; a video with Korean captions I can't read is left alone.
 - As a learner who finds swapped captions distracting, I turn captions off without affecting pages.
-- As someone watching a video with my own subtitle track, Mira swaps those cues too.
+- As someone watching a video with my own subtitle track, Kotiko swaps those cues too.
 
 ## Specification
 
@@ -129,9 +129,9 @@ for each showing track of kind "subtitles" or "captions" whose srclang is one of
 ```
 
 `swapPlain` returns text with swapped words and no markup. WebVTT can't carry `lang` per word or
-Mira's styles, and cue text inside the browser's media controls can't host the popover; this is
-accepted for native tracks. Turning captions off or disabling Mira restores `cue.text` from
-`original` for every processed cue still held. The site may read `cue.text`; Mira's change is
+Kotiko's styles, and cue text inside the browser's media controls can't host the popover; this is
+accepted for native tracks. Turning captions off or disabling Kotiko restores `cue.text` from
+`original` for every processed cue still held. The site may read `cue.text`; Kotiko's change is
 visible to it, which is the same exposure as DOM swaps (28 discloses it).
 
 ### Interaction
@@ -178,7 +178,7 @@ screen reader that reads captions switches voice (27).
 
 ## Rollout and migration
 
-New feature, default "light". Changelog: "Mira now swaps a word or so in each YouTube caption line,
+New feature, default "light". Changelog: "Kotiko now swaps a word or so in each YouTube caption line,
 steadily and without flicker. Change it under Captions in the popup."
 
 ## Open questions

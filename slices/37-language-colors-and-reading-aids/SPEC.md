@@ -38,7 +38,7 @@ no kana option ([02 F1, F4](../../docs/research/02-linguistics.md)).
 - The data: `reading`, `native_vocalized`, `gender` and romanization come from
   [36](../36-grammar-and-senses/SPEC.md) and [09](../09-shared-word-spec-and-prompt/SPEC.md).
 - Missing-glyph detection and fonts: [17](../17-casing-and-script-display/SPEC.md).
-- Underline changes for learning state (`mira-missed`, `mira-known`):
+- Underline changes for learning state (`kotiko-missed`, `kotiko-known`):
   [35](../35-reveal-mode-and-review/SPEC.md); this slice composes with them.
 
 ## User stories
@@ -90,7 +90,7 @@ Jyutping for Cantonese). "Spelling" appears only for languages where some saved 
 
 - Slots come from [06 §4.5](../06-design-system/SPEC.md): 1 Ember #C8641E, 2 Lapis #0E66C8,
   3 Lilac #AF71F2, 4 Plum #904E81, 5 Rose #ED5790, 6 Lagoon #009EAF. Each keeps at least 3:1
-  against white and against #121212, because Mira can't control a site's background, and the
+  against white and against #121212, because Kotiko can't control a site's background, and the
   set passes the all-pairs color-vision check.
 - **Assignment:** in the order languages were first added (the oldest word's `created_at`),
   stable as new languages arrive. Languages beyond the sixth get no color (the default
@@ -99,20 +99,20 @@ Jyutping for Cantonese). "Spelling" appears only for languages where some saved 
 - **Style variation** (on by default when colors are on): slot 1, 4 dotted; 2, 5 dashed; 3, 6
   double. The pairs that are closest for color-blind readers in 06's check (Rose and Lagoon;
   Lilac and Lapis) always differ in style. Solid is reserved for
-  [35](../35-reveal-mode-and-review/SPEC.md)'s `mira-missed`.
-- **On pages:** [15](../15-framework-safe-swapping/SPEC.md) adds a class to `mira-w`,
-  `mira-c1` … `mira-c6` (classes never carry word data). `content.css`:
+  [35](../35-reveal-mode-and-review/SPEC.md)'s `kotiko-missed`.
+- **On pages:** [15](../15-framework-safe-swapping/SPEC.md) adds a class to `kotiko-w`,
+  `kotiko-c1` … `kotiko-c6` (classes never carry word data). `content.css`:
 
 ```css
-mira-w.mira-c1 { text-decoration-color: #C8641E; text-decoration-style: dotted; }
-mira-w.mira-c2 { text-decoration-color: #0E66C8; text-decoration-style: dashed; }
-mira-w.mira-c3 { text-decoration-color: #AF71F2; text-decoration-style: double; }
+kotiko-w.kotiko-c1 { text-decoration-color: #C8641E; text-decoration-style: dotted; }
+kotiko-w.kotiko-c2 { text-decoration-color: #0E66C8; text-decoration-style: dashed; }
+kotiko-w.kotiko-c3 { text-decoration-color: #AF71F2; text-decoration-style: double; }
 /* … c4-c6 … */
-mira-w[class*="mira-c"] { text-decoration-thickness: max(1.5px, 0.08em); }
-mira-w.mira-flat { text-decoration-style: dotted; }       /* varyStyle off */
-mira-w.mira-missed { text-decoration-style: solid; }       /* 35 wins on style, keeps color */
-mira-w.mira-known { text-decoration-line: none; }          /* 35 */
-@media (forced-colors: active) { mira-w { text-decoration-color: CanvasText; } }
+kotiko-w[class*="kotiko-c"] { text-decoration-thickness: max(1.5px, 0.08em); }
+kotiko-w.kotiko-flat { text-decoration-style: dotted; }       /* varyStyle off */
+kotiko-w.kotiko-missed { text-decoration-style: solid; }       /* 35 wins on style, keeps color */
+kotiko-w.kotiko-known { text-decoration-line: none; }          /* 35 */
+@media (forced-colors: active) { kotiko-w { text-decoration-color: CanvasText; } }
 ```
 
 - **Elsewhere:** the same color shows as a dot beside the language in the popover
@@ -132,7 +132,7 @@ mira-w.mira-known { text-decoration-line: none; }          /* 35 */
   [17](../17-casing-and-script-display/SPEC.md)'s display output:
 
 ```html
-<mira-w lang="zh-Hans" dir="auto" translate="no" class="notranslate mira-c2 mira-ruby"><ruby>谢谢<rt>xièxie</rt></ruby></mira-w>
+<kotiko-w lang="zh-Hans" dir="auto" translate="no" class="notranslate kotiko-c2 kotiko-ruby"><ruby>谢谢<rt>xièxie</rt></ruby></kotiko-w>
 ```
 
 - `rt` gets `lang` of the romanization (`zh-Latn-pinyin`, `ja-Latn`, or `ja` for kana) so
@@ -143,7 +143,7 @@ mira-w.mira-known { text-decoration-line: none; }          /* 35 */
   ([02 F4](../../docs/research/02-linguistics.md)); the option shows "not available".
 - Ruby styling: `ruby-position: over`; `rt { font-size: 0.5em; line-height: 1; }`.
   Unlike plain swaps, ruby needs room above the word, so lines containing a reading may grow
-  by about half an em. This is the one place Mira accepts a change to the page's line height,
+  by about half an em. This is the one place Kotiko accepts a change to the page's line height,
   only while the learner has turned the aid on, and the setting says so: "Lines with a
   reading get a little taller."
 - Copy and print: [43](../43-copy-print-translate-coexistence/SPEC.md)'s "Copy the original
@@ -182,8 +182,8 @@ per-node budget in 15 rises by under 10 % on a page of 2,000 swaps (measured in 
 - [ ] With colors on, a page with Spanish and Mandarin swaps shows Ember dotted and Lapis
       dashed underlines; with style variation off, both are dotted.
 - [ ] Each slot color measures at least 3:1 against #FFFFFF and #121212 (CI, 06's script).
-- [ ] A `mira-missed` word in a colored language shows a solid underline in its language
-      color; a `mira-known` word shows none.
+- [ ] A `kotiko-missed` word in a colored language shows a solid underline in its language
+      color; a `kotiko-known` word shows none.
 - [ ] With pinyin on, 谢谢 renders with "xièxie" above it; an Arabic word never gets ruby.
 - [ ] A Japanese word shows ねこ with "Spelling: Kana" and 猫 with furigana ねこ with
       "Reading above / Kanji".

@@ -11,10 +11,10 @@
 
 ## Problem
 
-Mira assumes the person using it reads English, twice over: in its interface, and in the
+Kotiko assumes the person using it reads English, twice over: in its interface, and in the
 pages it changes. The maintainer's example: someone in Puerto Rico with an all-Spanish
-browser installs Mira, asks for their first word, and nothing ever happens on the pages
-they read, because Mira is waiting for English text that never comes. Their confetti never
+browser installs Kotiko, asks for their first word, and nothing ever happens on the pages
+they read, because Kotiko is waiting for English text that never comes. Their confetti never
 fires. Read from the code (not yet reproduced in a browser):
 
 - **The words are English-shaped.** The word record has `english` and `english_forms`
@@ -55,7 +55,7 @@ fires. Read from the code (not yet reproduced in a browser):
   release, in the extension (`_locales`) and the server (the Telegram bot). English and
   Spanish ship at launch, complete and reviewed by a native speaker; other languages
   arrive through community translation.
-- Mira's interface follows the browser's language, with an override in settings.
+- Kotiko's interface follows the browser's language, with an override in settings.
 - The Puerto Rico case works end to end: Spanish browser, Spanish interface, the first word
   asked in Spanish, Spanish pages swapped, confetti on a Spanish page.
 
@@ -72,18 +72,18 @@ fires. Read from the code (not yet reproduced in a browser):
 
 ## User stories
 
-- As a learner in Puerto Rico whose browser is all Spanish, I want Mira in Spanish, my
+- As a learner in Puerto Rico whose browser is all Spanish, I want Kotiko in Spanish, my
   first word asked in Spanish, and Japanese words appearing in my Spanish news, so that
-  nothing about Mira waits on English.
+  nothing about Kotiko waits on English.
 - As a Spanish speaker learning English, I want "dog" to appear where my Spanish pages say
   "perro", the way an English speaker gets "perro" in English pages.
 - As a bilingual reader of Spanish and English learning Japanese, I want 犬 to appear in
   both my Spanish pages ("perro") and my English pages ("dog") from a single add.
 - As a reader of Japanese learning Korean, I want 개 to appear where my Japanese pages say
   犬, even though Japanese has no spaces between words.
-- As a learner whose browser lists a language I'm learning, I want to untick it so Mira
+- As a learner whose browser lists a language I'm learning, I want to untick it so Kotiko
   doesn't treat it as one I read.
-- As a translator, I want to translate Mira in a web tool without learning Git, and see
+- As a translator, I want to translate Kotiko in a web tool without learning Git, and see
   where each string appears.
 - As a contributor, I want one checklist that tells me what "works in any base language"
   means for the slice I'm building.
@@ -94,9 +94,9 @@ fires. Read from the code (not yet reproduced in a browser):
 
 | Term | Meaning | Where it lives |
 |---|---|---|
-| **Base languages** | The languages the learner reads in. Mira swaps words on pages (and `lang` subtrees) in these languages, and stores each word's meaning in one of them. Ordered; the first is the **primary base**. | `s:ui.baseLangs` (section 2) |
+| **Base languages** | The languages the learner reads in. Kotiko swaps words on pages (and `lang` subtrees) in these languages, and stores each word's meaning in one of them. Ordered; the first is the **primary base**. | `s:ui.baseLangs` (section 2) |
 | **Target language** | A language the learner is learning. Each word has one (`lang`). | The word record (07) |
-| **Interface language** | The language of Mira's buttons, messages and listing. Follows the browser unless overridden. | `s:ui.uiLang` (section 8) |
+| **Interface language** | The language of Kotiko's buttons, messages and listing. Follows the browser unless overridden. | `s:ui.uiLang` (section 8) |
 
 They are independent: a Polish reader with an English interface (because Polish isn't
 translated yet) still has base `pl`, gets Polish glosses and Polish pages swapped. A
@@ -159,13 +159,13 @@ browser (`ja`, `ja-JP`) gives `["ja"]`; a Taiwanese browser gives `["zh-Hant"]`.
   same chips, drag to reorder (primary first), add from a searchable list of language
   names in the interface language, remove.
 - The popup ([20](../20-popup-redesign/SPEC.md)) never edits base languages; it shows the
-  page's state ("This page is in German, which isn't one of your languages. Mira leaves it
+  page's state ("This page is in German, which isn't one of your languages. Kotiko leaves it
   alone.") with a link to settings.
 
 **A target that is also a base.** When a learner saves a word whose `lang` is one of their
 bases (an es+en reader adding English "dog"), no record is made for that base (section 3)
 and a one-time inline note says, in the interface language: "You're learning English, so
-Mira swaps English words into your Spanish pages. Do you also read English pages?"
+Kotiko swaps English words into your Spanish pages. Do you also read English pages?"
 [Yes, keep English] [No, stop swapping on English pages]. Nothing blocks the add.
 
 **Adding a base later.** Existing words have no gloss in the new base, so nothing swaps
@@ -230,7 +230,7 @@ in: español, English" as chips the learner can narrow before saving.
 
 **English as a target.** Base `es`, typing "dog" or "¿cómo se dice perro en inglés?" saves
 `{lang: "en", native: "dog", base_lang: "es", gloss: "perro", forms: ["perro", "perros"]}`.
-Mira then swaps "dog" into Spanish pages wherever they say "perro".
+Kotiko then swaps "dog" into Spanish pages wherever they say "perro".
 
 ### 4. The model speaks the learner's language
 
@@ -288,8 +288,8 @@ file by the full tag, then the primary language, then `_generic`.
 `_generic` rules: tokens from `Intl.Segmenter` with no join or split adjustments; related
 forms must share a stem of at least 3 graphemes with the gloss or equal it; casing copies
 the page's shape only for scripts with case (17); detection uses `i18n.detectLanguage`
-alone. A learner whose base is at the Basic level gets a working Mira with looser
-checking, and settings says so: "Mira works in Polski. Its word checks are simpler than
+alone. A learner whose base is at the Basic level gets a working Kotiko with looser
+checking, and settings says so: "Kotiko works in Polski. Its word checks are simpler than
 for español; help improve them" (link to `spec/lang/README.md`).
 
 ### 6. Matching in any base language (built in 14 and 16)
@@ -318,7 +318,7 @@ starred ones.
    for code that reads old data only: the legacy API adapter (07), 09's legacy-key
    repair, 12's version-1 import, 11's upgrade of cached words, and language data under
    `spec/lang/en/`.
-2. **Every user-facing string goes through `t()`** (extension) or `Mira.I18n.t/3`
+2. **Every user-facing string goes through `t()`** (extension) or `Kotiko.I18n.t/3`
    (server). ★ The literal-string check (section 8).
 3. **Language names come from `Intl.DisplayNames([uiLocale], {type: "language"})`** on the
    canonical tag, never from the model and never from a hard-coded English list. In the
@@ -367,11 +367,11 @@ ustedes), informal `tú`, matching the voice in [05](../05-brand-identity/SPEC.m
 the community; Chrome and Firefox fall back from `es_ES` to `es` per key. Gender-neutral
 wording where Spanish allows it ("Te damos la bienvenida", not "Bienvenido").
 
-**Lookup.** `extension/lib/i18n.js`, a classic script exposing `MiraI18n.t(key, params)`
+**Lookup.** `extension/lib/i18n.js`, a classic script exposing `KotikoI18n.t(key, params)`
 in every extension page and the content script (for the popover, 19):
 
 - Uses `i18n.getMessage` by default, so the browser's interface language applies.
-- Override: settings "Mira's language" (`s:ui.uiLang`, `"auto"` or a shipped locale).
+- Override: settings "Kotiko's language" (`s:ui.uiLang`, `"auto"` or a shipped locale).
   When set, the helper fetches `_locales/<chosen>/messages.json` once with
   `fetch(runtime.getURL(…))` and looks keys up itself, because `i18n.getMessage` can't
   switch at runtime. Missing keys fall back to `default_locale`.
@@ -383,7 +383,7 @@ in every extension page and the content script (for the popover, 19):
 - **Fonts**: slice 06's stacks cover the scripts of every shipped locale.
 
 **Server.** `server/priv/locales/<locale>/messages.json` in the same format (so the same
-translation tool handles both), read at compile time by `Mira.I18n`, with
+translation tool handles both), read at compile time by `Kotiko.I18n`, with
 `t(key, params, locale)`. Used only by the Telegram bot (41); every HTTP response carries
 codes and lets the client choose words.
 
@@ -417,7 +417,7 @@ codes and lets the client choose words.
   context before the release.
 - **String freeze**: one week before a release tag, new `en` keys need a maintainer's
   label so translators can catch up; a release never blocks on non-launch locales.
-- **Glossary**: `docs/i18n/glossary.md` fixes Mira's core terms per locale (swap, word,
+- **Glossary**: `docs/i18n/glossary.md` fixes Kotiko's core terms per locale (swap, word,
   base language, celebration, Focus, Amount) so the interface, store listing and docs
   agree. Spanish: intercambiar → "cambiar" (not "traducir"), "idiomas que lees", "palabra".
 - **Docs site** (44): Starlight's i18n with `en` and `es` for install, privacy and
@@ -428,13 +428,13 @@ codes and lets the client choose words.
 | Key | en | es |
 |---|---|---|
 | `base_title` | Languages you read in | Idiomas en los que lees |
-| `base_help` | Mira swaps words on pages in these languages. | Mira cambia palabras en páginas escritas en estos idiomas. |
+| `base_help` | Kotiko swaps words on pages in these languages. | Kotiko cambia palabras en páginas escritas en estos idiomas. |
 | `base_detected` | From your browser: $LANGS$ | Según tu navegador: $LANGS$ |
 | `base_add` | Add a language | Agregar un idioma |
-| `base_page_other` | This page is in $LANG$, which isn't one of your languages. Mira leaves it alone. | Esta página está en $LANG$, que no es uno de tus idiomas. Mira no la toca. |
-| `base_target_overlap` | You're learning $LANG$, so Mira swaps $LANG$ words into your other pages. Do you also read pages in $LANG$? | Estás aprendiendo $LANG$, así que Mira pone palabras en $LANG$ en tus otras páginas. ¿También lees páginas en $LANG$? |
+| `base_page_other` | This page is in $LANG$, which isn't one of your languages. Kotiko leaves it alone. | Esta página está en $LANG$, que no es uno de tus idiomas. Kotiko no la toca. |
+| `base_target_overlap` | You're learning $LANG$, so Kotiko swaps $LANG$ words into your other pages. Do you also read pages in $LANG$? | Estás aprendiendo $LANG$, así que Kotiko pone palabras en $LANG$ en tus otras páginas. ¿También lees páginas en $LANG$? |
 | `base_add_meanings` | Add meanings in $LANG$ for your $COUNT$ words | Agregar significados en $LANG$ para tus $COUNT$ palabras |
-| `base_level_basic` | Mira works in $LANG$. Its word checks are simpler than for other languages; help improve them. | Mira funciona en $LANG$. Sus comprobaciones son más sencillas que en otros idiomas; ayúdanos a mejorarlas. |
+| `base_level_basic` | Kotiko works in $LANG$. Its word checks are simpler than for other languages; help improve them. | Kotiko funciona en $LANG$. Sus comprobaciones son más sencillas que en otros idiomas; ayúdanos a mejorarlas. |
 
 ## Acceptance criteria
 
@@ -491,7 +491,7 @@ codes and lets the client choose words.
 - Existing installs (the maintainer's): every existing word gets `base_lang: "en"` in
   slice 07's migration (true: they were all looked up for English pages), and `en` is
   added to `baseLangs` on update (section 2) so nothing stops working.
-- Changelog: "Mira now works in the language you read. It picks up your browser's
+- Changelog: "Kotiko now works in the language you read. It picks up your browser's
   languages, swaps words on pages in those languages, and speaks to you in English or
   Spanish, with more translations coming from the community." Spanish changelog entries
   ship alongside (30).

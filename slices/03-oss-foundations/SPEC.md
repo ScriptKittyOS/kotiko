@@ -11,7 +11,7 @@
 
 ## Problem
 
-Mira is meant to be a free open-source tool, but legally and practically it isn't one yet.
+Kotiko is meant to be a free open-source tool, but legally and practically it isn't one yet.
 
 - There is no LICENSE file, so all rights are reserved by default and nobody may reuse
   or redistribute the code ([04 S33](../../docs/research/04-architecture-release.md)).
@@ -44,11 +44,11 @@ Mira is meant to be a free open-source tool, but legally and practically it isn'
 - CI workflows themselves: slice [02](../02-test-harness-and-ci/SPEC.md). This slice adds
   two small checks to it.
 - The docs site: slice [44](../44-docs-site/SPEC.md). The privacy policy: slice [28](../28-privacy-and-store-readiness/SPEC.md).
-- The rename: slice [04](../04-rename-to-mira/SPEC.md). Files here use the name Mira.
+- The rename: slice [04](../04-rename-to-kotiko/SPEC.md). Files here use the name Kotiko.
 
 ## User stories
 
-- As a developer who found Mira on GitHub, I want to know at a glance that I may fork and
+- As a developer who found Kotiko on GitHub, I want to know at a glance that I may fork and
   reuse it, and under what terms.
 - As a first-time contributor, I want one page that gets me from clone to green tests.
 - As a security researcher, I want a private way to report a bug in the server's auth.
@@ -65,8 +65,8 @@ Mira is meant to be a free open-source tool, but legally and practically it isn'
   so it holds only what must travel with copies:
 
   ```
-  Mira
-  Copyright 2026 ScriptKittyOS and the Mira contributors
+  Kotiko
+  Copyright 2026 ScriptKittyOS and the Kotiko contributors
 
   This product includes software developed by ScriptKittyOS
   (https://github.com/ScriptKittyOS).
@@ -86,7 +86,7 @@ Mira is meant to be a free open-source tool, but legally and practically it isn'
 - **SPDX headers.** Every hand-written source file starts with two comment lines:
 
   ```
-  # SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+  # SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
   # SPDX-License-Identifier: Apache-2.0
   ```
 
@@ -100,7 +100,7 @@ Mira is meant to be a free open-source tool, but legally and practically it isn'
   version = 1
   [[annotations]]
   path = ["**/*.json", "**/*.md", "brand/**", "extension/*.png"]
-  SPDX-FileCopyrightText = "2026 ScriptKittyOS and the Mira contributors"
+  SPDX-FileCopyrightText = "2026 ScriptKittyOS and the Kotiko contributors"
   SPDX-License-Identifier = "Apache-2.0"
   [[annotations]]
   path = ["spec/languages.json", "spec/lang-aliases.json", "extension/spec/languages.json", "extension/spec/lang-aliases.json"]
@@ -132,7 +132,7 @@ changing the license.
 All under `.github/` unless noted; written in plain language, no emojis.
 
 - **`CONTRIBUTING.md`** (root):
-  1. What Mira is and where decisions live (`slices/`, `DECISIONS.md`); "pick a slice,
+  1. What Kotiko is and where decisions live (`slices/`, `DECISIONS.md`); "pick a slice,
      comment on its issue, open a PR".
   2. Setup: Elixir 1.15+ and Node 22, `cd server && mix deps.get && mix test`,
      `npm ci && npm test`, `npx playwright install chromium && npm run e2e`.
@@ -141,13 +141,13 @@ All under `.github/` unless noted; written in plain language, no emojis.
      [04 S21](../../docs/research/04-architecture-release.md)); no runtime npm dependencies
      in the extension and no bundler (keeps AMO review source-free); no user text in logs
      above debug; no external network in tests.
-  3a. Rules that keep Mira working in every language: the cross-cutting checklist in
+  3a. Rules that keep Kotiko working in every language: the cross-cutting checklist in
      [50](../50-ui-localization-and-base-language/SPEC.md) section 7, in short: no
      English-named base concepts (`gloss`, not `english`), every user-facing string
-     through `MiraI18n.t()` with the English and Spanish text added together, language
+     through `KotikoI18n.t()` with the English and Spanish text added together, language
      names from `Intl.DisplayNames`, never assume spaces between words, and examples and
      tests in at least two base languages.
-  3b. Translating Mira: through Weblate (link), no Git needed; how to add a base
+  3b. Translating Kotiko: through Weblate (link), no Git needed; how to add a base
      language's data under `spec/lang/` (link to its README).
   4. Commits and PR titles in Conventional Commits (`feat(extension): ...`); scopes
      `server`, `extension`, `spec`, `docs`, `ci`, `release`. Breaking changes with `!`.
@@ -169,11 +169,11 @@ All under `.github/` unless noted; written in plain language, no emojis.
   self-hosted server deliberately exposed without a token, issues in Telegram or model
   providers themselves); credit in the release notes if wanted.
 - **Issue forms** (`.github/ISSUE_TEMPLATE/*.yml`):
-  - `bug.yml`: Mira version, browser and version, mode (local or server), what happened,
+  - `bug.yml`: Kotiko version, browser and version, mode (local or server), what happened,
     what you expected, steps, optional site URL, a checkbox "I removed API keys and
     tokens from anything I pasted".
   - `wrong-word.yml`: what you typed, the language you were looking up, the language you
-    read in (base language), what Mira saved, what it should be, model if known. Labelled `word-quality`; these feed slice 09's golden set.
+    read in (base language), what Kotiko saved, what it should be, model if known. Labelled `word-quality`; these feed slice 09's golden set.
   - `site-broken.yml`: URL, what broke, does "Pause on this site" fix it. Label `compat`.
   - `feature.yml`: problem first, then idea; link to an existing slice if there is one.
   - `config.yml`: `blank_issues_enabled: false`; links to Discussions (questions), the
@@ -184,7 +184,7 @@ All under `.github/` unless noted; written in plain language, no emojis.
   for a non-English base language (slice 50's checklist); prompt changes include eval
   results; no new extension runtime dependency; user-facing change described for the
   changelog).
-- **`CODEOWNERS`**: `* @ScriptKittyOS/mira-maintainers` (team to be created), so reviews
+- **`CODEOWNERS`**: `* @ScriptKittyOS/kotiko-maintainers` (team to be created), so reviews
   are requested automatically.
 - Root **`.editorconfig`** (UTF-8, LF, 2 spaces, final newline) and **`.gitattributes`**
   (`* text=auto eol=lf`, `*.png binary`), so Windows contributors don't produce CRLF diffs.
@@ -192,14 +192,14 @@ All under `.github/` unless noted; written in plain language, no emojis.
 ### 4. One version for everything
 
 - **Source of truth**: `.release-please-manifest.json` (`{".": "0.2.0"}`), maintained by
-  release-please (slice 30). Mira releases the extension and the server together with
+  release-please (slice 30). Kotiko releases the extension and the server together with
   one SemVer version; the HTTP API has its own version (`/api/v1`, slice 07).
 - `extension/manifest.json` `version` and `server/mix.exs` `version` are updated by
   release-please's `extra-files` (slice 30). In `mix.exs` the line carries the marker
   comment `# x-release-please-version`.
 - **Now**: set `server/mix.exs` to `0.2.0` to match the manifest.
 - **Check**: `scripts/check-versions.mjs` (no dependencies) reads all three and fails CI
-  on any mismatch. The server exposes the version from `Application.spec(:mira, :vsn)`
+  on any mismatch. The server exposes the version from `Application.spec(:kotiko, :vsn)`
   (slice 29's `/health`).
 - Pre-1.0 policy, stated in CONTRIBUTING: a minor bump may break the HTTP API only with a
   legacy alias kept for one more minor version (slice 07's pattern).
@@ -265,7 +265,7 @@ if the rename lands first. No user-facing change; no changelog entry beyond the 
    maintainer has somewhere to go.
 2. **DCO.** Recommendation: none, as in section 2; revisit if a company asks to contribute
    large changes.
-3. **Copyright holder wording.** Recommendation: "ScriptKittyOS and the Mira
+3. **Copyright holder wording.** Recommendation: "ScriptKittyOS and the Kotiko
    contributors", which needs no copyright assignment.
 
 ## Future work

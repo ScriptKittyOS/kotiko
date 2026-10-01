@@ -5,7 +5,7 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | S (a day or two, plus server changes) |
-| **Depends on** | [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (`_locales`, `t()`, `Mira.I18n`) |
+| **Depends on** | [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (`_locales`, `t()`, `Kotiko.I18n`) |
 | **Unblocks** | [13-bulk-add](../13-bulk-add/SPEC.md), [20-popup-redesign](../20-popup-redesign/SPEC.md), [21-dashboard](../21-dashboard/SPEC.md), [22-first-run-onboarding](../22-first-run-onboarding/SPEC.md), [24-add-flow-safety](../24-add-flow-safety/SPEC.md), [41-telegram-improvements](../41-telegram-improvements/SPEC.md) |
 | **Sources** | [DECISIONS 2026-10-01, base language and localized interface](../DECISIONS.md); [05 §1, S1, S19, S34, S35, §3.5](../../docs/research/05-learner-ux.md); [06 F09, F14, F30, F31, F32](../../docs/research/06-adversarial-qa.md); [03 C4, C6](../../docs/research/03-browser-extension.md) |
 
@@ -31,7 +31,7 @@ Errors reach the learner straight from internals, in red, with no next step:
   broken ([05 S34](../../docs/research/05-learner-ux.md)).
 - Strings are hard-coded English in three places (popup, background, server), so a learner
   whose browser is in Spanish gets English errors ([05 S38](../../docs/research/05-learner-ux.md)).
-  The maintainer decided Mira's interface follows the browser's language, with error
+  The maintainer decided Kotiko's interface follows the browser's language, with error
   messages localized from the first release ([DECISIONS](../DECISIONS.md),
   [50](../50-ui-localization-and-base-language/SPEC.md)).
 - Some messages assume the learner reads English: "That looks like English" for a word in
@@ -67,7 +67,7 @@ Errors reach the learner straight from internals, in red, with no next step:
 ## User stories
 
 - As a learner whose server is down, I want to be told my words still work on pages, so that
-  I don't think Mira is broken.
+  I don't think Kotiko is broken.
 - As a learner who has used today's free lookups, I want to know I can still add words myself
   and when lookups come back.
 - As a self-hoster, I want the technical cause one click away, so that I can fix my setup.
@@ -92,7 +92,7 @@ passes through unchanged. `extension/errors.js` exports `CODES` (the catalog bel
 list [44](../44-docs-site/SPEC.md) checks its `/help/errors/#<code>` anchors against),
 `toError(anything)` (normalizes exceptions, HTTP responses and provider bodies),
 `message(code, vars)` (looks up `error_<code>`, `error_<code>_action` and, for reasons,
-`error_<code>_<reason>` with `MiraI18n.t()`, so it returns text in the interface language)
+`error_<code>_<reason>` with `KotikoI18n.t()`, so it returns text in the interface language)
 and `isTransient(code)`. Background handlers only
 ever store or return this shape; `syncError` becomes `{code, details, at}` instead of a
 string (`background.js:40` today).
@@ -108,13 +108,13 @@ shape:
 The extension ignores `message` and renders `code` with its own catalog. `message` exists
 for other clients (curl, scripts): the server picks its locale from the request's
 `Accept-Language` among the shipped server locales (`en`, `es` at launch) with
-`Mira.I18n.t/3` ([50 §8](../50-ui-localization-and-base-language/SPEC.md)), and uses the
+`Kotiko.I18n.t/3` ([50 §8](../50-ui-localization-and-base-language/SPEC.md)), and uses the
 server's `default_locale` when nothing matches.
 
 The legacy routes kept for 0.2 extensions (`/api/words`) keep `{"error": "<string>"}`, so those
 extensions still show something sensible (`background.js:24` reads `body.error`). Upstream
 text (provider bodies, model ids) goes into `details.text` only when the server runs with
-`MIRA_ERROR_DETAILS=true` (the default for local binds), because it may contain more than
+`KOTIKO_ERROR_DETAILS=true` (the default for local binds), because it may contain more than
 the user should share. The Telegram bot ([41](../41-telegram-improvements/SPEC.md)) uses the same
 codes, with messages from `server/priv/locales/<locale>/messages.json` (the same `error_<code>`
 keys) in the learner's language as 41 chooses it.
@@ -131,21 +131,21 @@ launch copy for the most-seen codes follows it. Severity decides the presentatio
 | Code | Severity | Main line | Next step (action) | Detected when |
 |---|---|---|---|---|
 | `offline` | state | "You're offline. Your {n} words still work on pages. New words will be looked up when you're back." | none | `navigator.onLine === false`, or fetch fails while offline |
-| `server_unreachable` | state | "Can't reach your Mira server. Your {n} words still work on pages; adding new ones will work once it's back." | "Try again", "Connection settings" | network error to the configured server |
+| `server_unreachable` | state | "Can't reach your Kotiko server. Your {n} words still work on pages; adding new ones will work once it's back." | "Try again", "Connection settings" | network error to the configured server |
 | `server_address_invalid` | blocking | "That server address doesn't look right. Try one like http://localhost:4747." | focus the field | no `http(s)://` scheme, or unparsable ([06 F32](../../docs/research/06-adversarial-qa.md)) |
-| `not_mira_server` | blocking | "Something answered at that address, but it isn't a Mira server. Check the address." | "Connection settings" | non-JSON, or JSON without `words` array ([06 F31](../../docs/research/06-adversarial-qa.md)) |
-| `server_key_rejected` | blocking | "Your Mira server didn't accept the access key. Paste it again in Connection settings." | "Connection settings" | 401 |
-| `server_outdated` | state | "Your Mira server needs an update for this. Everything else still works." | "How to update" (docs) | missing endpoint or field, version below minimum |
-| `local_network_blocked` | blocking | "Your browser blocked Mira from reaching a server on your network. Allow it, then try again." | "How to allow" (docs) | Chrome Local Network Access failure ([03 C6](../../docs/research/03-browser-extension.md)) |
-| `permission_missing` | blocking | "Mira needs permission to read pages to swap words." | "Allow" (calls `permissions.request`) | `permissions.contains` false ([03 C4](../../docs/research/03-browser-extension.md)) |
+| `not_kotiko_server` | blocking | "Something answered at that address, but it isn't a Kotiko server. Check the address." | "Connection settings" | non-JSON, or JSON without `words` array ([06 F31](../../docs/research/06-adversarial-qa.md)) |
+| `server_key_rejected` | blocking | "Your Kotiko server didn't accept the access key. Paste it again in Connection settings." | "Connection settings" | 401 |
+| `server_outdated` | state | "Your Kotiko server needs an update for this. Everything else still works." | "How to update" (docs) | missing endpoint or field, version below minimum |
+| `local_network_blocked` | blocking | "Your browser blocked Kotiko from reaching a server on your network. Allow it, then try again." | "How to allow" (docs) | Chrome Local Network Access failure ([03 C6](../../docs/research/03-browser-extension.md)) |
+| `permission_missing` | blocking | "Kotiko needs permission to read pages to swap words." | "Allow" (calls `permissions.request`) | `permissions.contains` false ([03 C4](../../docs/research/03-browser-extension.md)) |
 | `lookup_not_set_up` | info | "To look up new words, set up word lookup. Your words, and words you type as “word = meaning”, work without it." | "Set up lookups" | local mode, no provider ([11](../11-local-first-mode/SPEC.md)) |
 | `key_rejected` | blocking | "{provider} didn't accept your key. Check it in settings." | "Lookup settings" | provider 401/403 |
-| `quota_exhausted` | waiting | "You've used today's free lookups. Add words yourself, or Mira will try again {time}." | "Add it yourself" | provider 429 with daily-limit marker, or [10](../10-llm-client-resilience/SPEC.md) quota at 0 |
+| `quota_exhausted` | waiting | "You've used today's free lookups. Add words yourself, or Kotiko will try again {time}." | "Add it yourself" | provider 429 with daily-limit marker, or [10](../10-llm-client-resilience/SPEC.md) quota at 0 |
 | `quota_exhausted` with `details.reason: "payment_required"` | failed | "{provider} needs credit on your account before it will look up words, even free ones. Add credit there, or add words yourself." | "Add it yourself", "Open {provider}" | provider 402 ([10](../10-llm-client-resilience/SPEC.md)); no `retry_at` |
-| `user_quota_exhausted` | waiting | "You've used today's lookups on this Mira server. Add words yourself, or Mira will try again {time}." | "Add it yourself" | per-user server limit ([48](../48-multi-user-and-classroom/SPEC.md)) |
-| `rate_limited` | waiting | "Word lookup is busy. Mira will try again in a minute." | "Add it yourself" | 429 without daily marker |
-| `model_unavailable` | waiting | "Word lookup isn't answering right now. Mira will keep trying." | "Add it yourself" | all models failed with 5xx or network errors |
-| `lookup_timeout` | waiting | "That lookup took too long. Mira will try again." | "Add it yourself" | [10](../10-llm-client-resilience/SPEC.md) deadline exceeded |
+| `user_quota_exhausted` | waiting | "You've used today's lookups on this Kotiko server. Add words yourself, or Kotiko will try again {time}." | "Add it yourself" | per-user server limit ([48](../48-multi-user-and-classroom/SPEC.md)) |
+| `rate_limited` | waiting | "Word lookup is busy. Kotiko will try again in a minute." | "Add it yourself" | 429 without daily marker |
+| `model_unavailable` | waiting | "Word lookup isn't answering right now. Kotiko will keep trying." | "Add it yourself" | all models failed with 5xx or network errors |
+| `lookup_timeout` | waiting | "That lookup took too long. Kotiko will try again." | "Add it yourself" | [10](../10-llm-client-resilience/SPEC.md) deadline exceeded |
 | `bad_lookup_result` | failed | "The lookup came back garbled. Try again, or add it yourself." | "Try again", "Add it yourself" | output fails [09](../09-shared-word-spec-and-prompt/SPEC.md) validation |
 | `no_word_found` | failed | "Couldn't find a word in “{text}”. Try the word on its own, or add it yourself." | "Add it yourself" | lookup returned no words |
 | `rejected_same_as_gloss` | failed | "“{text}” is already a word in {base}. Which language do you want it in?" | language picker | every word was rejected by [09](../09-shared-word-spec-and-prompt/SPEC.md) as `same_as_gloss` (its native equals its meaning in that base) or `target_is_base` (its language is that base); `{base}` is the base it matched |
@@ -153,15 +153,15 @@ launch copy for the most-seen codes follows it. Severity decides the presentatio
 | `word_conflict` (`details.reason: "stale"`) | failed | "This word changed since. Open it to fix." | "Open" | 409 from PATCH with `if_updated_at` ([07](../07-word-model-v2/SPEC.md)) |
 | `word_conflict` (`details.reason: "duplicate"`) | failed | "You already have {native} in {Language}. Merge them?" | "Merge", "Cancel" | 409 on edit or restore when another live word holds the natural key |
 | `word_gone` | info | "That word was already removed." | none | 404 on a word id, or 410 when restoring a word deleted more than 30 days ago |
-| `storage_full` | blocking | "Mira's storage in this browser is full. Export your words, then remove ones you don't need." | "Export" | quota error from IndexedDB or `storage.local` ([11](../11-local-first-mode/SPEC.md)) |
-| `vocabulary_full` | failed | "You have 20,000 words, the most Mira keeps. Remove some you know well to add more." | "Open your words" | [11](../11-local-first-mode/SPEC.md)'s vocabulary cap |
-| `resync_required` | state | "Mira is catching up with your server. Your words still work on pages." | none (automatic full resync) | 410 from [39](../39-multi-device-sync/SPEC.md)'s delta sync |
-| `server_reset` | blocking | "All words on your Mira server were deleted from another device. Keep the words in this browser, or match the server?" | "Keep mine", "Match the server" | 409 `server_reset` from [39](../39-multi-device-sync/SPEC.md) |
-| `import_unreadable` | failed | "Couldn't read that file. Mira reads .txt, .csv, .tsv and .json files." | "Choose another file" | [13](../13-bulk-add/SPEC.md) parser |
-| `unsupported_page` | state | "Mira can't run on browser pages like this one." | none | `chrome://`, `about:`, `edge://`, store pages, PDF viewer, `view-source:` |
-| `page_not_in_base` | state | "This page is in {lang}, which isn't one of your languages. Mira leaves it alone." | "I read {lang} too" (settings, [21](../21-dashboard/SPEC.md)), "Swap here anyway" | the page language isn't one of `s:ui.baseLangs` ([16](../16-what-not-to-swap/SPEC.md), [50 §2](../50-ui-localization-and-base-language/SPEC.md)) |
+| `storage_full` | blocking | "Kotiko's storage in this browser is full. Export your words, then remove ones you don't need." | "Export" | quota error from IndexedDB or `storage.local` ([11](../11-local-first-mode/SPEC.md)) |
+| `vocabulary_full` | failed | "You have 20,000 words, the most Kotiko keeps. Remove some you know well to add more." | "Open your words" | [11](../11-local-first-mode/SPEC.md)'s vocabulary cap |
+| `resync_required` | state | "Kotiko is catching up with your server. Your words still work on pages." | none (automatic full resync) | 410 from [39](../39-multi-device-sync/SPEC.md)'s delta sync |
+| `server_reset` | blocking | "All words on your Kotiko server were deleted from another device. Keep the words in this browser, or match the server?" | "Keep mine", "Match the server" | 409 `server_reset` from [39](../39-multi-device-sync/SPEC.md) |
+| `import_unreadable` | failed | "Couldn't read that file. Kotiko reads .txt, .csv, .tsv and .json files." | "Choose another file" | [13](../13-bulk-add/SPEC.md) parser |
+| `unsupported_page` | state | "Kotiko can't run on browser pages like this one." | none | `chrome://`, `about:`, `edge://`, store pages, PDF viewer, `view-source:` |
+| `page_not_in_base` | state | "This page is in {lang}, which isn't one of your languages. Kotiko leaves it alone." | "I read {lang} too" (settings, [21](../21-dashboard/SPEC.md)), "Swap here anyway" | the page language isn't one of `s:ui.baseLangs` ([16](../16-what-not-to-swap/SPEC.md), [50 §2](../50-ui-localization-and-base-language/SPEC.md)) |
 | `base_no_words` | info | "No words have meanings in {base} yet." | "Add meanings" ([21](../21-dashboard/SPEC.md)) | the page is in a base no record has a gloss in |
-| `internal` | failed | "Something went wrong in Mira. Try again; if it keeps happening, please report it." | "Copy details" | anything unmapped |
+| `internal` | failed | "Something went wrong in Kotiko. Try again; if it keeps happening, please report it." | "Copy details" | anything unmapped |
 
 **Spanish launch copy** (`es`, informal `tú`, gender-neutral per
 [50 §8](../50-ui-localization-and-base-language/SPEC.md)); every other key also ships in
@@ -170,23 +170,23 @@ launch copy for the most-seen codes follows it. Severity decides the presentatio
 | Key | es |
 |---|---|
 | `error_offline` | Estás sin conexión. Tus {n} palabras siguen funcionando en las páginas. Las nuevas se buscarán cuando vuelvas. |
-| `error_server_unreachable` | No se puede contactar tu servidor de Mira. Tus {n} palabras siguen funcionando en las páginas; podrás agregar nuevas cuando vuelva. |
+| `error_server_unreachable` | No se puede contactar tu servidor de Kotiko. Tus {n} palabras siguen funcionando en las páginas; podrás agregar nuevas cuando vuelva. |
 | `error_server_address_invalid` | Esa dirección de servidor no parece correcta. Prueba una como http://localhost:4747. |
-| `error_permission_missing` | Mira necesita permiso para leer las páginas y cambiar palabras. |
+| `error_permission_missing` | Kotiko necesita permiso para leer las páginas y cambiar palabras. |
 | `error_lookup_not_set_up` | Para buscar palabras nuevas, configura la búsqueda. Tus palabras, y las que escribas como “palabra = significado”, funcionan sin ella. |
 | `error_key_rejected` | {provider} no aceptó tu clave. Revísala en los ajustes. |
-| `error_quota_exhausted` | Ya usaste las búsquedas gratis de hoy. Agrega palabras tú, o Mira lo intentará de nuevo {time}. |
-| `error_rate_limited` | La búsqueda de palabras está ocupada. Mira lo intentará de nuevo en un minuto. |
-| `error_model_unavailable` | La búsqueda de palabras no responde ahora. Mira seguirá intentando. |
-| `error_lookup_timeout` | Esa búsqueda tardó demasiado. Mira lo intentará de nuevo. |
+| `error_quota_exhausted` | Ya usaste las búsquedas gratis de hoy. Agrega palabras tú, o Kotiko lo intentará de nuevo {time}. |
+| `error_rate_limited` | La búsqueda de palabras está ocupada. Kotiko lo intentará de nuevo en un minuto. |
+| `error_model_unavailable` | La búsqueda de palabras no responde ahora. Kotiko seguirá intentando. |
+| `error_lookup_timeout` | Esa búsqueda tardó demasiado. Kotiko lo intentará de nuevo. |
 | `error_bad_lookup_result` | La búsqueda volvió con algo ilegible. Inténtalo de nuevo, o agrégala tú. |
 | `error_no_word_found` | No encontré ninguna palabra en “{text}”. Prueba con la palabra sola, o agrégala tú. |
 | `error_rejected_same_as_gloss` | “{text}” ya es una palabra en {base}. ¿En qué idioma la quieres? |
 | `error_input_too_long` | Es mucho texto para una palabra. Para agregar una lista, usa agregar en bloque. |
-| `error_storage_full` | El almacenamiento de Mira en este navegador está lleno. Exporta tus palabras y quita las que no necesites. |
-| `error_unsupported_page` | Mira no puede funcionar en páginas del navegador como esta. |
-| `error_page_not_in_base` (an alias of 50's `base_page_other`, one translation) | Esta página está en {lang}, que no es uno de tus idiomas. Mira no la toca. |
-| `error_internal` | Algo salió mal en Mira. Inténtalo de nuevo; si sigue pasando, avísanos. |
+| `error_storage_full` | El almacenamiento de Kotiko en este navegador está lleno. Exporta tus palabras y quita las que no necesites. |
+| `error_unsupported_page` | Kotiko no puede funcionar en páginas del navegador como esta. |
+| `error_page_not_in_base` (an alias of 50's `base_page_other`, one translation) | Esta página está en {lang}, que no es uno de tus idiomas. Kotiko no la toca. |
+| `error_internal` | Algo salió mal en Kotiko. Inténtalo de nuevo; si sigue pasando, avísanos. |
 | `error_add_yourself_action` | Agrégala tú |
 | `error_try_again_action` | Reintentar |
 | `error_details` | Detalles |
@@ -223,7 +223,7 @@ alone. The popup never auto-opens settings or a Connection panel; it offers a bu
 Popup status area, server down (state):
 
   ┌────────────────────────────────────────────┐
-  │ (!) Can't reach your Mira server. Your 42  │
+  │ (!) Can't reach your Kotiko server. Your 42  │
   │     words still work on pages; adding new  │
   │     ones will work once it's back.         │
   │     [Try again]  Connection settings       │
@@ -284,7 +284,7 @@ word data, no URLs other than the server's).
 - [ ] With the server stopped, the popup shows the `server_unreachable` state with the
       correct word count, and a test page still has its swaps.
 - [ ] A server address of `localhost:4747` shows `server_address_invalid`, not "Can't reach".
-- [ ] A captive-portal style HTML 200 response shows `not_mira_server` and does not change
+- [ ] A captive-portal style HTML 200 response shows `not_kotiko_server` and does not change
       cached words.
 - [ ] A provider 429 with a daily-limit marker shows `quota_exhausted` with a local time; the
       job retries after that time.
@@ -304,7 +304,7 @@ word data, no URLs other than the server's).
   locale-formatted `{time}`.
 - **Server (ExUnit):** each `/api/v1` error path returns `{error: {code, message, details}}` with `details.retry_at` where
   relevant; `details` omitted when disabled; `message` follows `Accept-Language` (`en`, `es`,
-  fallback); `Mira.I18n` has every `error_<code>` key in both server locales.
+  fallback); `Kotiko.I18n` has every `error_<code>` key in both server locales.
 - **End-to-end:** server stopped, wrong key, wrong address, offline emulation, mock provider
   returning 429; screenshots of each popup state in light and dark, with the browser in
   English and in Spanish.

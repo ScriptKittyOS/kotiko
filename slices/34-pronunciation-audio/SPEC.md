@@ -11,7 +11,7 @@
 
 ## Problem
 
-Mira has no audio. The only pronunciation help is a romanization in the `title` tooltip
+Kotiko has no audio. The only pronunciation help is a romanization in the `title` tooltip
 (`extension/content.js:60-63`), and Latin-script languages get none at all, so French
 "oiseau", Polish "chrząszcz" and Vietnamese tones are left to guesswork (02 F2). Romanization is
 lossy anyway (02 F1). Learners need to hear a word (05 S27). Every major browser ships a speech
@@ -30,7 +30,7 @@ engine, so this costs no download and no server.
 
 ## Non-goals
 
-- Recorded human audio or a TTS service of Mira's own.
+- Recorded human audio or a TTS service of Kotiko's own.
 - Speaking whole sentences or the page.
 - Reading-aid display (ruby, IPA): [37](../37-language-colors-and-reading-aids/SPEC.md) and [36](../36-grammar-and-senses/SPEC.md).
 
@@ -53,10 +53,10 @@ Firefox. `chrome.tts` is not used: it is Chrome-only and needs another permissio
 ### API
 
 ```js
-MiraSpeak.voiceFor(lang)        // -> SpeechSynthesisVoice | null (resolves after voices load)
-MiraSpeak.canSpeak(lang)        // -> Promise<boolean>, for showing the button
-MiraSpeak.say(word, { rate })   // speaks; cancels anything Mira was speaking
-MiraSpeak.stop()
+KotikoSpeak.voiceFor(lang)        // -> SpeechSynthesisVoice | null (resolves after voices load)
+KotikoSpeak.canSpeak(lang)        // -> Promise<boolean>, for showing the button
+KotikoSpeak.say(word, { rate })   // speaks; cancels anything Kotiko was speaking
+KotikoSpeak.stop()
 ```
 
 ### Choosing a voice
@@ -97,10 +97,10 @@ The stored word is spoken, never the page's surrounding text. A bilingual reader
 for one target word (one per base, [50 §3](../50-ui-localization-and-base-language/SPEC.md))
 share `lang` and `native`, so they sound the same and share one per-language voice choice.
 
-**The base side.** Mira speaks the target word only. It never speaks a gloss or the page's
+**The base side.** Kotiko speaks the target word only. It never speaks a gloss or the page's
 own word on its own. If a surface does offer to speak the meaning (a future "hear the
 meaning" in 35's review, or a screen-reader-like setting), it calls
-`MiraSpeak.say({native: word.gloss, lang: word.base_lang})`, so the gloss is spoken with a
+`KotikoSpeak.say({native: word.gloss, lang: word.base_lang})`, so the gloss is spoken with a
 voice for the record's base language ("perro" in a Spanish voice, "dog" in an English
 voice), chosen by the same tiers; it is never read with the target language's voice or with
 a default voice that happens to be English.
@@ -171,7 +171,7 @@ voice service." Slice 28 lists this in the privacy policy.
 
 ## Rollout and migration
 
-No data changes. Changelog: "Hear your words: press the speaker in the word card. Mira uses the
+No data changes. Changelog: "Hear your words: press the speaker in the word card. Kotiko uses the
 voices on your device."
 
 ## Open questions

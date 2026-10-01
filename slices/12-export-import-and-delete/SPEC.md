@@ -11,7 +11,7 @@
 
 ## Problem
 
-Learners can't get their words out of Mira, can't bring a backup back, and can't delete
+Learners can't get their words out of Kotiko, can't bring a backup back, and can't delete
 everything.
 
 - There is no export. Words are reachable only through `sqlite3` or
@@ -35,7 +35,7 @@ everything.
 - Spreadsheet (CSV) and Anki exports that open correctly in Excel, LibreOffice, Google
   Sheets and Anki, including Cyrillic, CJK, Arabic and Devanagari text.
 - Importing a JSON backup never duplicates words and never silently overwrites edits.
-- "Delete everything" removes every piece of Mira data the extension holds, and
+- "Delete everything" removes every piece of Kotiko data the extension holds, and
   optionally everything the connected server holds, and says what it can't delete.
 - A gentle reminder to back up when the learner's words exist only in this browser.
 - Server endpoints for export and import that slice 11 uses to move words between modes.
@@ -43,7 +43,7 @@ everything.
 ## Non-goals
 
 - Importing CSV, TSV, TXT or Anki files, and pasted lists: slice [13](../13-bulk-add/SPEC.md).
-  This slice imports only Mira's own JSON.
+  This slice imports only Kotiko's own JSON.
 - A native Anki `.apkg` file (SQLite in a zip): future work.
 - Automatic scheduled backups to disk (needs the `downloads` permission): future work.
 - Importing word lists published by someone else, by URL or file: never
@@ -55,11 +55,11 @@ everything.
 
 - As a learner in local mode, I want a backup file I can keep, so that reinstalling the
   browser doesn't cost me months of words.
-- As an Anki user, I want my Mira words as Anki cards, so that I can drill them.
+- As an Anki user, I want my Kotiko words as Anki cards, so that I can drill them.
 - As a teacher, I want a spreadsheet of my words, so that I can share or print them.
 - As a learner moving to a new computer, I want to restore my backup and get exactly my
   list back.
-- As someone leaving Mira, I want one button that deletes everything, and to be told
+- As someone leaving Kotiko, I want one button that deletes everything, and to be told
   honestly what stays elsewhere.
 
 ## Specification
@@ -84,15 +84,15 @@ instant; there are no model calls anywhere in this slice.
 
 ### 2. JSON backup (canonical)
 
-File name: `mira-backup-YYYY-MM-DD.json`, UTF-8, no BOM, pretty-printed with two spaces
+File name: `kotiko-backup-YYYY-MM-DD.json`, UTF-8, no BOM, pretty-printed with two spaces
 so it diffs well.
 
 ```json
 {
-  "format": "mira.words",
+  "format": "kotiko.words",
   "schemaVersion": 2,
   "exportedAt": "2026-10-01T12:00:00Z",
-  "app": { "name": "Mira", "version": "0.3.0", "source": "extension" },
+  "app": { "name": "Kotiko", "version": "0.3.0", "source": "extension" },
   "words": [ { "...": "one slice 07 word, exactly as spec/word.schema.json defines it" } ],
   "settings": { "...": "optional, non-secret settings from slice 39's list" },
   "stats": { "...": "optional, slice 46's daily counters" }
@@ -109,10 +109,10 @@ so it diffs well.
   included; slice 11 keeps them out of reach of this code entirely.
 - `schemaVersion` follows `spec/export.schema.json`, which this slice adds to slice 09's
   `spec/` folder so the extension and the server validate the same document. A newer
-  Mira reads every older version; an older Mira refuses a newer file with
-  "This backup was made by a newer version of Mira. Update Mira, then try again."
+  Kotiko reads every older version; an older Kotiko refuses a newer file with
+  "This backup was made by a newer version of Kotiko. Update Kotiko, then try again."
 - **Version 1** is the shape before base languages (slice 50): words with `english` and
-  no `base_lang`. Mira reads it by mapping `english` to `gloss` and setting
+  no `base_lang`. Kotiko reads it by mapping `english` to `gloss` and setting
   `base_lang: "en"`, which is what those words were for (their forms were English
   forms). Any word in any version that has `english` but no `gloss` is read the same way.
   If the learner's bases don't include `en`, the preview says "These words are for pages
@@ -122,7 +122,7 @@ so it diffs well.
 
 ### 3. Spreadsheet (CSV)
 
-File name: `mira-words-YYYY-MM-DD.csv`. UTF-8 **with** a byte-order mark, so Excel on
+File name: `kotiko-words-YYYY-MM-DD.csv`. UTF-8 **with** a byte-order mark, so Excel on
 Windows shows non-Latin scripts correctly ([04 S6](../../docs/research/04-architecture-release.md)).
 RFC 4180: comma separator, CRLF line ends, double quotes around fields that contain a
 comma, quote or newline.
@@ -151,13 +151,13 @@ the headers of every shipped locale and the stable ids below.
 
 **Formula injection.** A cell that starts with `=`, `+`, `-`, `@`, a tab or a carriage
 return is prefixed with a single quote (OWASP's guidance), because notes and forms come
-from a model. For a Mira CSV to round-trip, slice 13's CSV import must strip a leading
+from a model. For a Kotiko CSV to round-trip, slice 13's CSV import must strip a leading
 quote that is followed by one of those characters (an addition slice 13 doesn't yet
 specify).
 
 ### 4. Anki cards (TSV)
 
-File name: `mira-anki-YYYY-MM-DD.txt`. Anki's text import with file headers (Anki
+File name: `kotiko-anki-YYYY-MM-DD.txt`. Anki's text import with file headers (Anki
 2.1.55 and later; high confidence on the header syntax, medium on `guid column`, to
 verify against the current Anki manual):
 
@@ -176,9 +176,9 @@ verify against the current Anki manual):
 | Front | `native`, then ` (romanization)` when present |
 | Back | `gloss` (in the record's base language), then ` - note` when present |
 | Language | Target language's display name in the interface language |
-| Deck | `Mira::<Language>`, so each language gets a subdeck; when the export holds more than one base, `Mira::<Base language>::<Language>` (`Mira::español::japonés`, `Mira::English::Japanese`), so a bilingual learner drills each base separately |
-| Tags | `mira lang::<code> base::<base tag>` |
-| GUID | `mira-<word id>`, so re-importing an updated export updates the same notes instead of duplicating them |
+| Deck | `Kotiko::<Language>`, so each language gets a subdeck; when the export holds more than one base, `Kotiko::<Base language>::<Language>` (`Kotiko::español::japonés`, `Kotiko::English::Japanese`), so a bilingual learner drills each base separately |
+| Tags | `kotiko lang::<code> base::<base tag>` |
+| GUID | `kotiko-<word id>`, so re-importing an updated export updates the same notes instead of duplicating them |
 
 One note per word record: 犬 for a Spanish reader is Front "犬 (inu)", Back "perro";
 for an English reader, Back "dog". The stock note type's name is localized by Anki's own
@@ -203,7 +203,7 @@ interface language, "In Anki: File, Import, choose this file." A link to the doc
 2. **Preview**, computed against the local store without writing:
 
    ```
-   Restore mira-backup-2026-09-30.json
+   Restore kotiko-backup-2026-09-30.json
    312 words in the file
      290 new           15 will be merged     7 already identical
      0 can't be used
@@ -238,14 +238,14 @@ the store's `meta` under `lastImport`. Only the most recent import can be undone
 "Delete everything…" opens:
 
 ```
-Delete everything Mira keeps in this browser?
+Delete everything Kotiko keeps in this browser?
   312 words, your settings, learning stats, and your OpenRouter key.
 
 [x] Download a backup first
 [ ] Also clear settings synced to your other browsers
-[ ] Also delete all 1,204 words on my Mira server (home.example:4747)
+[ ] Also delete all 1,204 words on my Kotiko server (home.example:4747)
 
-Mira can't delete: messages in your Telegram chat, what your model provider
+Kotiko can't delete: messages in your Telegram chat, what your model provider
 keeps under its own policy, and backup files you've downloaded.
 
                                    [Cancel]  [Delete 312 words]
@@ -262,7 +262,7 @@ On confirm, in this order:
 1. If ticked, download the backup and wait for the Blob URL to be consumed.
 2. If ticked, call the server's delete-all (section 7) and stop with an error if it fails.
 3. Cancel all jobs; clear alarms; remove context menus; reset the toolbar badge.
-4. `indexedDB.deleteDatabase("mira")` (words, jobs, secrets, stats, cache).
+4. `indexedDB.deleteDatabase("kotiko")` (words, jobs, secrets, stats, cache).
 5. `storage.local.clear()`, `storage.session.clear()`, and `storage.sync.clear()` if ticked.
 6. Tell every tab to unwrap its swaps (the projection is now empty, so slice 15's
    storage listener does this).
@@ -293,10 +293,10 @@ word, pending row and tombstone, and increments a `reset_epoch` in the server's 
 table. Returns `{"deleted": 1204, "reset_epoch": 3}`. Without the confirm body it returns
 400. Slice 39 uses `reset_epoch` so other devices don't push their copies straight back.
 
-**`bin/mira reset`** (release command; `mix mira.reset` in development, after slice 04's
+**`bin/kotiko reset`** (release command; `mix kotiko.reset` in development, after slice 04's
 rename): prints the word count, asks `Delete all 1204 words? [y/N]`, takes a
 `VACUUM INTO` backup first (slice 40's backup helper) unless `--no-backup`, then does
-the same as the endpoint. `bin/mira export > file.json` and `bin/mira import file.json`
+the same as the endpoint. `bin/kotiko export > file.json` and `bin/kotiko import file.json`
 cover files too large for HTTP.
 
 ### 8. Backup reminder
@@ -320,8 +320,8 @@ up", defaults on. No system notifications.
       `gloss` equal to the old `english` and `base_lang: "en"`; with bases `["es"]`, the
       preview offers to add English and nothing is lost either way.
 - [ ] With bases `es` and `en`, the CSV has one row per record (犬 / perro / es and
-      犬 / dog / en), and the Anki file puts them in `Mira::español::japonés` and
-      `Mira::English::Japanese`.
+      犬 / dog / en), and the Anki file puts them in `Kotiko::español::japonés` and
+      `Kotiko::English::Japanese`.
 - [ ] With the interface in Spanish, the CSV header row is Spanish, and slice 13's
       importer reads that CSV back with no column mapping.
 - [ ] Importing the same backup twice reports everything as "already identical" the
@@ -331,7 +331,7 @@ up", defaults on. No system notifications.
 - [ ] A file from a newer `schemaVersion` is refused with the "newer version" message
       and changes nothing.
 - [ ] Undo import within 24 hours restores the pre-import store exactly.
-- [ ] After "Delete everything", every storage area is empty, the `mira` database does
+- [ ] After "Delete everything", every storage area is empty, the `kotiko` database does
       not exist, no tab shows a swapped word, and no API key remains (checked by the test
       harness from both a page context and the background).
 - [ ] The server checkbox, when ticked, leaves zero rows in `words` and increments
@@ -367,7 +367,7 @@ Uses slice [02](../02-test-harness-and-ci/SPEC.md)'s harness.
   slice 07; the extension hides server checkboxes when the server lacks them (detected
   from slice 07's versioned `/health`).
 - The backup reminder starts counting from the update, so nobody is nagged on day one.
-- README "Start over" (`README.md:204`) is replaced by `bin/mira reset` and the button.
+- README "Start over" (`README.md:204`) is replaced by `bin/kotiko reset` and the button.
 - Changelog: "Back up your words to a file and restore them, export to a spreadsheet or
   Anki, and delete everything with one button."
 
@@ -381,7 +381,7 @@ Uses slice [02](../02-test-harness-and-ci/SPEC.md)'s harness.
    change it in the import dialog.
 3. **Server delete-all and Telegram pairing.** Should "delete everything" on the server
    also forget the paired Telegram owner (slice 41)? Recommendation: no; it deletes words
-   only. A separate `bin/mira unpair` is clearer.
+   only. A separate `bin/kotiko unpair` is clearer.
 
 ## Future work
 

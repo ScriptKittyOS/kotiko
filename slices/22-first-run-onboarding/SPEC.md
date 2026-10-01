@@ -19,13 +19,13 @@ install (`extension/background.js:52-55`), fails with "Paste your API token to c
 with Elixir installed before the first swapped word ([05 S1](../../docs/research/05-learner-ux.md)).
 
 With local-first mode ([11](../11-local-first-mode/SPEC.md)) the server is optional, but a
-new learner still has no words, and Mira will never pick words for them
+new learner still has no words, and Kotiko will never pick words for them
 ([DECISIONS](../DECISIONS.md)): every word is one the learner chose. So the first run has
 one job: help the learner choose their first word, make that moment feel like a reward, and
 show the word working, in under a minute.
 
 And it has to do that in the learner's own language. The maintainer's test: someone in
-Puerto Rico with an all-Spanish browser installs Mira. As first planned, they would get an English
+Puerto Rico with an all-Spanish browser installs Kotiko. As first planned, they would get an English
 welcome, be asked for a word as if they read English, get an English meaning, and see a
 preview on an English sentence; on their own Spanish pages nothing would ever swap, and
 the confetti would be "waiting on English to be done"
@@ -36,7 +36,7 @@ the confetti would be "waiting on English to be done"
 - The welcome tab is a short conversation, not a form: see the languages you read, connect
   your own AI, ask for the first word you'd love to learn in your own words, confirm it,
   celebrate it, see it swap.
-- The whole page is in Mira's interface language (the browser's, [50 §8](../50-ui-localization-and-base-language/SPEC.md)),
+- The whole page is in Kotiko's interface language (the browser's, [50 §8](../50-ui-localization-and-base-language/SPEC.md)),
   complete in English and Spanish at launch, and the learner's base languages are detected
   from the browser and confirmed here with no extra step when the guess is right
   ([50 §2](../50-ui-localization-and-base-language/SPEC.md)).
@@ -47,7 +47,7 @@ the confetti would be "waiting on English to be done"
   until they press "Make it my first word".
 - First word celebrated in **4 steps plus OpenRouter's own sign-in** with an OpenRouter
   account (one-click connect), and in **3 to 4 steps with no key at all** when the learner types the word with its meaning
-  ("hola = hello"; for a Spanish reader, "hello = hola"), which Mira parses locally with no
+  ("hola = hello"; for a Spanish reader, "hello = hola"), which Kotiko parses locally with no
   model and no network.
 - A live preview shows the learner's own word swapped into a sentence in their primary base
   language by the real matcher, before they leave the page.
@@ -69,13 +69,13 @@ the confetti would be "waiting on English to be done"
   ([13](../13-bulk-add/SPEC.md)), which has its own review step.
 - Page milestones and the general celebration rules: [32](../32-page-coverage-and-celebrations/SPEC.md).
 - Migrating existing Slovo server users: [11](../11-local-first-mode/SPEC.md) and
-  [04](../04-rename-to-mira/SPEC.md); updates never open the welcome page.
+  [04](../04-rename-to-kotiko/SPEC.md); updates never open the welcome page.
 - Injecting into tabs that were open before install: [15](../15-framework-safe-swapping/SPEC.md).
 - Mobile first run: [45](../45-firefox-android/SPEC.md).
 
 ## User stories
 
-- As someone who just installed Mira, I want to ask "how do you say hello in Japanese", see
+- As someone who just installed Kotiko, I want to ask "how do you say hello in Japanese", see
   the answer, and keep it as my first word, so that I start with a word I care about.
 - As a learner who already knows a word, I want to type "hola = hello" and have it work right
   away, without creating any account or key.
@@ -83,7 +83,7 @@ the confetti would be "waiting on English to be done"
   and know it works before I ask for my word.
 - As a learner who asked for one word and got something I didn't expect, I want to try again
   before anything is saved.
-- As a self-hoster, I want to connect my existing Mira server from the same page.
+- As a self-hoster, I want to connect my existing Kotiko server from the same page.
 - As someone who doesn't want a tour, I want to skip it and use the popup.
 - As a learner in Puerto Rico with an all-Spanish browser, I want the welcome in Spanish,
   to ask "¿cómo se dice hola en japonés?", and to see こんにちは in a Spanish sentence, with
@@ -109,7 +109,7 @@ the confetti would be "waiting on English to be done"
 
 ### 2. Layout
 
-One page, one column (max width 640 px). Mira's lines appear one under another like a short
+One page, one column (max width 640 px). Kotiko's lines appear one under another like a short
 conversation, each with the small kitten avatar ([05](../05-brand-identity/SPEC.md)); the
 learner's parts are controls, not chat bubbles. Both the AI step and the word box are visible
 from the start, so a learner who already knows a word never has to connect anything first.
@@ -119,9 +119,9 @@ No "Next" buttons, no wizard.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│ (•) Mira                                          Skip for now   │
+│ (•) Kotiko                                          Skip for now   │
 │                                                                  │
-│ (=^.^=) Hi, I'm Mira. I swap words on the pages you read for     │
+│ (=^.^=) Hi, I'm Kotiko. I swap words on the pages you read for     │
 │         words you're learning, one word at a time.               │
 │                                                                  │
 │ (=^.^=) The pages you read are in: [✓ English] [+ Another]       │
@@ -129,7 +129,7 @@ No "Next" buttons, no wizard.
 │ (=^.^=) First, connect your own AI. It looks words up for you.   │
 │         [ Connect OpenRouter (free) ]                            │
 │         Paste a key instead · Another service or my own model ·  │
-│         My Mira server                                           │
+│         My Kotiko server                                           │
 │                                                                  │
 │ (=^.^=) What's the first word you'd love to learn?               │
 │         Ask in your own words, in any language.                  │
@@ -147,9 +147,9 @@ Spanish; detected bases `["es"]`):
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│ (•) Mira                                     Omitir por ahora    │
+│ (•) Kotiko                                     Omitir por ahora    │
 │                                                                  │
-│ (=^.^=) Hola, soy Mira. Cambio palabras en las páginas que lees  │
+│ (=^.^=) Hola, soy Kotiko. Cambio palabras en las páginas que lees  │
 │         por palabras que estás aprendiendo, una a la vez.        │
 │                                                                  │
 │ (=^.^=) Las páginas que lees están en: [✓ español] [+ Otro]      │
@@ -157,7 +157,7 @@ Spanish; detected bases `["es"]`):
 │ (=^.^=) Primero, conecta tu propia IA. Busca palabras por ti.    │
 │         [ Conectar OpenRouter (gratis) ]                         │
 │         Pegar una clave · Otro servicio o mi propio modelo ·     │
-│         Mi servidor de Mira                                      │
+│         Mi servidor de Kotiko                                      │
 │                                                                  │
 │ (=^.^=) ¿Cuál es la primera palabra que te encantaría aprender?  │
 │         Pregunta con tus propias palabras, en cualquier idioma.  │
@@ -189,7 +189,7 @@ language is set by the base languages, not by the language of the question, so a
 reader with an English interface who types "how do you say hello in Japanese" still gets
 the meaning "cześć".
 
-Styling per [06](../06-design-system/SPEC.md): `--canvas` background, Mira's lines in
+Styling per [06](../06-design-system/SPEC.md): `--canvas` background, Kotiko's lines in
 `--t-lead` on `--canvas`, controls on `--surface`, the word card (§5) at `--r-xl` on
 `--surface` with `--e-1`. The page is usable at 320 px width.
 
@@ -204,7 +204,7 @@ name in the interface language with the endonym as a tooltip when they differ.
   when the learner saves their first word or presses Skip for now, with the chips as they
   are.
 - **Untick** a chip to remove that language (at least one must stay ticked; unticking the
-  last is refused with "Mira needs at least one language you read."). A learner whose
+  last is refused with "Kotiko needs at least one language you read."). A learner whose
   browser lists a language they are learning unticks it here.
 - **+ Another** opens a searchable list of languages (names in the interface language,
   endonyms and tags, about 180) and adds the pick as a ticked chip; at most four
@@ -216,16 +216,16 @@ name in the interface language with the endonym as a tooltip when they differ.
   looked up again for the new set of bases, since its meanings depend on them.
 - The interface language is **not** chosen here; it follows the browser
   ([50 §8](../50-ui-localization-and-base-language/SPEC.md)). If the browser's language has
-  no Mira translation, the page is in English (the manifest's source locale) and the base
+  no Kotiko translation, the page is in English (the manifest's source locale) and the base
   chips still show the browser's language, so a Polish reader sees "The pages you read are
   in: [✓ polski]".
 
 ### 3. Step 0, only when needed: page permission (Firefox)
 
-If `permissions.contains({origins: ["<all_urls>"]})` is false, a card appears above Mira's
-first line: "Allow Mira to read pages. Mira needs this to swap words. Page text never leaves
+If `permissions.contains({origins: ["<all_urls>"]})` is false, a card appears above Kotiko's
+first line: "Allow Kotiko to read pages. Kotiko needs this to swap words. Page text never leaves
 your browser." with **[Allow]** (calls `permissions.request`). Declining shows: "Without it,
-Mira can't swap words. You can allow it later from the popup."
+Kotiko can't swap words. You can allow it later from the popup."
 ([03 C4](../../docs/research/03-browser-extension.md)).
 
 ### 4. Connect your AI
@@ -245,7 +245,7 @@ other is the dashboard's settings, [21](../21-dashboard/SPEC.md)).
 - **Another service or my own model** expands [11 §4](../11-local-first-mode/SPEC.md)'s
   provider list (OpenAI, Anthropic, Gemini, Groq, Ollama, LM Studio, custom), each with its
   key field or address and the same automatic check.
-- **My Mira server** expands address and access key fields, checked the same way ("Server
+- **My Kotiko server** expands address and access key fields, checked the same way ("Server
   found", "Access key accepted").
 
 **Connected** replaces the step with one line:
@@ -256,7 +256,7 @@ other is the dashboard's settings, [21](../21-dashboard/SPEC.md)).
 
 **Check failed** keeps the field and shows the [25](../25-plain-language-errors/SPEC.md)
 message under it (`key_rejected`: "OpenRouter didn't accept your key…", `offline`, and so
-on). The key stays saved, so a learner who is offline can still finish; Mira checks again on
+on). The key stays saved, so a learner who is offline can still finish; Kotiko checks again on
 first use.
 
 **Waiting for OpenRouter** (the sign-in tab is open): "Waiting for OpenRouter… Finish signing
@@ -281,7 +281,7 @@ and any base equal to the word's own language is dropped. One model call, one ca
 **Nothing is saved yet.** The welcome page creates a [24](../24-add-flow-safety/SPEC.md) add
 job flagged `preview: true`: the background looks up and validates exactly as for any add,
 then stops before the store write and puts the job in 24's `needs_choice` state with its
-candidates, whatever their count (for this job, `CONFIRM_AT` is 1). With a Mira server doing
+candidates, whatever their count (for this job, `CONFIRM_AT` is 1). With a Kotiko server doing
 lookups, this uses the `preview` flag on 07's add route that
 [24](../24-add-flow-safety/SPEC.md)'s Open question 2 recommends; it is a prerequisite for
 the server option on this page.
@@ -402,7 +402,7 @@ The meaning field is a one-line form; Add builds the card locally (state C, or D
 language is needed). If the learner connects instead, the lookup runs as soon as the key is
 saved (24's `lookup_not_set_up` waiting rule), with no retyping.
 
-**F. Lookup failed:** the [25](../25-plain-language-errors/SPEC.md) message in Mira's line,
+**F. Lookup failed:** the [25](../25-plain-language-errors/SPEC.md) message in Kotiko's line,
 then the same "Or tell me what it means" form as E. Codes: `key_rejected`,
 `quota_exhausted`, `rate_limited`, `offline`, `lookup_timeout`, `model_unavailable`. For
 `no_word_found`: "I couldn't find a word in that. Try “hello in Japanese”, or type it as
@@ -446,7 +446,7 @@ hola · japonés", and "Desactivar celebraciones".
 - Confetti is [32 §5](../32-page-coverage-and-celebrations/SPEC.md)'s renderer, full viewport
   on the welcome page: same particles, palette, 1.6 s duration, no sound, nothing loops, Esc
   or any click or key stops it. It fires once in a lifetime (`celebrations.done["vocab:first"]`).
-- **Reduced motion** (`prefers-reduced-motion: reduce` or Mira's "Reduce motion" setting): no
+- **Reduced motion** (`prefers-reduced-motion: reduce` or Kotiko's "Reduce motion" setting): no
   confetti; the message and card fade in over 120 ms. This is the full calm alternative.
 - Celebrations are on by default ([DECISIONS](../DECISIONS.md)). **Turn off celebrations**
   sets `prefs.celebrations = false` and shows "Off. You can turn them back on in Settings."
@@ -479,9 +479,9 @@ Directly below the celebration, without another step:
 │         [ Try it on a page ]   Add another word   Open your words│
 │                                                                  │
 │         Have a list already? Add it in one go.                   │
-│         Pin Mira: click the puzzle piece, then the pin next      │
-│         to Mira.                                                 │
-│         Swapped words won't show up in Find on page. Turn Mira   │
+│         Pin Kotiko: click the puzzle piece, then the pin next      │
+│         to Kotiko.                                                 │
+│         Swapped words won't show up in Find on page. Turn Kotiko   │
 │         off for a moment from the popup when you need to search. │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -507,7 +507,7 @@ The same step in Spanish:
 actually meet them in. Each base has its own sentences in
 `spec/lang/<base>/sentences.json` ([50 §5](../50-ui-localization-and-base-language/SPEC.md)),
 short plain sentences (6 to 12 words, or about 10 to 25 characters for Chinese and
-Japanese) written by speakers for Mira:
+Japanese) written by speakers for Kotiko:
 
 | Base level | Sentences | Coverage check (CI) |
 |---|---|---|
@@ -554,7 +554,7 @@ welcome tab stays open behind it.
 milestones take over). **Open your words** opens the dashboard ([21](../21-dashboard/SPEC.md)).
 **Add it in one go** opens bulk add ([13](../13-bulk-add/SPEC.md)) in the dashboard, where
 every row is reviewed before saving. Pin instructions are browser-specific: Chrome and Edge as
-above; Firefox: "click the extensions button, then the gear next to Mira, then Pin to
+above; Firefox: "click the extensions button, then the gear next to Kotiko, then Pin to
 Toolbar" (each a localized key). When no AI is connected, one more line: "To look up words you don't know yet,
 connect your AI in Settings." ([21](../21-dashboard/SPEC.md)).
 
@@ -566,7 +566,7 @@ works as usual. "Show welcome again" brings the page back.
 
 ### 10. Reopened later
 
-With words already saved: Mira's ask line reads "What would you like to learn next?", no
+With words already saved: Kotiko's ask line reads "What would you like to learn next?", no
 celebration fires (`vocab:first` is done), and a connected AI shows as the "Connected" line.
 The preview uses the newly confirmed word.
 
@@ -622,18 +622,18 @@ OpenRouter account; none needing help.
 ### 13. Copy
 
 Every string is a key in `extension/_locales/<locale>/messages.json`, read with
-`MiraI18n.t()` ([50 §8](../50-ui-localization-and-base-language/SPEC.md)); both columns
+`KotikoI18n.t()` ([50 §8](../50-ui-localization-and-base-language/SPEC.md)); both columns
 ship at launch. `{lang}` and `{base}` are names from `Intl.DisplayNames` in the interface
 language. `{hello}` and `{example}` come from the primary base's `welcome.json`.
 
 | Key | en | es |
 |---|---|---|
-| `welcome_greeting` | Hi, I'm Mira. I swap words on the pages you read for words you're learning, one word at a time. | Hola, soy Mira. Cambio palabras en las páginas que lees por palabras que estás aprendiendo, una a la vez. |
+| `welcome_greeting` | Hi, I'm Kotiko. I swap words on the pages you read for words you're learning, one word at a time. | Hola, soy Kotiko. Cambio palabras en las páginas que lees por palabras que estás aprendiendo, una a la vez. |
 | `welcome_bases` | The pages you read are in: | Las páginas que lees están en: |
 | `welcome_bases_add` | Another | Otro |
-| `welcome_bases_last` | Mira needs at least one language you read. | Mira necesita al menos un idioma que leas. |
+| `welcome_bases_last` | Kotiko needs at least one language you read. | Kotiko necesita al menos un idioma que leas. |
 | `welcome_ai_step` | First, connect your own AI. It looks words up for you. | Primero, conecta tu propia IA. Busca palabras por ti. |
-| `welcome_ai_buttons` | Connect OpenRouter (free) · Paste a key instead · Another service or my own model · My Mira server | Conectar OpenRouter (gratis) · Pegar una clave · Otro servicio o mi propio modelo · Mi servidor de Mira |
+| `welcome_ai_buttons` | Connect OpenRouter (free) · Paste a key instead · Another service or my own model · My Kotiko server | Conectar OpenRouter (gratis) · Pegar una clave · Otro servicio o mi propio modelo · Mi servidor de Kotiko |
 | `welcome_connected` | ✓ Connected to {provider}. (OpenRouter: "✓ Connected to OpenRouter, free models.") | ✓ Conectado a {provider}. (OpenRouter: "✓ Conectado a OpenRouter, modelos gratis.") |
 | `welcome_ask` | What's the first word you'd love to learn? / Ask in your own words, in any language. | ¿Cuál es la primera palabra que te encantaría aprender? / Pregunta con tus propias palabras, en cualquier idioma. |
 | `welcome_try_hello` | Try “{hello}” | Prueba con “{hello}” |
@@ -664,7 +664,7 @@ allows for milestones.
 
 ### 14. Accessibility
 
-- Mira's lines are in a `role="log"` container (polite), so each new line is announced once;
+- Kotiko's lines are in a `role="log"` container (polite), so each new line is announced once;
   the word card and controls are outside it.
 - When a card appears, focus moves to the card (`tabindex="-1"`, accessible name
   "こんにちは, konnichiwa, hello, Japanese"); Tab reaches "Make it my first word". The several-
@@ -763,7 +763,7 @@ same as in the store listing ([28](../28-privacy-and-store-readiness/SPEC.md)).
 
 ## Rollout and migration
 
-New page in the first Mira release. Existing users updating from Slovo don't see it; they
+New page in the first Kotiko release. Existing users updating from Slovo don't see it; they
 keep their server connection and their words ([11](../11-local-first-mode/SPEC.md)), and
 their `vocab:first` milestone is marked done silently so they never get a first-word
 celebration for an old list. Their base languages follow

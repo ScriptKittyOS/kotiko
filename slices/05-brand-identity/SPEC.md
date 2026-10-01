@@ -11,16 +11,16 @@
 
 ## Problem
 
-The product is now Mira, and nothing a user sees says so or says what Mira is:
+The product is now Kotiko, and nothing a user sees says so or says what Kotiko is:
 
 - The popup heading is "Слово" in Georgia (`extension/popup.html:43-47, 109`); the tab title,
   toolbar tooltip and manifest name say "Slovo" (`popup.html:5`,
   `extension/manifest.json:3, 20`). The renaming mechanics are
-  [04](../04-rename-to-mira/SPEC.md); this slice decides how Mira looks and sounds.
+  [04](../04-rename-to-kotiko/SPEC.md); this slice decides how Kotiko looks and sounds.
 - The 0.2 manifest declared only 48 and 128 px icons (`manifest.json:21`), so browsers
   downsample for the 16 and 32 px toolbar, where most people see the icon.
 - **The final logo artwork is pending from the maintainer.** The current direction is a cute
-  black kitten head on a purple tile ([DECISIONS](../DECISIONS.md)), which ties Mira to the
+  black kitten head on a purple tile ([DECISIONS](../DECISIONS.md)), which ties Kotiko to the
   ScriptKittyOS family; an eye and a speech bubble were rejected earlier, and earlier
   explorations are superseded. Whatever artwork arrives has to work from 16 px on light
   and dark toolbars up to store banners, in one color, and without its tile, and nothing
@@ -48,7 +48,7 @@ The product is now Mira, and nothing a user sees says so or says what Mira is:
   must satisfy and everything derived from it.
 - Color tokens, type and components: [06](../06-design-system/SPEC.md), which takes the
   logo's tile color as its one brand input and regenerates its purple ramp from it.
-- Changing names in code: [04](../04-rename-to-mira/SPEC.md).
+- Changing names in code: [04](../04-rename-to-kotiko/SPEC.md).
 - Listing text, privacy policy and screenshot content:
   [28](../28-privacy-and-store-readiness/SPEC.md). This slice supplies artwork and frames.
 - Translating the UI: [50](../50-ui-localization-and-base-language/SPEC.md).
@@ -57,7 +57,7 @@ The product is now Mira, and nothing a user sees says so or says what Mira is:
 
 - As someone browsing a store, I want an icon that feels friendly and personal, and a name
   and tagline that tell me this is about reading in the languages I'm learning.
-- As a daily user with twenty extensions, I want to spot Mira in my toolbar at a glance in
+- As a daily user with twenty extensions, I want to spot Kotiko in my toolbar at a glance in
   light and dark themes.
 - As a learner anywhere, I want the brand to feel warm and welcoming rather than corporate or
   "AI".
@@ -67,34 +67,28 @@ The product is now Mira, and nothing a user sees says so or says what Mira is:
 
 ### 1. Name and story
 
-**Mira** is one short word that means something different, and good, in many languages, the
-way Mira itself shows you words from many languages:
+**Kotiko** is the name ([DECISIONS](../DECISIONS.md)). It is short, friendly and easy to say
+in almost any language, and it fits the kitten at the heart of the brand and the
+ScriptKittyOS family it belongs to.
 
-| Where | Word | Meaning |
-|---|---|---|
-| Spanish, Italian, Portuguese | ¡mira! | "look!" |
-| Russian | мир, мира | "world" and "peace" |
-| Latin | mira | "wonderful", "astonishing" |
-| The sky | Mira (ο Ceti) | "the wonderful", a star that brightens and fades over about 11 months |
-| Everywhere | Mira | a name people give to cats, easy to say in almost any language |
+The full name story is the maintainer's to write. One association to check: it echoes the
+Russian "котик" ("kitty, little cat"). Like every claim about what the name means in a
+language, it must be confirmed by a fluent speaker before it appears in the store listing,
+docs or the interface. Until the story is written, copy describes what Kotiko does and
+doesn't explain the name.
 
-Store and docs line: **"Mira means 'look' in Spanish, 'world' in Russian and 'wonderful' in
-Latin. Mira does the same with your words."** In Spanish (the listing and docs ship in
-English and Spanish, [50](../50-ui-localization-and-base-language/SPEC.md)): **"Mira significa
-'mira' en español, 'mundo' en ruso y 'maravillosa' en latín. Mira hace lo mismo con tus
-palabras."** If the final logo is a cat, the line adds "and
-it's a good name for a cat." Only meanings confirmed by a fluent speaker are claimed; the
-table is the confirmed set. The publisher is ScriptKittyOS ([DECISIONS](../DECISIONS.md)).
-
-Name confusion to design around: "Miro" (whiteboard app, lowercase wordmark on yellow): Mira
-never uses a yellow field. The legal name check is in [04](../04-rename-to-mira/SPEC.md).
+Store and docs line, until the story exists: **"Kotiko swaps words on the pages you read for
+the words you're learning, in any language."** Spanish: **"Kotiko cambia palabras en las
+páginas que lees por las palabras que estás aprendiendo, en cualquier idioma."** The
+publisher is ScriptKittyOS ([DECISIONS](../DECISIONS.md)). The legal name check is in
+[04](../04-rename-to-kotiko/SPEC.md).
 
 ### 2. Promise and personality
 
 Promise: **"Read the web in the words you're learning."** Spanish: **"Lee la web con las
 palabras que estás aprendiendo."**
 
-| Mira is | Mira is not |
+| Kotiko is | Kotiko is not |
 |---|---|
 | Calm, like a good reading lamp | Gamified, loud, streak-driven |
 | Warm, a little playful | Childish or cartoonish |
@@ -125,9 +119,9 @@ the start, and translators get them in the glossary ([50](../50-ui-localization-
 7. **No jargon in the main line:** no "sync", "token", "API", "LLM", "model", ".env", status
    codes or model ids. "Look up" is the verb for what the model does. Technical detail goes
    behind "Details".
-8. **No "AI" framing.** Mira looks words up; it doesn't "think" or "generate".
+8. **No "AI" framing.** Kotiko looks words up; it doesn't "think" or "generate".
 9. **The mascot doesn't talk.** If the logo has a character, it is a face, not a narrator: no
-   "Mira says…", no first-person voice, no puns in errors. The product speaks plainly.
+   "Kotiko says…", no first-person voice, no puns in errors. The product speaks plainly.
 10. **Honest numbers.** "12 words", never "dozens"; coverage is "could be in your languages",
     never "you can read".
 11. **Translatable:** whole sentences, named placeholders, plurals via `Intl.PluralRules`
@@ -152,7 +146,7 @@ shown after "="; here, an English reader and a Spanish reader:
 ### 4. The logo: final artwork pending
 
 > **Update, 2026-10-01:** the maintainer supplied the logo (a black kitten with orange eyes and
-> a purple outline; `brand/source/mira-original.png`). It is in use on a `#8E5EFA` tile at
+> a purple outline; `brand/source/kotiko-original.png`). It is in use on a `#8E5EFA` tile at
 > every icon size, tuned for 16 and 32 px (`brand/logo/`). An artist is producing the master
 > vector, one-color versions and store artwork; the illustrations in `brand/illustrations/`
 > are placeholders cropped from the artist's mockup. The requirements below still apply to
@@ -178,9 +172,9 @@ toolbar colors used in every check are #FFFFFF and Chrome's #DEE1E6 (light), and
 | A4 | **Readable in grayscale** (check the master desaturated). |
 | A5 | **Flat color preferred;** at most 4 colors plus the background; no gradients, glows or thin lines in any size. |
 | A6 | **Works in one color** (a single flat ink, no tile) for print, forced colors and favicons. |
-| A7 | **Works without the tile**, on both light and dark surfaces, for Mira's own pages and the docs. |
+| A7 | **Works without the tile**, on both light and dark surfaces, for Kotiko's own pages and the docs. |
 | A8 | **Survives the toolbar badge**, which Chrome and Firefox draw over the lower right of the icon ([20 §5](../20-popup-redesign/SPEC.md), [32](../32-page-coverage-and-celebrations/SPEC.md)). |
-| A9 | **Avoids:** an eye as the main symbol (it suggests surveillance on an extension that reads pages); speech bubbles or any chat shape; four-point sparkles or "AI" glints; flags; a letter from a single alphabet as the mark; text inside the icon; thin lines; fangs or claws; anything close to "Mira Translator" or other existing products. |
+| A9 | **Avoids:** an eye as the main symbol (it suggests surveillance on an extension that reads pages); speech bubbles or any chat shape; four-point sparkles or "AI" glints; flags; a letter from a single alphabet as the mark; text inside the icon; thin lines; fangs or claws; anything close to existing products in the same space. |
 | A10 | **Culturally comfortable and original:** passes the cultural review and trademark search in §7. If the figure is a black cat, it must read as cute and lucky, never spooky (black cats carry a bad-luck superstition in parts of Europe and the Americas). |
 | A11 | **Provides the brand color:** the tile color becomes [06](../06-design-system/SPEC.md)'s `--brand` input; 06 derives darker shades for text, and the tile itself is never altered. |
 
@@ -188,7 +182,7 @@ toolbar colors used in every check are #FFFFFF and Chrome's #DEE1E6 (light), and
 
 **Do:**
 - Use the tiled mark for the browser toolbar, store icons and anywhere the icon stands alone.
-- Use the tile-less glyph inside Mira's own pages and the docs.
+- Use the tile-less glyph inside Kotiko's own pages and the docs.
 - Use the small-size drawings at 16 and 32 px; never downscale the master below 24 px.
 - Keep clear space of one eighth of the tile width on every side.
 - Keep any face friendly and simple.
@@ -200,7 +194,7 @@ toolbar colors used in every check are #FFFFFF and Chrome's #DEE1E6 (light), and
 - Don't crop to a single feature (for example the eyes).
 - Don't place a dark figure on a dark or busy background without its tile or rim.
 - Don't make the mark speak (no speech bubbles; a chat look was rejected).
-- Don't put the mark on websites the learner reads, except inside Mira's own popover or
+- Don't put the mark on websites the learner reads, except inside Kotiko's own popover or
   milestone toast.
 
 ### 5. Forms derived from the artwork
@@ -215,8 +209,8 @@ Once the artwork arrives, these are produced from it, using only its colors (or
 | F3. One color | `brand/mark-mono.svg` | `currentColor` silhouette, no tile; interior features cut out so they read in one ink. |
 | F4. Tile-less glyph | `brand/mark-glyph.svg` | Full color without the tile, with a thin rim in a light color from the artwork so a dark figure stays visible on dark surfaces (≥ 3:1 against the dark canvas from 06). |
 | F5. Firefox dark-theme icon | `brand/mark-16-dark.svg`, `mark-32-dark.svg` | Only if K1 shows the tile is lost on a dark toolbar: a 1 px light inner rim on the tile, shipped through Firefox's `action.theme_icons`. Chrome has no equivalent, which is why A3 matters. |
-| F6. Wordmark and lock-up | `brand/wordmark.svg`, `brand/lockup.svg` | "Mira" drawn as outlines (no font dependency), a rounded humanist sans, capital M; letters in ink (#1F1A2B on light, #F2EEF8 on dark, from 06). Lock-up: glyph left, wordmark right, cap height 40 % of the glyph height. Until it exists, headers set "Mira" in 06's display stack. |
-| F7. Character states (optional) | `brand/character/*.svg` | If the artwork is a character, up to three variants drawn from it: "peek" (for empty states), "content" (milestones), "sleeping" (Mira off or paused). Always decorative (`aria-hidden`), at most one per screen, never in error states, motion limited to one 150 ms blink with none under reduced motion ([06 §9](../06-design-system/SPEC.md)). |
+| F6. Wordmark and lock-up | `brand/wordmark.svg`, `brand/lockup.svg` | "Kotiko" drawn as outlines (no font dependency), a rounded humanist sans, capital M; letters in ink (#1F1A2B on light, #F2EEF8 on dark, from 06). Lock-up: glyph left, wordmark right, cap height 40 % of the glyph height. Until it exists, headers set "Kotiko" in 06's display stack. |
+| F7. Character states (optional) | `brand/character/*.svg` | If the artwork is a character, up to three variants drawn from it: "peek" (for empty states), "content" (milestones), "sleeping" (Kotiko off or paused). Always decorative (`aria-hidden`), at most one per screen, never in error states, motion limited to one 150 ms blink with none under reduced motion ([06 §9](../06-design-system/SPEC.md)). |
 
 ### 6. Asset set
 
@@ -230,7 +224,7 @@ because some files carry a C2PA provenance manifest whose namespace `@resvg/resv
 | `action.default_icon` | 16, 24, 32 | F1, F2 at 0.75, F2 | 24 for Windows at 150 % |
 | Firefox `action.theme_icons` | 16, 32 | F5 | Only if needed |
 | Chrome Web Store icon | 128 × 128 | Master | 96 × 96 artwork centered, 16 px transparent padding per side |
-| Chrome small promo tile | 440 × 280 | Master + F6 | Required. Mark and "Mira" on the brand color; legible at half size on light grey; full bleed |
+| Chrome small promo tile | 440 × 280 | Master + F6 | Required. Mark and "Kotiko" on the brand color; legible at half size on light grey; full bleed |
 | Chrome marquee | 1400 × 560 | Master + F6 | Optional; prepare it |
 | Screenshots (Chrome, Firefox, Edge) | 1280 × 800 | [28](../28-privacy-and-store-readiness/SPEC.md) | Chrome up to 5, Edge up to 6; square corners |
 | Firefox AMO icon | 128 × 128 | Master | Shown at 32, 64, 128 |
@@ -267,7 +261,7 @@ Edge extension" documentation in October 2026; re-check at submission.
    it, then `contrast.mjs`, and update 06's tables in the same PR (06 §3.1).
 5. Maintainer review of the contact sheet, derived forms and any changed UI tokens, in one
    round.
-6. Generate the asset set, wire icons into the manifest with [04](../04-rename-to-mira/SPEC.md),
+6. Generate the asset set, wire icons into the manifest with [04](../04-rename-to-kotiko/SPEC.md),
    and hand store artwork to [28](../28-privacy-and-store-readiness/SPEC.md).
 
 ## Acceptance criteria
@@ -298,10 +292,10 @@ Edge extension" documentation in October 2026; re-check at submission.
 
 ## Rollout and migration
 
-Ships with the rename ([04](../04-rename-to-mira/SPEC.md)) in the first Mira release; the old
+Ships with the rename ([04](../04-rename-to-kotiko/SPEC.md)) in the first Kotiko release; the old
 `icon48.png` and `icon128.png` are deleted. If the artwork is late, the release can ship with
 the current direction's draft icons in the manifest, but store listings wait for the final
-artwork. Changelog: "Slovo is now Mira, with a new look."
+artwork. Changelog: "Slovo is now Kotiko, with a new look."
 
 ## Open questions
 

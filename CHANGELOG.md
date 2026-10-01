@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Mira. From the next release on, this file is generated from
+All notable changes to Kotiko. From the next release on, this file is generated from
 Conventional Commits by release-please.
 
 ## 0.2.0 (2026-10-01)
