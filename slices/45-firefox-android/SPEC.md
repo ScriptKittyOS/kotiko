@@ -31,8 +31,8 @@ Today, on Firefox for Android (read from the code; not yet run on a device):
 
 ## Goals
 
-- Mira installs from AMO on Firefox for Android and works in local mode with a starter
-  pack or a provider key, with no server.
+- Mira installs from AMO on Firefox for Android and works in local mode with words typed
+  as “word = meaning” or a provider key, with no server.
 - Tapping a swapped word shows its details; tapping a link still follows the link.
 - The popup, dashboard and welcome page are comfortable at 360 px wide with touch targets
   of at least 44 by 44 CSS px.
@@ -110,7 +110,8 @@ Firefox for Android opens the popup as a full-screen sheet.
 
 ### 5. Backends on a phone
 
-- **Local mode** works fully: IndexedDB, direct provider calls, starter packs (slice 11).
+- **Local mode** works fully: IndexedDB, direct provider calls, words typed with their
+  meaning (slice 11).
   This is the recommended mobile setup and the docs say so first.
 - **Server**: the server must be reachable from the phone. The settings page, when
   `platform.mobile`, replaces the default `http://localhost:4747` placeholder with
@@ -135,7 +136,8 @@ as the reference):
 
 - [ ] The AMO listing offers Mira on Firefox for Android, and it installs on Firefox
       release for Android.
-- [ ] With a starter pack and no server, a news article shows swaps on the phone.
+- [ ] With a few words typed as “word = meaning” and no server, a news article shows swaps
+      on the phone.
 - [ ] Tapping a swapped word outside a link opens the popover; tapping one inside a link
       follows the link; long-pressing it opens the popover (or the fallback setting works).
 - [ ] The popup, dashboard and welcome page have no horizontal scrolling at 360 px and

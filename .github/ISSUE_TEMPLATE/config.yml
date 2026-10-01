@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or setup help
+    url: https://github.com/ScriptKittyOS/slovo/discussions
+    about: Ask in Discussions.
+  - name: Report a security problem
+    url: https://github.com/ScriptKittyOS/slovo/security/advisories/new
+    about: Please report privately, not as an issue.

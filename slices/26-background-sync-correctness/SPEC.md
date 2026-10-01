@@ -203,7 +203,6 @@ handlers = {
   remove: { from: ["page"], run: ... },
   stats:  { from: ["content"], run: ... },          // slice 46 page counts, no URLs
   "oauth.code":   { from: ["docs"], run: ... },     // slice 11 Connect OpenRouter
-  "pack.preview": { from: ["docs"], run: ... },     // slice 47 one-click packs
 }
 ```
 

@@ -1,0 +1,9 @@
+{
+  "data": {
+    "label": "fake-key",
+    "limit": null,
+    "usage": 0,
+    "is_free_tier": true,
+    "rate_limit": { "requests": 20, "interval": "10s" }
+  }
+}

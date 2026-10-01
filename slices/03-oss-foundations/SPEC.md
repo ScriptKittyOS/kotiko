@@ -39,7 +39,6 @@ Mira is meant to be a free open-source tool, but legally and practically it isn'
 
 ## Non-goals
 
-- Licensing of word packs and other content: slice [23](../23-starter-packs/SPEC.md).
 - Release automation, tags and store uploads: slice [30](../30-release-pipeline/SPEC.md),
   which consumes the version source defined here.
 - CI workflows themselves: slice [02](../02-test-harness-and-ci/SPEC.md). This slice adds
@@ -83,7 +82,7 @@ Mira is meant to be a free open-source tool, but legally and practically it isn'
   line here and its license text under `LICENSES/`.
 - **`LICENSES/`** holds the full text of every license used in the repository:
   `Apache-2.0.txt`, `Unicode-3.0.txt`, plus `MIT.txt` for the vendored React builds in
-  slice 02's test fixtures, plus whatever slice 23 chooses for packs.
+  slice 02's test fixtures.
 - **SPDX headers.** Every hand-written source file starts with two comment lines:
 
   ```

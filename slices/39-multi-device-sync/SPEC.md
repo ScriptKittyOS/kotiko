@@ -160,7 +160,7 @@ most its own time plus 2 minutes, so a device with a fast clock can't win foreve
    natural key): the server keeps the word with the earliest `created_at`, merges the
    other into it with slice 07's merge rules (forms unioned, non-empty fields kept), and
    tombstones the other with `merged_into`. Clients that receive such a tombstone move
-   any local references (learning signals, pack membership) to the winner.
+   any local references (learning signals) to the winner.
 4. **Server reset** (slice 12's delete-all increments `reset_epoch`): clients never push
    into a new epoch automatically. The popup asks: "The words on your server were deleted.
    Delete them here too, or upload this browser's 312 words to the server?" Both buttons

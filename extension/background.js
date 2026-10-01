@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-License-Identifier: Apache-2.0
+
 // Pulls your active words (every language) from the Slovo server and caches them for
 // content scripts. Which languages show is decided locally, so switching is instant.
 const ext = globalThis.browser ?? globalThis.chrome;

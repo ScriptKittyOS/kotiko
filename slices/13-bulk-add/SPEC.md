@@ -6,7 +6,7 @@
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
 | **Depends on** | [09-shared-word-spec-and-prompt](../09-shared-word-spec-and-prompt/SPEC.md), [24-add-flow-safety](../24-add-flow-safety/SPEC.md); lives in [21-dashboard](../21-dashboard/SPEC.md) |
-| **Unblocks** | [47-hosted-word-packs](../47-hosted-word-packs/SPEC.md) (reuses the review table) |
+| **Unblocks** | [22-first-run-onboarding](../22-first-run-onboarding/SPEC.md) (reuses the one-line parser), [48-multi-user-and-classroom](../48-multi-user-and-classroom/SPEC.md) (students review a list a teacher offers in the same table) |
 | **Sources** | Maintainer: "Users should be able to paste a full list of words and add them all. Bulk upload; since it's local you can even drop files." ([DECISIONS](../DECISIONS.md)); [05 S17](../../docs/research/05-learner-ux.md); [04 S6 Anki and CSV](../../docs/research/04-architecture-release.md); [06 F14, F21](../../docs/research/06-adversarial-qa.md) |
 
 ## Problem
@@ -38,8 +38,8 @@ endpoint anyway.
   hands `.json` files with Mira's `schemaVersion` to it).
 - Anki `.apkg` packages: P2 in [12](../12-export-import-and-delete/SPEC.md); here the learner
   is told how to export plain text.
-- Starter packs: [23](../23-starter-packs/SPEC.md) (bundled, curated, with their own preview).
-- Subscribing to packs by URL: [47](../47-hosted-word-packs/SPEC.md).
+- Ready-made, bundled or hosted word lists: never ([DECISIONS](../DECISIONS.md)). Every
+  list here is one the learner brings, and nothing is saved until they press Add.
 
 ## User stories
 
@@ -62,7 +62,7 @@ endpoint anyway.
 | Drop a file anywhere on the dashboard | 1 (drop) |
 | Dashboard ⋯ → "Import a list or file" → choose file | 3 |
 | Popup: paste text with line breaks → "Open bulk add" | 3 (open popup, paste, Open bulk add); the text is handed over through `storage.session` (`bulkDraft`) and the dashboard opens at `#add` |
-| Welcome page "I have a list" ([22](../22-first-run-onboarding/SPEC.md)) | 2 |
+| Welcome page "Add it in one go" ([22](../22-first-run-onboarding/SPEC.md)), then paste | 2 |
 
 Saving is one more step ("Add {n} words"). So: paste a list with meanings into the dashboard
 and save in 3 steps; drop a file and save in 2.
@@ -115,8 +115,7 @@ as UTF-8 and try again." Line endings `\r\n`, `\r`, `\n`. Text is NFC-normalized
 **Format detection,** in order:
 
 1. `.json`: if it has Mira's `schemaVersion`, hand to [12](../12-export-import-and-delete/SPEC.md);
-   if it is a pack ([23](../23-starter-packs/SPEC.md) format), use its words; if it is an
-   array of objects, map keys case-insensitively (`native|word|front|term`,
+   if it is an array of objects, map keys case-insensitively (`native|word|front|term`,
    `english|meaning|back|translation|definition`, `romanization|reading|pronunciation`,
    `lang|language`, `note|notes`); otherwise `import_unreadable`.
 2. **Anki plain-text export:** header lines starting with `#` (`#separator:tab`,
@@ -228,7 +227,11 @@ not English, and so on).
   meanings yourself, or save these {k} words for later." The second option queues them as
   waiting add jobs that resume when quota returns.
 - A lookup result whose native differs from the input (the model corrected spelling) shows
-  "Mira read “spaseeba” as спасибо" in the row, pre-ticked, editable.
+  "Mira read “spaseeba” as спасибо" in the row, pre-ticked, editable. If that result
+  arrives after "Add {n} words" (a pending lookup finishing as an add job), it is not saved
+  on its own: the job waits in 24's `needs_choice` state with the line "Mira read
+  “spaseeba” as спасибо. Add it?" so the learner sees the word Mira will add before it
+  is added.
 - Results failing validation become "Problem: the lookup came back unclear" with the row kept.
 
 ### 6. Saving and the summary
@@ -308,8 +311,8 @@ lives in `storage.session` and is cleared after saving or cancelling.
 
 - **Unit (Node):** `parse.js` against a fixture folder: textbook lists in 12 languages and 8
   scripts, Anki exports from Anki 2.1.55+ and older (no headers), Excel CSV (windows-1252 and
-  UTF-8 with BOM), Google Sheets TSV, Quizlet export ("term\tdefinition"), JSON arrays, Mira
-  packs, RTL lines, numbered lists, cloze notes, malformed quoting.
+  UTF-8 with BOM), Google Sheets TSV, Quizlet export ("term\tdefinition"), JSON arrays,
+  RTL lines, numbered lists, cloze notes, malformed quoting.
 - **Integration:** batch lookup with a mock model returning good, partial, corrected and
   invalid entries; quota exhaustion mid-run; idempotent retries.
 - **End-to-end:** paste, drop and choose-file paths; popup handoff; review edits; summary and
@@ -335,6 +338,5 @@ file to add many words at once. Lines with meanings never use your lookups."
 ## Future work
 
 - `.apkg` import ([12](../12-export-import-and-delete/SPEC.md)).
-- Import from a URL to a CSV or pack ([47](../47-hosted-word-packs/SPEC.md)).
 - Pick words from a pasted paragraph (tokenize, show checkboxes) as a third mode beside list
   and file.

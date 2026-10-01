@@ -130,6 +130,10 @@ are computed from the word store ([11](../11-local-first-mode/SPEC.md)) or
 [46](../46-local-stats-and-recap/SPEC.md)'s counters, and shown once as a milestone card at
 the top of the popup or dashboard the next time it opens.
 
+**First word ever** (`vocab:first`): fires once, with confetti, on the welcome tab when the
+learner confirms their first word ([22 §7](../22-first-run-onboarding/SPEC.md)), and replaces
+that word's "first word in a new language" card.
+
 ### 4. When a page milestone fires
 
 All of these must hold, checked in this order (cheapest first):

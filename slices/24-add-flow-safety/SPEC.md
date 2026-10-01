@@ -6,7 +6,7 @@
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
 | **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md) |
-| **Unblocks** | [13-bulk-add](../13-bulk-add/SPEC.md), [20-popup-redesign](../20-popup-redesign/SPEC.md), [21-dashboard](../21-dashboard/SPEC.md), [22-first-run-onboarding](../22-first-run-onboarding/SPEC.md), [23-starter-packs](../23-starter-packs/SPEC.md), [33-context-menu-and-shortcuts](../33-context-menu-and-shortcuts/SPEC.md) |
+| **Unblocks** | [13-bulk-add](../13-bulk-add/SPEC.md), [20-popup-redesign](../20-popup-redesign/SPEC.md), [21-dashboard](../21-dashboard/SPEC.md), [22-first-run-onboarding](../22-first-run-onboarding/SPEC.md), [33-context-menu-and-shortcuts](../33-context-menu-and-shortcuts/SPEC.md) |
 | **Sources** | [05 S7, S8, S9, S10, S13, S19](../../docs/research/05-learner-ux.md); [06 F05, F06, F09, F12, F30](../../docs/research/06-adversarial-qa.md); [01 S22](../../docs/research/01-language-mixing.md) |
 
 ## Problem
@@ -359,9 +359,10 @@ what makes the popup closing harmless.
 
 1. **Confirm threshold.** Recommendation: confirm at 4 or more words; 1-3 save immediately
    with per-word Undo. This keeps the common case at one keystroke.
-2. **Preview adds on the server.** Recommendation: slice 07 adds `"preview": true` to
-   `POST /api/v1/words` (interpret and validate, save nothing, return candidates), so
-   server-lookup mode can confirm before saving like local mode does.
+2. **Preview adds on the server.** Decided (follows from the full-control decision in
+   DECISIONS.md): slice 07's `POST /api/v1/words` takes `"preview": true` (interpret and
+   validate, save nothing, return candidates), so server-lookup mode confirms before saving
+   exactly like local mode.
 3. **How long Undo stays available.** Recommendation: as long as the job is listed (7 days),
    because wrong words are often noticed later.
 

@@ -1,0 +1,63 @@
+{
+  "shukran": {
+    "intent": "add",
+    "words": [
+      {
+        "lang": "ar",
+        "language": "Arabic",
+        "native": "شكرا",
+        "romanization": "shukran",
+        "english": "thanks",
+        "english_forms": ["thanks", "thank you"],
+        "note": "Informal; add jazeelan for 'thanks a lot'."
+      }
+    ]
+  },
+  "dog in japanese": {
+    "intent": "add",
+    "words": [
+      {
+        "lang": "ja",
+        "language": "Japanese",
+        "native": "犬",
+        "romanization": "inu",
+        "english": "dog",
+        "english_forms": ["dog", "dogs"],
+        "note": null
+      }
+    ]
+  },
+  "sobaka": {
+    "intent": "add",
+    "words": [
+      {
+        "lang": "ru",
+        "language": "Russian",
+        "native": "собака",
+        "romanization": "sobaka",
+        "english": "dog",
+        "english_forms": ["dog", "dogs"],
+        "note": "Feminine."
+      }
+    ]
+  },
+  "kniga": {
+    "intent": "add",
+    "words": [
+      {
+        "lang": "ru",
+        "language": "Russian",
+        "native": "книга",
+        "romanization": "kniga",
+        "english": "book",
+        "english_forms": ["book", "books"],
+        "note": "Feminine."
+      }
+    ]
+  },
+  "hello": {
+    "intent": "chat",
+    "words": [],
+    "reply": "Hello! Send me a word to look up."
+  }
+}

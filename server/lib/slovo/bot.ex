@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule Slovo.Bot do
   @moduledoc """
   Long-polls Telegram. Text or voice in, word cards out.
@@ -47,7 +50,7 @@ defmodule Slovo.Bot do
       case Telegram.call("getUpdates", params, receive_timeout: 45_000) do
         {:ok, updates} ->
           Enum.each(updates, fn u ->
-            Task.Supervisor.start_child(Slovo.TaskSup, fn -> safe_handle(u) end)
+            Task.Supervisor.start_child(Slovo.TaskSup, fn -> handle_update(u) end)
           end)
 
           case List.last(updates) do
@@ -67,7 +70,8 @@ defmodule Slovo.Bot do
 
   # ── routing ──────────────────────────────────────────────────────────
 
-  defp safe_handle(update) do
+  @doc "Handles one update from getUpdates. Public so tests can feed it updates directly."
+  def handle_update(update) do
     handle(update)
   rescue
     e ->

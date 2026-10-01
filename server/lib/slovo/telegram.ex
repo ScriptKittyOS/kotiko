@@ -1,15 +1,24 @@
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule Slovo.Telegram do
   @moduledoc "Minimal Telegram Bot API client (long polling, no webhook needed)."
 
   defp token, do: Application.fetch_env!(:slovo, :telegram_token)
 
+  # Empty in production; tests route requests to a Req.Test stub.
+  defp req_options, do: Application.get_env(:slovo, :telegram_req_options, [])
+
   def call(method, params, opts \\ []) do
     params = params |> Enum.reject(fn {_k, v} -> is_nil(v) end) |> Map.new()
 
-    case Req.post("https://api.telegram.org/bot#{token()}/#{method}",
-           json: params,
-           receive_timeout: Keyword.get(opts, :receive_timeout, 15_000),
-           retry: false
+    case Req.post(
+           "https://api.telegram.org/bot#{token()}/#{method}",
+           [
+             json: params,
+             receive_timeout: Keyword.get(opts, :receive_timeout, 15_000),
+             retry: false
+           ] ++ req_options()
          ) do
       {:ok, %Req.Response{body: %{"ok" => true, "result" => result}}} -> {:ok, result}
       {:ok, %Req.Response{status: s, body: body}} -> {:error, "telegram #{s}: #{inspect(body)}"}
@@ -35,9 +44,9 @@ defmodule Slovo.Telegram do
   def download_file(file_id) do
     with {:ok, %{"file_path" => path}} <- call("getFile", %{file_id: file_id}),
          {:ok, %Req.Response{status: 200, body: body}} <-
-           Req.get("https://api.telegram.org/file/bot#{token()}/#{path}",
-             decode_body: false,
-             receive_timeout: 60_000
+           Req.get(
+             "https://api.telegram.org/file/bot#{token()}/#{path}",
+             [decode_body: false, receive_timeout: 60_000] ++ req_options()
            ) do
       {:ok, body}
     else

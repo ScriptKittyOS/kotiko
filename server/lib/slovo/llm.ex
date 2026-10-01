@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule Slovo.LLM do
   @moduledoc """
   Turns a free-form message into structured word entries. Talks to any OpenAI-compatible
@@ -121,7 +124,11 @@ defmodule Slovo.LLM do
       [{"x-title", "Slovo"}] ++ if(key, do: [{"authorization", "Bearer " <> key}], else: [])
 
     with {:ok, %Req.Response{status: 200, body: %{"choices" => [%{"message" => msg} | _]}}} <-
-           Req.post(url, json: body, headers: headers, receive_timeout: 60_000, retry: false),
+           Req.post(
+             url,
+             [json: body, headers: headers, receive_timeout: 60_000, retry: false] ++
+               req_options()
+           ),
          content when is_binary(content) <- msg["content"],
          {:ok, parsed} when is_map(parsed) <- Jason.decode(extract_json(content)) do
       result = normalize(parsed)
@@ -158,6 +165,9 @@ defmodule Slovo.LLM do
         {:error, "unexpected answer: #{inspect(other, printable_limit: 300)}"}
     end
   end
+
+  # Empty in production; tests route requests to a Req.Test stub.
+  defp req_options, do: Application.get_env(:slovo, :llm_req_options, [])
 
   defp api_error(%{"error" => %{"message" => m}}), do: m
   defp api_error(b), do: inspect(b)

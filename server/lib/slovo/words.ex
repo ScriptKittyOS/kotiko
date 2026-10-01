@@ -1,4 +1,8 @@
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule Slovo.Words do
+  @moduledoc "Database functions for words, shared by the API router and the bot."
   import Ecto.Query
   alias Slovo.{Repo, Word}
 

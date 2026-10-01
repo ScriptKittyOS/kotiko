@@ -6,7 +6,7 @@
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
 | **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md), [08-language-tags](../08-language-tags/SPEC.md) |
-| **Unblocks** | [10](../10-llm-client-resilience/SPEC.md), [11](../11-local-first-mode/SPEC.md), [13](../13-bulk-add/SPEC.md), [23](../23-starter-packs/SPEC.md), [36](../36-grammar-and-senses/SPEC.md), [49](../49-dictionary-verification/SPEC.md) |
+| **Unblocks** | [10](../10-llm-client-resilience/SPEC.md), [11](../11-local-first-mode/SPEC.md), [13](../13-bulk-add/SPEC.md), [36](../36-grammar-and-senses/SPEC.md), [49](../49-dictionary-verification/SPEC.md) |
 | **Sources** | [04 S20, S21, S22, section 3](../../docs/research/04-architecture-release.md); [06 F12, F21, F28, F29](../../docs/research/06-adversarial-qa.md); [02 C4, C5, C6, D5, D6, G1-G3, section 3 "Prompt", "Tests"](../../docs/research/02-linguistics.md); [03 E2](../../docs/research/03-browser-extension.md) |
 
 ## Problem

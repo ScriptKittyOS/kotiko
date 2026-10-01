@@ -1,0 +1,66 @@
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-License-Identifier: Apache-2.0
+
+import js from "@eslint/js";
+import globals from "globals";
+import nounsanitized from "eslint-plugin-no-unsanitized";
+
+// Words, notes and model answers are untrusted text: the extension builds DOM with
+// textContent and DOM methods, never HTML strings (research 03 E1).
+const NO_HTML_STRINGS = ["innerHTML", "outerHTML", "insertAdjacentHTML"].map((property) => ({
+  property,
+  message: "Build DOM with textContent and DOM methods; never parse strings as HTML.",
+}));
+
+export default [
+  {
+    ignores: [
+      "node_modules/",
+      "server/",
+      "test-results/",
+      "playwright-report/",
+      "blob-report/",
+      "test/fixtures/vendor/",
+    ],
+  },
+  js.configs.recommended,
+  {
+    linterOptions: { reportUnusedDisableDirectives: "error" },
+  },
+  {
+    // Extension code runs as classic scripts in the browser (content scripts, the
+    // background worker, the popup).
+    files: ["extension/**/*.js"],
+    languageOptions: {
+      ecmaVersion: 2024,
+      sourceType: "script",
+      globals: { ...globals.browser, ...globals.webextensions },
+    },
+    plugins: { "no-unsanitized": nounsanitized },
+    rules: {
+      "no-unsanitized/method": "error",
+      "no-unsanitized/property": "error",
+      "no-restricted-properties": ["error", ...NO_HTML_STRINGS],
+    },
+  },
+  {
+    // Pure modules also export themselves for Node tests when `module` exists.
+    files: ["extension/lib/**/*.js"],
+    languageOptions: { globals: { module: "readonly" } },
+  },
+  {
+    files: ["**/*.mjs", "eslint.config.js"],
+    languageOptions: {
+      ecmaVersion: 2024,
+      sourceType: "module",
+      globals: { ...globals.node },
+    },
+  },
+  {
+    // Callbacks passed to page.evaluate() run in the browser. Playwright fixtures must
+    // destructure their first argument, even when it's empty.
+    files: ["test/e2e/**/*.mjs"],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+    rules: { "no-empty-pattern": ["error", { allowObjectPatternsAsParameters: true }] },
+  },
+];

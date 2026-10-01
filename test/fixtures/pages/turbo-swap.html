@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Turbo swap fixture</title>
+</head>
+<body>
+  <!-- Slice 15 (research 06 F25): the page replaces document.body after load, like Turbo. -->
+  <p id="first">The first house before the swap.</p>
+  <button id="reopen" type="button">document.open()</button>
+  <script>
+    setTimeout(() => {
+      const next = document.createElement("body");
+      const p = document.createElement("p");
+      p.id = "second";
+      p.textContent = "A second house after the body was replaced. Thanks!";
+      const b = document.createElement("button");
+      b.id = "reopen";
+      b.type = "button";
+      b.textContent = "document.open()";
+      next.append(p, b);
+      document.documentElement.replaceChild(next, document.body);
+      wire();
+    }, 500);
+    function wire() {
+      document.getElementById("reopen").addEventListener("click", () => {
+        document.open();
+        document.write("<!doctype html><title>Rewritten</title><p id='third'>A third house, written with document.write.</p>");
+        document.close();
+      });
+    }
+    wire();
+  </script>
+</body>
+</html>

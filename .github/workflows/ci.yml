@@ -1,0 +1,116 @@
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+# SPDX-License-Identifier: Apache-2.0
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: server (${{ matrix.elixir }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { elixir: "1.15.8", otp: "26.2", current: false } # minimum supported (mix.exs: ~> 1.15)
+          - { elixir: "1.19.2", otp: "28.1", current: true }
+    defaults:
+      run:
+        working-directory: server
+    env:
+      MIX_ENV: test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          otp-version: ${{ matrix.otp }}
+          elixir-version: ${{ matrix.elixir }}
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            server/deps
+            server/_build
+          key: mix-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('server/mix.lock') }}
+          restore-keys: mix-${{ matrix.otp }}-${{ matrix.elixir }}-
+      - run: mix deps.get
+      - run: mix format --check-formatted
+        if: matrix.current
+      - run: mix compile --warnings-as-errors
+      - run: mix credo
+        if: matrix.current
+      - run: mix hex.audit
+      - run: mix deps.audit
+      - run: mix deps.unlock --check-unused
+      - run: mix test
+
+  extension:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run perf
+
+  repo:
+    name: versions and licenses
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: node scripts/check-versions.mjs
+      - run: pipx run reuse lint
+
+  shell:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: shellcheck server/*.sh
+
+  e2e:
+    needs: [extension]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          otp-version: "28.1"
+          elixir-version: "1.19.2"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            server/deps
+            server/_build
+          key: mix-28.1-1.19.2-${{ hashFiles('server/mix.lock') }}
+          restore-keys: mix-28.1-1.19.2-
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # The full-stack spec boots the real server in dev (the test config never opens a port).
+      - run: mix deps.get && mix compile
+        working-directory: server
+      - run: npm run e2e
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

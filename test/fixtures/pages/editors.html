@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Editors fixture</title>
+</head>
+<body>
+  <!-- Slice 16: places where swapping would corrupt what the user types. -->
+  <p id="outside">A house outside the editors.</p>
+  <textarea id="textarea">thanks for the house</textarea>
+  <input id="input" type="text" value="thanks for the house">
+  <div id="ce" contenteditable="true">thanks for the house</div>
+  <div id="ce-nested" contenteditable="true"><p>thanks for the <b>house</b></p></div>
+  <div id="textbox" role="textbox" aria-multiline="true" tabindex="0">thanks for the house</div>
+  <div id="cm" class="cm-editor">
+    <div class="cm-scroller">
+      <div class="cm-content" role="textbox" contenteditable="true" spellcheck="false">
+        <div class="cm-line">const house = "thanks";</div>
+        <div class="cm-line">// a house comment</div>
+      </div>
+    </div>
+  </div>
+  <p id="notranslate" translate="no">The house brand name, thanks.</p>
+</body>
+</html>

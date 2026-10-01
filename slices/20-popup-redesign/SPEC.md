@@ -142,7 +142,7 @@ presentation.
 ```
 │ ┌──────────────────────────────────────────┐ │
 │ │ Finish setting up Mira                   │ │
-│ │ Pick a language and get starter words.   │ │
+│ │ Choose your first word, in any language. │ │
 │ │ It takes under a minute.                 │ │
 │ │                        [ Get started ]   │ │
 │ └──────────────────────────────────────────┘ │
@@ -152,8 +152,8 @@ presentation.
 The Languages and This page sections are hidden.
 
 **B. Empty (onboarded, no words).** "No words yet. Type one above, in any language." and a
-quiet link "Or start with starter words" (opens [23](../23-starter-packs/SPEC.md)'s picker in
-the dashboard). This page section shows, with the meter hidden.
+quiet link "Or add a list" (opens bulk add, [13](../13-bulk-add/SPEC.md), in the
+dashboard). This page section shows, with the meter hidden.
 
 **C. Normal.** As in §1.
 

@@ -110,7 +110,7 @@ codes and messages.
 | `server_outdated` | state | "Your Mira server needs an update for this. Everything else still works." | "How to update" (docs) | missing endpoint or field, version below minimum |
 | `local_network_blocked` | blocking | "Your browser blocked Mira from reaching a server on your network. Allow it, then try again." | "How to allow" (docs) | Chrome Local Network Access failure ([03 C6](../../docs/research/03-browser-extension.md)) |
 | `permission_missing` | blocking | "Mira needs permission to read pages to swap words." | "Allow" (calls `permissions.request`) | `permissions.contains` false ([03 C4](../../docs/research/03-browser-extension.md)) |
-| `lookup_not_set_up` | info | "To look up new words, set up word lookup. Your starter words and words you type as “word = meaning” work without it." | "Set up lookups" | local mode, no provider ([11](../11-local-first-mode/SPEC.md)) |
+| `lookup_not_set_up` | info | "To look up new words, set up word lookup. Your words, and words you type as “word = meaning”, work without it." | "Set up lookups" | local mode, no provider ([11](../11-local-first-mode/SPEC.md)) |
 | `key_rejected` | blocking | "{provider} didn't accept your key. Check it in settings." | "Lookup settings" | provider 401/403 |
 | `quota_exhausted` | waiting | "You've used today's free lookups. Add words yourself, or Mira will try again {time}." | "Add it yourself" | provider 429 with daily-limit marker, or [10](../10-llm-client-resilience/SPEC.md) quota at 0 |
 | `quota_exhausted` with `details.reason: "payment_required"` | failed | "{provider} needs credit on your account before it will look up words, even free ones. Add credit there, or add words yourself." | "Add it yourself", "Open {provider}" | provider 402 ([10](../10-llm-client-resilience/SPEC.md)); no `retry_at` |
@@ -140,8 +140,8 @@ Rules for the catalog:
   a stack trace. "Access key" is the user-facing term for the server's `API_TOKEN`; "key" alone
   for a provider key, named after the provider ("your OpenRouter key").
 - Lines are whole sentences with named placeholders, never concatenated.
-- `{n}` is omitted gracefully when 0: "Your words still work on pages" becomes "Starter words
-  and words you type as “word = meaning” still work" when the list is empty.
+- `{n}` is omitted gracefully when 0: "Your words still work on pages" becomes "Words you
+  type as “word = meaning” still work" when the list is empty.
 
 ### 3. Presentation by severity
 
@@ -249,4 +249,4 @@ tell you what still works and what to do next."
 
 - Translate the catalog ([50](../50-ui-localization-and-base-language/SPEC.md)).
 - A diagnostics page in the dashboard that runs connection, key and lookup checks in one go
-  (shares the "Test" logic from [22](../22-first-run-onboarding/SPEC.md)).
+  (shares the key check from [22](../22-first-run-onboarding/SPEC.md)).

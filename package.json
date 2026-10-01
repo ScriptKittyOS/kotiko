@@ -1,0 +1,24 @@
+{
+  "name": "slovo-dev",
+  "private": true,
+  "description": "Development tooling only (tests, lint, e2e). The extension ships no npm code.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.22.2"
+  },
+  "scripts": {
+    "test": "node --test 'test/{unit,dom,bg}/**/*.test.mjs'",
+    "e2e": "playwright test",
+    "lint": "eslint . && web-ext lint --source-dir extension --self-hosted",
+    "perf": "node test/perf/run.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
+    "eslint": "10.11.0",
+    "eslint-plugin-no-unsanitized": "4.1.5",
+    "globals": "17.13.0",
+    "jsdom": "30.1.1",
+    "web-ext": "10.7.0"
+  }
+}

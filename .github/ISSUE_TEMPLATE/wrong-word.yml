@@ -1,0 +1,30 @@
+name: Wrong word or translation
+description: Mira saved the wrong word, meaning, language or pronunciation.
+labels: [word-quality]
+body:
+  - type: input
+    id: typed
+    attributes:
+      label: What you typed
+      placeholder: "shukran, how do you say dog in japanese ..."
+    validations: { required: true }
+  - type: input
+    id: language
+    attributes:
+      label: Language
+    validations: { required: true }
+  - type: textarea
+    id: saved
+    attributes:
+      label: What Mira saved
+      description: The word, pronunciation, meaning and note it showed.
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes:
+      label: What it should be
+    validations: { required: true }
+  - type: input
+    id: model
+    attributes:
+      label: Model or provider, if you know it

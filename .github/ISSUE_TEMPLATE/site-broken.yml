@@ -1,0 +1,24 @@
+name: A website breaks with Mira
+description: A site looks or works wrong while Mira is on.
+labels: [compat]
+body:
+  - type: input
+    id: url
+    attributes:
+      label: Website address
+    validations: { required: true }
+  - type: textarea
+    id: what
+    attributes:
+      label: What broke?
+    validations: { required: true }
+  - type: dropdown
+    id: pause
+    attributes:
+      label: Does "Pause on this site" fix it?
+      options: ["Yes", "No", "Didn't try"]
+    validations: { required: true }
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version

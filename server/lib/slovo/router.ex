@@ -1,8 +1,14 @@
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule Slovo.Router do
   use Plug.Router
+  use Plug.ErrorHandler
   require Logger
   alias Slovo.{LLM, Word, Words}
 
+  # First, on every route including /health: refuse names we don't answer to (DNS rebinding).
+  plug Slovo.Plug.HostCheck
   plug :match
   plug :authorize
   # Only after auth, so strangers can't make the server parse large bodies.
@@ -59,7 +65,8 @@ defmodule Slovo.Router do
   end
 
   delete "/api/words/:id" do
-    with {wid, ""} <- Integer.parse(id), %Word{} = w <- Words.get(wid) do
+    # At most 18 digits, so a huge id is a 404, not a 500 from SQLite.
+    with true <- id =~ ~r/\A\d{1,18}\z/, %Word{} = w <- Words.get(String.to_integer(id)) do
       Words.delete(w)
       json(conn, 200, %{ok: true})
     else
@@ -83,10 +90,33 @@ defmodule Slovo.Router do
     |> send_resp(status, Jason.encode!(body))
   end
 
-  # Deny by default: only the exact /health path is open. path_info is not yet
+  # Plug.Parsers' errors keep their status (413 too large, 400 bad JSON); anything else is
+  # a 500 with a reference to find in the log, never an empty body or a stack trace.
+  # Today's /api/words routes keep the {"error": "<string>"} shape older extensions read.
+  @impl Plug.ErrorHandler
+  def handle_errors(conn, %{kind: kind, reason: reason}) do
+    case conn.status do
+      413 ->
+        json(conn, 413, %{error: "That request is too large."})
+
+      s when s in 400..499 ->
+        json(conn, s, %{error: "The server couldn't read that request."})
+
+      _ ->
+        ref = Base.encode16(:crypto.strong_rand_bytes(4), case: :lower)
+        Logger.error("Request failed (ref #{ref}): #{Exception.format_banner(kind, reason)}")
+
+        json(conn, 500, %{
+          error: "Something went wrong in Slovo. Check the server log for ref #{ref}."
+        })
+    end
+  end
+
+  # Deny by default: only the exact GET or HEAD /health is open. path_info is not yet
   # percent-decoded here, but routing decodes it, so matching on ["api" | _] let
   # "/%61pi/words" through without a token.
-  defp authorize(%{path_info: ["health"]} = conn, _opts), do: conn
+  defp authorize(%{path_info: ["health"], method: m} = conn, _opts) when m in ~w(GET HEAD),
+    do: conn
 
   defp authorize(conn, _opts) do
     expected = Application.fetch_env!(:slovo, :api_token)
@@ -100,5 +130,17 @@ defmodule Slovo.Router do
     end
   end
 
-  defp deny(conn), do: conn |> send_resp(401, "unauthorized") |> halt()
+  defp deny(conn) do
+    body = %{
+      error: %{
+        code: "server_key_rejected",
+        message: "This Slovo server didn't accept the access key. Paste it again in Connection."
+      }
+    }
+
+    conn
+    |> put_resp_header("www-authenticate", "Bearer")
+    |> json(401, body)
+    |> halt()
+  end
 end

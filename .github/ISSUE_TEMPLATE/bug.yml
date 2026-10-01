@@ -1,0 +1,43 @@
+name: Something isn't working
+description: Mira did something wrong or broke.
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Mira version
+      description: Shown on your browser's extensions page.
+    validations: { required: true }
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: Chrome 141, Firefox 143, Brave ...
+    validations: { required: true }
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Where do your words live?
+      options: [In the extension, On my own server, Not sure]
+    validations: { required: true }
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to make it happen again
+      placeholder: "1. ...\n2. ..."
+  - type: input
+    id: site
+    attributes:
+      label: Website where it happened (optional)
+  - type: checkboxes
+    id: secrets
+    attributes:
+      label: Before you send
+      options:
+        - label: I removed API keys and tokens from anything I pasted.
+          required: true

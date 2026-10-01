@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Iframes fixture</title>
+</head>
+<body>
+  <!-- Slice 42 (research 06 F26): same-origin, srcdoc and about:blank frames, a tiny ad frame. -->
+  <p id="top">A house in the top document.</p>
+  <iframe id="same" src="frame-child.html" title="same-origin" width="400" height="80"></iframe>
+  <iframe id="srcdoc" title="srcdoc" width="400" height="80"
+          srcdoc="<p id='inner'>A house inside a srcdoc frame.</p>"></iframe>
+  <iframe id="blank" src="about:blank" title="about:blank" width="400" height="80"></iframe>
+  <iframe id="ad" title="ad" width="1" height="1"
+          srcdoc="<p>Thanks for the click! A house ad.</p>"></iframe>
+  <script>
+    // Fill the about:blank frame from the parent, as ad and widget scripts do.
+    const blank = document.getElementById("blank");
+    const fill = () => {
+      const d = blank.contentDocument;
+      if (!d || !d.body) return;
+      const p = d.createElement("p");
+      p.id = "written";
+      p.textContent = "A house written into about:blank by the parent.";
+      d.body.append(p);
+    };
+    if (blank.contentDocument?.readyState === "complete") fill();
+    else blank.addEventListener("load", fill, { once: true });
+  </script>
+</body>
+</html>

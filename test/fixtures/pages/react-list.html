@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>React list fixture</title>
+</head>
+<body>
+  <!--
+    Slice 15 (framework-safe swapping, research 06 F02/F03).
+    Meant to be a React 18 production UMD app loaded from /vendor/ (vendored, MIT, with
+    LICENSE) that re-renders a list containing known words every 200 ms and unmounts it.
+    Vendoring React is deferred to slice 15; until then this page imitates React's text
+    node bookkeeping by hand so the page exists and loads offline.
+  -->
+  <div id="root"></div>
+  <p id="errors"></p>
+  <script>
+    // Keeps references to its own text nodes and updates them in place, as React does.
+    const root = document.getElementById("root");
+    const errors = document.getElementById("errors");
+    window.addEventListener("error", (e) => { errors.textContent += e.message + "\n"; });
+    let tick = 0;
+    let items = null;
+    function mount() {
+      const ul = document.createElement("ul");
+      items = ["house", "thanks", "dog"].map((w) => {
+        const li = document.createElement("li");
+        const lead = document.createTextNode("You have ");
+        const count = document.createTextNode("0");
+        const tail = document.createTextNode(" new messages about the " + w);
+        li.append(lead, count, tail);
+        ul.append(li);
+        return { li, count, tail, w };
+      });
+      root.append(ul);
+    }
+    function update() {
+      tick++;
+      for (const it of items) {
+        it.count.nodeValue = String(tick);
+        it.tail.nodeValue = " new messages about the " + it.w;
+      }
+      if (tick % 10 === 0) {
+        try {
+          for (const it of items) it.li.removeChild(it.tail); // React's unmount path
+          root.replaceChildren();
+          mount();
+        } catch (e) {
+          errors.textContent += e.name + ": " + e.message + "\n";
+        }
+      }
+    }
+    mount();
+    setInterval(update, 200);
+  </script>
+</body>
+</html>

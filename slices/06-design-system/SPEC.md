@@ -501,7 +501,7 @@ Error: `--danger` border plus a message below with the danger icon, linked by
   `--on-primary`. `role="switch"` or `aria-pressed` per screen spec.
 - Filter chip: same shapes; removable chips have a 24 × 24 remove button labelled
   "Remove {name}".
-- Status chip (paused, new, pack): `--sunken` with icon and word.
+- Status chip (paused, new): `--sunken` with icon and word.
 
 **Toggle** (`.switch`): track 36 × 20, thumb 16, `--r-full`; off: `--surface` track with
 1 px `--border`, thumb `--ink-3`; on: `--primary` track, `--on-primary` thumb with a check glyph.
@@ -531,7 +531,7 @@ marks.
 
 **Milestone card** (`.milestone`): `--orange-soft` background, a 4 px `--orange` inline-start
 bar, the glyph at 24 px, one line in `--t-body-strong` `--ink`. Used only by
-[32](../32-page-coverage-and-celebrations/SPEC.md) and the welcome page's done state.
+[32](../32-page-coverage-and-celebrations/SPEC.md) and the welcome page's first-word celebration.
 
 **Meter** (`.meter`): 6 px track of `--divider` dots, fill `--orange` (overall) or the
 language color; always paired with a numeric label; `role="meter"` with `aria-valuenow`

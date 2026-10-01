@@ -1,0 +1,20 @@
+{
+  "matcher.build.1k": {
+    "budget_ms": 5,
+    "ci_factor": 3
+  },
+  "matcher.scan.250kb.1k": {
+    "budget_ms": 60,
+    "ci_factor": 3
+  },
+  "matcher.build.10k": {
+    "budget_ms": 30,
+    "ci_factor": 3
+  },
+  "matcher.scan.250kb.10k": {
+    "budget_ms": 15000,
+    "ci_factor": 3,
+    "target_ms": 50,
+    "note": "Today's single alternation regex takes about 7.5 s here (research 06 F24). Slice 14 brings it under target_ms and tightens budget_ms to match."
+  }
+}

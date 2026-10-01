@@ -90,7 +90,7 @@ affect Mira and how each is met; the owning slice implements, this slice verifie
 | 3.1.1 / 3.1.2 Language of page and parts | `<html lang>` on every extension page is the UI language; every native word has an accurate `lang` (08 tags) | all, 15 |
 | 3.2.6 Consistent help | Help links (docs, report a problem) live in the same place: dashboard Settings → About and the popup's settings button | 21 |
 | 3.3.1 / 3.3.3 Error identification and suggestion | Errors name the field and the fix, with an icon, linked by `aria-describedby` | 25 |
-| 3.3.7 Redundant entry | Bulk add and onboarding remember choices already made (batch language, chosen languages) | 13, 22 |
+| 3.3.7 Redundant entry | Bulk add and onboarding remember choices already made (batch language, the connected AI) | 13, 22 |
 | 3.3.8 Accessible authentication | Key and access-key fields allow paste and password managers; "Show" toggles visibility | 11, 22 |
 | 4.1.2 Name, role, value | Native elements first; custom widgets use the ARIA patterns in §3 | all |
 | 4.1.3 Status messages | Add results, toasts and milestone messages are `role="status"` (polite) and never move focus; only blocking errors after a user action use `role="alert"` | 24, 25, 32 |
@@ -127,7 +127,7 @@ the shortcut stays the faster path on long pages.
 
 **Find in page** can't find swapped words ([03 D6](../../docs/research/03-browser-extension.md)).
 33's "Show the original English on this tab" command (Alt+Shift+O) restores the page for
-searching; onboarding mentions it ([22 §5](../22-first-run-onboarding/SPEC.md)).
+searching; onboarding mentions it ([22 §8](../22-first-run-onboarding/SPEC.md)).
 
 ### 3. Widget patterns
 
@@ -142,7 +142,7 @@ searching; onboarding mentions it ([22 §5](../22-first-run-onboarding/SPEC.md))
 | Menus (⋯, language picker) | Menu button with `aria-expanded`, `role="menu"` or a listbox combobox for searchable pickers | ↑/↓, type-ahead, Esc |
 | Toasts | `role="status"`, never focused | Esc dismisses the newest |
 | Bulk add review table | `role="grid"` with editable cells (Enter edits, Esc cancels) | Arrows move between cells |
-| Welcome steps | `section` with `h2`, choice groups in `fieldset` | Standard |
+| Welcome conversation | Mira's lines in a polite `role="log"`, choice groups in `fieldset` | Standard |
 
 ### 4. Motion and sensory
 
@@ -172,9 +172,10 @@ Rules for content scripts, beyond the popover:
 
 - **Automated (CI, [02](../02-test-harness-and-ci/SPEC.md)):** axe-core via Playwright on
   `popup.html` (every state from [20](../20-popup-redesign/SPEC.md)), `dashboard.html`
-  (list, inspector, settings, bulk add, packs), `welcome.html`, and the popover and toast on
-  three fixture pages (light, dark, RTL), in light and dark themes; zero violations of
-  WCAG 2.2 A and AA rules. A keyboard-traversal script per page asserts every interactive
+  (list, inspector, settings, bulk add), `welcome.html` (every state from
+  [22](../22-first-run-onboarding/SPEC.md)), and the popover and toast on three fixture
+  pages (light, dark, RTL), in light and dark themes; zero violations of WCAG 2.2 A and AA
+  rules. A keyboard-traversal script per page asserts every interactive
   element is reachable, has a visible focus ring (screenshot diff of the focused element) and
   is never covered by a sticky element. Reflow test at 320 px. Reduced-motion test with
   `document.getAnimations()`.
