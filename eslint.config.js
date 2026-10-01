@@ -44,6 +44,12 @@ export default [
     },
   },
   {
+    // The background script runs as a service worker in Chrome (importScripts) and as an
+    // event page in Firefox.
+    files: ["extension/background.js"],
+    languageOptions: { globals: { importScripts: "readonly" } },
+  },
+  {
     // Pure modules also export themselves for Node tests when `module` exists.
     files: ["extension/lib/**/*.js"],
     languageOptions: { globals: { module: "readonly" } },

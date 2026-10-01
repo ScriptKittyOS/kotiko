@@ -89,6 +89,15 @@ export function runInVm(rel, globals = {}) {
     ...globals,
   });
   ctx.self = ctx;
+  // importScripts, as in a service worker: paths resolve against the script's folder.
+  if (!("importScripts" in globals)) {
+    ctx.importScripts = (...urls) => {
+      for (const url of urls) {
+        const file = path.posix.join(path.posix.dirname(rel), url);
+        vm.runInContext(readExt(file), ctx, { filename: extPath(file) });
+      }
+    };
+  }
   vm.runInContext(readExt(rel), ctx, { filename: extPath(rel) });
   return ctx;
 }

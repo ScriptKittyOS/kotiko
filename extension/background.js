@@ -3,100 +3,180 @@
 
 // Pulls your active words (every language) from the Slovo server and caches them for
 // content scripts. Which languages show is decided locally, so switching is instant.
+//
+// The libraries load through importScripts in Chrome's service worker, and through the
+// manifest's background.scripts list (before this file) in Firefox's event page.
+if (!globalThis.SyncController && typeof importScripts === "function") {
+  importScripts("lib/url.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js");
+}
+
 const ext = globalThis.browser ?? globalThis.chrome;
+const { normalizeServerUrl } = globalThis.ServerUrl;
+const { validateWordsResponse, filterWords } = globalThis.WordValidator;
+const { createSyncController } = globalThis.SyncController;
+const { createMessageRouter, checks } = globalThis.MessageRouter;
 
 const DEFAULTS = { serverUrl: "http://localhost:4747", token: "" };
-let inflight = null;
+const ALARM = "slovo-sync";
+// Inside Chrome's 30 s limit for a fetch in a service worker.
+const ADD_TIMEOUT_MS = 28_000;
 
-async function api(path, init = {}) {
+const codedError = (code, message, details = {}) => Object.assign(new Error(message), { code, details });
+
+// Resolves the stored address and token into a request base, or throws a coded error.
+async function connection() {
   const s = await ext.storage.local.get(DEFAULTS);
-  if (!s.token) throw new Error("Paste your API token to connect.");
-  const base = s.serverUrl.trim().replace(/\/+$/, "");
-  let res;
+  const token = String(s.token ?? "").trim();
+  if (!token) throw codedError("server_key_rejected", "Paste your API token to connect.", { reason: "no_token" });
+  const n = normalizeServerUrl(s.serverUrl);
+  if (!n.ok) throw codedError(n.code, n.hint, { hint: n.hint });
+  return { base: n.url, token };
+}
+
+// Calls the server and returns the raw response. Network failures become coded errors.
+async function request(conn, path, init = {}) {
   try {
-    res = await fetch(`${base}${path}`, {
+    return await fetch(`${conn.base}${path}`, {
       ...init,
-      headers: { Authorization: `Bearer ${s.token.trim()}`, ...init.headers },
+      headers: { Authorization: `Bearer ${conn.token}`, ...init.headers },
       cache: "no-store",
     });
-  } catch {
-    throw new Error(`Can't reach ${s.serverUrl}. Is the server running?`);
+  } catch (e) {
+    if (e?.name === "TimeoutError") {
+      throw codedError("server_unreachable", `${conn.base} took too long to answer.`, { reason: "timeout" });
+    }
+    if (e?.name === "AbortError") throw e;
+    throw codedError("server_unreachable", `Can't reach ${conn.base}. Is the server running?`, {
+      reason: "network",
+    });
   }
-  if (res.status === 401) throw new Error("The server rejected that API token.");
+}
+
+// For add and remove: the parsed body, or an error with the server's own message.
+async function api(path, init = {}) {
+  const res = await request(await connection(), path, { ...init, signal: AbortSignal.timeout(ADD_TIMEOUT_MS) });
+  if (res.status === 401) throw codedError("server_key_rejected", "The server rejected that API token.");
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error || `The server answered ${res.status}.`);
+  if (!res.ok) throw codedError("http_error", body.error || `The server answered ${res.status}.`, { status: res.status });
   return body;
 }
 
-function sync() {
-  if (inflight) return inflight;
-  inflight = (async () => {
-    try {
-      const { words } = await api("/api/words");
+const sameId = (a, b) => String(a) === String(b);
 
-      // Only write words when they changed, so open tabs don't redo work every minute.
-      const { words: old = [] } = await ext.storage.local.get("words");
-      const patch = { lastSync: Date.now(), syncError: null };
-      if (JSON.stringify(old) !== JSON.stringify(words)) patch.words = words;
-      await ext.storage.local.set(patch);
-    } catch (e) {
-      await ext.storage.local.set({ syncError: e.message });
+const sync = createSyncController({
+  now: () => Date.now(),
+  async readCreds() {
+    return ext.storage.local.get(DEFAULTS);
+  },
+  async fetchWords(_creds, signal) {
+    // Read the settings again here, so an address that fails to parse reports
+    // server_address_invalid instead of "can't reach".
+    const conn = await connection();
+    const res = await request(conn, "/api/words", { signal });
+    return { status: res.status, contentType: res.headers.get("content-type") ?? "", body: await res.text() };
+  },
+  validate: validateWordsResponse,
+  async writeResult(result) {
+    if (!result.ok) {
+      const { code, message, details } = result;
+      await ext.storage.local.set({ syncError: { code, message, details, at: Date.now() } });
+      return;
     }
-  })().finally(() => {
-    inflight = null;
-  });
-  return inflight;
-}
+    // Only write words when they changed, so open tabs don't redo work every minute.
+    const { words: old = [] } = await ext.storage.local.get("words");
+    const patch = {
+      lastSync: Date.now(),
+      syncError: null,
+      syncWarnings: result.dropped ? { dropped: result.dropped, reasons: result.reasons } : null,
+    };
+    if (JSON.stringify(old) !== JSON.stringify(result.words)) patch.words = result.words;
+    if (result.dropped) console.warn("Skipped words the server sent that can't be shown:", result.reasons);
+    await ext.storage.local.set(patch);
+  },
+});
 
+// Runs at every worker start, including after the extension is re-enabled, when neither
+// onInstalled nor onStartup fires (research 06 F39). Cheap and idempotent.
 function ensureAlarm() {
-  ext.alarms.create("slovo-sync", { periodInMinutes: 1 });
+  return Promise.resolve(ext.alarms.get(ALARM))
+    .then((a) => a || ext.alarms.create(ALARM, { periodInMinutes: 1 }))
+    .catch(() => {});
 }
+ensureAlarm();
 
 ext.runtime.onInstalled.addListener(() => {
   ensureAlarm();
-  sync();
+  sync.request({ reason: "installed" });
 });
 ext.runtime.onStartup.addListener(() => {
   ensureAlarm();
-  sync();
+  sync.request({ reason: "startup" });
 });
 ext.alarms.onAlarm.addListener((a) => {
-  if (a.name === "slovo-sync") sync();
+  if (a.name === ALARM) sync.request({ reason: "alarm" });
 });
 
-// Content scripts ask for a sync on every page load; popup asks with force.
+// Content scripts ask for a sync on every page load; the popup asks with force.
 // The popup's "Add a word" box and its Undo go through here too, so they finish
-// even if the popup closes while the model is thinking.
-ext.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  const handlers = {
-    async sync() {
-      const { lastSync } = await ext.storage.local.get("lastSync");
-      if (msg.force || !lastSync || Date.now() - lastSync > 5000) await sync();
-      return { ok: true };
+// even if the popup closes while the model is thinking. Only extension pages may add
+// or remove words (research 03 E3).
+ext.runtime.onMessage.addListener(
+  createMessageRouter({
+    runtime: ext.runtime,
+    handlers: {
+      sync: {
+        from: ["page", "content"],
+        async run(msg) {
+          await sync.request(msg.force ? { reason: "manual", force: true } : { reason: "page" });
+          return { ok: true };
+        },
+      },
+      add: {
+        from: ["page"],
+        check: (msg) => checks.text(msg.text),
+        async run(msg) {
+          const res = await api("/api/words", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: msg.text }),
+          });
+          // Show the new words right away; the follow-up sync is authoritative.
+          const added = Array.isArray(res.words) ? filterWords(res.words).words : [];
+          await sync.update(
+            async () => {
+              if (!added.length) return;
+              const { words = [] } = await ext.storage.local.get("words");
+              const rest = words.filter((w) => !added.some((a) => sameId(a.id, w.id)));
+              await ext.storage.local.set({ words: [...added, ...rest] });
+            },
+            { reason: "add" },
+          );
+          return res;
+        },
+      },
+      remove: {
+        from: ["page"],
+        check: (msg) => checks.id(msg.id),
+        async run(msg) {
+          await api(`/api/words/${encodeURIComponent(msg.id)}`, { method: "DELETE" });
+          await sync.update(
+            async () => {
+              const { words = [] } = await ext.storage.local.get("words");
+              const rest = words.filter((w) => !sameId(w.id, msg.id));
+              if (rest.length !== words.length) await ext.storage.local.set({ words: rest });
+            },
+            { reason: "remove" },
+          );
+          return { ok: true };
+        },
+      },
     },
-    async add() {
-      const res = await api("/api/words", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: msg.text }),
-      });
-      await sync();
-      return res;
-    },
-    async remove() {
-      await api(`/api/words/${encodeURIComponent(msg.id)}`, { method: "DELETE" });
-      await sync();
-      return { ok: true };
-    },
-  };
-  const handler = handlers[msg?.type];
-  if (!handler) return;
-  handler().then(sendResponse, (e) => sendResponse({ error: e.message }));
-  return true;
-});
+  }),
+);
 
-// Re-sync when connection settings change.
+// New connection settings cancel the request made with the old ones and start over, so a
+// slow answer for the old token can't overwrite the new result (research 06 F11).
 ext.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
-  if (changes.token || changes.serverUrl) sync();
+  if (changes.token || changes.serverUrl) sync.credentialsChanged();
 });
