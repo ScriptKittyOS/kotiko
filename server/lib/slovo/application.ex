@@ -2,54 +2,61 @@
 # SPDX-License-Identifier: Apache-2.0
 
 defmodule Slovo.Application do
-  @moduledoc "Starts the database, the HTTP API and, when configured, the Telegram bot."
+  @moduledoc """
+  Starts the database, the HTTP API and, when configured, the Telegram bot.
+
+  Boot order (later slices plug their steps in here):
+
+    1. `Slovo.Config.load!/0`      parse and check the settings; exit 78 on a mistake
+    2. data folder                 (slice 04 moves and migrates it here)
+    3. API token                   from API_TOKEN, the saved file, or a new one
+    4. `Slovo.Migrations.run!/0`   migrate on one connection, before the pool opens
+    5. startup summary             version, data, who can reach it, model, bot
+    6. the supervision tree        Repo, tasks, HTTP, bot
+
+  The log filter that keeps keys out of the logs goes in first of all.
+  """
   use Application
   require Logger
-  alias Slovo.{Exposure, Token}
+  alias Slovo.{Config, Exposure, Token}
+  alias Slovo.Log.Redact
 
   @impl true
   def start(_type, _args) do
-    load_token()
-
-    Application.get_env(:slovo, :llm_api_key) ||
-      Logger.warning(
-        "LLM_API_KEY is not set; adding words will fail unless LLM_URL needs no key."
-      )
-
+    Redact.install()
+    Config.load!()
+    token_source = load_token()
+    Redact.put_secrets(Redact.configured_secrets())
     Slovo.Plug.HostCheck.init_table()
+    words = Slovo.Migrations.run!()
+    http = http_settings()
+    log_summary(token_source, words, http)
 
     children =
-      [
-        Slovo.Repo,
-        {Ecto.Migrator, repos: [Slovo.Repo]},
-        {Task.Supervisor, name: Slovo.TaskSup}
-      ] ++ http_children() ++ bot_child()
+      [Slovo.Repo, {Task.Supervisor, name: Slovo.TaskSup}] ++
+        http_children(http) ++ bot_child()
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Slovo.Supervisor)
   end
 
-  # API_TOKEN, else the saved token file, else a new one. Stops boot if it's too short.
+  # API_TOKEN, else the saved token file, else a new one. Config.load! has already
+  # checked API_TOKEN; what can still go wrong is the saved file.
   defp load_token do
     data_dir = Application.fetch_env!(:slovo, :data_dir)
-    File.mkdir_p!(data_dir)
 
     case Token.resolve(Application.get_env(:slovo, :api_token), data_dir) do
       {:ok, token, source} ->
         Application.put_env(:slovo, :api_token, token)
-        announce_token(source, token)
+        if match?({:generated, _}, source), do: print_new_token(token)
+        source
 
       {:error, message} ->
-        raise message
+        Config.abort!([{"API token", [message]}])
     end
   end
 
-  defp announce_token(:env, _token), do: Logger.info("API token: from .env")
-  defp announce_token({:file, path}, _token), do: Logger.info("API token: saved in #{path}")
-
-  defp announce_token({:generated, path}, token) do
-    Logger.info("API token: saved in #{path}")
-
-    # Only to an interactive terminal, never to journald or a log file.
+  # Only to an interactive terminal, never to journald or a log file.
+  defp print_new_token(token) do
     if Keyword.get(io_opts(), :stdout, false) do
       IO.puts("\nNew API token (paste it into the extension's Connection settings):\n#{token}\n")
     end
@@ -62,28 +69,93 @@ defmodule Slovo.Application do
     end
   end
 
-  defp http_children do
+  defp http_settings do
     if Application.get_env(:slovo, :start_http, true) do
       port = Application.fetch_env!(:slovo, :port)
-      bind = Application.fetch_env!(:slovo, :bind)
-      {:ok, ip} = :inet.parse_address(String.to_charlist(bind))
-
-      Logger.info("Slovo API on http://#{bind}:#{port}")
+      ip = Application.get_env(:slovo, :bind_ip) || bind_ip()
       url = Exposure.server_url(Application.get_env(:slovo, :public_url), ip, port)
-      {level, class, message} = Exposure.classify(ip, url)
-      Logger.log(level, message)
+      %{ip: ip, port: port, exposure: Exposure.classify(ip, url)}
+    end
+  end
 
-      if Application.get_env(:slovo, :allowed_hosts) == :any do
-        Logger.warning(
-          "ALLOWED_HOSTS=* turns off the Host check, so web pages can reach this server " <>
-            "through DNS rebinding. Use it only behind a proxy that checks Host itself."
-        )
+  defp bind_ip do
+    {:ok, ip} = Config.parse_bind(Application.fetch_env!(:slovo, :bind))
+    ip
+  end
+
+  defp log_summary(token_source, words, http) do
+    {listen_line, exposure_warning} =
+      case http do
+        nil -> {"HTTP API: off", nil}
+        %{exposure: {:info, _class, message}} -> {message, nil}
+        %{exposure: {:warning, _class, message}} -> {"See the warning below.", message}
       end
 
-      [{Bandit, plug: Slovo.Router, ip: ip, port: port}] ++ repeat_public_warning(class, message)
-    else
-      []
+    Logger.info(Enum.join(summary_lines(token_source, words, listen_line), "\n  "))
+    if exposure_warning, do: Logger.warning(exposure_warning)
+
+    if Application.get_env(:slovo, :allowed_hosts) == :any do
+      Logger.warning(
+        "ALLOWED_HOSTS=* turns off the Host check, so web pages can reach this server " <>
+          "through DNS rebinding. Use it only behind a proxy that checks Host itself."
+      )
     end
+  end
+
+  @doc false
+  # One info block: everything someone needs to see the server is set up as they meant.
+  def summary_lines(token_source, words, listen_line) do
+    data_dir = Application.fetch_env!(:slovo, :data_dir)
+    database = Application.fetch_env!(:slovo, Slovo.Repo)[:database]
+
+    [
+      "Starting the server, version #{Slovo.Health.version()}",
+      "Data:      #{data_dir} (#{Path.basename(database)}, #{plural(words, "active word")})",
+      "Listening: #{listen_line}",
+      "API token: #{token_line(token_source)}",
+      "Model:     #{model_line()}",
+      "Telegram:  #{telegram_line()}",
+      "Voice notes: #{if Slovo.Transcriber.configured?(), do: "on", else: "off (TRANSCRIBE_URL is empty)"}"
+    ]
+  end
+
+  defp token_line(:env), do: "from .env"
+  defp token_line({_saved_or_generated, path}), do: "saved in #{path}"
+
+  defp model_line do
+    url = Application.fetch_env!(:slovo, :llm_url)
+    models = Application.fetch_env!(:slovo, :llm_models)
+    provider = if Config.openrouter?(url), do: "OpenRouter", else: url
+
+    source =
+      case Application.get_env(:slovo, :llm_model_source, :env) do
+        :default -> "the built-in list of free models"
+        :env -> "LLM_MODEL"
+      end
+
+    "#{provider}, #{plural(length(models), "model")} from #{source}"
+  end
+
+  defp telegram_line do
+    cond do
+      is_nil(Application.get_env(:slovo, :telegram_token)) ->
+        "off (TELEGRAM_BOT_TOKEN is empty)"
+
+      Application.get_env(:slovo, :allowed_ids, []) == [] ->
+        "on, waiting for ALLOWED_TELEGRAM_IDS (message the bot and it tells you your ID)"
+
+      true ->
+        "on, #{plural(length(Application.get_env(:slovo, :allowed_ids)), "allowed account")}"
+    end
+  end
+
+  defp plural(1, noun), do: "1 #{noun}"
+  defp plural(n, noun), do: "#{n} #{noun}s"
+
+  defp http_children(nil), do: []
+
+  defp http_children(%{ip: ip, port: port, exposure: {_level, class, message}}) do
+    [{Bandit, plug: Slovo.Router, ip: ip, port: port}] ++ repeat_public_warning(class, message)
   end
 
   # Reachable from the internet: say so again every day, not just once at boot.
@@ -100,11 +172,6 @@ defmodule Slovo.Application do
   end
 
   defp bot_child do
-    if Application.get_env(:slovo, :telegram_token) do
-      [Slovo.Bot]
-    else
-      Logger.warning("TELEGRAM_BOT_TOKEN not set; running the API without the bot.")
-      []
-    end
+    if Application.get_env(:slovo, :telegram_token), do: [Slovo.Bot], else: []
   end
 end

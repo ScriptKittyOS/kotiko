@@ -12,7 +12,8 @@ defmodule Slovo.MixProject do
       # x-release-please-end
       elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
-      start_permanent: Mix.env() == :prod,
+      # The VM exits when the app stops, so systemd (or Docker) restarts it.
+      start_permanent: true,
       deps: deps(),
       aliases: aliases()
     ]
