@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Slovo",
-  "version": "0.1.0",
-  "description": "Swaps English words on web pages for the Russian or Chinese words you've learned.",
+  "version": "0.2.0",
+  "description": "Swaps English words on web pages for the words you're learning, in any language.",
   "permissions": ["storage", "alarms"],
   "host_permissions": ["<all_urls>"],
   "background": {

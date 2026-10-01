@@ -1,5 +1,6 @@
-// Replaces English words on the page with the words you've marked as known.
-// Hover a swapped word to see the English, romanization and note.
+// Replaces English words on the page with the words you've marked as known, in every
+// language you haven't hidden. When several languages know the same English word, the
+// page rotates between them. Hover a swapped word to see the English and all of them.
 (() => {
   const ext = globalThis.browser ?? globalThis.chrome;
   const MARK = "slovo-w";
@@ -9,7 +10,7 @@
   ]);
   const host = location.hostname;
 
-  let state = { words: [], enabled: true, pausedHosts: [] };
+  let state = { words: [], enabled: true, pausedHosts: [], hiddenLangs: [] };
   let matcher = null;
   let observer = null;
   const pending = new Set();
@@ -18,19 +19,36 @@
   const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const norm = (s) => s.toLowerCase().replace(/\s+/g, " ").trim();
 
-  function buildMatcher(words) {
+  let names = null;
+  function languageName(w) {
+    if (w.language) return w.language;
+    try {
+      names ??= new Intl.DisplayNames(["en"], { type: "language" });
+      return names.of(w.lang);
+    } catch {
+      return w.lang;
+    }
+  }
+
+  // English form -> candidate words, at most one per language.
+  function buildMatcher(words, hidden) {
     const map = new Map();
     for (const w of words) {
+      if (hidden.has(w.lang)) continue;
       for (const f of w.forms?.length ? w.forms : [w.english]) {
         const k = norm(f || "");
-        if (k && !map.has(k)) map.set(k, w); // server sends newest first; newest wins
+        if (!k) continue;
+        const list = map.get(k) ?? map.set(k, []).get(k);
+        // server sends newest first; newest wins within a language
+        if (!list.some((c) => c.lang === w.lang)) list.push(w);
       }
     }
     if (!map.size) return null;
     const alts = [...map.keys()]
       .sort((a, b) => b.length - a.length)
       .map((k) => escapeRe(k).replace(/ /g, "\\s+"));
-    return { re: new RegExp(`\\b(?:${alts.join("|")})\\b`, "gi"), map };
+    // turns: how many times each English word has been swapped, to rotate its languages
+    return { re: new RegExp(`\\b(?:${alts.join("|")})\\b`, "gi"), map, turns: new Map() };
   }
 
   function matchCase(src, out) {
@@ -39,15 +57,23 @@
     return out;
   }
 
-  function tooltip(en, w) {
-    const head = w.romanization ? `${en}  (${w.romanization})` : en;
-    return w.note ? `${head}\n${w.note}` : head;
+  function describe(w) {
+    const name = languageName(w);
+    return w.romanization ? `${w.native} (${w.romanization}) · ${name}` : `${w.native} · ${name}`;
+  }
+
+  function tooltip(en, w, all) {
+    const lines = [`${en} = ${describe(w)}`];
+    if (w.note) lines.push(w.note);
+    const others = all.filter((c) => c !== w);
+    if (others.length) lines.push("", ...others.map(describe));
+    return lines.join("\n");
   }
 
   function processText(node) {
     const text = node.nodeValue;
     if (!text || text.length < 2 || !node.parentNode) return;
-    const { re, map } = matcher;
+    const { re, map, turns } = matcher;
     re.lastIndex = 0;
     if (!re.test(text)) return;
     re.lastIndex = 0;
@@ -56,14 +82,18 @@
     let last = 0;
     let m;
     while ((m = re.exec(text))) {
-      const w = map.get(norm(m[0]));
-      if (!w) continue;
+      const all = map.get(norm(m[0]));
+      if (!all) continue;
+      const turn = turns.get(all) ?? 0;
+      turns.set(all, turn + 1);
+      const w = all[turn % all.length];
       if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
       const span = document.createElement("span");
       span.className = MARK;
       span.dataset.en = m[0];
       span.lang = w.lang;
-      span.title = tooltip(m[0], w);
+      span.dir = "auto"; // isolates right-to-left words (Arabic, Hebrew) from the English around them
+      span.title = tooltip(m[0], w, all);
       span.textContent = matchCase(m[0], w.native);
       frag.appendChild(span);
       last = m.index + m[0].length;
@@ -113,7 +143,7 @@
   function apply() {
     unwrapAll();
     const on = state.enabled && !(state.pausedHosts || []).includes(host);
-    matcher = on ? buildMatcher(state.words || []) : null;
+    matcher = on ? buildMatcher(state.words || [], new Set(state.hiddenLangs || [])) : null;
     if (matcher) walk(document.body);
     observer?.takeRecords(); // ignore the mutations we just caused
   }
@@ -140,7 +170,7 @@
   }
 
   async function init() {
-    state = await ext.storage.local.get({ words: [], enabled: true, pausedHosts: [] });
+    state = await ext.storage.local.get(state);
     observer = new MutationObserver(onMutations);
     apply();
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
@@ -148,7 +178,7 @@
     ext.storage.onChanged.addListener((changes, area) => {
       if (area !== "local") return;
       let dirty = false;
-      for (const k of ["words", "enabled", "pausedHosts"]) {
+      for (const k of ["words", "enabled", "pausedHosts", "hiddenLangs"]) {
         if (changes[k]) {
           state[k] = changes[k].newValue ?? state[k];
           dirty = true;

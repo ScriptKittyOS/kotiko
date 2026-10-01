@@ -4,15 +4,16 @@ const $ = (id) => document.getElementById(id);
 const DEFAULTS = {
   serverUrl: "http://localhost:4747",
   token: "",
-  lang: "ru",
   enabled: true,
   pausedHosts: [],
+  hiddenLangs: [],
   words: [],
   lastSync: null,
   syncError: null,
 };
 
 let host = null;
+let names = null;
 
 function ago(ts) {
   const s = Math.round((Date.now() - ts) / 1000);
@@ -22,12 +23,90 @@ function ago(ts) {
   return `${Math.round(s / 3600)} h ago`;
 }
 
+function languageName(code, fallback) {
+  if (fallback) return fallback;
+  try {
+    names ??= new Intl.DisplayNames(["en"], { type: "language" });
+    return names.of(code);
+  } catch {
+    return code;
+  }
+}
+
+// [{lang, name, count}] in the order you first see them: most words first.
+function languages(words) {
+  const by = new Map();
+  for (const w of words) {
+    const l = by.get(w.lang) ?? by.set(w.lang, { lang: w.lang, name: null, count: 0 }).get(w.lang);
+    l.count++;
+    l.name ??= w.language;
+  }
+  return [...by.values()]
+    .map((l) => ({ ...l, name: languageName(l.lang, l.name) }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+}
+
+function setHidden(hiddenLangs) {
+  return ext.storage.local.set({ hiddenLangs: [...new Set(hiddenLangs)] });
+}
+
+function renderLangs(s) {
+  const list = $("langs");
+  const langs = languages(s.words);
+  const hidden = new Set(s.hiddenLangs);
+  list.replaceChildren();
+
+  if (!langs.length) {
+    const li = document.createElement("li");
+    li.className = "empty";
+    li.textContent = "No words yet. Add one above, in any language.";
+    list.append(li);
+  }
+
+  for (const l of langs) {
+    const li = document.createElement("li");
+    const id = `lang-${l.lang}`;
+
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.id = id;
+    box.checked = !hidden.has(l.lang);
+    box.addEventListener("change", () =>
+      setHidden(box.checked ? s.hiddenLangs.filter((x) => x !== l.lang) : [...s.hiddenLangs, l.lang]),
+    );
+
+    const label = document.createElement("label");
+    label.htmlFor = id;
+    label.textContent = l.name;
+
+    const n = document.createElement("span");
+    n.className = "n";
+    n.textContent = l.count;
+
+    const only = document.createElement("button");
+    only.className = "link";
+    only.textContent = "only";
+    only.title = `Show only ${l.name}`;
+    only.addEventListener("click", () => setHidden(langs.map((x) => x.lang).filter((x) => x !== l.lang)));
+
+    li.append(box, label, n, only);
+    list.append(li);
+  }
+
+  // Forget hidden languages that no longer have words, so a language you remove and later
+  // start again doesn't come back hidden. Only trust the word list after a good sync.
+  const stale = s.hiddenLangs.filter((x) => !langs.some((l) => l.lang === x));
+  if (stale.length && s.lastSync && !s.syncError) setHidden(s.hiddenLangs.filter((x) => !stale.includes(x)));
+
+  $("showAll").hidden = !langs.some((l) => hidden.has(l.lang));
+}
+
 async function render() {
   const s = await ext.storage.local.get(DEFAULTS);
-  $("lang").value = s.lang;
   $("enabled").checked = s.enabled;
-  $("serverUrl").value = s.serverUrl;
-  $("token").value = s.token;
+  // Don't overwrite a connection field you're typing in when a sync lands.
+  for (const k of ["serverUrl", "token"]) if (document.activeElement !== $(k)) $(k).value = s[k];
+  renderLangs(s);
 
   const paused = $("paused");
   if (host) {
@@ -55,6 +134,46 @@ async function render() {
   }
 }
 
+// "Added شكرا (shukran) = thanks · Arabic  undo"
+function showAdded(res) {
+  const out = $("added");
+  out.className = "added";
+  out.replaceChildren();
+
+  if (res.error) {
+    out.classList.add("err");
+    out.textContent = res.error;
+    return;
+  }
+  if (!res.words?.length) {
+    out.textContent = res.reply || "I couldn't find a word in that.";
+    return;
+  }
+
+  out.append("Added ");
+  res.words.forEach((w, i) => {
+    if (i) out.append(", ");
+    const native = document.createElement("bdi");
+    native.className = "w";
+    native.lang = w.lang;
+    native.textContent = w.native;
+    out.append(native);
+    if (w.romanization) out.append(` (${w.romanization})`);
+    out.append(` = ${w.english} · ${languageName(w.lang, w.language)}`);
+  });
+  out.append(" ");
+
+  const undo = document.createElement("button");
+  undo.className = "link";
+  undo.textContent = "undo";
+  undo.addEventListener("click", async () => {
+    undo.disabled = true;
+    for (const w of res.words) await ext.runtime.sendMessage({ type: "remove", id: w.id });
+    out.textContent = "Removed.";
+  });
+  out.append(undo);
+}
+
 async function init() {
   try {
     const [tab] = await ext.tabs.query({ active: true, currentWindow: true });
@@ -63,7 +182,27 @@ async function init() {
     host = null;
   }
 
-  $("lang").addEventListener("change", (e) => ext.storage.local.set({ lang: e.target.value }));
+  $("addForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const text = $("addText").value.trim();
+    if (!text) return;
+    const btn = $("addBtn");
+    btn.disabled = true;
+    btn.textContent = "…";
+    $("added").className = "added";
+    $("added").textContent = "Looking it up…";
+    try {
+      const res = await ext.runtime.sendMessage({ type: "add", text });
+      showAdded(res ?? { error: "No answer from the extension. Try again." });
+      if (!res?.error) $("addText").value = "";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Add";
+      $("addText").focus();
+    }
+  });
+
+  $("showAll").addEventListener("click", () => setHidden([]));
   $("enabled").addEventListener("change", (e) => ext.storage.local.set({ enabled: e.target.checked }));
 
   $("paused").addEventListener("change", async (e) => {
@@ -95,6 +234,7 @@ async function init() {
 
   ext.storage.onChanged.addListener((_c, area) => area === "local" && render());
   render();
+  $("addText").focus();
 }
 
 init();

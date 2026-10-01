@@ -76,6 +76,29 @@
     button.secondary { color: var(--ink); background: transparent; border: 1px solid var(--ink); }
     button:disabled { opacity: 0.5; cursor: default; }
     :focus-visible { outline: 2px solid var(--margin); outline-offset: 2px; }
+    form.add { display: flex; gap: 6px; margin: 0 0 4px; }
+    form.add input { flex: 1; min-width: 0; }
+    form.add button { flex: 0 0 auto; }
+    .added { margin: 0 0 12px; min-height: 1.45em; color: var(--ink-soft); }
+    .added.err { color: var(--margin); }
+    .added .w { color: var(--ink); font-weight: 600; }
+    .link {
+      flex: 0 0 auto;
+      padding: 0;
+      font-weight: 400;
+      color: var(--ink-soft);
+      background: none;
+      text-decoration: underline;
+    }
+    .link:hover { color: var(--ink); }
+    .langs-head { display: flex; justify-content: space-between; align-items: baseline; color: var(--ink-soft); }
+    ul.langs { list-style: none; margin: 4px 0 12px; padding: 0; }
+    ul.langs li { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+    ul.langs label { flex: 1; margin: 0; }
+    ul.langs .n { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+    ul.langs .link { visibility: hidden; }
+    ul.langs li:hover .link, ul.langs .link:focus-visible { visibility: visible; }
+    .empty { color: var(--ink-soft); }
     details { margin-top: 14px; }
     summary { cursor: pointer; color: var(--ink-soft); }
     details[open] summary { margin-bottom: 8px; }
@@ -86,13 +109,18 @@
     <h1>Слово</h1>
     <p class="status" id="status">Loading…</p>
 
-    <label>
-      <span>Language</span>
-      <select id="lang">
-        <option value="ru">Russian</option>
-        <option value="zh">Mandarin</option>
-      </select>
-    </label>
+    <form class="add" id="addForm">
+      <input type="text" id="addText" spellcheck="false" autocomplete="off"
+             placeholder="shukran, xie xie, dog in japanese…" aria-label="Add a word" />
+      <button type="submit" id="addBtn">Add</button>
+    </form>
+    <p class="added" id="added" aria-live="polite"></p>
+
+    <div class="langs-head">
+      <span>Show on pages</span>
+      <button class="link" id="showAll" hidden>show all</button>
+    </div>
+    <ul class="langs" id="langs"></ul>
 
     <div class="row">
       <input type="checkbox" id="enabled" />
