@@ -189,7 +189,8 @@ access to all websites. Temporary add-ons are removed when Firefox restarts.
 - **Popup says it can't reach the server**: is `./run.sh` running? Does the address in
   Connection match `PORT`/`BIND`?
 - **"The server rejected that API token"**: the token in the popup must match `API_TOKEN` exactly.
-- **"the API key was rejected"**: check `LLM_API_KEY` in `.env`, then restart.
+- **"the API key was rejected"** or **"LLM_API_KEY isn't set"**: check `LLM_API_KEY` in `.env`, then restart
+  the server. It only reads `.env` when it starts.
 - **"the free model is rate limited"**: free models allow 20 requests a minute and
   50 a day. Wait a minute, or add $10 of OpenRouter credit for 1000 a day.
 - **Wrong language picked**: say which, e.g. `da in serbian`, and undo the wrong one.

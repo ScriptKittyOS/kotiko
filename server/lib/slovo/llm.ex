@@ -76,8 +76,12 @@ defmodule Slovo.LLM do
          {:ok, parsed} when is_map(parsed) <- Jason.decode(extract_json(content)) do
       {:ok, normalize(parsed)}
     else
+      {:ok, %Req.Response{status: 401}} when is_nil(key) ->
+        {:error, "LLM_API_KEY isn't set. Add it to server/.env and restart the server"}
+
+      # .env is only read at startup, so a key added later needs a restart.
       {:ok, %Req.Response{status: 401}} ->
-        {:error, "the API key was rejected (check LLM_API_KEY)"}
+        {:error, "the API key was rejected. Check LLM_API_KEY in .env, then restart the server"}
 
       {:ok, %Req.Response{status: 429}} ->
         {:error, "the free model is rate limited; try again in a minute"}
