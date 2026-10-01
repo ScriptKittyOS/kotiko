@@ -6,6 +6,20 @@ and why. Open questions live in each slice's own "Open questions" section and in
 
 ## 2026-10-01
 
+**English is not the base language. The base language is whatever the learner uses.**
+*Maintainer.* "If someone in Puerto Rico has an all-Spanish browser and the confetti is
+waiting on English to be done, then no surprise." Mira swaps words on pages written in the
+learner's own language(s), whatever they are, and English is just another language
+someone can learn. Defaults: base languages come from the browser's languages at install,
+editable on the welcome tab and in settings; a learner can have several (bilingual readers
+get swaps on pages in each); word meanings are stored in the learner's base language, not
+in an `english` field; the model answers in the base language; coverage and celebrations
+count words on base-language pages; Mira's interface follows the browser's language, with
+all text in translation files from the first release (English and Spanish first). This
+moves base-language support from P2 to P0 and touches the word model, prompt, matcher,
+page-language rules, coverage, onboarding and every UI slice. See
+[50](50-ui-localization-and-base-language/SPEC.md).
+
 **First run: the learner asks for their own first word, and it's celebrated.** *Maintainer.*
 "Prompt the user to talk to the LLM and ask how to say the word hello in whatever language,
 then it can say congrats, you got your first word, with confetti, or some other word, let
