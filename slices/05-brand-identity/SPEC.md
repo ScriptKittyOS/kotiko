@@ -72,7 +72,13 @@ The product is **Kotiko**. Its mascot, the black kitten, is named **Mira**
 it reads as a cute origin story first, with a second layer for anyone who knows the
 languages.
 
-**Why Kotiko?** (docs, welcome tab "About", website)
+**Single source.** This section is the only copy of the story. The three places that show
+the full version, the docs site and website ([44](../44-docs-site/SPEC.md)) and the welcome
+tab's About ([22](../22-first-run-onboarding/SPEC.md); Dashboard → Settings → About), render
+it from one shared file generated from here (`docs/story/<locale>.md`, also copied into the
+extension's locale files) and never keep their own copy, so an edit lands in all of them.
+
+**Why Kotiko?** (docs site, website, welcome tab About)
 
 > In Russian, котик (kotik) means "kitty." Kotiko is that word, slightly bent, the way a
 > learner bends a word they're still getting to know. That's fitting, because Kotiko is for
@@ -85,8 +91,8 @@ languages.
 > differently, and every one of those people knows exactly what the cat wants.
 >
 > People are harder. We split ourselves into languages and then stand on either side of the
-> line, sure the other side is saying something we'll never understand. Usually we would, if
-> someone just swapped in a word or two.
+> line, sure the other side is saying something we'll never understand. Most of the time,
+> we'd understand just fine, if someone swapped in a word or two.
 >
 > So that's what Kotiko does. It takes the words you've learned and slips them into the
 > pages you already read, one word at a time, until the line between your language and
@@ -100,8 +106,13 @@ languages.
 **Store listing, short version:**
 
 > Kotiko slips the words you've learned into the pages you read, one at a time, until a
-> foreign language stops feeling foreign. Our mascot is Mira, a kitten whose name means
-> "look" in Spanish and "of the world" in Russian.
+> foreign language stops feeling foreign.
+
+Mira is deliberately not named in the store listing (maintainer decision): the rename was
+to get out of the crowd of "Mira" products in those stores, so the listing shouldn't bring
+the name back. The kitten icon sits right beside the text, so she's still there; she just
+isn't named until people install. Her name and its hidden layer live in the docs and the
+welcome tab's About, where people who've installed Kotiko find them.
 
 **Checked facts** (2026-10-01): the cat sounds are the real spellings in each language
 (Russian мяу, Mandarin 喵, Spanish miau, Japanese ニャー nyā, Korean 야옹 yaong); мира is the
@@ -112,12 +123,14 @@ source of the star Mira's name; Russian котик means "kitty".
 
 - A native Russian speaker confirms that "Kotiko" reads as cute rather than awkward.
 - The Spanish versions of both texts (the listing and docs ship in English and Spanish,
-  [50](../50-ui-localization-and-base-language/SPEC.md)) are written or reviewed by a native
-  speaker, keeping the hidden layer (in Spanish, "mira" is the reader's own word, so the
-  clue lands differently and may need its own line).
-- The trademark screen for Kotiko ([04](../04-rename-to-kotiko/SPEC.md)) also covers using
-  "Mira" as the mascot's name in the store listing, since the earlier screen found "Mira"
-  in use for language-learning products in the same stores.
+  [50](../50-ui-localization-and-base-language/SPEC.md)) are written by a native Spanish
+  writer from a brief, not translated line by line. The brief: for Spanish readers the
+  reveal works backwards, because "mira" is simply their word. Open the reveal with the
+  Russian and Latin meanings and let the Spanish one land last, as the familiar word they
+  suddenly see in a new light. The writer decides how to make that turn feel natural.
+- The trademark screen for Kotiko ([04](../04-rename-to-kotiko/SPEC.md)) runs before the
+  first store submission. Mira appears only after install (docs, About), never in store
+  listings, store artwork text or the extension's name and description.
 
 The publisher is ScriptKittyOS ([DECISIONS](../DECISIONS.md)).
 

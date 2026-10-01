@@ -139,6 +139,10 @@ the codes in slice 25's `extension/errors.js` with the anchors on the page.
 
 ### 4. Content rules
 
+- The "Why Kotiko?" page renders the story from its single source in
+  [05](../05-brand-identity/SPEC.md) section 1 (`docs/story/<locale>.md`); the site never
+  keeps its own copy.
+
 - Plain language in every locale, short sentences, second person, no emojis, matching
   slice 05's voice and slice 50's glossary.
 - Every procedure is numbered steps, one action each, with a screenshot where a button is

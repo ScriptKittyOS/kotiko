@@ -100,7 +100,9 @@ the confetti would be "waiting on English to be done"
 - `runtime.onInstalled` with `reason === "install"` opens `extension/welcome.html` in a new
   active tab. Not on `update` or `chrome_update`.
 - The popup's first-run card ([20 §2 A](../20-popup-redesign/SPEC.md)) opens or focuses it.
-- Dashboard → Settings → About → "Show welcome again" opens it with the current connection
+- Dashboard → Settings → About shows the full "Why Kotiko?" story from its single source in
+  [05](../05-brand-identity/SPEC.md) section 1 (the only place in the extension where the
+  mascot Mira is named), and "Show welcome again" opens it with the current connection
   shown as connected.
 - State is stored as `onboarding: {completedAt, skipped, version: 2}` in `storage.local`.
   `completedAt` is set when the first word is saved (anywhere, so a learner who adds a word in
