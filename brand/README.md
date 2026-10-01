@@ -1,6 +1,7 @@
 # Kotiko brand assets
 
-The Kotiko logo is a black kitten on brand purple `#8E5EFA`. The artwork is © ScriptKittyOS.
+The Kotiko logo is Mira, our black kitten mascot, on brand purple `#8E5EFA`. Why the
+names: see "Name and story" in `slices/05-brand-identity/SPEC.md`. The artwork is © ScriptKittyOS.
 The name, logo and illustrations are not covered by the code's Apache-2.0 license: they are
 the project's trademark (see `LICENSES/LicenseRef-KotikoBrand.txt`), so forks need their own.
 

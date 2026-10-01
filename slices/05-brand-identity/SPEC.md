@@ -67,21 +67,59 @@ The product is now Kotiko, and nothing a user sees says so or says what Kotiko i
 
 ### 1. Name and story
 
-**Kotiko** is the name ([DECISIONS](../DECISIONS.md)). It is short, friendly and easy to say
-in almost any language, and it fits the kitten at the heart of the brand and the
-ScriptKittyOS family it belongs to.
+The product is **Kotiko**. Its mascot, the black kitten, is named **Mira**
+([DECISIONS](../DECISIONS.md)). The story below is the maintainer's and is used as written;
+it reads as a cute origin story first, with a second layer for anyone who knows the
+languages.
 
-The full name story is the maintainer's to write. One association to check: it echoes the
-Russian "котик" ("kitty, little cat"). Like every claim about what the name means in a
-language, it must be confirmed by a fluent speaker before it appears in the store listing,
-docs or the interface. Until the story is written, copy describes what Kotiko does and
-doesn't explain the name.
+**Why Kotiko?** (docs, welcome tab "About", website)
 
-Store and docs line, until the story exists: **"Kotiko swaps words on the pages you read for
-the words you're learning, in any language."** Spanish: **"Kotiko cambia palabras en las
-páginas que lees por las palabras que estás aprendiendo, en cualquier idioma."** The
-publisher is ScriptKittyOS ([DECISIONS](../DECISIONS.md)). The legal name check is in
-[04](../04-rename-to-kotiko/SPEC.md).
+> In Russian, котик (kotik) means "kitty." Kotiko is that word, slightly bent, the way a
+> learner bends a word they're still getting to know. That's fitting, because Kotiko is for
+> learners.
+>
+> Our mascot is a small black kitten named Mira.
+>
+> Cats have a trick we haven't learned. Ask a cat in Moscow and it says мяу. In Beijing, 喵.
+> In Madrid, miau. In Tokyo, nyā. In Seoul, yaong. Every language writes it down
+> differently, and every one of those people knows exactly what the cat wants.
+>
+> People are harder. We split ourselves into languages and then stand on either side of the
+> line, sure the other side is saying something we'll never understand. Usually we would, if
+> someone just swapped in a word or two.
+>
+> So that's what Kotiko does. It takes the words you've learned and slips them into the
+> pages you already read, one word at a time, until the line between your language and
+> someone else's starts to blur.
+>
+> Mira's name is a clue, if you speak a few languages. In Spanish, mira means "look." In
+> Latin, it means "wonderful." In Russian, мира means "of the world," and also "of peace."
+>
+> Look. The world is wonderful. It's just been waiting for us to understand each other.
+
+**Store listing, short version:**
+
+> Kotiko slips the words you've learned into the pages you read, one at a time, until a
+> foreign language stops feeling foreign. Our mascot is Mira, a kitten whose name means
+> "look" in Spanish and "of the world" in Russian.
+
+**Checked facts** (2026-10-01): the cat sounds are the real spellings in each language
+(Russian мяу, Mandarin 喵, Spanish miau, Japanese ニャー nyā, Korean 야옹 yaong); мира is the
+genitive of мир, which means both "world" and "peace"; Latin mira means "wonderful", the
+source of the star Mira's name; Russian котик means "kitty".
+
+**Before launch:**
+
+- A native Russian speaker confirms that "Kotiko" reads as cute rather than awkward.
+- The Spanish versions of both texts (the listing and docs ship in English and Spanish,
+  [50](../50-ui-localization-and-base-language/SPEC.md)) are written or reviewed by a native
+  speaker, keeping the hidden layer (in Spanish, "mira" is the reader's own word, so the
+  clue lands differently and may need its own line).
+- The trademark screen for Kotiko ([04](../04-rename-to-kotiko/SPEC.md)) also covers using
+  "Mira" as the mascot's name in the store listing, since the earlier screen found "Mira"
+  in use for language-learning products in the same stores.
+
+The publisher is ScriptKittyOS ([DECISIONS](../DECISIONS.md)).
 
 ### 2. Promise and personality
 

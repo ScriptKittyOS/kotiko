@@ -6,6 +6,13 @@ and why. Open questions live in each slice's own "Open questions" section and in
 
 ## 2026-10-01
 
+**The mascot is a black kitten named Mira, and the name story is the maintainer's.**
+*Maintainer.* Kotiko comes from Russian котик ("kitty"), slightly bent the way a learner
+bends a word. The kitten mascot is named Mira, whose name hides "look" (Spanish),
+"wonderful" (Latin) and "of the world / of peace" (Russian мира). The full story and the
+store listing's short version are in [05](05-brand-identity/SPEC.md) and are used as
+written. The product name stays Kotiko; "Mira" is the character, not the product.
+
 **The name is Kotiko.** *Maintainer.* Chosen after "Mira" was withdrawn. Slice 04 renames the
 code, data paths, service, extension and repository from Slovo to Kotiko, with the same safe
 data migration. The images that showed the name "Mira" (the mockup sheet and its source
