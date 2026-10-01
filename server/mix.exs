@@ -1,19 +1,32 @@
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule Slovo.MixProject do
   use Mix.Project
 
   def project do
     [
       app: :slovo,
-      version: "0.1.0",
+      # x-release-please-start-version
+      version: "0.2.0",
+      # x-release-please-end
       elixir: "~> 1.15",
+      elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      aliases: aliases()
     ]
   end
 
   def application do
-    [extra_applications: [:logger], mod: {Slovo.Application, []}]
+    [extra_applications: [:logger, :crypto], mod: {Slovo.Application, []}]
   end
+
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
+
+  # mix_audit's own deps (yaml_elixir) are only on the code path after compile.
+  defp aliases, do: ["deps.audit": ["compile", "deps.audit"]]
 
   defp deps do
     [
@@ -22,7 +35,10 @@ defmodule Slovo.MixProject do
       {:jason, "~> 1.4"},
       {:req, "~> 0.5"},
       {:ecto_sql, "~> 3.12"},
-      {:ecto_sqlite3, "~> 0.17"}
+      {:ecto_sqlite3, "~> 0.17"},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
+      {:stream_data, "~> 1.1", only: :test}
     ]
   end
 end

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+# SPDX-License-Identifier: Apache-2.0
 # Installs Slovo as a systemd user service that starts at boot, wherever this folder lives.
 # Uses the PATH of the shell you run it from, so asdf/mise installs of Elixir just work.
 set -euo pipefail

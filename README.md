@@ -1,5 +1,8 @@
 # Slovo
 
+[![CI](https://github.com/ScriptKittyOS/slovo/actions/workflows/ci.yml/badge.svg)](https://github.com/ScriptKittyOS/slovo/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 Learn a word in any language and from then on it replaces its English on every web page
 you read. Russian, Mandarin, Arabic, Japanese, all of them at once or just the ones you pick.
 Hover a swapped word to see the English and how it's said in your other languages.
@@ -34,13 +37,11 @@ You need Elixir 1.15+.
 ```bash
 cd server
 cp .env.example .env
-openssl rand -hex 24   # copy this; it's your API_TOKEN
 ```
 
-Edit `.env` and fill in two things:
+Edit `.env` and fill in your OpenRouter key:
 
 ```
-API_TOKEN=<the openssl output>
 LLM_API_KEY=<your OpenRouter key>
 ```
 
@@ -51,14 +52,17 @@ Then:
 ```
 
 First run fetches dependencies and compiles, then you should see `Slovo API on http://127.0.0.1:4747`.
-Check it with `curl localhost:4747/health` (prints `ok`).
+Check it with `curl localhost:4747/health` (prints `ok`). The first start also makes an API
+token, saves it in the data folder and prints it. `mix slovo.token` (in `server/`) prints it
+again, with a pairing string. To pick your own instead, set `API_TOKEN` in `.env` (at least
+24 characters, e.g. `openssl rand -hex 24`).
 
 ### 3. Load the extension
 
 1. Open `chrome://extensions` (Brave: `brave://extensions`, Edge: `edge://extensions`).
 2. Turn on **Developer mode** (top right).
 3. Click **Load unpacked** and choose the `extension` folder.
-4. Pin Slovo, click its icon, open **Connection**, paste your `API_TOKEN`, click **Save connection**.
+4. Pin Slovo, click its icon, open **Connection**, paste your API token, click **Save connection**.
 
 The popup should say "0 words known, synced just now".
 
@@ -176,7 +180,14 @@ LLM_API_KEY=
 
 The server only listens on localhost by default. To use the extension on a laptop, set
 `BIND` in `.env` to the server's Tailscale IP (or `0.0.0.0` on a trusted network), restart,
-and put `http://<that-ip>:4747` in the extension's Server address.
+and put `http://<that-ip>:4747` in the extension's Server address. Tailscale encrypts the
+traffic; on a plain local network the token travels unencrypted, and the server warns about
+that when it starts.
+
+The server only answers to `localhost`, IP addresses and this machine's own name, so a
+website can't reach it through DNS rebinding. To reach it by another name (a Tailscale
+MagicDNS name, a reverse proxy), add that name to `ALLOWED_HOSTS` in `.env`, comma-separated.
+Behind a proxy, set `PUBLIC_URL` to the address the extension should use.
 
 ### Firefox
 
@@ -190,7 +201,10 @@ access to all websites. Temporary add-ons are removed when Firefox restarts.
 
 - **Popup says it can't reach the server**: is `./run.sh` running? Does the address in
   Connection match `PORT`/`BIND`?
-- **"The server rejected that API token"**: the token in the popup must match `API_TOKEN` exactly.
+- **"The server rejected that API token"**: the token in the popup must match the server's
+  exactly. `mix slovo.token` in `server/` prints it.
+- **The server answers `421`**: you reached it by a name it doesn't know. Add the name to
+  `ALLOWED_HOSTS` in `.env` and restart.
 - **"the API key was rejected"** or **"LLM_API_KEY isn't set"**: check `LLM_API_KEY` in `.env`, then restart
   the server. It only reads `.env` when it starts.
 - **"all the free models are busy right now"**: everyone shares the free models' capacity,
@@ -205,7 +219,7 @@ access to all websites. Temporary add-ons are removed when Firefox restarts.
 
 ## API
 
-All `/api` routes need `Authorization: Bearer <API_TOKEN>`.
+Every route except `GET /health` needs `Authorization: Bearer <API token>`.
 
 | Route | Does |
 |---|---|
@@ -229,3 +243,10 @@ extension/
   content.js                swaps words on the page, watches for new content
   popup.html / popup.js     add a word, choose languages, on/off, per-site pause, connection
 ```
+
+## License
+
+The code is licensed under [Apache-2.0](LICENSE). The name, logo and illustrations in
+`brand/` are trademarks of ScriptKittyOS and aren't covered by that license. See
+[CONTRIBUTING.md](CONTRIBUTING.md) to get involved and [SECURITY.md](SECURITY.md) to report
+a security problem.

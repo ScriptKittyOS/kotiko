@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+# SPDX-License-Identifier: Apache-2.0
 # Loads .env and starts the server (API + Telegram bot).
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -9,6 +11,7 @@ if [ ! -f .env ]; then
 fi
 
 set -a
+# shellcheck source=/dev/null
 . ./.env
 set +a
 

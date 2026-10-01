@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+# SPDX-License-Identifier: Apache-2.0
+
 defmodule Slovo.Word do
   use Ecto.Schema
   import Ecto.Changeset
