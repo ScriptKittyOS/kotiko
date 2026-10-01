@@ -3,6 +3,7 @@ defmodule Slovo.LLM do
   Turns a free-form message into structured word entries. Talks to any OpenAI-compatible
   chat API: OpenRouter by default, or Ollama, OpenAI, etc. via LLM_URL.
   """
+  require Logger
   alias Slovo.Word
 
   @system """
@@ -33,6 +34,8 @@ defmodule Slovo.LLM do
   - intent is "add" when the user explicitly asks to add, save or remember a word;
     "lookup" when they ask what something means or how to say something;
     "chat" when no specific word is involved (then "words" is []).
+  - A message that is only a word or short phrase, in any script or spelled phonetically
+    ("как", "shukran", "xie xie"), is a lookup of that word, never chat.
   - "How do you say X" means they want the foreign word for English X.
   - If the user names a language ("in arabic", "japanese for cat"), always use it.
   - lang is the bare language code. Add a script subtag only when the user asks for a
@@ -41,65 +44,118 @@ defmodule Slovo.LLM do
     infinitive or citation form. Use the language's normal capitalization.
   - Write native the way it appears in everyday text: simplified characters for Mandarin,
     no vowel marks (harakat, niqqud) for Arabic or Hebrew. Put pronunciation in romanization.
-  - english_forms: only whole English words or short phrases with the same meaning.
-    Include common inflections (plural, -s, -ed, -ing) that keep the meaning.
+  - english_forms: only forms of the word's main English meaning, as whole words or short
+    phrases. Include common inflections (plural, -s, -ed, -ing) that keep the meaning.
+    Never add other words or loose synonyms: for "как" that is ["how"], not "what", "as", "like".
+  """
+
+  @add_box """
+
+  This message was typed into an "add a word" box, so it always names one or more words to
+  save: intent is "add", never "chat".
   """
 
   @doc """
   `recent` is a list of %{lang, language} the user has been adding lately; it settles
   ambiguous input like "what's da" (Russian? Serbian?) without the user having to say.
+
+  Tries each model in LLM_MODEL in turn, moving on when one is busy, fails, or (with
+  `add: true`, for the popup's add box) finds no word. Free models are often rate limited.
   """
-  def interpret(text, recent \\ []) do
+  def interpret(text, recent \\ [], opts \\ []) do
+    add? = Keyword.get(opts, :add, false)
+    system = @system <> recent_hint(recent) <> if(add?, do: @add_box, else: "")
+    try_models(Application.fetch_env!(:slovo, :llm_models), system, text, add?, [])
+  end
+
+  defp try_models([], _system, _text, _add?, failures), do: {:error, give_up(failures)}
+
+  defp try_models([model | rest], system, text, add?, failures) do
+    case ask(model, system, text) do
+      {:ok, %{words: []}} when add? and rest != [] ->
+        Logger.info("LLM #{model}: found no word in #{inspect(text)}, trying the next model")
+        try_models(rest, system, text, add?, [{model, "found no word"} | failures])
+
+      {:ok, result} ->
+        Logger.info(
+          "LLM #{model}: #{inspect(text)} -> #{Enum.map_join(result.words, ", ", & &1.native)}"
+        )
+
+        {:ok, result}
+
+      {:fatal, reason} ->
+        {:error, reason}
+
+      {:error, reason} ->
+        Logger.warning("LLM #{model}: #{reason}")
+        try_models(rest, system, text, add?, [{model, reason} | failures])
+    end
+  end
+
+  defp give_up(failures) do
+    if Enum.all?(failures, fn {_, r} -> r == "rate limited" end) do
+      "all the free models are busy right now; try again in a minute"
+    else
+      "no model could answer (" <>
+        Enum.map_join(Enum.reverse(failures), "; ", fn {m, r} -> "#{m}: #{r}" end) <> ")"
+    end
+  end
+
+  defp ask(model, system, text) do
     key = Application.get_env(:slovo, :llm_api_key)
     url = Application.fetch_env!(:slovo, :llm_url) <> "/chat/completions"
-    [model | fallbacks] = Application.fetch_env!(:slovo, :llm_models)
 
     body =
       %{
         model: model,
         temperature: 0.2,
         response_format: %{type: "json_object"},
-        messages: [
-          %{role: "system", content: @system <> recent_hint(recent)},
-          %{role: "user", content: text}
-        ]
+        messages: [%{role: "system", content: system}, %{role: "user", content: text}]
       }
-      # OpenRouter tries these in order when the first model is down or rate limited.
-      |> then(&if(fallbacks == [], do: &1, else: Map.put(&1, :models, [model | fallbacks])))
+      # Thinking models take 5-20 s longer and don't get these lookups more right.
+      |> then(
+        &if(url =~ "openrouter.ai", do: Map.put(&1, :reasoning, %{enabled: false}), else: &1)
+      )
 
     headers =
       [{"x-title", "Slovo"}] ++ if(key, do: [{"authorization", "Bearer " <> key}], else: [])
 
     with {:ok, %Req.Response{status: 200, body: %{"choices" => [%{"message" => msg} | _]}}} <-
-           Req.post(url, json: body, headers: headers, receive_timeout: 120_000),
+           Req.post(url, json: body, headers: headers, receive_timeout: 60_000, retry: false),
          content when is_binary(content) <- msg["content"],
          {:ok, parsed} when is_map(parsed) <- Jason.decode(extract_json(content)) do
-      {:ok, normalize(parsed)}
+      result = normalize(parsed)
+
+      if result.words == [] and parsed["words"] not in [nil, []] do
+        Logger.warning("LLM #{model}: dropped words it returned: #{inspect(parsed["words"])}")
+      end
+
+      {:ok, result}
     else
       {:ok, %Req.Response{status: 401}} when is_nil(key) ->
-        {:error, "LLM_API_KEY isn't set. Add it to server/.env and restart the server"}
+        {:fatal, "LLM_API_KEY isn't set. Add it to server/.env and restart the server"}
 
       # .env is only read at startup, so a key added later needs a restart.
       {:ok, %Req.Response{status: 401}} ->
-        {:error, "the API key was rejected. Check LLM_API_KEY in .env, then restart the server"}
+        {:fatal, "the API key was rejected. Check LLM_API_KEY in .env, then restart the server"}
 
       {:ok, %Req.Response{status: 429}} ->
-        {:error, "the free model is rate limited; try again in a minute"}
+        {:error, "rate limited"}
 
       {:ok, %Req.Response{status: s, body: b}} ->
-        {:error, "#{url} returned #{s}: #{api_error(b)}"}
+        {:error, "returned #{s}: #{api_error(b)}"}
 
       {:ok, other} ->
-        {:error, "Model returned unexpected JSON: #{inspect(other)}"}
+        {:error, "unexpected JSON: #{inspect(other, printable_limit: 300)}"}
 
       {:error, e} ->
         {:error, if(is_exception(e), do: Exception.message(e), else: inspect(e))}
 
       nil ->
-        {:error, "the model returned an empty answer"}
+        {:error, "empty answer"}
 
       other ->
-        {:error, "unexpected answer from the model: #{inspect(other)}"}
+        {:error, "unexpected answer: #{inspect(other, printable_limit: 300)}"}
     end
   end
 

@@ -161,8 +161,10 @@ Logs: `journalctl --user -u slovo -f`. After editing `.env`: `systemctl --user r
 
 ### A different model
 
-`LLM_URL` takes any OpenAI-compatible API. `LLM_MODEL` is a comma-separated list; on
-OpenRouter the later ones are fallbacks when the first is busy. For a local Ollama:
+`LLM_URL` takes any OpenAI-compatible API. `LLM_MODEL` is a comma-separated list tried in
+order: when one is busy or finds nothing, the next one gets the word. The built-in list is
+several free OpenRouter models, because free models are often rate limited. Each lookup is
+logged with the model that answered. For a local Ollama:
 
 ```
 LLM_URL=http://localhost:11434/v1
@@ -191,8 +193,9 @@ access to all websites. Temporary add-ons are removed when Firefox restarts.
 - **"The server rejected that API token"**: the token in the popup must match `API_TOKEN` exactly.
 - **"the API key was rejected"** or **"LLM_API_KEY isn't set"**: check `LLM_API_KEY` in `.env`, then restart
   the server. It only reads `.env` when it starts.
-- **"the free model is rate limited"**: free models allow 20 requests a minute and
-  50 a day. Wait a minute, or add $10 of OpenRouter credit for 1000 a day.
+- **"all the free models are busy right now"**: everyone shares the free models' capacity,
+  and your key allows 20 requests a minute and 50 a day. Wait a minute, or add $10 of
+  OpenRouter credit for 1000 a day.
 - **Wrong language picked**: say which, e.g. `da in serbian`, and undo the wrong one.
 - **The bot doesn't answer at all**: check the server log. A `409` means another copy is
   already polling with the same token; stop it.

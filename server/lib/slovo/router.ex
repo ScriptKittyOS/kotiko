@@ -1,5 +1,6 @@
 defmodule Slovo.Router do
   use Plug.Router
+  require Logger
   alias Slovo.{LLM, Word, Words}
 
   plug :match
@@ -30,17 +31,22 @@ defmodule Slovo.Router do
   post "/api/words" do
     case conn.body_params do
       %{"text" => text} when is_binary(text) and text != "" ->
-        case LLM.interpret(text, Words.recent_languages()) do
+        case LLM.interpret(text, Words.recent_languages(), add: true) do
           {:ok, %{words: [], reply: reply}} ->
             json(conn, 200, %{words: [], reply: reply || "I couldn't find a word in that."})
 
           {:ok, %{words: found}} ->
-            saved =
-              for attrs <- found,
-                  {:ok, w} <- [Words.upsert(Map.put(attrs, :source_text, text), "active")],
-                  do: Word.to_json(w)
+            results = Enum.map(found, &Words.upsert(Map.put(&1, :source_text, text), "active"))
 
-            json(conn, 200, %{words: saved})
+            case {for({:ok, w} <- results, do: Word.to_json(w)),
+                  for({:error, cs} <- results, do: cs)} do
+              {[], [cs | _]} ->
+                Logger.warning("Couldn't save #{inspect(cs.changes)}: #{inspect(cs.errors)}")
+                json(conn, 422, %{error: "Couldn't save that word: #{changeset_errors(cs)}"})
+
+              {saved, _} ->
+                json(conn, 200, %{words: saved})
+            end
 
           {:error, reason} ->
             json(conn, 502, %{error: "The language model failed: #{reason}"})
@@ -62,6 +68,12 @@ defmodule Slovo.Router do
 
   match _ do
     send_resp(conn, 404, "not found")
+  end
+
+  defp changeset_errors(cs) do
+    Enum.map_join(cs.errors, ", ", fn {field, {msg, _}} ->
+      "#{field} #{msg} (#{inspect(Ecto.Changeset.get_field(cs, field))})"
+    end)
   end
 
   defp json(conn, status, body) do
