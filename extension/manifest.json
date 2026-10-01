@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Slovo",
+  "version": "0.1.0",
+  "description": "Swaps English words on web pages for the Russian or Chinese words you've learned.",
+  "permissions": ["storage", "alarms"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js",
+    "scripts": ["background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": { "default_popup": "popup.html", "default_title": "Slovo" },
+  "icons": { "48": "icon48.png", "128": "icon128.png" },
+  "browser_specific_settings": { "gecko": { "id": "slovo@scriptkittyos.com" } }
+}

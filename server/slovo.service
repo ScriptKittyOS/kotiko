@@ -1,0 +1,23 @@
+# systemd user service. Install:
+#   mkdir -p ~/.config/systemd/user
+#   cp slovo.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now slovo
+#   loginctl enable-linger "$USER"     # keep it running when you're logged out
+# Logs:  journalctl --user -u slovo -f
+
+[Unit]
+Description=Slovo vocabulary bot and API
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/Projects/slovo/server
+ExecStart=%h/Projects/slovo/server/run.sh
+# If Elixir comes from asdf/mise, systemd won't see your shell PATH. Uncomment and
+# paste the output of `dirname $(which mix)` and `dirname $(which erl)`:
+# Environment=PATH=/home/you/.local/share/mise/shims:/usr/local/bin:/usr/bin:/bin
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
