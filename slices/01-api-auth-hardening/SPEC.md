@@ -163,6 +163,22 @@ info line explaining that exposure depends on the port mapping.
 - A catch-all `Plug.ErrorHandler` in the router turns any unexpected exception into a 500
   with slice 25's error shape and an error reference, never a stack trace or an empty body.
 
+### 7. Response hardening headers (P1, from slice 53)
+
+Added by [53](../53-openssf-best-practices/SPEC.md) for silver's `hardening` answer; not a
+release blocker. Every response, including 401, 404, 421, 500 and `/health`, carries:
+
+- `x-content-type-options: nosniff`
+- `content-security-policy: default-src 'none'; frame-ancestors 'none'` (the API serves
+  JSON only, so nothing needs to load or frame it)
+- `referrer-policy: no-referrer`
+- `cache-control: no-store` (already on JSON responses; now on all)
+
+They are set by one plug placed first in the router, before `Kotiko.Plug.HostCheck`
+(`server/lib/kotiko/router.ex:11`), so even a rejected Host gets them, and on the
+error-handler path. No `strict-transport-security`: the server speaks plain HTTP, and
+whatever terminates HTTPS in front of it (Tailscale, a proxy) sets that header.
+
 ## Acceptance criteria
 
 - [ ] The auth matrix passes: every route (GET, POST, DELETE, PATCH on `/api/words`,
@@ -183,6 +199,8 @@ info line explaining that exposure depends on the port mapping.
 - [ ] Startup logs the right exposure line for each bind class in section 5.
 - [ ] `DELETE /api/words/99999999999999999999999` returns 404.
 - [ ] An exception inside a route returns a 500 JSON error, not an empty body.
+- [ ] (53) Every response in the auth matrix, including 401, 404, 421 and 500, carries the
+      four headers in section 7.
 
 ## Test plan
 

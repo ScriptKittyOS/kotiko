@@ -270,8 +270,11 @@ if the rename lands first. No user-facing change; no changelog entry beyond the 
 
 ## Future work
 
-- `GOVERNANCE.md` once there is more than one active maintainer.
-- OpenSSF Scorecard workflow and badge.
+- `GOVERNANCE.md`, `MAINTAINERS.md` and an access-continuity plan: specified in
+  [53](../53-openssf-best-practices/SPEC.md) §4.3 and §4.4, written before silver rather
+  than waiting for a second maintainer.
+- OpenSSF Scorecard workflow and badge: Future work of
+  [53](../53-openssf-best-practices/SPEC.md), next to the Best Practices badge.
 - Translating CONTRIBUTING into Spanish once the docs site's i18n is in place (slices 44, 50).
 - Issue forms in Spanish (GitHub forms are single-language; a second set of `*-es.yml`
   forms if Spanish-speaking reporters struggle).

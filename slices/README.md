@@ -46,7 +46,7 @@ phases that can overlap:
    onboarding around the learner's own first word (asked in their own language), the word
    popover, all in English and Spanish from day one.
 4. **Release**: privacy, store readiness and listings in English and Spanish, release
-   pipeline.
+   pipeline, and the OpenSSF passing badge on the day the repository goes public (53).
 
 English is not special anywhere: it is one possible base language and one possible target
 ([DECISIONS](DECISIONS.md), [50](50-ui-localization-and-base-language/SPEC.md)). Every
@@ -108,6 +108,7 @@ slice follows 50's cross-cutting rules.
 | 50 | [Base languages and UI localization](50-ui-localization-and-base-language/SPEC.md) | P0 | L | 02, 08 | The learner's base languages (detected from the browser, confirmed on the welcome tab, several allowed); the word-record shape for them; `spec/lang/<base>/` data and support levels; every string in `_locales` with English and Spanish at launch; translation workflow (Weblate); the cross-cutting rules every slice follows. Maintainer decision; 02, 05. |
 | 51 | [Safari port](51-safari-port/SPEC.md) | P2 | L | 45 | macOS and iOS via Xcode conversion. 03. |
 | 52 | [Video captions](52-video-captions/SPEC.md) | P2 | M | 15, 50 | Flicker-free swapping in YouTube and similar captions. 03. |
+| 53 | [OpenSSF Best Practices badge](53-openssf-best-practices/SPEC.md) | P1 (§4.1, §4.2 and the passing badge P0) | M | 02, 03, 30 | Passing on the day the repository goes public, then silver: full criteria matrix with evidence; HTTP API and settings reference; vulnerability response process; GOVERNANCE, MAINTAINERS, roles and access continuity; roadmap; architecture; security requirements and assurance case; coding standards; test, regression and 80 % coverage policy; additions to 01, 02, 30, 40, 44; DCO question; gold outlook. OpenSSF criteria; 03. |
 
 ## Critical path to the public release
 
@@ -144,3 +145,10 @@ is decided; see [DECISIONS.md](DECISIONS.md).
    fired the first time one of the learner's words appears on any page in a language they
    read, so the Puerto Rico learner's confetti never waits on an English page.
    Recommendation: yes. ([32](32-page-coverage-and-celebrations/SPEC.md))
+6. **DCO for the silver badge?** Slice 03 decided on no sign-off; silver lists the DCO as a
+   SHOULD. Recommendation: keep the decision and mark it unmet with a justification;
+   revisit at the first large company contribution or before gold.
+   ([53](53-openssf-best-practices/SPEC.md))
+7. **Who is the steward?** A trusted second owner of the GitHub organization and the store
+   accounts, so the project survives the maintainer being unavailable. Recommendation: name
+   them before the public release. ([53](53-openssf-best-practices/SPEC.md))

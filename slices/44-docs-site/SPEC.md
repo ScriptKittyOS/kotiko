@@ -192,6 +192,30 @@ No analytics, cookies, embedded videos or third-party scripts. GitHub Pages itse
 visitors' IP addresses under GitHub's privacy statement; the privacy policy says so in the
 row for dictionary downloads (slice 28 section 1).
 
+### 9. Additions for the OpenSSF Best Practices badge (from slice 53)
+
+Added by [53](../53-openssf-best-practices/SPEC.md).
+
+- **Quick start** (`documentation_quick_start`): `/start/` (and `/es/start/`) is the
+  project's quick start. It is in `stable-urls.txt`, and the README's quick-start link
+  points to it once the README shrinks (section 7). The badge answer links to it from then on.
+- **One source for project documents** (`documentation_current`): the contributor and
+  server pages render the repository's own files instead of copies:
+  `docs/ARCHITECTURE.md`, `docs/CODING_STANDARDS.md`, `docs/reference/*.md`,
+  `docs/security/*.md`, `GOVERNANCE.md` and `ROADMAP.md` are pulled in at build time, and
+  the build fails if one is missing.
+- **The badge in the footer** (`documentation_achievements`): the footer links to the
+  project's bestpractices.dev entry. To keep section 8's promise of no third-party
+  requests, the build downloads the badge image and serves it from the site; if the
+  download fails, the footer shows a text link.
+- **Hardening headers (gold's `hardened_site`)**: GitHub Pages can't send
+  Content-Security-Policy, X-Frame-Options or X-Content-Type-Options headers. Until the
+  site is served from somewhere that can (a host with header control, or a proxy in front
+  of a custom domain, Open question 1), the badge entry's homepage stays the GitHub
+  repository, which sends them. A `<meta http-equiv="Content-Security-Policy">` in the
+  site's pages is still added as defence in depth, though it doesn't satisfy the
+  criterion.
+
 ## Acceptance criteria
 
 - [ ] The site builds and deploys from CI; every path in `stable-urls.txt` returns 200.
@@ -209,6 +233,8 @@ row for dictionary downloads (slice 28 section 1).
       extension in Spanish every "Learn more" link opens a Spanish page.
 - [ ] A Spanish speaker outside the project installs and adds a first word using only
       `/es/install/` and `/es/start/`.
+- [ ] (53) `/start/` is in `stable-urls.txt`; the build fails if any `docs/` source it
+      imports is missing; the footer badge is served from the site itself.
 
 ## Test plan
 
@@ -232,6 +258,8 @@ row for dictionary downloads (slice 28 section 1).
    `kotiko.scriptkittyos.com`? Recommendation: a custom subdomain before launch if the org
    controls DNS, because the extension hard-codes these links and the OAuth callback;
    moving later needs a redirect and an extension update.
+   A host that can send hardening headers also matters for gold's `hardened_site`
+   ([53](../53-openssf-best-practices/SPEC.md) §8).
 2. **Tool.** Starlight as recommended, or VitePress if a maintainer prefers it?
    Recommendation: Starlight.
 

@@ -162,6 +162,44 @@ pairing string.
 - Docker: `docker compose exec kotiko /app/bin/kotiko eval "Kotiko.Release.backup()"`, then copy
   out of the volume with `docker compose cp`.
 
+### 6. Additions for the OpenSSF Best Practices badge (from slice 53)
+
+Added by [53](../53-openssf-best-practices/SPEC.md) for the silver badge.
+
+- **Secrets in their own files** (`crypto_credential_agility`). Every secret setting in
+  `Kotiko.Config`'s `@secret_vars` (today `API_TOKEN`, `LLM_API_KEY`,
+  `TELEGRAM_BOT_TOKEN` and the transcription key, if any) also accepts a `_FILE` variant
+  naming a file that holds only that value: `LLM_API_KEY_FILE=/run/secrets/llm_api_key`.
+  The value is read once at boot and trimmed. Setting both forms is a configuration error
+  naming both (slice 29's message style); an unreadable file is an error naming the path;
+  a file readable by group or others gets the same warning as `.env`. This works with
+  Docker secrets (`secrets:` in `deploy/docker-compose.yml`, shown as a commented example)
+  and systemd credentials: `deploy/systemd/kotiko.service` uses
+  `LoadCredential=llm_api_key:/etc/kotiko/llm_api_key` and
+  `Environment=LLM_API_KEY_FILE=%d/llm_api_key`. Replacing a key means replacing the file
+  and restarting; nothing is rebuilt. Slice 53's `docs/reference/configuration.md` lists
+  every `_FILE` variable.
+- **Reproducible server builds** (`build_repeatable`). Release tarballs and the image are
+  built with `SOURCE_DATE_EPOCH` set to the tag's commit time and
+  `ERL_COMPILER_OPTIONS=deterministic`, so BEAM files carry no build paths (medium
+  confidence that Elixir honours it in every supported version: check on the CI versions
+  first). After `mix release`, the tarball is repacked with sorted entries, fixed
+  modification times and owner 0. A CI job builds the same commit twice in different
+  directories and compares SHA-256 hashes. The image uses BuildKit's `SOURCE_DATE_EPOCH`
+  with `rewrite-timestamp=true`; base images are already pinned by digest.
+  `docs/reproducible-builds.md` (slice 30) gets a server section.
+- **Uninstall for every installer** (`installation_common`): `install-service.sh
+  --uninstall` stops and disables the unit and removes it, keeps the data folder and
+  prints where it is; `deploy/macos/install.sh --uninstall` runs `launchctl bootout` and
+  removes the plist; `deploy/windows/install.ps1 -Uninstall` unregisters the task. Docker:
+  `docker compose down`, and `down -v` deletes the data, which the docs warn about.
+  `install-service.sh` writes to `${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user`.
+- **Debug information** (`build_preserve_debug`): Mix releases strip debug chunks by
+  default. The release keeps that default for size and reads
+  `strip_beams: System.get_env("KOTIKO_STRIP_BEAMS", "true") == "true"`, so
+  `KOTIKO_STRIP_BEAMS=false mix release` builds one with debug information; documented in
+  `docs/reproducible-builds.md`.
+
 ## Acceptance criteria
 
 - [ ] `docker compose up -d` on amd64 and arm64 (Raspberry Pi 4/5, 64-bit OS) starts a
@@ -173,6 +211,12 @@ pairing string.
 - [ ] Upgrading the image across a migration leaves a `kotiko-pre-*.db` backup in `/data/backups`.
 - [ ] `Kotiko.Release.backup()` works while the server is serving requests.
 - [ ] macOS LaunchAgent starts at login and restarts after `kill`.
+- [ ] (53) With `LLM_API_KEY_FILE` pointing at a 0600 file and no `LLM_API_KEY`, lookups
+      work; setting both stops boot with a message naming both.
+- [ ] (53) Two builds of the same commit in different directories give identical tarball
+      hashes.
+- [ ] (53) Each installer's uninstall leaves no unit, plist or task behind and keeps the
+      data folder.
 
 ## Test plan
 

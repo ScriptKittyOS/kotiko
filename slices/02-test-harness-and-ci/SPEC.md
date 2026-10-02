@@ -342,6 +342,77 @@ Weekly, Monday: `mix` in `/server`, `npm` in `/`, `github-actions` in `/`. Minor
 patch updates grouped per ecosystem; majors as separate PRs; commit prefix `chore(deps)`
 so release-please (slice 30) leaves them out of user-facing notes.
 
+### 9. Additions for the OpenSSF Best Practices badge (P1, from slice 53)
+
+Added by [53](../53-openssf-best-practices/SPEC.md) for the silver badge. None of this
+blocks the public release; it lands after slice 04's rename.
+
+- **Statement coverage with an 80 % gate** (`test_statement_coverage80`).
+  - **Server**: Elixir's built-in cover tool (Erlang `cover`, which counts executable
+    lines). `server/mix.exs` gets
+    `test_coverage: [summary: [threshold: 80], ignore_modules: [Kotiko.ConnCase, Kotiko.DataCase, Kotiko.LLMStub, Kotiko.TelegramStub]]`.
+    The server job (current Elixir only) runs `mix test --cover`, which fails below the
+    threshold, and uploads `server/cover/` as an artifact. No new dependency; add
+    `excoveralls` only if an lcov export is needed later.
+  - **Extension**: `c8` (exact-pinned dev dependency) with `--all`, so a file no test
+    loads counts as 0 %. Script:
+    `"coverage": "c8 --all --include 'extension/**/*.js' --check-coverage --statements 80 --lines 80 --reporter text --reporter json-summary node --test 'test/{unit,dom,bg}/**/*.test.mjs'"`.
+    The extension job runs `npm run coverage` in place of `npm test`. c8 attributes code
+    run through `vm` to its file because `load-script.mjs` passes `filename` (checked for
+    slice 53).
+  - **Today** (main at `4a8a98a`, measured for slice 53): server 72.7 %, lowest
+    `Application` 33 %, `Transcriber` 33 %, `Bot` 42 %, `Repo` 50 %, `Migrations` 57 %,
+    `Telegram` 61 %; extension 74.9 %, with `popup.js` at 0 % (only the end-to-end tests
+    touch it) and every other file at 90 % or more. To close the gap: jsdom tests for the
+    popup with `fake-chrome.mjs` (connection form, language chips, add, pause), or slice
+    20's popup tests if that lands first; ExUnit tests for the bot's commands and
+    callbacks, `Transcriber` and `Telegram` error paths with `Req.Test`, and the
+    application's boot branches.
+  - Both totals go to the job summary (`$GITHUB_STEP_SUMMARY`) on every pull request.
+  - The end-to-end suite is not counted (extension coverage isn't collected in Chromium).
+  - **Ratchet**: the threshold only goes up. When both suites have stayed above 85 % for
+    a month, raise the gate to 85 %, later 90 % (gold).
+- **Stricter warnings** (`warnings_strict`): `mix credo --strict` (fix, or disable inline
+  with a reason); `mix test --warnings-as-errors`, so test code meets the same bar; ESLint
+  adds `eqeqeq` (`"always", {"null": "ignore"}`), `no-var`, `prefer-const`,
+  `no-implicit-globals` and `no-shadow` for `extension/`.
+- **Formatting for JavaScript, CSS and HTML** (`coding_standards_enforced`): Prettier 3,
+  exact-pinned dev dependency, `.prettierrc.json` `{"printWidth": 100}` (Prettier's
+  defaults of double quotes and semicolons match the code), `.prettierignore` for
+  `node_modules/`, `server/`, `test/fixtures/vendor/`, Markdown and YAML. Script
+  `"format:check": "prettier --check ."` in the extension job, after one mechanical
+  `chore: format with prettier` commit.
+- **Security-focused static analysis** (`static_analysis_common_vulnerabilities`):
+  - **Sobelow** (`{:sobelow, "~> 0.13", only: [:dev, :test], runtime: false}`) in the
+    server job: `mix sobelow --exit medium`, with ignored checks and reasons in
+    `server/.sobelow-conf`. Kotiko is a plain Plug app, so Sobelow's Phoenix-specific
+    checks have nothing to look at, while its general ones (SQL and command injection,
+    path traversal, `binary_to_term`, atom exhaustion) apply. Verify on the first run that
+    they do; if Sobelow can't analyse a non-Phoenix app, use Semgrep's Elixir rules instead.
+  - **CodeQL** (`github/codeql-action`, pinned by SHA) for `javascript-typescript`
+    (extension, scripts, tests) and `actions` (workflow injection), on pull requests, on
+    pushes to `main` and weekly. Free for public repositories, so it starts when the
+    repository goes public.
+- **Secret scanning** (`no_leaked_credentials`): a `secrets` job runs the gitleaks CLI
+  (the official container image pinned by digest; not `gitleaks-action`, which needs a
+  paid licence for organizations) over the full history (`fetch-depth: 0`,
+  `gitleaks git --redact`, or `detect` on older versions). `.gitleaks.toml` extends the
+  default rules and allowlists, by exact value, the two fake keys in
+  `server/test/kotiko/boot_test.exs` and `server/test/kotiko/log/redact_test.exs`
+  (`sk-or-v1-0123456789abcdef`, `sk-or-v1-abcdef0123456789`), the only findings on
+  2026-10-02. Allowlisting by value rather than path keeps a real key in those files
+  detectable. GitHub secret scanning and push protection are switched on with the
+  going-public checklist.
+- **Dependency vulnerabilities in both ecosystems** (`dependency_monitoring`): OSV-Scanner
+  (`google/osv-scanner-action`'s reusable workflow, pinned) over `server/mix.lock` and
+  `package-lock.json` on pull requests and weekly; it fails on a known vulnerability;
+  accepted exceptions go in `osv-scanner.toml` with a reason and an expiry date.
+  `mix deps.audit` and `mix hex.audit` stay.
+- **Relative links in Markdown** (`documentation_current`): `lycheeverse/lychee-action`
+  (pinned) with `--offline --include-fragments` over `**/*.md`, so a moved file or renamed
+  heading fails CI. External links are not checked here; slice 44 checks the site's.
+- Required checks gain `secrets` and `codeql`.
+
 ## Acceptance criteria
 
 - [ ] `cd server && mix test` and `npm test` pass on a fresh clone with no network access
@@ -358,6 +429,11 @@ so release-please (slice 30) leaves them out of user-facing notes.
 - [ ] The required e2e specs pass under both the `en` and the `es-PR` browser profiles.
 - [ ] Adding a hard-coded `textContent = "Added"` to the popup makes the `i18n` job fail;
       so does a new `word.english` reference outside the allow-list.
+- [ ] (53) `mix test --cover` and `npm run coverage` fail CI below 80 % statement coverage,
+      and both totals appear on every pull request.
+- [ ] (53) Prettier, `mix credo --strict`, Sobelow, CodeQL, gitleaks and OSV-Scanner run on
+      pull requests; a planted key-like string outside the allowlist fails the `secrets` job.
+- [ ] (53) A broken relative link or anchor in any Markdown file fails CI.
 
 ## Test plan
 

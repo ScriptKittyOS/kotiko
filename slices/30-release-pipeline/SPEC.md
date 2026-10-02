@@ -241,10 +241,73 @@ Neither store supports rolling back to an older package. A bad release is fixed 
 patch release (`fix:` commit, release PR, merge). On AMO, a maintainer can also disable
 the bad version so users stay on the previous one. Documented in `docs/stores.md`.
 
+### 11. Signed tags, verification, SBOM and release-note rules (P1, from slice 53)
+
+Added by [53](../53-openssf-best-practices/SPEC.md) for the silver badge
+(`signed_releases`, `version_tags_signed`, `release_notes_vulns`,
+`maintenance_or_update`, `build_repeatable`, `external_dependencies`). Cheapest if built
+into the first public release, because it changes how a release starts; 53's Open
+question 3 confirms the tag-signing method.
+
+- **Signed tags.** release-please runs with `skip-github-release: true`: it keeps the
+  release PR, CHANGELOG and version bumps, but no longer tags. After the release PR
+  merges, the release manager runs `scripts/tag-release.sh`, which checks that `HEAD` of
+  an up-to-date `main` is the release commit and that the version matches
+  `.release-please-manifest.json`, then runs `git tag -s vX.Y.Z -m "Kotiko X.Y.Z"` with
+  their own SSH or GPG signing key and pushes the tag.
+- **The workflow verifies the tag first.** `release.yml` gains the trigger
+  `push: {tags: ["v*"]}` and a first job, `verify-tag`, that runs
+  `git -c gpg.format=ssh -c gpg.ssh.allowedSignersFile=.github/allowed_signers verify-tag "$TAG"`
+  (GPG keys, if a maintainer uses them, are imported from `.github/release-keys.asc`).
+  An unsigned tag or one signed by a key not on the list stops the run before any build.
+  Then `gh release create "$TAG" --verify-tag` with the CHANGELOG section as the body, and
+  `build-extension` and the publish jobs of section 2 run as before, keyed on the tag.
+  Finally the job moves the merged release PR's label from `autorelease: pending` to
+  `autorelease: tagged`, which release-please needs before it opens the next release PR.
+- **Who may tag.** `.github/allowed_signers` lists each maintainer's signing key; the same
+  fingerprints are in MAINTAINERS.md (slice 53 §4.3). A repository ruleset lets only
+  maintainers create `v*` tags. Adding or removing a key is a reviewed pull request.
+- The "only manual step" in the goals becomes two: merge the release PR, push the signed
+  tag. The `release` environment approval stays.
+- **Signed files.** Section 7's attestations already sign every zip with Sigstore, keyless,
+  so no private key exists on GitHub or anywhere else. Also attest `SHA256SUMS` and the
+  SBOM. The stores sign what they distribute (AMO signs every Firefox add-on; the Chrome
+  Web Store signs its packages).
+- **`docs/verify.md`**, linked from the release notes footer (section 8) and the docs site:
+  1. The tag: `git -c gpg.ssh.allowedSignersFile=.github/allowed_signers verify-tag v0.3.0`,
+     with the keys cross-checked against MAINTAINERS.md and the maintainers' GitHub
+     profiles.
+  2. The files: `sha256sum -c SHA256SUMS`, then
+     `gh attestation verify kotiko-chrome-0.3.0.zip --repo ScriptKittyOS/kotiko`.
+  3. The store versions: install only from the store links in the README.
+- **SBOM.** Each release attaches `kotiko-server-<version>.cdx.json`, a CycloneDX SBOM
+  from `mix sbom.cyclonedx` (the `sbom` Hex package, dev only). The extension zip contains
+  only files from `extension/` and no third-party code; the release notes footer says so,
+  and any later bundled asset (fonts from slice 17) is added to NOTICE and listed in a
+  second SBOM.
+- **Release notes rules.** The release PR's text gets a hand-written **Security** section
+  whenever the release fixes a vulnerability (advisory ID, CVE, severity and credit, per
+  slice 53 §4.2), and an **Upgrade notes** section for every breaking (`!`) change: what
+  changed, who is affected, the steps. `docs/stores.md`'s release checklist gains: "Security
+  section complete, or no security fixes"; "Upgrade notes for every breaking change";
+  "README, `docs/` and the docs site describe this release"; "Best-practices answers still
+  true (slice 53 §7.6)".
+- **`docs/reproducible-builds.md`**: how anyone rebuilds the extension zips from a tag and
+  compares hashes: the exact Node version, `npm ci`,
+  `node scripts/build-extension.mjs --version X.Y.Z --out dist/`, `sha256sum` against
+  `SHA256SUMS`; what is fixed (entry order, timestamps from the tag's commit, permissions);
+  slice 40's notes for the server tarball and image.
+
 ## Acceptance criteria
 
-- [ ] Merging a release PR creates the tag, the GitHub release, both zips, `SHA256SUMS` and
-      attestations without further action.
+- [ ] Pushing the signed tag for a merged release PR (section 11) creates the GitHub
+      release, both zips, `SHA256SUMS` and attestations without further action.
+- [ ] (53) A `v*` tag that is unsigned, or signed by a key not in `.github/allowed_signers`,
+      stops the release workflow before any build.
+- [ ] (53) Someone outside the project follows `docs/verify.md` for a release and every step
+      succeeds; the release has attestations for the zips, `SHA256SUMS` and the SBOM.
+- [ ] (53) A release that fixes a vulnerability has a Security section; a release with a
+      breaking change has Upgrade notes.
 - [ ] Store jobs wait for approval in the `release` environment and can't run from a fork
       or a PR.
 - [ ] Building the same tag twice gives byte-identical zips.
