@@ -86,7 +86,7 @@ test.describe("slice 16: what not to swap", () => {
     await expect(page.locator("#select option").first()).toHaveText("house");
     await expect(page.locator("#submit")).toHaveValue("Thanks");
     await expect(page.locator("#f1")).toHaveAttribute("placeholder", "house");
-    await expect(page.locator("span.kotiko-w")).toHaveCount(5);
+    await expect(page.locator("kotiko-w")).toHaveCount(5);
   });
 });
 

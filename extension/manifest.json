@@ -14,7 +14,10 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["lib/matcher.js", "lib/controls.js", "content.js"],
+      "js": [
+        "lib/matcher.js", "lib/controls.js", "lib/i18n.js", "lib/speak.js", "lib/word-card.js",
+        "ui/icons.js", "ui/popover-style.js", "content/popover.js", "content.js"
+      ],
       "css": ["content.css"],
       "run_at": "document_idle"
     }
@@ -23,6 +26,9 @@
     "default_popup": "popup.html",
     "default_title": "__MSG_extName__",
     "default_icon": { "16": "icon16.png", "32": "icon32.png", "48": "icon48.png" }
+  },
+  "commands": {
+    "reveal-word": { "suggested_key": { "default": "Alt+Shift+R" }, "description": "__MSG_cmd_reveal_word__" }
   },
   "icons": { "16": "icon16.png", "32": "icon32.png", "48": "icon48.png", "128": "icon128.png" },
   "browser_specific_settings": { "gecko": { "id": "kotiko@scriptkittyos.com" } }

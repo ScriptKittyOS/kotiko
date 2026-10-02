@@ -1,0 +1,347 @@
+{
+  "_comment": "Voice lists as speechSynthesis.getVoices() reports them, per system (slice 34 tests). Names and tags follow what each system ships; trimmed to the languages the tests use.",
+  "windows-chrome": [
+    {
+      "name": "Microsoft David - English (United States)",
+      "lang": "en-US",
+      "localService": true,
+      "default": true,
+      "voiceURI": "Microsoft David - English (United States)"
+    },
+    {
+      "name": "Microsoft Zira - English (United States)",
+      "lang": "en-US",
+      "localService": true,
+      "default": false,
+      "voiceURI": "Microsoft Zira - English (United States)"
+    },
+    {
+      "name": "Microsoft Helena - Spanish (Spain)",
+      "lang": "es-ES",
+      "localService": true,
+      "default": false,
+      "voiceURI": "Microsoft Helena - Spanish (Spain)"
+    },
+    {
+      "name": "Microsoft Sabina - Spanish (Mexico)",
+      "lang": "es-MX",
+      "localService": true,
+      "default": false,
+      "voiceURI": "Microsoft Sabina - Spanish (Mexico)"
+    },
+    {
+      "name": "Microsoft Irina - Russian (Russia)",
+      "lang": "ru-RU",
+      "localService": true,
+      "default": false,
+      "voiceURI": "Microsoft Irina - Russian (Russia)"
+    },
+    {
+      "name": "Microsoft Huihui - Chinese (Simplified, PRC)",
+      "lang": "zh-CN",
+      "localService": true,
+      "default": false,
+      "voiceURI": "Microsoft Huihui - Chinese (Simplified, PRC)"
+    },
+    {
+      "name": "Microsoft Tracy - Chinese (Traditional, Hong Kong S.A.R.)",
+      "lang": "zh-HK",
+      "localService": true,
+      "default": false,
+      "voiceURI": "Microsoft Tracy - Chinese (Traditional, Hong Kong S.A.R.)"
+    },
+    {
+      "name": "Microsoft Hanhan - Chinese (Traditional, Taiwan)",
+      "lang": "zh-TW",
+      "localService": true,
+      "default": false,
+      "voiceURI": "Microsoft Hanhan - Chinese (Traditional, Taiwan)"
+    },
+    {
+      "name": "Microsoft Haruka - Japanese (Japan)",
+      "lang": "ja-JP",
+      "localService": true,
+      "default": false,
+      "voiceURI": "Microsoft Haruka - Japanese (Japan)"
+    },
+    {
+      "name": "Microsoft Hoda - Arabic (Egypt)",
+      "lang": "ar-EG",
+      "localService": true,
+      "default": false,
+      "voiceURI": "Microsoft Hoda - Arabic (Egypt)"
+    },
+    {
+      "name": "Google US English",
+      "lang": "en-US",
+      "localService": false,
+      "default": false,
+      "voiceURI": "Google US English"
+    },
+    {
+      "name": "Google español",
+      "lang": "es-ES",
+      "localService": false,
+      "default": false,
+      "voiceURI": "Google español"
+    },
+    {
+      "name": "Google русский",
+      "lang": "ru-RU",
+      "localService": false,
+      "default": false,
+      "voiceURI": "Google русский"
+    },
+    {
+      "name": "Google 普通话（中国大陆）",
+      "lang": "zh-CN",
+      "localService": false,
+      "default": false,
+      "voiceURI": "Google 普通话（中国大陆）"
+    },
+    {
+      "name": "Google 粤語（香港）",
+      "lang": "zh-HK",
+      "localService": false,
+      "default": false,
+      "voiceURI": "Google 粤語（香港）"
+    },
+    {
+      "name": "Google 國語（臺灣）",
+      "lang": "zh-TW",
+      "localService": false,
+      "default": false,
+      "voiceURI": "Google 國語（臺灣）"
+    },
+    {
+      "name": "Google 日本語",
+      "lang": "ja-JP",
+      "localService": false,
+      "default": false,
+      "voiceURI": "Google 日本語"
+    },
+    {
+      "name": "Google français",
+      "lang": "fr-FR",
+      "localService": false,
+      "default": false,
+      "voiceURI": "Google français"
+    },
+    {
+      "name": "Google ภาษาไทย",
+      "lang": "th-TH",
+      "localService": false,
+      "default": false,
+      "voiceURI": "Google ภาษาไทย"
+    }
+  ],
+  "macos": [
+    {
+      "name": "Alex",
+      "lang": "en-US",
+      "localService": true,
+      "default": true,
+      "voiceURI": "com.apple.speech.synthesis.voice.Alex"
+    },
+    {
+      "name": "Samantha",
+      "lang": "en-US",
+      "localService": true,
+      "default": false,
+      "voiceURI": "com.apple.voice.compact.en-US.Samantha"
+    },
+    {
+      "name": "Monica",
+      "lang": "es-ES",
+      "localService": true,
+      "default": false,
+      "voiceURI": "com.apple.voice.compact.es-ES.Monica"
+    },
+    {
+      "name": "Paulina",
+      "lang": "es-MX",
+      "localService": true,
+      "default": false,
+      "voiceURI": "com.apple.voice.compact.es-MX.Paulina"
+    },
+    {
+      "name": "Milena",
+      "lang": "ru-RU",
+      "localService": true,
+      "default": false,
+      "voiceURI": "com.apple.voice.compact.ru-RU.Milena"
+    },
+    {
+      "name": "Tingting",
+      "lang": "zh-CN",
+      "localService": true,
+      "default": false,
+      "voiceURI": "com.apple.voice.compact.zh-CN.Tingting"
+    },
+    {
+      "name": "Sinji",
+      "lang": "zh-HK",
+      "localService": true,
+      "default": false,
+      "voiceURI": "com.apple.voice.compact.zh-HK.Sinji"
+    },
+    {
+      "name": "Meijia",
+      "lang": "zh-TW",
+      "localService": true,
+      "default": false,
+      "voiceURI": "com.apple.voice.compact.zh-TW.Meijia"
+    },
+    {
+      "name": "Kyoko",
+      "lang": "ja-JP",
+      "localService": true,
+      "default": false,
+      "voiceURI": "com.apple.voice.compact.ja-JP.Kyoko"
+    },
+    {
+      "name": "Maged",
+      "lang": "ar-001",
+      "localService": true,
+      "default": false,
+      "voiceURI": "com.apple.voice.compact.ar-001.Maged"
+    },
+    {
+      "name": "Kanya",
+      "lang": "th-TH",
+      "localService": true,
+      "default": false,
+      "voiceURI": "com.apple.voice.compact.th-TH.Kanya"
+    },
+    {
+      "name": "Thomas",
+      "lang": "fr-FR",
+      "localService": true,
+      "default": false,
+      "voiceURI": "com.apple.voice.compact.fr-FR.Thomas"
+    },
+    {
+      "name": "Luciana",
+      "lang": "pt-BR",
+      "localService": true,
+      "default": false,
+      "voiceURI": "com.apple.voice.compact.pt-BR.Luciana"
+    },
+    {
+      "name": "Joana",
+      "lang": "pt-PT",
+      "localService": true,
+      "default": false,
+      "voiceURI": "com.apple.voice.compact.pt-PT.Joana"
+    }
+  ],
+  "chromeos": [
+    {
+      "name": "Chrome OS US English",
+      "lang": "en-US",
+      "localService": true,
+      "default": true,
+      "voiceURI": "Chrome OS US English"
+    },
+    {
+      "name": "Chrome OS español",
+      "lang": "es-ES",
+      "localService": true,
+      "default": false,
+      "voiceURI": "Chrome OS español"
+    },
+    {
+      "name": "Google US English",
+      "lang": "en-US",
+      "localService": false,
+      "default": false,
+      "voiceURI": "Google US English"
+    },
+    {
+      "name": "Google русский",
+      "lang": "ru-RU",
+      "localService": false,
+      "default": false,
+      "voiceURI": "Google русский"
+    },
+    {
+      "name": "Google 日本語",
+      "lang": "ja-JP",
+      "localService": false,
+      "default": false,
+      "voiceURI": "Google 日本語"
+    },
+    {
+      "name": "Google 普通话（中国大陆）",
+      "lang": "zh-CN",
+      "localService": false,
+      "default": false,
+      "voiceURI": "Google 普通话（中国大陆）"
+    }
+  ],
+  "linux-speech-dispatcher": [
+    {
+      "name": "English (America)+speech-dispatcher",
+      "lang": "en-US",
+      "localService": true,
+      "default": true,
+      "voiceURI": "English (America)+speech-dispatcher"
+    },
+    {
+      "name": "Spanish (Spain)+speech-dispatcher",
+      "lang": "es",
+      "localService": true,
+      "default": false,
+      "voiceURI": "Spanish (Spain)+speech-dispatcher"
+    },
+    {
+      "name": "Russian+speech-dispatcher",
+      "lang": "ru",
+      "localService": true,
+      "default": false,
+      "voiceURI": "Russian+speech-dispatcher"
+    },
+    {
+      "name": "Chinese (Mandarin)+speech-dispatcher",
+      "lang": "cmn",
+      "localService": true,
+      "default": false,
+      "voiceURI": "Chinese (Mandarin)+speech-dispatcher"
+    },
+    {
+      "name": "Chinese (Cantonese)+speech-dispatcher",
+      "lang": "yue",
+      "localService": true,
+      "default": false,
+      "voiceURI": "Chinese (Cantonese)+speech-dispatcher"
+    },
+    {
+      "name": "Japanese+speech-dispatcher",
+      "lang": "ja",
+      "localService": true,
+      "default": false,
+      "voiceURI": "Japanese+speech-dispatcher"
+    },
+    {
+      "name": "Arabic+speech-dispatcher",
+      "lang": "ar",
+      "localService": true,
+      "default": false,
+      "voiceURI": "Arabic+speech-dispatcher"
+    },
+    {
+      "name": "Serbian+speech-dispatcher",
+      "lang": "sr",
+      "localService": true,
+      "default": false,
+      "voiceURI": "Serbian+speech-dispatcher"
+    },
+    {
+      "name": "French (France)+speech-dispatcher",
+      "lang": "fr-FR",
+      "localService": true,
+      "default": false,
+      "voiceURI": "French (France)+speech-dispatcher"
+    }
+  ]
+}

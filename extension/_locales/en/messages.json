@@ -498,5 +498,160 @@
         "content": "{words}"
       }
     }
+  },
+  "popover_language_line": {
+    "message": "$LANGUAGE$ · $ENDONYM$",
+    "description": "Word card (slice 19): the word's language in the interface language, then in the language itself, e.g. \"Russian · русский\". Shown alone when the two are the same.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      },
+      "endonym": {
+        "content": "{endonym}"
+      }
+    }
+  },
+  "popover_other_base": {
+    "message": "In $BASE$: $GLOSS$",
+    "description": "Word card: the meaning saved for another of the learner's languages, e.g. \"In Spanish: perro\". $BASE$ is a language name in the interface language.",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      },
+      "gloss": {
+        "content": "{gloss}"
+      }
+    }
+  },
+  "popover_careful": {
+    "message": "Slowly: $PRONUNCIATION$",
+    "description": "Word card: how the word sounds said slowly and clearly, e.g. \"Slowly: pa-ZHA-lu-sta\". The capitals mark the stressed syllable.",
+    "placeholders": {
+      "pronunciation": {
+        "content": "{pronunciation}"
+      }
+    }
+  },
+  "popover_pron_ai": {
+    "message": "AI-generated",
+    "description": "Word card: after the romanization, says the pronunciation was written by the AI model and not checked against a dictionary."
+  },
+  "popover_pron_checked": {
+    "message": "Checked in $SOURCE$",
+    "description": "Word card: the pronunciation agrees with a dictionary. $SOURCE$ is its name, e.g. Wiktionary.",
+    "placeholders": {
+      "source": {
+        "content": "{source}"
+      }
+    }
+  },
+  "popover_pron_differs": {
+    "message": "AI-generated. $SOURCE$ stresses it differently.",
+    "description": "Word card: a dictionary ($SOURCE$, e.g. Wiktionary) puts the stress on another syllable than the AI's pronunciation.",
+    "placeholders": {
+      "source": {
+        "content": "{source}"
+      }
+    }
+  },
+  "popover_pron_a11y": {
+    "message": "Pronunciation: $PRONUNCIATION$, stress on $SYLLABLE$",
+    "description": "Word card, read by screen readers only: the pronunciation in lowercase and the stressed syllable, e.g. \"Pronunciation: pa-zhal-sta, stress on zhal\".",
+    "placeholders": {
+      "pronunciation": {
+        "content": "{pronunciation}"
+      },
+      "syllable": {
+        "content": "{syllable}"
+      }
+    }
+  },
+  "popover_pron_a11y_plain": {
+    "message": "Pronunciation: $PRONUNCIATION$",
+    "description": "Word card, read by screen readers only: the pronunciation of a word without stress (Mandarin, Japanese, French).",
+    "placeholders": {
+      "pronunciation": {
+        "content": "{pronunciation}"
+      }
+    }
+  },
+  "popover_romanization_a11y": {
+    "message": "Romanization: $ROMANIZATION$",
+    "description": "Word card, read by screen readers only: the word written in Latin letters, e.g. \"Romanization: pozhaluysta\".",
+    "placeholders": {
+      "romanization": {
+        "content": "{romanization}"
+      }
+    }
+  },
+  "popover_tone": {
+    "message": "tone $N$",
+    "description": "Word card, read by screen readers only: a Mandarin or Cantonese tone number after a syllable, e.g. \"tone 4\".",
+    "placeholders": {
+      "n": {
+        "content": "{n}"
+      }
+    }
+  },
+  "popover_also": {
+    "message": "Also: $LIST$",
+    "description": "Word card: other words saved for the same meaning, e.g. \"Also: bitte · por favor\".",
+    "placeholders": {
+      "list": {
+        "content": "{list}"
+      }
+    }
+  },
+  "popover_more": {
+    "message": "More",
+    "description": "Word card: button that shows the rest of a long note."
+  },
+  "popover_dialog_label": {
+    "message": "$NATIVE$, $LANGUAGE$",
+    "description": "Word card, for screen readers: the dialog's name, the word and its language, e.g. \"спасибо, Russian\".",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      },
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "popover_removed": {
+    "message": "That word was removed.",
+    "description": "Short message on the page when the word whose card was open was deleted meanwhile."
+  },
+  "speak_label": {
+    "message": "Hear $WORD$ in $LANG$",
+    "description": "Speaker button (slice 34), for screen readers: plays the word with a voice on the device, e.g. \"Hear пожалуйста in Russian\". $LANG$ is a language name in the interface language.",
+    "placeholders": {
+      "word": {
+        "content": "{word}"
+      },
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "toast_select_word_first": {
+    "message": "Select a swapped word first.",
+    "description": "Short message on the page when the \"Show details\" shortcut is pressed with no swapped word selected."
+  },
+  "cmd_reveal_word": {
+    "message": "Show details for the selected word",
+    "description": "Keyboard shortcut description in the browser's shortcut settings (Alt+Shift+R)."
+  },
+  "settings_voices": {
+    "message": "Voices",
+    "description": "Heading of the voice settings (slice 34)."
+  },
+  "settings_online_voices": {
+    "message": "Allow online voices",
+    "description": "Switch: may Kotiko use the browser's online voices to say words? Off by default."
+  },
+  "settings_online_voices_help": {
+    "message": "The word you play is sent to your browser's voice service.",
+    "description": "Help under the online voices switch: what turning it on means for privacy."
   }
 }

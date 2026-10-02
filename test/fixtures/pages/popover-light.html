@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Popover fixture, light page</title>
+  <style>
+    body { margin: 0; background: #fbfaf7; color: #222; font: 18px/1.6 Georgia, serif; }
+    main { max-width: 640px; margin: 0 auto; padding: 48px 24px 360px; }
+    h1 { font-size: 30px; line-height: 1.2; }
+    .hostile kotiko-popover, kotiko-popover { display: none !important; opacity: 0 !important; }
+    .card { transform: translateZ(0); overflow: hidden; border: 1px solid #ddd; padding: 12px 16px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Notes from a small kitchen</h1>
+    <p id="p1">Come in, please, and sit down. Thanks for coming all this way.</p>
+    <p id="p2">The dog is asleep by the stove, and there is water on the table.</p>
+    <p id="p3">It is a good book about an old castle by the sea.</p>
+    <p id="p4">Read more about <a id="link" href="#dog">the dog</a> or <button id="btn" type="button">say thanks</button>.</p>
+    <div class="card"><p id="p5">Inside a clipped, transformed card: thanks again.</p></div>
+    <p id="p6" lang="es">Y en español: el perro duerme.</p>
+  </main>
+</body>
+</html>

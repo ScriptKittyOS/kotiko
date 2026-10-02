@@ -1,11 +1,17 @@
 /* SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors */
 /* SPDX-License-Identifier: Apache-2.0 */
 
-span.kotiko-w {
+/* A swapped word (slice 15): an inline custom element, isolated for right-to-left words,
+   with a dotted underline in the text's own color. Pointing at it, clicking or tapping it
+   opens the word card (slice 19). */
+kotiko-w {
+  display: inline;
+  unicode-bidi: isolate;
+  line-height: 1; /* slice 17: never grows the line box */
   text-decoration-line: underline;
   text-decoration-style: dotted;
   text-decoration-color: currentColor;
-  text-decoration-thickness: 1px;
+  text-decoration-thickness: from-font;
   text-underline-offset: 0.18em;
   cursor: help;
 }

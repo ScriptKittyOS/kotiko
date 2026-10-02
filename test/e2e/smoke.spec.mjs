@@ -35,9 +35,10 @@ test("connects to the server, syncs, swaps words on a page and restores them whe
   const page = await context.newPage();
   await page.goto(server.page("basic.html"));
   await expect(page.locator("#p1")).toHaveText(P1_SWAPPED);
-  const swapped = page.locator("#p1 span.kotiko-w").first();
+  const swapped = page.locator("#p1 kotiko-w").first();
   await expect(swapped).toHaveAttribute("lang", "ru");
-  await expect(swapped).toHaveAttribute("title", "Thanks = спасибо (spasibo) · Russian");
+  // Nothing about the vocabulary in the page's DOM (slices 15 and 19): no title, no data-*.
+  expect(await swapped.evaluate((el) => el.getAttributeNames().sort())).toEqual(["class", "dir", "lang", "translate"]);
   await expect(page.locator("#code")).toHaveText("thanks in a pre block stays English");
 
   const master = p.getByRole("switch", { name: "Swap words on pages" });
@@ -45,7 +46,7 @@ test("connects to the server, syncs, swaps words on a page and restores them whe
   await expect(master).toHaveAttribute("aria-checked", "false");
   await expect(p.locator("#bannerOff")).toContainText("Kotiko is off on all sites.");
   await expect(page.locator("#p1")).toHaveText(P1);
-  await expect(page.locator("span.kotiko-w")).toHaveCount(0);
+  await expect(page.locator("kotiko-w")).toHaveCount(0);
 
   await p.locator('#bannerOff [data-action="turn-on"]').click();
   await expect(master).toHaveAttribute("aria-checked", "true");

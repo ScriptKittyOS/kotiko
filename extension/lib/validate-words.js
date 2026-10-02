@@ -19,6 +19,12 @@
     minForm: 1,
     maxForm: 40,
     maxForms: 10,
+    // The pronunciation fields (slice 07 §7): a respelling, its careful form, the word
+    // with stress or vowel marks, the Japanese reading, and who wrote them.
+    maxPronunciation: 96,
+    maxVocalized: 128,
+    maxReading: 64,
+    maxSource: 40,
   };
 
   // Length in characters (code points), not UTF-16 units.
@@ -48,6 +54,41 @@
     return null;
   }
 
+  // The optional pronunciation fields. A bad one is dropped (set to null), never the word:
+  // the popover (slice 19) falls back to the romanization. Returns the fields to change,
+  // or null when the word is fine as it is.
+  const CONTROL = /\p{Cc}|[\u2028\u2029]/u;
+  const okText = (v, max) => typeof v === "string" && v.trim().length > 0 && len(v) <= max && !CONTROL.test(v);
+  const unmarked = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").normalize("NFC");
+  const CHECK_STATUSES = new Set(["verified", "corrected", "differs", "no_data"]);
+
+  function cleanVerification(v) {
+    const p = v?.pronunciation;
+    if (!p || typeof p !== "object" || !CHECK_STATUSES.has(p.status)) return null;
+    const out = { status: p.status };
+    if (okText(p.source, LIMITS.maxSource)) out.source = p.source;
+    if (okText(p.stressed, LIMITS.maxVocalized)) out.stressed = p.stressed;
+    return { pronunciation: out };
+  }
+
+  function extraFixes(w) {
+    const fix = {};
+    for (const [k, max] of [["pronunciation", LIMITS.maxPronunciation], ["pronunciation_careful", LIMITS.maxPronunciation], ["reading", LIMITS.maxReading]]) {
+      if (w[k] != null && !okText(w[k], max)) fix[k] = null;
+    }
+    // The marked word must be the same word as `native` once its marks are removed, so a
+    // server can't show one word on the page and another in the card.
+    if (w.native_vocalized != null && !(okText(w.native_vocalized, LIMITS.maxVocalized) && unmarked(w.native_vocalized) === unmarked(w.native))) {
+      fix.native_vocalized = null;
+    }
+    if (w.pronunciation_source != null && w.pronunciation_source !== "model" && w.pronunciation_source !== "user") fix.pronunciation_source = null;
+    if (w.verification != null) {
+      const v = cleanVerification(w.verification);
+      if (JSON.stringify(v) !== JSON.stringify(w.verification)) fix.verification = v;
+    }
+    return Object.keys(fix).length ? fix : null;
+  }
+
   // Valid forms only, at most LIMITS.maxForms, in their original order.
   const cleanForms = (forms) => forms.filter(isForm).slice(0, LIMITS.maxForms);
 
@@ -72,10 +113,11 @@
       // response caches byte-identical to what the server sent.
       const forms = w.forms ?? [];
       const kept = cleanForms(forms);
-      if (kept.length === forms.length) words.push(w);
+      const fix = extraFixes(w);
+      if (kept.length === forms.length && !fix) words.push(w);
       else {
         droppedForms += forms.length - kept.length;
-        words.push({ ...w, forms: kept });
+        words.push({ ...w, ...(kept.length === forms.length ? {} : { forms: kept }), ...fix });
       }
     }
     const dropped = Object.values(reasons).reduce((a, b) => a + b, 0);
@@ -114,7 +156,7 @@
     return { ok: true, ...filterWords(body.words) };
   }
 
-  const api = { LIMITS, checkWord, cleanForms, filterWords, validateWordsResponse };
+  const api = { LIMITS, checkWord, cleanForms, extraFixes, filterWords, validateWordsResponse };
   globalThis.WordValidator = api;
   if (typeof module === "object" && module.exports) module.exports = api;
 })();
