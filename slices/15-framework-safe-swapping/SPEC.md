@@ -387,3 +387,38 @@ install or update."
   long pages, if the centre-first heuristic proves insufficient.
 - A per-instance random element name to reduce fingerprinting (needs a style injection
   strategy that doesn't use a fixed selector).
+
+## Implementation notes
+
+*2026-10-02, the part of this slice that [19](../19-word-popover/SPEC.md)'s word card needs,
+built with it. Requirements above are unchanged; most of the slice is still to do.*
+
+**Built.**
+
+- The swap element: `<kotiko-w lang="…" dir="auto" translate="no" class="notranslate">`
+  (`content.css` as specified, including `line-height: 1`). No `title`, `data-*`, `id` or
+  `aria-*`: the original surface, the chosen word and its candidates live in a
+  content-script `WeakMap<Element, {surface, word, all}>`, which the card reads through
+  `infoFor(el)` (adding the same word's other-base records). The neighbouring-text check
+  for a lone capital reads the original surface from the map instead of `data-en`.
+- Unwrapping restores each swap from the map; a `<kotiko-w>` this instance didn't make is
+  left for its own instance.
+- Legacy cleanup: swaps from before this element (`span.kotiko-w` with `data-en`, and the
+  pre-rename span) are put back to their `data-en` text on startup. Remove two releases
+  later.
+- One instance per document, minimally: each instance dispatches `kotiko:handoff` on
+  startup, and an older one hears it, restores its swaps from its own map, and stops; an
+  instance also stops when its extension context is gone (06 F15), checked in the
+  observer callback. A page that fires the event itself makes Kotiko stop on that page
+  (nothing re-walks it), which is the same as the page removing the swaps.
+- Tests: the content DOM tests assert the element and its attributes, and that no
+  original word, gloss or language appears in the page's HTML; e2e checks the same from
+  page scripts.
+
+**Not built yet** (the rest of this slice): swapping text nodes in place without detaching
+them (06 F02; `replaceChild` is still used, and the F02 tests stay `todo`), no
+`normalize()` (F03), rewrite budgets and stand-down (F08), the observer on
+`documentElement` (F25), time-sliced processing with `scheduler.yield()`, centre-first
+initial passes and the hydration wait, signature-based re-apply, `restoreWithin`,
+injection into tabs open at install (the `scripting` permission), the `KotikoEngine`
+public surface, and the split into `content/engine.js` and `content/main.js`.

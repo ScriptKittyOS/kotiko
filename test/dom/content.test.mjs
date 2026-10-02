@@ -46,7 +46,7 @@ async function load(html, { words = WORDS, url = "https://example.com/", beforeI
     fake,
     doc,
     $: (id) => doc.getElementById(id),
-    spans: () => [...doc.querySelectorAll("span.kotiko-w")],
+    spans: () => [...doc.querySelectorAll("kotiko-w")],
     // Changes extension storage and waits for content.js to react.
     async set(patch) {
       await fake.chrome.storage.local.set(patch);
@@ -56,14 +56,17 @@ async function load(html, { words = WORDS, url = "https://example.com/", beforeI
 }
 
 describe("swapping", () => {
-  test("swaps known words into marked spans", async () => {
+  test("swaps known words into <kotiko-w> elements that carry no word data (slice 15)", async () => {
     const { $, spans } = await load(`<p id="p">My house is your house.</p>`);
     assert.equal($("p").textContent, "My дом is your дом.");
     const [s] = spans();
-    assert.equal(s.dataset.en, "house");
+    assert.equal(s.localName, "kotiko-w");
     assert.equal(s.lang, "ru");
     assert.equal(s.dir, "auto");
-    assert.equal(s.title, "house = дом · Russian");
+    assert.equal(s.getAttribute("translate"), "no");
+    assert.equal(s.className, "notranslate");
+    // Only rendering and translation hints: no title, no data-*, no aria-*, no id.
+    assert.deepEqual(s.getAttributeNames().sort(), ["class", "dir", "lang", "translate"]);
   });
 
   test("keeps the English casing", async () => {
@@ -71,10 +74,11 @@ describe("swapping", () => {
     assert.equal($("p").textContent, "Дом. ДОМ! дом?");
   });
 
-  test("rotates languages and lists the others in the tooltip", async () => {
-    const { spans } = await load(`<p>thanks thanks thanks</p>`);
+  test("rotates languages; the original word and the others stay out of the page DOM", async () => {
+    const { doc, spans } = await load(`<p>thanks thanks thanks</p>`);
     assert.deepEqual(spans().map((s) => s.lang), ["ru", "zh", "ar"]);
-    assert.equal(spans()[0].title, "thanks = спасибо (spasibo) · Russian\n\n谢谢 · Mandarin\nشكرا · Arabic");
+    assert.ok(spans().every((s) => !s.hasAttribute("title") && !Object.keys(s.dataset).length));
+    assert.doesNotMatch(doc.documentElement.outerHTML, /thanks|spasibo|Mandarin|Russian/);
   });
 
   test("leaves code, form fields, editors and scripts alone", async () => {
@@ -295,7 +299,18 @@ describe("after the rename", () => {
     assert.equal(doc.querySelectorAll(`span.${OLD}`).length, 0);
     assert.equal($("p").textContent, "My дом is big.");
     assert.equal(spans().length, 1);
-    assert.equal(spans()[0].dataset.en, "house");
+    assert.equal(spans()[0].localName, "kotiko-w");
+    assert.equal(spans()[0].hasAttribute("data-en"), false);
+  });
+
+  test("swaps from before the <kotiko-w> element (span.kotiko-w with data-en) go back too", async () => {
+    const { $, doc } = await load(
+      `<p id="p">My <span class="kotiko-w" data-en="house" lang="ru" dir="auto" title="house = дом · Russian">дом</span>.</p>`,
+      { enabled: false },
+    );
+    assert.equal(doc.querySelectorAll("span.kotiko-w").length, 0);
+    assert.equal($("p").textContent, "My house.");
+    assert.equal($("p").childNodes.length, 1);
   });
 
   test("switched off, the old spans are still restored", async () => {

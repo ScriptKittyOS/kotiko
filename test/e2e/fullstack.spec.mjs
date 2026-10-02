@@ -132,7 +132,7 @@ test.describe("full stack", () => {
     const page = await context.newPage();
     await page.goto(server.page("basic.html"));
     await expect(page.locator("#p1")).toHaveText("شكرا for visiting. This house has three rooms and a garden.");
-    await expect(page.locator("#p1 span.kotiko-w")).toHaveAttribute("lang", "ar");
+    await expect(page.locator("#p1 kotiko-w")).toHaveAttribute("lang", "ar");
 
     // Slice 07: adding it again merges instead of overwriting, and the popup names the
     // word with no Undo that could delete the original.

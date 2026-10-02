@@ -615,7 +615,13 @@ defmodule Kotiko.RouterV1Test do
 
       assert {200, %{"words" => [word]}} = call("GET", "/api/words")
 
-      assert word == %{
+      # Plus the word card's fields (slice 19), which 0.2 extensions ignore.
+      card =
+        ~w(base_lang native_vocalized pronunciation pronunciation_careful pronunciation_source)
+
+      assert Map.take(word, card) == Map.new(card, &{&1, if(&1 == "base_lang", do: "en")})
+
+      assert Map.drop(word, card) == %{
                "id" => en.id,
                "lang" => "ru",
                "language" => "Russian",

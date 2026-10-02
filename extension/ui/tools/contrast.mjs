@@ -80,6 +80,16 @@ export const PAIRS = [
   ["purple-text", "danger-soft", "Link in a banner", TEXT],
   ["danger", "canvas", "Failed add line", TEXT],
   ["ink-3", "purple-soft", "Count on a chip that is on", TEXT],
+  // Added with the word card (slice 19), whose surface is --surface-e2. The speak button
+  // hovered or playing is purple-text on purple-soft, and a hovered action ink on sunken,
+  // both above.
+  ["ink", "surface-e2", "Word card: word, respelling, meaning", TEXT],
+  ["ink-2", "surface-e2", "Word card: careful form, note, Also", TEXT],
+  ["ink-3", "surface-e2", "Word card: romanization, label, language", TEXT],
+  ["purple-text", "surface-e2", "Word card: speak icon, More", TEXT],
+  ["success", "surface-e2", "Checked label's check mark", NON_TEXT],
+  ["orange", "surface-e2", "The word's dotted underline", NON_TEXT],
+  ["focus", "surface-e2", "Focus ring in the card", NON_TEXT],
 ];
 
 // 06 §4.2 pairs, plus the brand's distance from danger (re-checked for every brand input).

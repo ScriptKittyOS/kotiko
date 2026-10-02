@@ -87,7 +87,36 @@ defmodule Kotiko.WordTest do
              romanization: "inu",
              english: "dog",
              forms: ["dog"],
-             note: nil
+             note: nil,
+             base_lang: "en",
+             native_vocalized: nil,
+             pronunciation: nil,
+             pronunciation_careful: nil,
+             pronunciation_source: nil
            }
+  end
+
+  test "to_legacy_json adds the pronunciation fields for the word card (slice 19)" do
+    word = %Word{
+      @word
+      | lang: "ru",
+        native: "пожалуйста",
+        native_vocalized: "пожа́луйста",
+        romanization: "pozhaluysta",
+        pronunciation: "pa-ZHAL-sta",
+        pronunciation_careful: "pa-ZHA-lu-sta",
+        pronunciation_source: "model",
+        gloss: "please"
+    }
+
+    json = Word.to_legacy_json(word)
+    assert json.native_vocalized == "пожа́луйста"
+    assert json.pronunciation == "pa-ZHAL-sta"
+    assert json.pronunciation_careful == "pa-ZHA-lu-sta"
+    assert json.pronunciation_source == "model"
+    assert json.base_lang == "en"
+    # The 0.2 fields are unchanged.
+    assert json.english == "please"
+    assert json.native == "пожалуйста"
   end
 end
