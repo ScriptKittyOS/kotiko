@@ -89,10 +89,9 @@ defmodule Kotiko.MigrationV2Test do
     assert w[9].merged_into == w[8].uuid
     assert w[8].native == "Hund"
     assert Enum.map(w[8].forms, & &1.text) == ["dog", "hound"]
-    # A blank language name is cleared (F29), then filled from the merged row.
-    assert w[8].language == "German"
-    assert w[6].language == nil
-    assert w[13].language == "Korean"
+    # The model's language names (blank ones included, F29) are gone after slice 08's
+    # migration: names come from the tag.
+    refute ["language"] in query(ctx.db, "SELECT name FROM pragma_table_info('words')")
   end
 
   test "ids, timestamps and seq", ctx do

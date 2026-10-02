@@ -1,0 +1,14 @@
+{
+ "name": "extract-unbalanced",
+ "input": {
+  "text": "da",
+  "mode": "auto",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\": \"add\", \"words\": [",
+ "expect": {
+  "error": "unparseable"
+ }
+}

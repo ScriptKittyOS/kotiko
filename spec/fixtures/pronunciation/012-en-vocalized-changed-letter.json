@@ -1,0 +1,20 @@
+{
+ "name": "en-vocalized-changed-letter",
+ "word": {
+  "lang": "ru",
+  "native": "пожалуйста",
+  "base_lang": "en",
+  "native_vocalized": "пажа́луйста"
+ },
+ "expect": {
+  "word": {
+   "native_vocalized": null
+  },
+  "dropped_fields": [
+   {
+    "field": "native_vocalized",
+    "reason": "bad_vocalized"
+   }
+  ]
+ }
+}

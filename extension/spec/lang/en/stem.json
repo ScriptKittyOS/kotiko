@@ -1,0 +1,251 @@
+{
+  "kind": "suffix",
+  "strip_accents": false,
+  "irregulars": {
+    "am": "be",
+    "are": "be",
+    "ate": "eat",
+    "became": "become",
+    "been": "be",
+    "began": "begin",
+    "begun": "begin",
+    "being": "be",
+    "best": "good",
+    "better": "good",
+    "bit": "bite",
+    "bitten": "bite",
+    "bought": "buy",
+    "broke": "break",
+    "broken": "break",
+    "brought": "bring",
+    "built": "build",
+    "came": "come",
+    "caught": "catch",
+    "children": "child",
+    "chose": "choose",
+    "chosen": "choose",
+    "did": "do",
+    "does": "do",
+    "done": "do",
+    "drank": "drink",
+    "drawn": "draw",
+    "drew": "draw",
+    "driven": "drive",
+    "drove": "drive",
+    "drunk": "drink",
+    "dug": "dig",
+    "dying": "die",
+    "eaten": "eat",
+    "fallen": "fall",
+    "farther": "far",
+    "farthest": "far",
+    "fed": "feed",
+    "feet": "foot",
+    "fell": "fall",
+    "felt": "feel",
+    "flew": "fly",
+    "flies": "fly",
+    "flown": "fly",
+    "forgot": "forget",
+    "forgotten": "forget",
+    "fought": "fight",
+    "found": "find",
+    "further": "far",
+    "furthest": "far",
+    "gave": "give",
+    "geese": "goose",
+    "given": "give",
+    "goes": "go",
+    "going": "go",
+    "gone": "go",
+    "got": "get",
+    "gotten": "get",
+    "grew": "grow",
+    "grown": "grow",
+    "had": "have",
+    "halves": "half",
+    "has": "have",
+    "heard": "hear",
+    "held": "hold",
+    "hid": "hide",
+    "hidden": "hide",
+    "hung": "hang",
+    "is": "be",
+    "kept": "keep",
+    "knew": "know",
+    "knives": "knife",
+    "known": "know",
+    "lain": "lie",
+    "lay": "lie",
+    "least": "little",
+    "leaves": "leaf",
+    "led": "lead",
+    "left": "leave",
+    "less": "little",
+    "lit": "light",
+    "lives": "life",
+    "loaves": "loaf",
+    "lost": "lose",
+    "lying": "lie",
+    "made": "make",
+    "meant": "mean",
+    "men": "man",
+    "met": "meet",
+    "mice": "mouse",
+    "more": [
+      "much",
+      "many"
+    ],
+    "most": [
+      "much",
+      "many"
+    ],
+    "oxen": "ox",
+    "paid": "pay",
+    "people": "person",
+    "ran": "run",
+    "ridden": "ride",
+    "risen": "rise",
+    "rode": "ride",
+    "rose": "rise",
+    "said": "say",
+    "sang": "sing",
+    "sat": "sit",
+    "saw": "see",
+    "seen": "see",
+    "sent": "send",
+    "shelves": "shelf",
+    "shot": "shoot",
+    "slept": "sleep",
+    "sold": "sell",
+    "spent": "spend",
+    "spoke": "speak",
+    "spoken": "speak",
+    "stood": "stand",
+    "sung": "sing",
+    "swam": "swim",
+    "swum": "swim",
+    "taken": "take",
+    "taught": "teach",
+    "teeth": "tooth",
+    "thieves": "thief",
+    "thought": "think",
+    "threw": "throw",
+    "thrown": "throw",
+    "told": "tell",
+    "took": "take",
+    "tying": "tie",
+    "understood": "understand",
+    "was": "be",
+    "went": "go",
+    "were": "be",
+    "wives": "wife",
+    "woke": "wake",
+    "woken": "wake",
+    "wolves": "wolf",
+    "women": "woman",
+    "won": "win",
+    "wore": "wear",
+    "worn": "wear",
+    "worse": "bad",
+    "worst": "bad",
+    "written": "write",
+    "wrote": "write"
+  },
+  "suffixes": [
+    {
+      "suffix": "'s",
+      "add": [
+        ""
+      ],
+      "min": 1
+    },
+    {
+      "suffix": "’s",
+      "add": [
+        ""
+      ],
+      "min": 1
+    },
+    {
+      "suffix": "s'",
+      "add": [
+        ""
+      ],
+      "min": 1
+    },
+    {
+      "suffix": "ies",
+      "add": [
+        "y",
+        "ie"
+      ]
+    },
+    {
+      "suffix": "ied",
+      "add": [
+        "y",
+        "ie"
+      ]
+    },
+    {
+      "suffix": "ing",
+      "add": [
+        "",
+        "e"
+      ],
+      "undouble": true
+    },
+    {
+      "suffix": "est",
+      "add": [
+        "",
+        "e"
+      ],
+      "undouble": true
+    },
+    {
+      "suffix": "es",
+      "add": [
+        "",
+        "e"
+      ]
+    },
+    {
+      "suffix": "ed",
+      "add": [
+        "",
+        "e"
+      ],
+      "undouble": true
+    },
+    {
+      "suffix": "er",
+      "add": [
+        "",
+        "e"
+      ],
+      "undouble": true
+    },
+    {
+      "suffix": "ly",
+      "add": [
+        "",
+        "le"
+      ]
+    },
+    {
+      "suffix": "s",
+      "add": [
+        ""
+      ]
+    },
+    {
+      "suffix": "d",
+      "add": [
+        ""
+      ],
+      "min": 3
+    }
+  ]
+}

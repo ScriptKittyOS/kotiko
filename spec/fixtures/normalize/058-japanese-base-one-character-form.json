@@ -1,0 +1,27 @@
+{
+ "name": "japanese-base-one-character-form",
+ "input": {
+  "text": "犬は韓国語で?",
+  "mode": "add",
+  "base_langs": [
+   "ja"
+  ]
+ },
+ "raw": "{\"intent\":\"lookup\",\"words\":[{\"language\":null,\"romanization\":\"gae\",\"native_vocalized\":null,\"note\":null,\"lang\":\"ko\",\"native\":\"개\",\"base_lang\":\"ja\",\"gloss\":\"犬\",\"forms\":[\"犬\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "lang": "ko",
+    "gloss": "犬",
+    "forms": [
+     "犬"
+    ],
+    "pronunciation": null
+   }
+  ]
+ }
+}

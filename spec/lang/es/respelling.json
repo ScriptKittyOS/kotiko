@@ -1,0 +1,167 @@
+{
+  "alphabet": "abcdefghijklmnopqrstuvwxyzñ",
+  "sounds": [
+    {
+      "sound": "vocales",
+      "written": "a e i o u, siempre como en español; vocales largas dobles",
+      "example": "ありがとう a-ri-ga-too"
+    },
+    {
+      "sound": "vocales reducidas (о y а rusas sin acento, schwa inglesa)",
+      "written": "la vocal española más cercana",
+      "example": "молоко ma-la-KO; teacher TI-cher"
+    },
+    {
+      "sound": "vocales inglesas que el español no tiene",
+      "written": "la vocal española más cercana",
+      "example": "cup kap"
+    },
+    {
+      "sound": "acento",
+      "written": "mayúsculas, nunca tilde",
+      "example": "спасибо spa-SI-ba"
+    },
+    {
+      "sound": "[k]",
+      "written": "k siempre (nunca c ni qu)",
+      "example": "кошка KOSH-ka"
+    },
+    {
+      "sound": "[g]",
+      "written": "g; gu ante e i",
+      "example": "ありがとう a-ri-ga-too"
+    },
+    {
+      "sound": "[x] y [h]",
+      "written": "j, nunca h",
+      "example": "хорошо ja-ra-SHO; house jaus"
+    },
+    {
+      "sound": "[ʃ] y [ɕ]",
+      "written": "sh",
+      "example": "谢谢 shie4-shie"
+    },
+    {
+      "sound": "[ʒ]",
+      "written": "zh, como la ll y la y rioplatenses",
+      "example": "пожалуйста pa-ZHAL-sta"
+    },
+    {
+      "sound": "[z]",
+      "written": "z, una s que zumba, como en inglés zoo",
+      "example": "здравствуйте ZDRAST-vui-tie"
+    },
+    {
+      "sound": "[θ]",
+      "written": "th, como la z de España",
+      "example": "think think"
+    },
+    {
+      "sound": "[ð]",
+      "written": "d, como en dedo",
+      "example": "this dis"
+    },
+    {
+      "sound": "[tʃ] y [ts]",
+      "written": "ch, ts",
+      "example": "чай chai; царь tsar"
+    },
+    {
+      "sound": "ñ",
+      "written": "ñ (нь rusa, gn francesa)",
+      "example": "нет ñet"
+    },
+    {
+      "sound": "[j]",
+      "written": "y ante vocal, i después de vocal",
+      "example": "я ya"
+    },
+    {
+      "sound": "consonantes suaves rusas",
+      "written": "i antes de la vocal",
+      "example": "дети DIE-ti"
+    },
+    {
+      "sound": "ы rusa",
+      "written": "i (aproximada)",
+      "example": "мы mi"
+    },
+    {
+      "sound": "[w]",
+      "written": "u ante vocal",
+      "example": "window UIN-dou"
+    },
+    {
+      "sound": "r",
+      "written": "r y rr como en español",
+      "example": "рыба RI-ba"
+    }
+  ],
+  "targets": {
+    "ru": [
+      "La о y la а sin acento se escriben a (молоко ma-la-KO).",
+      "Una consonante suave pone i antes de la vocal (лес lies; люблю liu-BLIU).",
+      "La forma de todos los días quita lo que se quita al hablar (пожалуйста pa-ZHAL-sta); la cuidadosa tiene una sílaba por vocal escrita (pa-ZHA-lu-sta)."
+    ],
+    "zh": [
+      "Todo en minúsculas; un número de tono tras cada sílaba tal como se dice (你好 ni2-jao3), ninguno en el tono neutro (谢谢 shie4-shie)."
+    ],
+    "en": [
+      "La h inglesa se escribe j (house jaus); la schwa, con la vocal más cercana (teacher TI-cher)."
+    ],
+    "ar": [
+      "ح خ ه se escriben j, nunca h (مرحبا MAR-ja-ban)."
+    ]
+  },
+  "examples": [
+    {
+      "lang": "ru",
+      "native": "хорошо",
+      "pronunciation": "ja-ra-SHO",
+      "pronunciation_careful": null
+    },
+    {
+      "lang": "ru",
+      "native": "пожалуйста",
+      "pronunciation": "pa-ZHAL-sta",
+      "pronunciation_careful": "pa-ZHA-lu-sta"
+    },
+    {
+      "lang": "ru",
+      "native": "спасибо",
+      "pronunciation": "spa-SI-ba",
+      "pronunciation_careful": null
+    },
+    {
+      "lang": "zh",
+      "native": "谢谢",
+      "pronunciation": "shie4-shie",
+      "pronunciation_careful": null
+    },
+    {
+      "lang": "zh",
+      "native": "你好",
+      "pronunciation": "ni2-jao3",
+      "pronunciation_careful": null
+    },
+    {
+      "lang": "en",
+      "native": "house",
+      "pronunciation": "jaus",
+      "pronunciation_careful": null
+    },
+    {
+      "lang": "en",
+      "native": "hello",
+      "pronunciation": "je-LOU",
+      "pronunciation_careful": null
+    },
+    {
+      "lang": "ar",
+      "native": "مرحبا",
+      "pronunciation": "MAR-ja-ban",
+      "pronunciation_careful": null
+    }
+  ],
+  "prompt_summary": "Key for Spanish readers, read as Spanish: vowels a e i o u as in Spanish, long vowels doubled; reduced vowels (Russian unstressed о and а, English schwa) as the nearest Spanish vowel. k always for [k]; g, gu before e and i; j for [x] and [h], never h; sh for [ʃ]; zh for [ʒ] (the ll of Río de la Plata); z for a buzzing s; th for English [θ]; d for [ð]; ch, ts; ñ for a palatal n; y before a vowel, i after one; Russian soft consonants put i before the vowel (лес lies); Russian ы is i; u before a vowel for [w]; r and rr as Spanish spelling reads them."
+}

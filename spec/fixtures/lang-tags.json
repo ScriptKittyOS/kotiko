@@ -1,0 +1,1266 @@
+{
+ "description": "Slice 08: canonical tags (cases), the script check of native (script_checks), names from the data in an interface locale (names) and endonyms. Run by server/test/kotiko/lang_test.exs and test/unit/lang.test.mjs.",
+ "cases": [
+  {
+   "input": "iw",
+   "tag": "he",
+   "known": true,
+   "note": "deprecated code"
+  },
+  {
+   "input": "in",
+   "tag": "id",
+   "known": true,
+   "note": "deprecated code"
+  },
+  {
+   "input": "ji",
+   "tag": "yi",
+   "known": true,
+   "note": "deprecated code"
+  },
+  {
+   "input": "jw",
+   "tag": "jv",
+   "known": true,
+   "note": "deprecated code"
+  },
+  {
+   "input": "mo",
+   "tag": "ro",
+   "known": true,
+   "note": "deprecated code"
+  },
+  {
+   "input": "tl",
+   "tag": "fil",
+   "known": true,
+   "note": "legacy: Tagalog is fil"
+  },
+  {
+   "input": "sh",
+   "tag": "sr-Latn",
+   "known": true,
+   "note": "legacy: Serbo-Croatian is Serbian in Latin"
+  },
+  {
+   "input": "nb",
+   "tag": "no",
+   "known": true,
+   "note": "curated: Bokmål is Norwegian"
+  },
+  {
+   "input": "rus",
+   "tag": "ru",
+   "known": true,
+   "note": "three-letter code with a two-letter one"
+  },
+  {
+   "input": "deu",
+   "tag": "de",
+   "known": true,
+   "note": "overlong"
+  },
+  {
+   "input": "ger",
+   "tag": "de",
+   "known": true,
+   "note": "bibliographic"
+  },
+  {
+   "input": "zho",
+   "tag": "zh",
+   "known": true,
+   "note": "overlong"
+  },
+  {
+   "input": "chi",
+   "tag": "zh",
+   "known": true,
+   "note": "bibliographic"
+  },
+  {
+   "input": "eng",
+   "tag": "en",
+   "known": true,
+   "note": "overlong English"
+  },
+  {
+   "input": "spa",
+   "tag": "es",
+   "known": true,
+   "note": "overlong Spanish"
+  },
+  {
+   "input": "jpn",
+   "tag": "ja",
+   "known": true,
+   "note": "overlong"
+  },
+  {
+   "input": "cmn",
+   "tag": "zh",
+   "known": true,
+   "note": "macrolanguage member"
+  },
+  {
+   "input": "arb",
+   "tag": "ar",
+   "known": true,
+   "note": "macrolanguage member"
+  },
+  {
+   "input": "pes",
+   "tag": "fa",
+   "known": true,
+   "note": "macrolanguage member"
+  },
+  {
+   "input": "zsm",
+   "tag": "ms",
+   "known": true,
+   "note": "macrolanguage member"
+  },
+  {
+   "input": "ekk",
+   "tag": "et",
+   "known": true,
+   "note": "macrolanguage member"
+  },
+  {
+   "input": "lvs",
+   "tag": "lv",
+   "known": true,
+   "note": "macrolanguage member"
+  },
+  {
+   "input": "swh",
+   "tag": "sw",
+   "known": true,
+   "note": "macrolanguage member"
+  },
+  {
+   "input": "yue",
+   "tag": "yue",
+   "known": true,
+   "note": "distinct variety"
+  },
+  {
+   "input": "nan",
+   "tag": "nan",
+   "known": true,
+   "note": "distinct variety"
+  },
+  {
+   "input": "wuu",
+   "tag": "wuu",
+   "known": true,
+   "note": "distinct variety"
+  },
+  {
+   "input": "hak",
+   "tag": "hak",
+   "known": true,
+   "note": "distinct variety"
+  },
+  {
+   "input": "arz",
+   "tag": "arz",
+   "known": true,
+   "note": "distinct variety"
+  },
+  {
+   "input": "ary",
+   "tag": "ary",
+   "known": true,
+   "note": "distinct variety"
+  },
+  {
+   "input": "apc",
+   "tag": "apc",
+   "known": true,
+   "note": "distinct variety (curated name)"
+  },
+  {
+   "input": "gsw",
+   "tag": "gsw",
+   "known": true,
+   "note": "distinct variety"
+  },
+  {
+   "input": "zh-TW",
+   "tag": "zh-Hant",
+   "known": true,
+   "note": "Chinese region to script"
+  },
+  {
+   "input": "zh-HK",
+   "tag": "zh-Hant",
+   "known": true,
+   "note": "Chinese region to script"
+  },
+  {
+   "input": "zh-MO",
+   "tag": "zh-Hant",
+   "known": true,
+   "note": "Chinese region to script"
+  },
+  {
+   "input": "zh-CN",
+   "tag": "zh",
+   "known": true,
+   "note": "Chinese region to script"
+  },
+  {
+   "input": "zh-SG",
+   "tag": "zh",
+   "known": true,
+   "note": "Chinese region to script"
+  },
+  {
+   "input": "zh-Hant-TW",
+   "tag": "zh-Hant",
+   "known": true,
+   "note": "explicit script wins"
+  },
+  {
+   "input": "zh-Hans-TW",
+   "tag": "zh",
+   "known": true,
+   "note": "explicit script wins"
+  },
+  {
+   "input": "zh-Hant",
+   "tag": "zh-Hant",
+   "known": true,
+   "note": "non-default script kept"
+  },
+  {
+   "input": "zh-Hans",
+   "tag": "zh",
+   "known": true,
+   "note": "default script dropped"
+  },
+  {
+   "input": "yue-Hans",
+   "tag": "yue-Hans",
+   "known": true,
+   "note": "Cantonese in Simplified kept"
+  },
+  {
+   "input": "yue-HK",
+   "tag": "yue",
+   "known": true,
+   "note": "Cantonese region dropped"
+  },
+  {
+   "input": "yue-Hant",
+   "tag": "yue",
+   "known": true,
+   "note": "Cantonese default script dropped"
+  },
+  {
+   "input": "ar-EG",
+   "tag": "arz",
+   "known": true,
+   "note": "Arabic region to dialect"
+  },
+  {
+   "input": "ar-MA",
+   "tag": "ary",
+   "known": true,
+   "note": "Arabic region to dialect"
+  },
+  {
+   "input": "ar-DZ",
+   "tag": "arq",
+   "known": true,
+   "note": "Arabic region to dialect"
+  },
+  {
+   "input": "ar-TN",
+   "tag": "aeb",
+   "known": true,
+   "note": "Arabic region to dialect"
+  },
+  {
+   "input": "ar-LB",
+   "tag": "apc",
+   "known": true,
+   "note": "Arabic region to dialect"
+  },
+  {
+   "input": "ar-SY",
+   "tag": "apc",
+   "known": true,
+   "note": "Arabic region to dialect"
+  },
+  {
+   "input": "ar-JO",
+   "tag": "apc",
+   "known": true,
+   "note": "Arabic region to dialect"
+  },
+  {
+   "input": "ar-PS",
+   "tag": "apc",
+   "known": true,
+   "note": "Arabic region to dialect"
+  },
+  {
+   "input": "ar-IQ",
+   "tag": "acm",
+   "known": true,
+   "note": "Arabic region to dialect"
+  },
+  {
+   "input": "ar-SA",
+   "tag": "afb",
+   "known": true,
+   "note": "Arabic region to dialect"
+  },
+  {
+   "input": "ar-AE",
+   "tag": "afb",
+   "known": true,
+   "note": "Arabic region to dialect"
+  },
+  {
+   "input": "ar-001",
+   "tag": "ar",
+   "known": true,
+   "note": "Arabic other region dropped"
+  },
+  {
+   "input": "ar-YE",
+   "tag": "ar",
+   "known": true,
+   "note": "Arabic other region dropped"
+  },
+  {
+   "input": "pt-BR",
+   "tag": "pt-BR",
+   "known": true,
+   "note": "kept region"
+  },
+  {
+   "input": "pt-PT",
+   "tag": "pt-PT",
+   "known": true,
+   "note": "kept region"
+  },
+  {
+   "input": "pt-AO",
+   "tag": "pt",
+   "known": true,
+   "note": "dropped region"
+  },
+  {
+   "input": "es-ES",
+   "tag": "es-ES",
+   "known": true,
+   "note": "kept region"
+  },
+  {
+   "input": "es-MX",
+   "tag": "es-MX",
+   "known": true,
+   "note": "kept region"
+  },
+  {
+   "input": "es-419",
+   "tag": "es-419",
+   "known": true,
+   "note": "kept region"
+  },
+  {
+   "input": "es-AR",
+   "tag": "es-419",
+   "known": true,
+   "note": "Latin American region to 419"
+  },
+  {
+   "input": "es-PR",
+   "tag": "es-419",
+   "known": true,
+   "note": "Latin American region to 419"
+  },
+  {
+   "input": "es-US",
+   "tag": "es-419",
+   "known": true,
+   "note": "Latin American region to 419"
+  },
+  {
+   "input": "fr-CA",
+   "tag": "fr-CA",
+   "known": true,
+   "note": "kept region"
+  },
+  {
+   "input": "fr-BE",
+   "tag": "fr",
+   "known": true,
+   "note": "dropped region"
+  },
+  {
+   "input": "en",
+   "tag": "en",
+   "known": true,
+   "note": "English is an ordinary target"
+  },
+  {
+   "input": "en-GB",
+   "tag": "en-GB",
+   "known": true,
+   "note": "kept region"
+  },
+  {
+   "input": "en-US",
+   "tag": "en-US",
+   "known": true,
+   "note": "kept region"
+  },
+  {
+   "input": "en-AU",
+   "tag": "en",
+   "known": true,
+   "note": "dropped region"
+  },
+  {
+   "input": "de-AT",
+   "tag": "de",
+   "known": true,
+   "note": "dropped region"
+  },
+  {
+   "input": "de-CH",
+   "tag": "de",
+   "known": true,
+   "note": "dropped region"
+  },
+  {
+   "input": "ja-JP",
+   "tag": "ja",
+   "known": true,
+   "note": "dropped region"
+  },
+  {
+   "input": "ru-RU",
+   "tag": "ru",
+   "known": true,
+   "note": "dropped region"
+  },
+  {
+   "input": "es-724",
+   "tag": "es-ES",
+   "known": true,
+   "note": "numeric region alias"
+  },
+  {
+   "input": "pt-076",
+   "tag": "pt-BR",
+   "known": true,
+   "note": "numeric region alias"
+  },
+  {
+   "input": "en-UK",
+   "tag": "en-GB",
+   "known": true,
+   "note": "region alias"
+  },
+  {
+   "input": "ru-Cyrl",
+   "tag": "ru",
+   "known": true,
+   "note": "default script dropped"
+  },
+  {
+   "input": "ja-Jpan",
+   "tag": "ja",
+   "known": true,
+   "note": "default script dropped"
+  },
+  {
+   "input": "sr-Cyrl",
+   "tag": "sr",
+   "known": true,
+   "note": "default script dropped"
+  },
+  {
+   "input": "sr-Latn",
+   "tag": "sr-Latn",
+   "known": true,
+   "note": "non-default script kept"
+  },
+  {
+   "input": "sr_latn_rs",
+   "tag": "sr-Latn",
+   "known": true,
+   "note": "underscores, region dropped"
+  },
+  {
+   "input": "pa-Arab",
+   "tag": "pa-Arab",
+   "known": true,
+   "note": "non-default script kept"
+  },
+  {
+   "input": "uz-Cyrl",
+   "tag": "uz-Cyrl",
+   "known": true,
+   "note": "non-default script kept"
+  },
+  {
+   "input": "az-Arab",
+   "tag": "az-Arab",
+   "known": true,
+   "note": "non-default script kept"
+  },
+  {
+   "input": "ku-Arab",
+   "tag": "ckb",
+   "known": true,
+   "note": "Kurdish in Arabic script is Sorani"
+  },
+  {
+   "input": "ru-Latn",
+   "tag": "ru",
+   "known": true,
+   "note": "script not normal for the language is dropped"
+  },
+  {
+   "input": "en-Cyrl",
+   "tag": "en",
+   "known": true,
+   "note": "script not normal for the language is dropped"
+  },
+  {
+   "input": "ko-Kore",
+   "tag": "ko",
+   "known": true,
+   "note": "default script dropped"
+  },
+  {
+   "input": "i-klingon",
+   "tag": "tlh",
+   "known": true,
+   "note": "grandfathered"
+  },
+  {
+   "input": "zh-min-nan",
+   "tag": "nan",
+   "known": true,
+   "note": "grandfathered"
+  },
+  {
+   "input": "zh-yue",
+   "tag": "yue",
+   "known": true,
+   "note": "extlang"
+  },
+  {
+   "input": "zh-hakka",
+   "tag": "hak",
+   "known": true,
+   "note": "grandfathered"
+  },
+  {
+   "input": "art-lojban",
+   "tag": "jbo",
+   "known": true,
+   "note": "grandfathered"
+  },
+  {
+   "input": "i-navajo",
+   "tag": "nv",
+   "known": true,
+   "note": "grandfathered"
+  },
+  {
+   "input": "zh-guoyu",
+   "tag": "zh",
+   "known": true,
+   "note": "grandfathered"
+  },
+  {
+   "input": "zh-cmn",
+   "tag": "zh",
+   "known": true,
+   "note": "extlang"
+  },
+  {
+   "input": "zh-cmn-Hant",
+   "tag": "zh-Hant",
+   "known": true,
+   "note": "grandfathered"
+  },
+  {
+   "input": "zh-cmn-TW",
+   "tag": "zh-Hant",
+   "known": true,
+   "note": "extlang with region"
+  },
+  {
+   "input": "ar-arz",
+   "tag": "arz",
+   "known": true,
+   "note": "extlang"
+  },
+  {
+   "input": "no-bok",
+   "tag": "no",
+   "known": true,
+   "note": "grandfathered"
+  },
+  {
+   "input": "no-nyn",
+   "tag": "nn",
+   "known": true,
+   "note": "grandfathered"
+  },
+  {
+   "input": "ZH_cn",
+   "tag": "zh",
+   "known": true,
+   "note": "underscores and case"
+  },
+  {
+   "input": "  ru  ",
+   "tag": "ru",
+   "known": true,
+   "note": "whitespace"
+  },
+  {
+   "input": "EN-us-u-ca-gregory",
+   "tag": "en-US",
+   "known": true,
+   "note": "extension dropped"
+  },
+  {
+   "input": "de-DE-1996",
+   "tag": "de",
+   "known": true,
+   "note": "variant dropped"
+  },
+  {
+   "input": "es-x-private",
+   "tag": "es",
+   "known": true,
+   "note": "private use suffix dropped"
+  },
+  {
+   "input": "SR-LATN",
+   "tag": "sr-Latn",
+   "known": true,
+   "note": "case"
+  },
+  {
+   "input": "x-dothraki",
+   "tag": "x-dothraki",
+   "known": false,
+   "note": "private use conlang"
+  },
+  {
+   "input": "x-ab",
+   "tag": "x-ab",
+   "known": false,
+   "note": "private use, two letters"
+  },
+  {
+   "input": "x-a",
+   "error": "invalid_lang",
+   "note": "private use too short"
+  },
+  {
+   "input": "x-toolongname",
+   "error": "invalid_lang",
+   "note": "private use too long"
+  },
+  {
+   "input": "ase",
+   "error": "sign_language_unsupported",
+   "note": "sign language"
+  },
+  {
+   "input": "bfi",
+   "error": "sign_language_unsupported",
+   "note": "sign language"
+  },
+  {
+   "input": "sgn-BR",
+   "error": "sign_language_unsupported",
+   "note": "sign language (legacy)"
+  },
+  {
+   "input": "sgn",
+   "error": "sign_language_unsupported",
+   "note": "sign languages"
+  },
+  {
+   "input": "sgn-XX",
+   "error": "sign_language_unsupported",
+   "note": "unknown sign language"
+  },
+  {
+   "input": "xyz",
+   "tag": "xyz",
+   "known": false,
+   "note": "unknown well-formed code"
+  },
+  {
+   "input": "qaa",
+   "tag": "qaa",
+   "known": false,
+   "note": "private-range code"
+  },
+  {
+   "input": "tlh",
+   "tag": "tlh",
+   "known": true,
+   "note": "Klingon is known"
+  },
+  {
+   "input": "eo",
+   "tag": "eo",
+   "known": true,
+   "note": "Esperanto"
+  },
+  {
+   "input": "",
+   "error": "invalid_lang",
+   "note": "empty"
+  },
+  {
+   "input": "   ",
+   "error": "invalid_lang",
+   "note": "blank"
+  },
+  {
+   "input": "i",
+   "error": "invalid_lang",
+   "note": "one letter"
+  },
+  {
+   "input": "i-default",
+   "tag": "en",
+   "known": true,
+   "note": "grandfathered: CLDR says en-x-i-default"
+  },
+  {
+   "input": "english",
+   "error": "invalid_lang",
+   "note": "a name, not a code"
+  },
+  {
+   "input": "1234",
+   "error": "invalid_lang",
+   "note": "digits"
+  },
+  {
+   "input": "zh--TW",
+   "error": "invalid_lang",
+   "note": "empty subtag"
+  },
+  {
+   "input": "-zh",
+   "error": "invalid_lang",
+   "note": "leading hyphen"
+  },
+  {
+   "input": "zh-",
+   "error": "invalid_lang",
+   "note": "trailing hyphen"
+  },
+  {
+   "input": "ru;drop table",
+   "error": "invalid_lang",
+   "note": "punctuation"
+  },
+  {
+   "input": "русский",
+   "error": "invalid_lang",
+   "note": "not ASCII"
+  },
+  {
+   "input": "und",
+   "error": "invalid_lang",
+   "note": "undetermined"
+  },
+  {
+   "input": "mul",
+   "error": "invalid_lang",
+   "note": "multiple"
+  },
+  {
+   "input": "zxx",
+   "error": "invalid_lang",
+   "note": "no linguistic content"
+  },
+  {
+   "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "error": "invalid_lang",
+   "note": "too long"
+  },
+  {
+   "input": null,
+   "error": "invalid_lang",
+   "note": "not a string"
+  },
+  {
+   "input": 42,
+   "error": "invalid_lang",
+   "note": "a number"
+  }
+ ],
+ "script_checks": [
+  {
+   "tag": "sr",
+   "native": "hvala",
+   "result": "sr-Latn",
+   "note": "Serbian in Latin letters"
+  },
+  {
+   "tag": "sr",
+   "native": "хвала",
+   "result": "sr",
+   "note": "Serbian in Cyrillic"
+  },
+  {
+   "tag": "sr-Latn",
+   "native": "хвала",
+   "result": "sr",
+   "note": "Serbian tagged Latin, written in Cyrillic"
+  },
+  {
+   "tag": "ru",
+   "native": "spasibo",
+   "error": "script_mismatch",
+   "note": "romanization in native"
+  },
+  {
+   "tag": "ru",
+   "native": "спасибо",
+   "result": "ru",
+   "note": "Cyrillic"
+  },
+  {
+   "tag": "ja",
+   "native": "ありがとう",
+   "result": "ja",
+   "note": "hiragana"
+  },
+  {
+   "tag": "ja",
+   "native": "犬",
+   "result": "ja",
+   "note": "kanji"
+  },
+  {
+   "tag": "ja",
+   "native": "コーヒー",
+   "result": "ja",
+   "note": "katakana"
+  },
+  {
+   "tag": "ko",
+   "native": "개",
+   "result": "ko",
+   "note": "hangul"
+  },
+  {
+   "tag": "ko",
+   "native": "犬",
+   "result": "ko",
+   "note": "hanja"
+  },
+  {
+   "tag": "zh",
+   "native": "谢谢",
+   "result": "zh",
+   "note": "Han, Simplified"
+  },
+  {
+   "tag": "zh-Hant",
+   "native": "謝謝",
+   "result": "zh-Hant",
+   "note": "Han, Traditional"
+  },
+  {
+   "tag": "zh",
+   "native": "xie xie",
+   "error": "script_mismatch",
+   "note": "pinyin in native"
+  },
+  {
+   "tag": "yue",
+   "native": "多謝",
+   "result": "yue",
+   "note": "Cantonese"
+  },
+  {
+   "tag": "ar",
+   "native": "شكرا",
+   "result": "ar",
+   "note": "Arabic"
+  },
+  {
+   "tag": "ar",
+   "native": "shukran",
+   "error": "script_mismatch",
+   "note": "Latin for Arabic"
+  },
+  {
+   "tag": "he",
+   "native": "תודה",
+   "result": "he",
+   "note": "Hebrew"
+  },
+  {
+   "tag": "el",
+   "native": "ευχαριστώ",
+   "result": "el",
+   "note": "Greek"
+  },
+  {
+   "tag": "hy",
+   "native": "շնորհակալություն",
+   "result": "hy",
+   "note": "Armenian"
+  },
+  {
+   "tag": "ka",
+   "native": "მადლობა",
+   "result": "ka",
+   "note": "Georgian"
+  },
+  {
+   "tag": "hi",
+   "native": "धन्यवाद",
+   "result": "hi",
+   "note": "Devanagari"
+  },
+  {
+   "tag": "bn",
+   "native": "ধন্যবাদ",
+   "result": "bn",
+   "note": "Bengali"
+  },
+  {
+   "tag": "pa",
+   "native": "ਧੰਨਵਾਦ",
+   "result": "pa",
+   "note": "Gurmukhi"
+  },
+  {
+   "tag": "pa",
+   "native": "شکریہ",
+   "result": "pa-Arab",
+   "note": "Punjabi in Shahmukhi"
+  },
+  {
+   "tag": "gu",
+   "native": "આભાર",
+   "result": "gu",
+   "note": "Gujarati"
+  },
+  {
+   "tag": "ta",
+   "native": "நன்றி",
+   "result": "ta",
+   "note": "Tamil"
+  },
+  {
+   "tag": "te",
+   "native": "ధన్యవాదాలు",
+   "result": "te",
+   "note": "Telugu"
+  },
+  {
+   "tag": "kn",
+   "native": "ಧನ್ಯವಾದ",
+   "result": "kn",
+   "note": "Kannada"
+  },
+  {
+   "tag": "ml",
+   "native": "നന്ദി",
+   "result": "ml",
+   "note": "Malayalam"
+  },
+  {
+   "tag": "si",
+   "native": "ස්තූතියි",
+   "result": "si",
+   "note": "Sinhala"
+  },
+  {
+   "tag": "th",
+   "native": "ขอบคุณ",
+   "result": "th",
+   "note": "Thai"
+  },
+  {
+   "tag": "lo",
+   "native": "ຂອບໃຈ",
+   "result": "lo",
+   "note": "Lao"
+  },
+  {
+   "tag": "km",
+   "native": "អរគុណ",
+   "result": "km",
+   "note": "Khmer"
+  },
+  {
+   "tag": "my",
+   "native": "ကျေးဇူး",
+   "result": "my",
+   "note": "Myanmar"
+  },
+  {
+   "tag": "bo",
+   "native": "ཐུགས་རྗེ་ཆེ།",
+   "result": "bo",
+   "note": "Tibetan"
+  },
+  {
+   "tag": "am",
+   "native": "አመሰግናለሁ",
+   "result": "am",
+   "note": "Ethiopic"
+  },
+  {
+   "tag": "dv",
+   "native": "ޝުކުރިއްޔާ",
+   "result": "dv",
+   "note": "Thaana"
+  },
+  {
+   "tag": "mn",
+   "native": "баярлалаа",
+   "result": "mn",
+   "note": "Mongolian in Cyrillic"
+  },
+  {
+   "tag": "or",
+   "native": "ଧନ୍ୟବାଦ",
+   "result": "or",
+   "note": "Oriya"
+  },
+  {
+   "tag": "fa",
+   "native": "می‌خواهم",
+   "result": "fa",
+   "note": "Persian with ZWNJ"
+  },
+  {
+   "tag": "ru",
+   "native": "COVID-19 вирус",
+   "result": "ru",
+   "note": "mixed: Latin loanword"
+  },
+  {
+   "tag": "zh",
+   "native": "iPhone 手机",
+   "result": "zh",
+   "note": "mixed: Latin brand"
+  },
+  {
+   "tag": "ru",
+   "native": "ok",
+   "error": "script_mismatch",
+   "note": "Latin only"
+  },
+  {
+   "tag": "en",
+   "native": "dog",
+   "result": "en",
+   "note": "English"
+  },
+  {
+   "tag": "en",
+   "native": "собака",
+   "error": "script_mismatch",
+   "note": "Cyrillic for English"
+  },
+  {
+   "tag": "es",
+   "native": "gracias",
+   "result": "es",
+   "note": "Spanish"
+  },
+  {
+   "tag": "uz",
+   "native": "rahmat",
+   "result": "uz",
+   "note": "Uzbek Latin"
+  },
+  {
+   "tag": "uz",
+   "native": "рахмат",
+   "result": "uz-Cyrl",
+   "note": "Uzbek in Cyrillic"
+  },
+  {
+   "tag": "xyz",
+   "native": "whatever",
+   "result": "xyz",
+   "note": "unknown language not checked"
+  },
+  {
+   "tag": "x-dothraki",
+   "native": "athchomar",
+   "result": "x-dothraki",
+   "note": "private use not checked"
+  },
+  {
+   "tag": "ru",
+   "native": "123",
+   "result": "ru",
+   "note": "digits only"
+  },
+  {
+   "tag": "pt-BR",
+   "native": "ônibus",
+   "result": "pt-BR",
+   "note": "region kept on a Latin word"
+  },
+  {
+   "tag": "vi",
+   "native": "cảm ơn",
+   "result": "vi",
+   "note": "Vietnamese"
+  },
+  {
+   "tag": "vi",
+   "native": "感恩",
+   "error": "script_mismatch",
+   "note": "Han for Vietnamese"
+  }
+ ],
+ "names": [
+  {
+   "tag": "yue",
+   "locale": "en",
+   "name": "Cantonese"
+  },
+  {
+   "tag": "yue",
+   "locale": "es",
+   "name": "cantonés"
+  },
+  {
+   "tag": "zh-Hant",
+   "locale": "en",
+   "name": "Chinese (Traditional)"
+  },
+  {
+   "tag": "zh-Hant",
+   "locale": "es",
+   "name": "chino (tradicional)"
+  },
+  {
+   "tag": "pt-BR",
+   "locale": "en",
+   "name": "Portuguese (Brazil)"
+  },
+  {
+   "tag": "pt-BR",
+   "locale": "es",
+   "name": "portugués (Brasil)"
+  },
+  {
+   "tag": "sr-Latn",
+   "locale": "en",
+   "name": "Serbian (Latin)"
+  },
+  {
+   "tag": "sr-Latn",
+   "locale": "es",
+   "name": "serbio (latino)"
+  },
+  {
+   "tag": "ja",
+   "locale": "es",
+   "name": "japonés"
+  },
+  {
+   "tag": "en-GB",
+   "locale": "en",
+   "name": "English (United Kingdom)"
+  },
+  {
+   "tag": "es-419",
+   "locale": "es",
+   "name": "español (Latinoamérica)"
+  },
+  {
+   "tag": "x-dothraki",
+   "locale": "en",
+   "name": "Dothraki"
+  },
+  {
+   "tag": "xyz",
+   "locale": "en",
+   "name": "xyz"
+  },
+  {
+   "tag": "arz",
+   "locale": "es",
+   "name": "Egyptian Arabic"
+  },
+  {
+   "tag": "apc",
+   "locale": "es",
+   "name": "árabe levantino"
+  },
+  {
+   "tag": "ru",
+   "locale": "fr",
+   "name": "Russian"
+  }
+ ],
+ "endonyms": [
+  {
+   "tag": "yue",
+   "endonym": "粵語"
+  },
+  {
+   "tag": "es",
+   "endonym": "español"
+  },
+  {
+   "tag": "ja",
+   "endonym": "日本語"
+  },
+  {
+   "tag": "en",
+   "endonym": "English"
+  },
+  {
+   "tag": "zh-Hant",
+   "endonym": "中文"
+  },
+  {
+   "tag": "pt-BR",
+   "endonym": "português"
+  },
+  {
+   "tag": "ru",
+   "endonym": "русский"
+  },
+  {
+   "tag": "x-dothraki",
+   "endonym": "Dothraki"
+  },
+  {
+   "tag": "xyz",
+   "endonym": "xyz"
+  },
+  {
+   "tag": "ase",
+   "endonym": null
+  }
+ ]
+}

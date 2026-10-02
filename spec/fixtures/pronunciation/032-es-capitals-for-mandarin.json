@@ -1,0 +1,20 @@
+{
+ "name": "es-capitals-for-mandarin",
+ "word": {
+  "lang": "zh",
+  "native": "谢谢",
+  "base_lang": "es",
+  "pronunciation": "SHIE4-shie"
+ },
+ "expect": {
+  "word": {
+   "pronunciation": null
+  },
+  "dropped_fields": [
+   {
+    "field": "pronunciation",
+    "reason": "bad_pronunciation"
+   }
+  ]
+ }
+}

@@ -1,0 +1,28 @@
+{
+ "name": "extract-code-fence",
+ "input": {
+  "text": "da",
+  "mode": "auto",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "```json\n{\"intent\":\"lookup\",\"words\":[{\"language\":null,\"romanization\":\"da\",\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"да\",\"base_lang\":\"en\",\"gloss\":\"yes\",\"forms\":[\"yes\"],\"pronunciation\":\"da\"}],\"reply\":null}\n```",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "intent": "lookup",
+  "words": [
+   {
+    "lang": "ru",
+    "native": "да",
+    "gloss": "yes",
+    "forms": [
+     "yes"
+    ]
+   }
+  ]
+ }
+}

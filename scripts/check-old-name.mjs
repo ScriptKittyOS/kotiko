@@ -28,6 +28,10 @@ const ALLOWED_PATHS = [
   // The one-time move of the old data folder must name its paths.
   "server/lib/kotiko/data_dir.ex",
   "server/test/kotiko/data_dir_test.exs",
+  // Generated from Unicode CLDR: language names such as Mirandese.
+  "spec/languages.json",
+  "extension/spec/languages.json",
+  "extension/spec/spec.js",
 ];
 
 // Generated lines that can contain any letters (package hashes and URLs).

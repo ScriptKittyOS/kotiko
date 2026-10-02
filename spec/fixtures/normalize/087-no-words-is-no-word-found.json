@@ -1,0 +1,20 @@
+{
+ "name": "no-words-is-no-word-found",
+ "input": {
+  "text": "hmm hmm hmm hmm",
+  "mode": "auto",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"lookup\",\"words\":[],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "intent": "lookup",
+  "words": [],
+  "code": "no_word_found"
+ }
+}

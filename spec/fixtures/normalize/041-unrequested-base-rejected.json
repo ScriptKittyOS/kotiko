@@ -1,0 +1,26 @@
+{
+ "name": "unrequested-base-rejected",
+ "input": {
+  "text": "da",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":\"da\",\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"да\",\"base_lang\":\"fr\",\"gloss\":\"oui\",\"forms\":[\"oui\"],\"pronunciation\":\"da\"}],\"reply\":null}",
+ "expect": {
+  "rejected": [
+   {
+    "native": "да",
+    "gloss": "oui",
+    "base_lang": "fr",
+    "reason": "unrequested_base"
+   }
+  ],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [],
+  "code": "bad_lookup_result"
+ }
+}

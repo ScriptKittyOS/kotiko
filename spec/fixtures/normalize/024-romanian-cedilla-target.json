@@ -1,0 +1,23 @@
+{
+ "name": "romanian-cedilla-target",
+ "input": {
+  "text": "stiinta",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ro\",\"native\":\"ştiinţă\",\"base_lang\":\"en\",\"gloss\":\"science\",\"forms\":[\"science\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "lang": "ro",
+    "native": "știință"
+   }
+  ]
+ }
+}

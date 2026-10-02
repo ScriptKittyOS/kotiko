@@ -1,0 +1,20 @@
+{
+ "name": "en-valid-everyday-and-careful",
+ "word": {
+  "lang": "ru",
+  "native": "пожалуйста",
+  "base_lang": "en",
+  "pronunciation": "pa-ZHAL-sta",
+  "pronunciation_careful": "pa-ZHA-lu-sta",
+  "native_vocalized": "пожа́луйста"
+ },
+ "expect": {
+  "word": {
+   "pronunciation": "pa-ZHAL-sta",
+   "pronunciation_careful": "pa-ZHA-lu-sta",
+   "pronunciation_source": "model",
+   "native_vocalized": "пожа́луйста"
+  },
+  "dropped_fields": []
+ }
+}

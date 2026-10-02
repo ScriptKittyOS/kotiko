@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "spec/lang/<base>/respelling.json: the pronunciation respelling key",
+  "description": "Slice 07 section 7. alphabet is lowercase (accepted in either case); prompt_summary is the key in a form the prompt carries; the docs render sounds and targets in full. Only bases with a reviewed key have this file; there is no _generic fallback.",
+  "type": "object",
+  "required": [
+    "alphabet",
+    "sounds",
+    "examples",
+    "prompt_summary"
+  ],
+  "properties": {
+    "alphabet": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^A-Z\\s]+$"
+    },
+    "sounds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "sound",
+          "written",
+          "example"
+        ],
+        "properties": {
+          "sound": {
+            "type": "string"
+          },
+          "written": {
+            "type": "string"
+          },
+          "example": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "targets": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "examples": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "lang",
+          "native",
+          "pronunciation"
+        ],
+        "properties": {
+          "lang": {
+            "type": "string"
+          },
+          "native": {
+            "type": "string"
+          },
+          "pronunciation": {
+            "type": "string"
+          },
+          "pronunciation_careful": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "prompt_summary": {
+      "type": "string",
+      "maxLength": 800
+    }
+  }
+}

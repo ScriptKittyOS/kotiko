@@ -14,7 +14,7 @@ defmodule Kotiko.Words do
   """
   import Ecto.Query
   require Logger
-  alias Kotiko.{Repo, Text, UUID7, Word, WordInput, WordMerge}
+  alias Kotiko.{Lang, Repo, Text, UUID7, Word, WordMerge, WordSpec}
 
   @restore_days 30
   @purge_days 180
@@ -116,12 +116,12 @@ defmodule Kotiko.Words do
   def count_active,
     do: Repo.aggregate(from(w in live(), where: w.status == "active"), :count)
 
-  @doc "Every language with active words: [%{lang, language, count}], biggest first."
+  @doc "Every language with active words: [%{lang, count}], biggest first."
   def languages do
     from(w in live(),
       where: w.status == "active",
       group_by: w.lang,
-      select: %{lang: w.lang, language: max(w.language), count: count(w.id)},
+      select: %{lang: w.lang, count: count(w.id)},
       order_by: [desc: count(w.id)]
     )
     |> Repo.all()
@@ -131,22 +131,26 @@ defmodule Kotiko.Words do
   def recent_languages(limit \\ 5) do
     from(w in live(),
       group_by: w.lang,
-      select: %{lang: w.lang, language: max(w.language)},
+      select: %{lang: w.lang},
       order_by: [desc: max(w.updated_at)],
       limit: ^limit
     )
     |> Repo.all()
   end
 
-  @doc "Resolves \"arabic\", \"Arabic\" or \"ar\" to the stored language codes."
+  @doc """
+  The stored language tags a learner means by `term`: a code, an endonym or a name in any
+  shipped locale ("cantonese", "cantonés", "粵語", "yue"), matched on the primary language
+  so "chinese" finds zh and zh-Hant words (slice 08 section 5).
+  """
   def langs_matching(term) do
-    t = term |> String.trim() |> String.downcase()
+    wanted = Lang.find(term)
 
     languages()
-    |> Enum.filter(fn l ->
-      String.downcase(l.lang) == t or String.downcase(l.language || "") == t
-    end)
     |> Enum.map(& &1.lang)
+    |> Enum.filter(
+      &(Lang.primary(&1) in wanted or String.downcase(&1) == String.downcase(String.trim(term)))
+    )
   end
 
   @doc """
@@ -165,7 +169,7 @@ defmodule Kotiko.Words do
   # ── writes ───────────────────────────────────────────────────────────
 
   @doc """
-  Saves a validated word (`Kotiko.WordInput.validate/2`): inserts it, or merges it into
+  Saves a validated word (`Kotiko.WordSpec`): inserts it, or merges it into
   the live word with the same natural key (`Kotiko.WordMerge`). Returns
   `{:ok, %{result: :created | :updated | :unchanged, word: word, previous: word | nil}}`.
 
@@ -189,14 +193,13 @@ defmodule Kotiko.Words do
       attrs
       |> Map.take(~w(lang native base_lang sense gloss forms romanization native_vocalized
                      pronunciation pronunciation_careful pronunciation_source note status
-                     origin source_text language)a)
+                     origin source_text)a)
       |> Map.merge(%{
         uuid: new_uuid(attrs[:id], now),
         native_key: Text.native_key(attrs.native),
         sense: attrs[:sense] || "",
         status: attrs[:status] || "active",
         origin: attrs[:origin] || "add",
-        language: keep_language_name(attrs.lang, attrs[:language]),
         created_at: now,
         updated_at: now,
         seq: next_seq()
@@ -239,23 +242,9 @@ defmodule Kotiko.Words do
        else: UUID7.generate(now)
   end
 
-  # The model may call zh "Chinese" one day and "Mandarin" the next. Once a language
-  # has a name, keep using it so cards and the extension stay consistent.
-  defp keep_language_name(lang, name) do
-    existing =
-      Repo.one(
-        from w in live(),
-          where: w.lang == ^lang and not is_nil(w.language),
-          select: w.language,
-          limit: 1
-      )
-
-    existing || name
-  end
-
   @doc """
   An explicit edit (slice 07 section 4): every field in `patch` (from
-  `Kotiko.WordInput.patch/1`) is set; `nil` clears a nullable field; `forms` replaces the
+  `Kotiko.WordSpec.patch/1`) is set; `nil` clears a nullable field; `forms` replaces the
   list. Options: `:if_updated_at` (a `DateTime`; a mismatch is `{:error, {:stale, word}}`),
   `:now`.
 
@@ -312,9 +301,21 @@ defmodule Kotiko.Words do
 
     after_patch = word |> Map.from_struct() |> Map.merge(changes)
 
+    script =
+      if Map.has_key?(changes, :lang) or Map.has_key?(changes, :native),
+        do: Lang.check_script(after_patch.lang, after_patch.native),
+        else: {:ok, after_patch.lang}
+
     cond do
-      Word.same_language?(after_patch.lang, after_patch.base_lang) ->
+      Lang.same_base?(after_patch.lang, after_patch.base_lang) ->
         {:error, {:invalid, %{field: "lang", reason: "target_is_base"}}}
+
+      script == {:error, :script_mismatch} ->
+        {:error, {:invalid, %{field: "lang", reason: "script_mismatch"}}}
+
+      script != {:ok, after_patch.lang} ->
+        {:ok, tag} = script
+        patch_changes(word, Map.put(patch, :lang, tag), opts)
 
       opts[:skip_pronunciation_check] ->
         {:ok, changes}
@@ -325,7 +326,7 @@ defmodule Kotiko.Words do
         ~w(pronunciation pronunciation_careful native_vocalized)a,
         &Map.has_key?(patch, &1)
       ) ->
-        case WordInput.check_pronunciation(after_patch, Map.keys(patch)) do
+        case WordSpec.check_pronunciation(after_patch, Map.keys(patch)) do
           :ok -> {:ok, changes}
           {:error, e} -> {:error, {:invalid, e}}
         end

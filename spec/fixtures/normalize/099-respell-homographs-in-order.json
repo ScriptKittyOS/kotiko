@@ -1,0 +1,37 @@
+{
+ "name": "respell-homographs-in-order",
+ "input": {
+  "items": [
+   {
+    "lang": "ru",
+    "native": "замок",
+    "sense": "castle",
+    "base_langs": [
+     "en"
+    ]
+   },
+   {
+    "lang": "ru",
+    "native": "замок",
+    "sense": "lock",
+    "base_langs": [
+     "en"
+    ]
+   }
+  ]
+ },
+ "raw": "{\"items\":[{\"native_vocalized\":\"за́мок\",\"pronunciation_careful\":null,\"lang\":\"ru\",\"native\":\"замок\",\"base_lang\":\"en\",\"pronunciation\":\"ZA-mak\"},{\"native_vocalized\":\"замо́к\",\"pronunciation_careful\":null,\"lang\":\"ru\",\"native\":\"замок\",\"base_lang\":\"en\",\"pronunciation\":\"za-MOK\"}]}",
+ "expect": {
+  "dropped_fields": [],
+  "items": [
+   {
+    "pronunciation": "ZA-mak",
+    "native_vocalized": "за́мок"
+   },
+   {
+    "pronunciation": "za-MOK",
+    "native_vocalized": "замо́к"
+   }
+  ]
+ }
+}

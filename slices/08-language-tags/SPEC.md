@@ -290,6 +290,83 @@ the same release. Changelog: "Language names now come from the language code, so
 Cantonese is always Cantonese. Words saved under old codes such as cmn or iw were merged
 into their languages."
 
+## Implementation notes
+
+Recorded when the slice was built (branch `slice/08-09-lookups`, with slice 09).
+Requirements above are unchanged; these are the choices and deviations.
+
+**Data.** `spec/tools/gen-lang-data.mjs` reads the npm packages `cldr-core` and
+`cldr-localenames-full`, both pinned at 48.2.0 as dev dependencies (Unicode License v3:
+`LICENSES/Unicode-3.0.txt`, `NOTICE`, `REUSE.toml`), plus the hand-curated
+`spec/tools/lang-curation.json`, so `--check` reproduces the committed files exactly.
+`KOTIKO_CLDR_DIR` may point at another `node_modules` holding the two packages.
+
+- `languages.json` has 632 entries (117 KB, 15 KB gzipped) and is shaped
+  `{cldr_version, locales, regionNames, scriptNames, unicode_scripts, languages: {code: entry}}`
+  instead of a flat map, so the region and script name tables can't collide with codes.
+  Entries also carry the curated `region_scripts` (zh, yue), `region_languages` (ar),
+  `region_aliases` (es: Latin American countries to 419) and `script_languages` (ku-Arab is
+  ckb), which the algorithm reads instead of hardcoding them. `scripts` is CLDR's primary
+  scripts (default first) plus curated ones (zh Hant, pa Arab, az Arab and Cyrl, yue Hans).
+  `endonym` is null for the 315 languages CLDR has no locale for; `endonym/1` then falls
+  back to the English name, then the code. Spanish names exist for 587 entries.
+- Curated beyond CLDR: `nb` is an alias of `no` (CLDR 48 makes `no` the main Norwegian);
+  names for `apc`, `afb` and `acm`, which CLDR lacks; `tlh` and `crr` get Latin script.
+  `und`, `mul`, `mis` and `zxx` are `invalid_lang`. Sign languages are CLDR's `sgn-*`
+  replacements plus `sgn`, `ase` and `bfi`.
+- `lang-aliases.json` keeps only territory aliases that land on a region some rule reads
+  (two letters or three digits), so `es-724` is `es-ES` and `pt-076` is `pt-BR`.
+
+**Algorithm.** One parser in each runtime (`Kotiko.Lang.parse/1`, `KotikoLang.parse`):
+
+- An extended language subtag names the language (`zh-yue` is `yue`, `ar-arz` is `arz`),
+  which also covers `zh-cmn-*`. Variants, extensions and private-use suffixes are dropped;
+  `i-default` follows CLDR to `en`.
+- Unknown well-formed codes keep their script and region as given (`qaa-Latn`).
+- Script check: per code point by Unicode Script property, in the order of
+  `unicode_scripts`; Han, kana and Hangul count as the tag's own script when it is one of
+  theirs (Jpan, Kore, Hans, Hant). **Clarification:** when `native` contains letters of the
+  tag's own script, Latin letters are ignored, so mixed words keep their language ("COVID-19
+  вирус" stays ru, "iPhone 手机" stays zh); ties go to the tag's script. Scripts outside the
+  table (historic ones) aren't counted, so such words pass. The detection table in the
+  fixture covers 35 scripts, not every default script in `languages.json`.
+- `same_base?` compares the script the input named or implied before the default is
+  dropped (`zh-CN` implies Hans, `zh-TW` Hant; bare `zh` names none and matches either).
+
+**Names.** `Kotiko.Lang.name/2` (server, bot) and `KotikoLang.displayName` (extension:
+`Intl.DisplayNames`, then the data). The popup keeps using `KotikoI18n.languageName`;
+switching it to `displayName` waits for slice 20/50, since the legacy `GET /api/words`
+`language` is now the English name derived from the tag (what a 0.2 extension shows),
+never the model's. The v1 API's `language` is the endonym. The model's `language` is only
+logged at debug when it disagrees with the tag's English name.
+
+**Migration** `20261020000000_language_tags` (`Kotiko.Migrations.LanguageTags`), after the
+automatic backup of `Kotiko.Migrations`:
+
+1. Every `lang` is canonicalised and then script-checked, so a Serbian word saved in Latin
+   letters becomes `sr-Latn` (a rewrite the spec's step 2 implies but doesn't spell out);
+   every `base_lang` goes through `base_tag/1`. Live rows that now share a natural key are
+   merged into the oldest with `Kotiko.WordMerge` and the others tombstoned with
+   `merged_into`. Changed rows get a new `seq` and a later `updated_at`. The unique index is
+   dropped while rows move and recreated as slice 07 made it.
+2. Rows whose code is invalid or whose `native` fails the script check are left as they
+   are; the count is logged as a warning, the words only at debug.
+3. `ALTER TABLE words DROP COLUMN language`. `Words.keep_language_name/1` is gone.
+
+Log lines on the maintainer's next start, when anything changes: the backup line,
+`Language codes: N word(s) now use the standard code for their language (for example cmn
+is now zh); M duplicate(s) merged into the oldest copy. Names now come from the code.`,
+and, if any, `N word(s) may have the wrong language ... Check them in the dashboard.`
+A database whose codes are all canonical changes nothing but the dropped column.
+
+**Elsewhere.** `Word.normalize_lang/1`, `lang?/1`, `normalize_base/1` and
+`same_language?/2` are deleted; the v1 router, `Words.update/3` (which now also runs the
+script check and rewrites the tag), the bot (`/list` resolves names in every shipped
+locale, endonyms and codes through `Kotiko.Lang.find/1`) and the refresh job use
+`Kotiko.Lang`. The extension's background loads `spec/spec.js` and `lib/lang.js` and maps
+`hiddenLangs` through `canonical` on `runtime.onInstalled` with reason `update`.
+`scripts/check-old-name.mjs` allows the CLDR-generated files (CLDR's "Mirandese").
+
 ## Open questions
 
 1. **Which regions to keep at launch?** Recommendation: for targets pt-BR/pt-PT,

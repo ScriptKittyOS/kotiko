@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kotiko.org/spec/model-output.schema.json",
+  "title": "What the lookup prompt asks the model to return",
+  "description": "Deliberately lenient (slice 09 section 3): the extractor repairs words as an object or a single object, forms as a string and numbers as strings; unknown keys are ignored. The validator is strict.",
+  "type": "object",
+  "properties": {
+    "intent": {
+      "enum": [
+        "add",
+        "lookup",
+        "chat"
+      ]
+    },
+    "words": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/entry"
+          }
+        },
+        {
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reply": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "properties": {
+        "lang": {
+          "type": "string"
+        },
+        "language": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Self-check only; ignored."
+        },
+        "native": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "romanization": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "native_vocalized": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "base_lang": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "One of the requested base_langs. With exactly one base, a missing base_lang is that base."
+        },
+        "gloss": {
+          "type": [
+            "string",
+            "number",
+            "null"
+          ]
+        },
+        "forms": {
+          "anyOf": [
+            {
+              "type": "array"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Strings, or a string the extractor splits on , ; 、 ， ； and newlines."
+        },
+        "pronunciation": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pronunciation_careful": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sense": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

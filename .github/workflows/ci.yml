@@ -66,6 +66,41 @@ jobs:
       - run: npm test
       - run: npm run perf
 
+  # Slices 08 and 09: the shared spec. The extension's copy is current, the CLDR-derived
+  # files match the pinned CLDR, the full-output snapshot matches the JavaScript pipeline,
+  # the recorded evaluation answers re-score to RESULTS.md (no network), and the shared
+  # fixtures pass in both runtimes.
+  spec:
+    name: shared spec
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          otp-version: "28.1"
+          elixir-version: "1.19.2"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            server/deps
+            server/_build
+          key: mix-28.1-1.19.2-${{ hashFiles('server/mix.lock') }}
+          restore-keys: mix-28.1-1.19.2-
+      - run: npm ci
+      - run: node spec/tools/sync-extension.mjs --check
+      - run: node spec/tools/gen-lang-data.mjs --check
+      - run: node spec/tools/fixture-results.mjs --check
+      - run: node spec/eval/run-eval.mjs --replay --set all --check
+      - run: node --test test/unit/lang.test.mjs test/unit/wordspec.test.mjs test/unit/eval.test.mjs
+      - run: mix deps.get && mix test --only spec
+        working-directory: server
+        env:
+          MIX_ENV: test
+
   repo:
     name: versions and licenses
     runs-on: ubuntu-24.04

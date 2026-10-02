@@ -1,0 +1,26 @@
+{
+ "name": "respell-unrequested-item-ignored",
+ "input": {
+  "items": [
+   {
+    "lang": "ru",
+    "native": "спасибо",
+    "sense": "",
+    "base_langs": [
+     "en"
+    ]
+   }
+  ]
+ },
+ "raw": "{\"items\":[{\"native_vocalized\":null,\"pronunciation_careful\":null,\"lang\":\"ru\",\"native\":\"пожалуйста\",\"base_lang\":\"en\",\"pronunciation\":\"pa-ZHAL-sta\"},{\"native_vocalized\":null,\"pronunciation_careful\":null,\"lang\":\"ru\",\"native\":\"спасибо\",\"base_lang\":\"fr\",\"pronunciation\":\"spa-SEE-ba\"},{\"native_vocalized\":null,\"pronunciation_careful\":null,\"lang\":\"ru\",\"native\":\"спасибо\",\"base_lang\":\"en\",\"pronunciation\":\"spa-SEE-ba\"}]}",
+ "expect": {
+  "dropped_fields": [],
+  "items": [
+   {
+    "native": "спасибо",
+    "base_lang": "en",
+    "pronunciation": "spa-SEE-ba"
+   }
+  ]
+ }
+}

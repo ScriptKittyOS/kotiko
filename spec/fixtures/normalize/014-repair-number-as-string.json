@@ -1,0 +1,25 @@
+{
+ "name": "repair-number-as-string",
+ "input": {
+  "text": "一百",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":\"yībǎi\",\"native_vocalized\":null,\"note\":null,\"lang\":\"zh\",\"native\":\"一百\",\"base_lang\":\"en\",\"gloss\":100,\"forms\":[100]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "gloss": "100",
+    "forms": [
+     "100"
+    ]
+   }
+  ]
+ }
+}

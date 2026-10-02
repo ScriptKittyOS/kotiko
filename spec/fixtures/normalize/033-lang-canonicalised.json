@@ -1,0 +1,25 @@
+{
+ "name": "lang-canonicalised",
+ "input": {
+  "text": "shalom",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":\"shalom\",\"native_vocalized\":null,\"note\":null,\"lang\":\"iw\",\"native\":\"שלום\",\"base_lang\":\"en\",\"gloss\":\"hello\",\"forms\":[\"hello\"]},{\"language\":null,\"romanization\":\"nǐ hǎo\",\"native_vocalized\":null,\"note\":null,\"lang\":\"ZH_cn\",\"native\":\"你好\",\"base_lang\":\"en\",\"gloss\":\"hi\",\"forms\":[\"hi\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "lang": "he"
+   },
+   {
+    "lang": "zh"
+   }
+  ]
+ }
+}

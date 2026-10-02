@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "spec/lang/<base>/stem.json: the related-form check",
+  "description": "kind suffix: irregulars (form -> lemma or lemmas), then the first suffix rule that matches, whose root plus each of add (and the root with a doubled final consonant undone, with undouble) are candidate stems; strip_accents removes acute accents and diaereses for stems only. kind prefix (_generic): the form equals the gloss or starts with its first generic_stem_graphemes graphemes.",
+  "type": "object",
+  "required": [
+    "kind"
+  ],
+  "properties": {
+    "kind": {
+      "enum": [
+        "suffix",
+        "prefix"
+      ]
+    },
+    "strip_accents": {
+      "type": "boolean"
+    },
+    "irregulars": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "suffixes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "suffix",
+          "add"
+        ],
+        "properties": {
+          "suffix": {
+            "type": "string",
+            "minLength": 1
+          },
+          "add": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "undouble": {
+            "type": "boolean"
+          },
+          "min": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    }
+  }
+}

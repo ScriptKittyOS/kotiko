@@ -1,0 +1,17 @@
+{
+ "name": "arabic-harakat-kept",
+ "word": {
+  "lang": "ar",
+  "native": "شكرا",
+  "base_lang": "en",
+  "native_vocalized": "شُكْرًا",
+  "pronunciation": "SHUK-ran"
+ },
+ "expect": {
+  "word": {
+   "native_vocalized": "شُكْرًا",
+   "pronunciation": "SHUK-ran"
+  },
+  "dropped_fields": []
+ }
+}

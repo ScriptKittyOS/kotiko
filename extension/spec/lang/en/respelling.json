@@ -1,0 +1,208 @@
+{
+  "alphabet": "abcdefghijklmnopqrstuvwxyz",
+  "sounds": [
+    {
+      "sound": "[a], and Russian's reduced unstressed о and а",
+      "written": "a, as in father",
+      "example": "спасибо spa-SEE-ba; молоко ma-la-KO"
+    },
+    {
+      "sound": "[e]",
+      "written": "e, as in bed; eh at the end of a syllable",
+      "example": "здравствуйте ZDRAST-vuy-tyeh"
+    },
+    {
+      "sound": "[i]",
+      "written": "ee, as in see",
+      "example": "спасибо spa-SEE-ba"
+    },
+    {
+      "sound": "[ɪ]",
+      "written": "i, as in sit",
+      "example": "sit"
+    },
+    {
+      "sound": "Russian ы [ɨ]",
+      "written": "ih, between the i of sit and the u of put",
+      "example": "мы mih"
+    },
+    {
+      "sound": "[ɔ]",
+      "written": "o, as in or",
+      "example": "хорошо kha-ra-SHO"
+    },
+    {
+      "sound": "[oʊ]",
+      "written": "oh, as in go",
+      "example": "ありがとう a-ree-ga-toh"
+    },
+    {
+      "sound": "[u]",
+      "written": "oo, as in food",
+      "example": "suki soo-kee"
+    },
+    {
+      "sound": "[ʊ]",
+      "written": "u, as in put",
+      "example": "пожалуйста pa-ZHA-lu-sta"
+    },
+    {
+      "sound": "[ʌ]",
+      "written": "uh, as in cup",
+      "example": "cup"
+    },
+    {
+      "sound": "[eɪ]",
+      "written": "ay, as in day",
+      "example": "day"
+    },
+    {
+      "sound": "[aɪ]",
+      "written": "ai, as in aisle",
+      "example": "чай chai"
+    },
+    {
+      "sound": "[aʊ]",
+      "written": "ow, as in cow",
+      "example": "你好 nee2-how3"
+    },
+    {
+      "sound": "[ɔɪ]",
+      "written": "oy, as in boy",
+      "example": "boy"
+    },
+    {
+      "sound": "[g]",
+      "written": "g, always as in go",
+      "example": "ありがとう a-ree-ga-toh"
+    },
+    {
+      "sound": "[s]",
+      "written": "s, always as in see",
+      "example": "спасибо spa-SEE-ba"
+    },
+    {
+      "sound": "[dʒ]",
+      "written": "j, as in jam",
+      "example": "jam"
+    },
+    {
+      "sound": "[ʒ]",
+      "written": "zh, as in measure (Russian ж)",
+      "example": "пожалуйста pa-ZHAL-sta"
+    },
+    {
+      "sound": "[x]",
+      "written": "kh, as in Scottish loch (Russian х, Arabic خ)",
+      "example": "хорошо kha-ra-SHO"
+    },
+    {
+      "sound": "[tʃ]",
+      "written": "ch, as in church",
+      "example": "чай chai"
+    },
+    {
+      "sound": "[ʃ] and Russian щ",
+      "written": "sh, as in ship (щ is a longer, softer sh)",
+      "example": "谢谢 shyeh4-shyeh"
+    },
+    {
+      "sound": "[ts]",
+      "written": "ts, as in cats",
+      "example": "царь tsar"
+    },
+    {
+      "sound": "[θ]",
+      "written": "th, as in thin",
+      "example": "thin"
+    },
+    {
+      "sound": "[ð]",
+      "written": "dh, as in this",
+      "example": "this"
+    },
+    {
+      "sound": "[j]",
+      "written": "y, as in yes",
+      "example": "я ya"
+    },
+    {
+      "sound": "Russian soft consonants",
+      "written": "y after the consonant, before the vowel",
+      "example": "нет nyet"
+    }
+  ],
+  "targets": {
+    "ru": [
+      "Unstressed о and а are written a (молоко ma-la-KO).",
+      "A soft consonant before a vowel adds y (нет nyet, здравствуйте ZDRAST-vuy-tyeh).",
+      "The everyday form drops what speakers drop (пожалуйста pa-ZHAL-sta); the careful form keeps one syllable per written vowel (pa-ZHA-lu-sta)."
+    ],
+    "zh": [
+      "All lowercase; a tone digit after each syllable as actually said (你好 nee2-how3), none for the neutral tone (谢谢 shyeh4-shyeh)."
+    ],
+    "yue": [
+      "All lowercase; a tone digit 1 to 6 after every syllable."
+    ],
+    "ja": [
+      "All lowercase; devoiced vowels are dropped in the everyday form (好き skee) and kept in the careful form (soo-kee)."
+    ],
+    "ar": [
+      "Short vowels are written out; خ is kh; ح and ه are h."
+    ],
+    "es": [
+      "Stress follows the written accent (teléfono te-LE-fo-no)."
+    ]
+  },
+  "examples": [
+    {
+      "lang": "ru",
+      "native": "спасибо",
+      "pronunciation": "spa-SEE-ba",
+      "pronunciation_careful": null
+    },
+    {
+      "lang": "ru",
+      "native": "пожалуйста",
+      "pronunciation": "pa-ZHAL-sta",
+      "pronunciation_careful": "pa-ZHA-lu-sta"
+    },
+    {
+      "lang": "ru",
+      "native": "хорошо",
+      "pronunciation": "kha-ra-SHO",
+      "pronunciation_careful": null
+    },
+    {
+      "lang": "zh",
+      "native": "谢谢",
+      "pronunciation": "shyeh4-shyeh",
+      "pronunciation_careful": null
+    },
+    {
+      "lang": "zh",
+      "native": "你好",
+      "pronunciation": "nee2-how3",
+      "pronunciation_careful": null
+    },
+    {
+      "lang": "ja",
+      "native": "好き",
+      "pronunciation": "skee",
+      "pronunciation_careful": "soo-kee"
+    },
+    {
+      "lang": "es",
+      "native": "gracias",
+      "pronunciation": "GRA-syas",
+      "pronunciation_careful": null
+    },
+    {
+      "lang": "ar",
+      "native": "شكرا",
+      "pronunciation": "SHUK-ran",
+      "pronunciation_careful": null
+    }
+  ],
+  "prompt_summary": "Key for English readers, read as English: a as in father (also Russian unstressed о and а), e as in bed (eh at a syllable's end), ee as in see, i as in sit, ih for Russian ы, o as in or, oh as in go, oo as in food, u as in put, uh as in cup, ay as in day, ai as in aisle, ow as in cow, oy as in boy. Consonants as in English, with g as in go, s as in see, j as in jam, zh as in measure, kh as in loch, ch as in church, sh as in ship (also Russian щ), ts as in cats, th as in thin, dh as in this, y as in yes. A soft Russian consonant before a vowel adds y (нет nyet)."
+}

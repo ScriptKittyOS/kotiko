@@ -1,0 +1,24 @@
+{
+ "name": "extract-braces-and-quotes-in-strings",
+ "input": {
+  "text": "da",
+  "mode": "auto",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "Answer: {\"intent\":\"lookup\",\"words\":[{\"language\":null,\"romanization\":\"da\",\"native_vocalized\":null,\"note\":\"Say \\\"да} {\\\" plainly\",\"lang\":\"ru\",\"native\":\"да\",\"base_lang\":\"en\",\"gloss\":\"yes\",\"forms\":[\"yes\"],\"pronunciation\":\"da\"}]} }",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "intent": "lookup",
+  "words": [
+   {
+    "native": "да",
+    "note": "Say \"да} {\" plainly"
+   }
+  ]
+ }
+}

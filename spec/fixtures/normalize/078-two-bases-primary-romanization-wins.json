@@ -1,0 +1,26 @@
+{
+ "name": "two-bases-primary-romanization-wins",
+ "input": {
+  "text": "犬",
+  "mode": "add",
+  "base_langs": [
+   "es",
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"lookup\",\"words\":[{\"language\":null,\"romanization\":\"inu\",\"native_vocalized\":null,\"note\":null,\"lang\":\"ja\",\"native\":\"犬\",\"base_lang\":\"es\",\"gloss\":\"perro\",\"forms\":[\"perro\",\"perros\"],\"pronunciation\":\"i-nu\"},{\"language\":null,\"romanization\":\"inū\",\"native_vocalized\":null,\"note\":null,\"lang\":\"ja\",\"native\":\"犬\",\"base_lang\":\"en\",\"gloss\":\"dog\",\"forms\":[\"dog\",\"dogs\"],\"pronunciation\":\"ee-noo\"}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "romanization": "inu"
+   },
+   {
+    "romanization": "inu"
+   }
+  ]
+ }
+}

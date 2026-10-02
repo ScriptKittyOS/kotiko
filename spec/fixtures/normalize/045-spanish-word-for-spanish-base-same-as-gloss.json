@@ -1,0 +1,32 @@
+{
+ "name": "spanish-word-for-spanish-base-same-as-gloss",
+ "input": {
+  "text": "perro",
+  "mode": "add",
+  "base_langs": [
+   "es"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"es\",\"native\":\"perro\",\"base_lang\":\"es\",\"gloss\":\"perro\",\"forms\":[\"perro\"]},{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"pt\",\"native\":\"café\",\"base_lang\":\"es\",\"gloss\":\"café\",\"forms\":[\"café\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [
+   {
+    "native": "perro",
+    "gloss": "perro",
+    "base_lang": "es",
+    "reason": "target_is_base"
+   },
+   {
+    "native": "café",
+    "gloss": "café",
+    "base_lang": "es",
+    "reason": "same_as_gloss"
+   }
+  ],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [],
+  "code": "rejected_same_as_gloss"
+ }
+}

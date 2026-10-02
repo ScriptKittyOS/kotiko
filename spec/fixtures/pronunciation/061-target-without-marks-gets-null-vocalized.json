@@ -1,0 +1,15 @@
+{
+ "name": "target-without-marks-gets-null-vocalized",
+ "word": {
+  "lang": "ja",
+  "native": "犬",
+  "base_lang": "en",
+  "native_vocalized": "犬"
+ },
+ "expect": {
+  "word": {
+   "native_vocalized": null
+  },
+  "dropped_fields": []
+ }
+}

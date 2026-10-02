@@ -1,0 +1,14 @@
+{
+ "name": "extract-unparseable-prose",
+ "input": {
+  "text": "da",
+  "mode": "auto",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "I don't know that word.",
+ "expect": {
+  "error": "unparseable"
+ }
+}

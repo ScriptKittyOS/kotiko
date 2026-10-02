@@ -1,0 +1,33 @@
+{
+ "name": "respell-two-bases",
+ "input": {
+  "items": [
+   {
+    "lang": "ru",
+    "native": "спасибо",
+    "sense": "",
+    "base_langs": [
+     "en",
+     "es"
+    ]
+   }
+  ]
+ },
+ "raw": "{\"items\":[{\"native_vocalized\":\"спаси́бо\",\"pronunciation_careful\":null,\"lang\":\"ru\",\"native\":\"спасибо\",\"base_lang\":\"en\",\"pronunciation\":\"spa-SEE-ba\"},{\"native_vocalized\":\"спаси́бо\",\"pronunciation_careful\":null,\"lang\":\"ru\",\"native\":\"спасибо\",\"base_lang\":\"es\",\"pronunciation\":\"spa-SI-ba\"}]}",
+ "expect": {
+  "dropped_fields": [],
+  "items": [
+   {
+    "base_lang": "en",
+    "pronunciation": "spa-SEE-ba",
+    "native_vocalized": "спаси́бо",
+    "pronunciation_source": "model"
+   },
+   {
+    "base_lang": "es",
+    "pronunciation": "spa-SI-ba",
+    "pronunciation_source": "model"
+   }
+  ]
+ }
+}

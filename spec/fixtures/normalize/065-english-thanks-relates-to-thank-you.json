@@ -1,0 +1,26 @@
+{
+ "name": "english-thanks-relates-to-thank-you",
+ "input": {
+  "text": "shukran",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":\"shukran\",\"native_vocalized\":null,\"note\":null,\"lang\":\"ar\",\"native\":\"شكرا\",\"base_lang\":\"en\",\"gloss\":\"thank you\",\"forms\":[\"thank you\",\"thanks\"],\"pronunciation\":\"SHUK-ran\"}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "forms": [
+     "thank you",
+     "thanks"
+    ],
+    "pronunciation": "SHUK-ran"
+   }
+  ]
+ }
+}

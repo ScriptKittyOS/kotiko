@@ -1,0 +1,41 @@
+{
+ "name": "form-objects-keep-their-flags",
+ "input": {
+  "text": "pila",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"пила\",\"base_lang\":\"en\",\"gloss\":\"saw\",\"forms\":[{\"text\":\"saw\",\"ambiguous\":true},{\"text\":\"saws\",\"enabled\":false,\"case\":\"lower\"},{\"text\":\"sawing\",\"case\":\"bogus\"}]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "forms": [
+     {
+      "text": "saw",
+      "enabled": true,
+      "case": "any",
+      "ambiguous": true
+     },
+     {
+      "text": "saws",
+      "enabled": false,
+      "case": "lower",
+      "ambiguous": false
+     },
+     {
+      "text": "sawing",
+      "enabled": true,
+      "case": "any",
+      "ambiguous": false
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,26 @@
+{
+ "name": "latin-native-for-russian-rejected",
+ "input": {
+  "text": "spasibo",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"spasibo\",\"base_lang\":\"en\",\"gloss\":\"thank you\",\"forms\":[\"thank you\",\"thanks\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [
+   {
+    "native": "spasibo",
+    "gloss": "thank you",
+    "base_lang": "en",
+    "reason": "script_mismatch"
+   }
+  ],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [],
+  "code": "bad_lookup_result"
+ }
+}

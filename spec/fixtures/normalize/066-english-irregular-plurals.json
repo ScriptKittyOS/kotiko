@@ -1,0 +1,34 @@
+{
+ "name": "english-irregular-plurals",
+ "input": {
+  "text": "deti",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"ребёнок\",\"base_lang\":\"en\",\"gloss\":\"child\",\"forms\":[\"child\",\"children\",\"child's\",\"kid\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [
+   {
+    "native": "ребёнок",
+    "base_lang": "en",
+    "form": "kid",
+    "reason": "unrelated_form"
+   }
+  ],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "native": "ребёнок",
+    "forms": [
+     "child",
+     "children",
+     "child's"
+    ]
+   }
+  ]
+ }
+}

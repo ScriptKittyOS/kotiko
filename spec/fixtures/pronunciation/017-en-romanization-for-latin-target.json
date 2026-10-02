@@ -1,0 +1,15 @@
+{
+ "name": "en-romanization-for-latin-target",
+ "word": {
+  "lang": "es",
+  "native": "gracias",
+  "base_lang": "en",
+  "romanization": "gracias"
+ },
+ "expect": {
+  "word": {
+   "romanization": null
+  },
+  "dropped_fields": []
+ }
+}

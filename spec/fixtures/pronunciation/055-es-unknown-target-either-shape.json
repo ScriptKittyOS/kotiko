@@ -1,0 +1,15 @@
+{
+ "name": "es-unknown-target-either-shape",
+ "word": {
+  "lang": "tlh",
+  "native": "Qapla'",
+  "base_lang": "es",
+  "pronunciation": "QAP-la'"
+ },
+ "expect": {
+  "word": {
+   "pronunciation": "QAP-la'"
+  },
+  "dropped_fields": []
+ }
+}

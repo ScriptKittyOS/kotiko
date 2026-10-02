@@ -1,0 +1,22 @@
+{
+ "name": "lang-zh-tw-is-traditional",
+ "input": {
+  "text": "ai",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":\"ài\",\"native_vocalized\":null,\"note\":null,\"lang\":\"zh-TW\",\"native\":\"愛\",\"base_lang\":\"en\",\"gloss\":\"love\",\"forms\":[\"love\",\"loves\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "lang": "zh-Hant"
+   }
+  ]
+ }
+}

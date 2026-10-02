@@ -51,7 +51,7 @@ export default [
   },
   {
     // Pure modules also export themselves for Node tests when `module` exists.
-    files: ["extension/lib/**/*.js", "extension/ui/**/*.js"],
+    files: ["extension/lib/**/*.js", "extension/ui/**/*.js", "extension/spec/**/*.js"],
     languageOptions: { globals: { module: "readonly" } },
   },
   {
