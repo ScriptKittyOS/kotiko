@@ -12,6 +12,9 @@ Conventional Commits by release-please.
   the old names still work for now, with a warning. Stop the old server before the first
   start; keep the extension's folder where it is and reload it. See "Updating from Slovo"
   in the README.
+- Buttons, toggles, menus, tabs and forms keep the site's own words, including clickable
+  labels built from plain `div`s. A lone capital next to a code or numeral ("AOI I",
+  "World War I", "I-95") is no longer swapped as the word "I".
 
 ## 0.2.0 (2026-10-01)
 

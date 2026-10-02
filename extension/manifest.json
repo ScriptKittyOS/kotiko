@@ -13,7 +13,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["lib/matcher.js", "content.js"],
+      "js": ["lib/matcher.js", "lib/controls.js", "content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
     }
