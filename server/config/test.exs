@@ -18,6 +18,8 @@ config :kotiko,
   data_dir_source: :env,
   # Router tests call the plug directly; the one socket test starts Bandit on port 0.
   start_http: false,
+  # The janitor and the pronunciation refresh: tests call them directly.
+  background_jobs: false,
   port: 0,
   bind: "127.0.0.1",
   bind_ip: {127, 0, 0, 1},

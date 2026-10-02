@@ -6,6 +6,11 @@ and why. Open questions live in each slice's own "Open questions" section and in
 
 ## 2026-10-02
 
+**Kotiko passed the first name screen.** *Maintainer.* No registered or pending KOTIKO
+trademark in the US, and no KOTIKO product in language learning, browser extensions or
+Telegram bots; risk looks low. The EUIPO search and a same-day store check remain before
+the first submission ([04](04-rename-to-kotiko/SPEC.md) section 8).
+
 **Goal: the OpenSSF Best Practices badge at silver.** *Maintainer.* Register for passing
 the day the repository goes public (a private repository can't earn it, and the badge's
 repository URL can only change every 180 days, so register under the final

@@ -31,8 +31,63 @@ defmodule Kotiko.WordTest do
     end
   end
 
-  test "forms joins english_forms and english without duplicates" do
-    assert Word.forms(%Word{english: "house", english_forms: "house\nHouses\n\nhouses"}) ==
-             ["house", "Houses"]
+  test "normalize_base keeps a script or region subtag in canonical case" do
+    assert Word.normalize_base("ES") == "es"
+    assert Word.normalize_base("pt_br") == "pt-BR"
+    assert Word.normalize_base("zh-hant") == "zh-Hant"
+    assert Word.normalize_base("spanish") == nil
+    assert Word.normalize_base(nil) == nil
+  end
+
+  test "same_language? compares the primary subtag" do
+    assert Word.same_language?("en", "en")
+    assert Word.same_language?("zh", "zh-Hant")
+    refute Word.same_language?("ja", "es")
+  end
+
+  @word %Word{
+    id: 7,
+    uuid: "01928f6e-7b2c-7def-8abc-0123456789ab",
+    lang: "ja",
+    native: "犬",
+    base_lang: "en",
+    sense: "",
+    gloss: "dog",
+    forms: [
+      %{text: "dog", enabled: true, case: "any", ambiguous: false},
+      %{text: "dogs", enabled: false, case: "any", ambiguous: false}
+    ],
+    romanization: "inu",
+    status: "active",
+    origin: "add",
+    language: "Japanese",
+    created_at: ~U[2026-10-01 21:23:47.123456Z],
+    updated_at: ~U[2026-10-01 21:23:47.123456Z]
+  }
+
+  test "to_api returns every section 1 field with millisecond timestamps" do
+    api = Word.to_api(@word)
+
+    assert api.id == @word.uuid
+    assert api.created_at == "2026-10-01T21:23:47.123Z"
+    assert api.deleted_at == nil
+
+    for field <- ~w(native_vocalized pronunciation pronunciation_careful pronunciation_source
+                    merged_into note source_text)a do
+      assert Map.has_key?(api, field) and is_nil(api[field]), "#{field}"
+    end
+  end
+
+  test "to_legacy_json is the 0.2 shape: integer id, english, enabled forms as strings" do
+    assert Word.to_legacy_json(@word) == %{
+             id: 7,
+             lang: "ja",
+             language: "Japanese",
+             native: "犬",
+             romanization: "inu",
+             english: "dog",
+             forms: ["dog"],
+             note: nil
+           }
   end
 end

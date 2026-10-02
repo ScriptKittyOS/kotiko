@@ -12,9 +12,10 @@ defmodule Kotiko.Application do
                                   the data folder; copies the words from before the
                                   rename to Kotiko, once
     3. API token                  from API_TOKEN, the saved file, or a new one
-    4. `Kotiko.Migrations.run!/0`  migrate on one connection, before the pool opens
+    4. `Kotiko.Migrations.run!/0`  back the database up if a migration is pending, then
+                                  migrate on one connection, before the pool opens
     5. startup summary            version, data, who can reach it, model, bot
-    6. the supervision tree       Repo, tasks, HTTP, bot
+    6. the supervision tree       Repo, tasks, background jobs, HTTP, bot
 
   The log filter that keeps keys out of the logs goes in first of all.
   """
@@ -35,9 +36,11 @@ defmodule Kotiko.Application do
     http = http_settings()
     log_summary(token_source, words, http)
 
+    Kotiko.Lookup.init()
+
     children =
-      [Kotiko.Repo, {Task.Supervisor, name: Kotiko.TaskSup}] ++
-        http_children(http) ++ bot_child()
+      [Kotiko.WriteLock, Kotiko.Repo, {Task.Supervisor, name: Kotiko.TaskSup}] ++
+        background_children() ++ http_children(http) ++ bot_child()
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Kotiko.Supervisor)
   end
@@ -172,6 +175,14 @@ defmodule Kotiko.Application do
     Process.sleep(:timer.hours(24))
     Logger.warning(message)
     warn_daily(message)
+  end
+
+  # The daily cleanup and the one-time pronunciation refresh (slice 07). Off in tests,
+  # which call them directly.
+  defp background_children do
+    if Application.get_env(:kotiko, :background_jobs, true),
+      do: [Kotiko.Janitor, Kotiko.PronunciationRefresh],
+      else: []
   end
 
   defp bot_child do
