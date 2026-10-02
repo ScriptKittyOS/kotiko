@@ -6,6 +6,14 @@ and why. Open questions live in each slice's own "Open questions" section and in
 
 ## 2026-10-02
 
+**@KotikoBot is the maintainer's own Telegram bot; there is no public shared bot.**
+*Maintainer.* "I don't want to deal with the folks and their accounts." The Telegram bot
+stays part of each person's self-hosted server: everyone who runs a server creates their
+own bot in @BotFather (the README suggests a name like `yourname_kotiko_bot`).
+@KotikoBot is reserved for the maintainer's server and as a demonstration. This confirms
+the earlier decision against a hosted service: no accounts, no shared word storage, no
+lookups paid for others. See [41](41-telegram-improvements/SPEC.md).
+
 **The project's domain is kotiko.org, on Cloudflare.** *Maintainer.* The docs site lives at
 `https://kotiko.org/` (Spanish at `/es/`); the extension's docs links and the OpenRouter
 sign-in callback use it. Cloudflare's proxy adds the security headers GitHub Pages can't,
