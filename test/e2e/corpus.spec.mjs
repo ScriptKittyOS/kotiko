@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
 // The fixture corpus (test/fixtures/pages). Every page loads offline with the extension
@@ -23,7 +23,7 @@ const PAGES = [
 
 test("every corpus page loads offline with the extension running, without page errors", async ({ context, server, popup }) => {
   test.setTimeout(90_000);
-  await popup.connect(server.miraUrl, server.token);
+  await popup.connect(server.kotikoUrl, server.token);
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(`${page.url()}: ${e.message}`));

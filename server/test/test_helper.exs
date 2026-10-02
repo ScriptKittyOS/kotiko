@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 # SPDX-License-Identifier: Apache-2.0
 
 # Any HTTP request a test didn't stub fails loudly instead of reaching the internet.
@@ -14,7 +14,7 @@ Req.default_options(
 # @tag :pending marks known bugs whose fix belongs to a later slice. Run them with
 # `mix test --include pending`.
 ExUnit.start(exclude: [:pending])
-Ecto.Adapters.SQL.Sandbox.mode(Slovo.Repo, :manual)
+Ecto.Adapters.SQL.Sandbox.mode(Kotiko.Repo, :manual)
 
-data_dir = Application.fetch_env!(:slovo, :data_dir)
+data_dir = Application.fetch_env!(:kotiko, :data_dir)
 ExUnit.after_suite(fn _ -> File.rm_rf(data_dir) end)

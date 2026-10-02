@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
 // Slice 02 smoke: install, connect to the fake server, sync, swap on basic.html, toggle
@@ -24,7 +24,7 @@ test("installs: the background worker runs and the popup opens", async ({ extens
 
 test("connects to the server, syncs, swaps words on a page and restores them when off", async ({ context, server, popup }) => {
   await server.control({ words: WORDS });
-  const p = await popup.connect(server.miraUrl, server.token);
+  const p = await popup.connect(server.kotikoUrl, server.token);
   await expect(p.locator("#status")).toHaveText(/^2 words known, synced/);
   await expect(p.locator("#langs li")).toHaveCount(1);
   await expect(p.locator("#langs li label")).toHaveText("Russian");
@@ -32,26 +32,26 @@ test("connects to the server, syncs, swaps words on a page and restores them whe
   const page = await context.newPage();
   await page.goto(server.page("basic.html"));
   await expect(page.locator("#p1")).toHaveText(P1_SWAPPED);
-  const swapped = page.locator("#p1 span.slovo-w").first();
+  const swapped = page.locator("#p1 span.kotiko-w").first();
   await expect(swapped).toHaveAttribute("lang", "ru");
   await expect(swapped).toHaveAttribute("title", "Thanks = спасибо (spasibo) · Russian");
   await expect(page.locator("#code")).toHaveText("thanks in a pre block stays English");
 
   await p.locator("#enabled").uncheck();
   await expect(page.locator("#p1")).toHaveText(P1);
-  await expect(page.locator("span.slovo-w")).toHaveCount(0);
+  await expect(page.locator("span.kotiko-w")).toHaveCount(0);
 
   await p.locator("#enabled").check();
   await expect(page.locator("#p1")).toHaveText(P1_SWAPPED);
 
-  const requests = (await server.state()).log.filter((r) => r.path === "/mira/api/words");
+  const requests = (await server.state()).log.filter((r) => r.path === "/kotiko/api/words");
   expect(requests.length).toBeGreaterThan(0);
   expect(requests.every((r) => r.auth === `Bearer ${server.token}`)).toBe(true);
 });
 
 test("hiding a language restores its words on the page", async ({ context, server, popup }) => {
   await server.control({ words: WORDS });
-  const p = await popup.connect(server.miraUrl, server.token);
+  const p = await popup.connect(server.kotikoUrl, server.token);
   const page = await context.newPage();
   await page.goto(server.page("basic.html"));
   await expect(page.locator("#p1")).toHaveText(P1_SWAPPED);
@@ -64,7 +64,7 @@ test("hiding a language restores its words on the page", async ({ context, serve
 
 test("adds a word from the popup through the server", async ({ context, server, popup }) => {
   await server.control({ words: WORDS });
-  const p = await popup.connect(server.miraUrl, server.token);
+  const p = await popup.connect(server.kotikoUrl, server.token);
 
   const added = await popup.add("sobaka");
   await expect(added).toHaveText(/^Added собака \(sobaka\) = dog · Russian undo$/);
@@ -92,15 +92,15 @@ test("adds a word from the popup through the server", async ({ context, server, 
 
 test("shows the server's errors in the popup", async ({ server, popup }) => {
   await server.control({ words: WORDS });
-  const p = await popup.connect(server.miraUrl, server.token);
-  await server.control({ mira: "401" });
+  const p = await popup.connect(server.kotikoUrl, server.token);
+  await server.control({ kotiko: "401" });
   await p.locator("#syncNow").click();
   await expect(p.locator("#status")).toHaveText("The server rejected that API token.");
 });
 
 test("nothing outside localhost is requested, and the guard catches it when it is", async ({ context, server, popup, blocked }) => {
   await server.control({ words: WORDS });
-  await popup.connect(server.miraUrl, server.token);
+  await popup.connect(server.kotikoUrl, server.token);
   const page = await context.newPage();
   await page.goto(server.page("basic.html"));
   await expect(page.locator("#p1")).toHaveText(P1_SWAPPED);

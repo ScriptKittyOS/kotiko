@@ -1,6 +1,10 @@
-# Slovo
+# Kotiko
 
-[![CI](https://github.com/ScriptKittyOS/slovo/actions/workflows/ci.yml/badge.svg)](https://github.com/ScriptKittyOS/slovo/actions/workflows/ci.yml)
+<!-- legacy-name-ok-start -->
+> Formerly Slovo. Updating from it? See [Updating from Slovo](#updating-from-slovo).
+<!-- legacy-name-ok-end -->
+
+[![CI](https://github.com/ScriptKittyOS/kotiko/actions/workflows/ci.yml/badge.svg)](https://github.com/ScriptKittyOS/kotiko/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 Learn a word in any language and from then on it replaces its English on every web page
@@ -26,7 +30,7 @@ Telegram (phone) ┘          ▲
 ### 1. Get a free OpenRouter key
 
 Sign in at [openrouter.ai](https://openrouter.ai) and create a key at
-[openrouter.ai/keys](https://openrouter.ai/keys). Slovo uses free models by default, so it
+[openrouter.ai/keys](https://openrouter.ai/keys). Kotiko uses free models by default, so it
 costs nothing. Free models allow about 50 requests a day; adding $10 of credit once raises
 that to 1000 a day and the free models stay free.
 
@@ -56,7 +60,7 @@ prints a short summary: version, data folder, who can reach the server, model an
 Check it with `curl localhost:4747/health` (prints `{"ok":true,...}` with the version). A
 mistake in `.env` stops the server with a message naming each setting to fix. After a
 `git pull`, `./run.sh` fetches changed dependencies itself. The first start also makes an API
-token, saves it in the data folder and prints it. `mix slovo.token` (in `server/`) prints it
+token, saves it in the data folder and prints it. `mix kotiko.token` (in `server/`) prints it
 again, with a pairing string. To pick your own instead, set `API_TOKEN` in `.env` (at least
 24 characters, e.g. `openssl rand -hex 24`).
 
@@ -65,7 +69,7 @@ again, with a pairing string. To pick your own instead, set `API_TOKEN` in `.env
 1. Open `chrome://extensions` (Brave: `brave://extensions`, Edge: `edge://extensions`).
 2. Turn on **Developer mode** (top right).
 3. Click **Load unpacked** and choose the `extension` folder.
-4. Pin Slovo, click its icon, open **Connection**, paste your API token, click **Save connection**.
+4. Pin Kotiko, click its icon, open **Connection**, paste your API token, click **Save connection**.
 
 The popup should say "0 words known, synced just now".
 
@@ -88,7 +92,7 @@ Type into the popup box, or send it to the Telegram bot. Both understand the sam
 | `what does дом mean` | Bot shows a card with Add / Skip (the popup always adds) |
 
 Any language works, and a new language starts the moment you add its first word. When you
-don't name a language and a word is ambiguous, Slovo assumes the one you've been adding lately.
+don't name a language and a word is ambiguous, Kotiko assumes the one you've been adding lately.
 
 Words are saved in dictionary form, so "houses" becomes "дом", not "дома". That's deliberate:
 you're learning to recognize the word, not the grammar, yet. Arabic and Hebrew are written
@@ -116,8 +120,8 @@ it off for one site.
 
 Lets you add words from your phone, including by voice.
 
-1. In Telegram, open a chat with **@BotFather** and send `/newbot`. Pick a name and a
-   username ending in `bot`, and copy the token.
+1. In Telegram, open a chat with **@BotFather** and send `/newbot`. Pick a name (Kotiko,
+   say) and a username ending in `bot` (like `yourname_kotiko_bot`), and copy the token.
 2. Put it in `server/.env` as `TELEGRAM_BOT_TOKEN=` and restart the server.
 3. Message your bot anything. It replies with your Telegram ID. Put it in `.env` as
    `ALLOWED_TELEGRAM_IDS=123456789` and restart. From now on the bot ignores everyone else.
@@ -165,8 +169,49 @@ server/install-service.sh
 That compiles, installs a systemd user service that starts at boot and restarts on failure,
 and waits until `/health` answers. Run it from the shell where `mix` works; it copies that
 shell's PATH, so asdf and mise installs are fine. Re-run it after updating to get the newest
-unit file. Logs: `journalctl --user -u slovo -f`. After editing `.env`:
-`systemctl --user restart slovo` (a mistake in `.env` stops the service until you do).
+unit file. Logs: `journalctl --user -u kotiko -f`. After editing `.env`:
+`systemctl --user restart kotiko` (a mistake in `.env` stops the service until you do).
+
+### Updating
+
+```bash
+git pull
+```
+
+Then restart the server (`systemctl --user restart kotiko`, or stop `./run.sh` and start it
+again); it fetches changed dependencies and migrates the database itself. Re-run
+`server/install-service.sh` if the release notes say the unit file changed.
+
+For the extension, keep the `extension` folder where it is and click the reload icon on its
+card in `chrome://extensions`. Chrome ties an unpacked extension's identity to its folder:
+moved or renamed, it starts with empty settings, so you'd paste the server address and token
+again (your words come back on the next sync; hidden languages and paused sites would need
+setting again).
+
+<!-- legacy-name-ok-start -->
+#### Updating from Slovo
+
+Kotiko used to be called Slovo. The first start after the update moves everything over:
+
+1. **Stop the old server**: `systemctl --user stop slovo`, or press Ctrl+C in the terminal
+   running `./run.sh`. (`install-service.sh` stops the old service for you.)
+2. **Back up your words** (optional; the update never changes the old files):
+   `cp -a ~/.local/share/slovo ~/slovo-backup`.
+3. **Update and start**: `git pull`, then `server/install-service.sh` (it replaces the
+   `slovo` service with `kotiko` and keeps the old unit file as `slovo.service.bak`), or
+   `./run.sh`.
+4. **Check the log**: the first start copies `~/.local/share/slovo/slovo.db` to
+   `~/.local/share/kotiko/kotiko.db` and says "Moved your words from ... (N words)". Your
+   API token is copied too, so the extension stays connected. The old folder is left as a
+   backup with a `MOVED-TO-KOTIKO.txt` note in it; delete it once you've checked your words.
+5. **If you set `SLOVO_DATA_DIR`** in `.env`, rename it to `KOTIKO_DATA_DIR` (and
+   `SLOVO_LOG_SQL` to `KOTIKO_LOG_SQL`). The old names still work for now, with a warning.
+   The words in that folder are copied to `kotiko.db` next to the old `slovo.db`.
+6. **Reload the extension** in place, as above. Its settings and words carry over.
+
+If the server stops with "Your old Slovo server is still running", stop it (step 1) and
+start Kotiko again.
+<!-- legacy-name-ok-end -->
 
 ### A different model
 
@@ -197,7 +242,7 @@ Behind a proxy, set `PUBLIC_URL` to the address the extension should use.
 ### Firefox
 
 Open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on**, and pick
-`extension/manifest.json`. Then in `about:addons`, open Slovo's Permissions tab and allow
+`extension/manifest.json`. Then in `about:addons`, open Kotiko's Permissions tab and allow
 access to all websites. Temporary add-ons are removed when Firefox restarts.
 
 ---
@@ -207,7 +252,7 @@ access to all websites. Temporary add-ons are removed when Firefox restarts.
 - **Popup says it can't reach the server**: is `./run.sh` running? Does the address in
   Connection match `PORT`/`BIND`?
 - **"The server rejected that API token"**: the token in the popup must match the server's
-  exactly. `mix slovo.token` in `server/` prints it.
+  exactly. `mix kotiko.token` in `server/` prints it.
 - **The server answers `421`**: you reached it by a name it doesn't know. Add the name to
   `ALLOWED_HOSTS` in `.env` and restart.
 - **"the API key was rejected"** or **"LLM_API_KEY isn't set"**: check `LLM_API_KEY` in `.env`, then restart
@@ -220,7 +265,7 @@ access to all websites. Temporary add-ons are removed when Firefox restarts.
   already polling with the same token; stop it.
 - **A site acts strangely**: some apps don't like their text being rewritten. Use
   "Pause on this site" in the popup.
-- **Start over**: stop the server and delete `~/.local/share/slovo/slovo.db`.
+- **Start over**: stop the server and delete `~/.local/share/kotiko/kotiko.db`.
 
 ## API
 
@@ -237,16 +282,17 @@ Every route except `GET /health` needs `Authorization: Bearer <API token>`.
 
 ```
 server/
-  lib/slovo/llm.ex          prompt that turns a message into word entries (any language)
-  lib/slovo/router.ex       the API above
-  lib/slovo/bot.ex          Telegram long polling, commands, Add/Skip buttons
-  lib/slovo/transcriber.ex  voice note → text
-  lib/slovo/words.ex        database functions
-  install-service.sh        systemd user service
+  lib/kotiko/llm.ex          prompt that turns a message into word entries (any language)
+  lib/kotiko/router.ex       the API above
+  lib/kotiko/bot.ex          Telegram long polling, commands, Add/Skip buttons
+  lib/kotiko/transcriber.ex  voice note → text
+  lib/kotiko/words.ex        database functions
+  lib/kotiko/data_dir.ex     where the words live; the one-time move from before the rename
+  install-service.sh         systemd user service
 extension/
-  background.js             syncs words from the server, relays adds from the popup
-  content.js                swaps words on the page, watches for new content
-  popup.html / popup.js     add a word, choose languages, on/off, per-site pause, connection
+  background.js              syncs words from the server, relays adds from the popup
+  content.js                 swaps words on the page, watches for new content
+  popup.html / popup.js      add a word, choose languages, on/off, per-site pause, connection
 ```
 
 ## License

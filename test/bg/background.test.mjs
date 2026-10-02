@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
 // background.js in a vm context with a fake `chrome`, a fake clock and a stubbed fetch
@@ -136,7 +136,7 @@ describe("sync", () => {
     ["server error with a message", {}, () => json(500, { error: "Database is locked." }), { code: "internal", details: { status: 500, error: "Database is locked." } }],
     ["server error without one", {}, () => new Response("<h1>Bad gateway</h1>", { status: 502 }), { code: "internal", details: { status: 502 } }],
     ["unreachable", {}, () => Promise.reject(new TypeError("fetch failed")), { code: "server_unreachable", details: { reason: "network" } }],
-    ["a missing route", {}, () => new Response("not found", { status: 404 }), { code: "not_mira_server", details: { status: 404 } }],
+    ["a missing route", {}, () => new Response("not found", { status: 404 }), { code: "not_kotiko_server", details: { status: 404 } }],
     ["a host check failure", {}, () => new Response("misdirected", { status: 421 }), { code: "server_address_invalid", details: { status: 421 } }],
   ];
   for (const [name, local, handler, expected] of failures) {
@@ -162,8 +162,8 @@ describe("triggers", () => {
     await fake.fireInstalled();
     await fake.idle();
     await sleep(10);
-    assert.deepEqual(await fake.chrome.alarms.get("slovo-sync"), {
-      name: "slovo-sync",
+    assert.deepEqual(await fake.chrome.alarms.get("kotiko-sync"), {
+      name: "kotiko-sync",
       scheduledTime: fake.clock.now() + 60_000,
       periodInMinutes: 1,
     });
@@ -171,12 +171,26 @@ describe("triggers", () => {
     assert.deepEqual(store.words, WORDS);
   });
 
+  test("an update clears the alarm from before the rename; an install doesn't need to", async () => {
+    const OLD_ALARM = "slovo-sync"; // legacy-name-ok
+    const { fetch } = serverWith(WORDS);
+    const old = { name: OLD_ALARM, scheduledTime: 123, periodInMinutes: 1 };
+    const { fake } = loadBackground({ fetch, alarms: [old] });
+    await fake.fireInstalled({ reason: "install" });
+    await sleep(10);
+    assert.ok(await fake.chrome.alarms.get(OLD_ALARM));
+    await fake.fireInstalled({ reason: "update", previousVersion: "0.2.0" });
+    await sleep(10);
+    assert.equal(await fake.chrome.alarms.get(OLD_ALARM), undefined);
+    assert.ok(await fake.chrome.alarms.get("kotiko-sync"));
+  });
+
   test("browser start-up does the same", async () => {
     const { fetch, requests } = serverWith(WORDS);
     const { fake } = loadBackground({ fetch });
     await fake.fireStartup();
     await sleep(10);
-    assert.ok(await fake.chrome.alarms.get("slovo-sync"));
+    assert.ok(await fake.chrome.alarms.get("kotiko-sync"));
     assert.equal(requests.length, 1);
   });
 
@@ -186,7 +200,7 @@ describe("triggers", () => {
     await fake.fireAlarm("something-else");
     await sleep(10);
     assert.equal(requests.length, 0);
-    await fake.fireAlarm("slovo-sync");
+    await fake.fireAlarm("kotiko-sync");
     await sleep(10);
     assert.equal(requests.length, 1);
   });
@@ -278,9 +292,9 @@ describe("against the fixture server", () => {
   });
   after(() => srv.close());
 
-  test("sync, add and remove round-trip through the fake Mira API", async () => {
+  test("sync, add and remove round-trip through the fake Kotiko API", async () => {
     srv.reset();
-    const { send, store } = loadBackground({ fetch, local: { serverUrl: srv.miraUrl, token: srv.token } });
+    const { send, store } = loadBackground({ fetch, local: { serverUrl: srv.kotikoUrl, token: srv.token } });
     await send({ type: "sync", force: true });
     assert.equal(store.syncError, null);
     assert.deepEqual(store.words, srv.state.words);
@@ -295,21 +309,21 @@ describe("against the fixture server", () => {
 
   test("control switches surface as sync errors", async () => {
     srv.reset();
-    const { send, store } = loadBackground({ fetch, local: { serverUrl: srv.miraUrl, token: srv.token } });
+    const { send, store } = loadBackground({ fetch, local: { serverUrl: srv.kotikoUrl, token: srv.token } });
     for (const [mode, code] of [
       ["401", "server_key_rejected"],
       ["500", "internal"],
-      ["html", "not_mira_server"],
+      ["html", "not_kotiko_server"],
     ]) {
-      srv.state.mira = mode;
+      srv.state.kotiko = mode;
       await send({ type: "sync", force: true });
       assert.equal(store.syncError?.code, code, mode);
     }
     assert.equal(store.syncError.details.error, undefined);
-    srv.state.mira = "500";
+    srv.state.kotiko = "500";
     await send({ type: "sync", force: true });
     assert.equal(store.syncError.details.error, "Something broke on the fake server.");
-    srv.state.mira = null;
+    srv.state.kotiko = null;
     await send({ type: "sync", force: true });
     assert.equal(store.syncError, null);
   });
@@ -353,7 +367,7 @@ describe("sync correctness (slice 26)", () => {
     assert.ok(store.lastSync);
   });
 
-  test("F31: a 200 that isn't a Mira answer is an error, not an empty sync", async () => {
+  test("F31: a 200 that isn't a Kotiko answer is an error, not an empty sync", async () => {
     const { fetch } = stubFetch(() => new Response("<!doctype html><p>Captive portal</p>", { status: 200, headers: { "content-type": "text/html" } }));
     const { send, store } = loadBackground({ fetch, local: { words: WORDS } });
     await send({ type: "sync", force: true });
@@ -375,7 +389,7 @@ describe("sync correctness (slice 26)", () => {
     const { fetch } = serverWith(WORDS);
     const { fake } = loadBackground({ fetch });
     await sleep(10);
-    assert.ok(await fake.chrome.alarms.get("slovo-sync"), "re-enabling the extension fires neither event");
+    assert.ok(await fake.chrome.alarms.get("kotiko-sync"), "re-enabling the extension fires neither event");
   });
   test("F10: undo during an in-flight sync removes the word from the cache", async () => {
     let serverWords = WORDS;
@@ -466,10 +480,10 @@ describe("sync correctness (slice 26)", () => {
   test("F31: the fixture server's captive portal is not a word list", async () => {
     const srv = await startFixtureServer();
     try {
-      srv.state.mira = "html";
-      const { send, store } = loadBackground({ fetch, local: { serverUrl: srv.miraUrl, token: srv.token, words: WORDS } });
+      srv.state.kotiko = "html";
+      const { send, store } = loadBackground({ fetch, local: { serverUrl: srv.kotikoUrl, token: srv.token, words: WORDS } });
       await send({ type: "sync", force: true });
-      assert.equal(store.syncError.code, "not_mira_server");
+      assert.equal(store.syncError.code, "not_kotiko_server");
       assert.equal(store.lastSync, undefined);
       assert.deepEqual(store.words, WORDS);
     } finally {
@@ -487,7 +501,7 @@ describe("sync correctness (slice 26)", () => {
       const { fetch } = stubFetch(() => json(200, body));
       const { send, store } = loadBackground({ fetch, local: { words: WORDS } });
       await send({ type: "sync", force: true });
-      assert.equal(store.syncError.code, "not_mira_server");
+      assert.equal(store.syncError.code, "not_kotiko_server");
       assert.deepEqual(store.words, WORDS);
     });
   }
@@ -536,7 +550,7 @@ describe("sync correctness (slice 26)", () => {
     ["localhost:4747/", "http://localhost:4747/api/words"],
     ["[::1]:4747", "http://[::1]:4747/api/words"],
     ["100.101.102.103:4747", "http://100.101.102.103:4747/api/words"],
-    ["slovo.tail1234.ts.net", "https://slovo.tail1234.ts.net/api/words"],
+    ["kotiko.tail1234.ts.net", "https://kotiko.tail1234.ts.net/api/words"],
     ["https://example.test/words-server/", "https://example.test/words-server/api/words"],
   ];
   for (const [address, url] of addresses) {
@@ -580,8 +594,8 @@ describe("sync correctness (slice 26)", () => {
     const { fetch } = serverWith(WORDS);
     const { fake } = loadBackground({ fetch, alarms: [] });
     await sleep(10);
-    assert.deepEqual(await fake.chrome.alarms.get("slovo-sync"), {
-      name: "slovo-sync",
+    assert.deepEqual(await fake.chrome.alarms.get("kotiko-sync"), {
+      name: "kotiko-sync",
       scheduledTime: fake.clock.now() + 60_000,
       periodInMinutes: 1,
     });
@@ -589,11 +603,11 @@ describe("sync correctness (slice 26)", () => {
 
   test("F39: an existing alarm is kept, not rescheduled, on worker start and start-up", async () => {
     const { fetch } = serverWith(WORDS);
-    const existing = { name: "slovo-sync", scheduledTime: 123, periodInMinutes: 1 };
+    const existing = { name: "kotiko-sync", scheduledTime: 123, periodInMinutes: 1 };
     const { fake } = loadBackground({ fetch, alarms: [existing] });
     await fake.fireStartup();
     await sleep(10);
-    assert.deepEqual(await fake.chrome.alarms.get("slovo-sync"), existing);
+    assert.deepEqual(await fake.chrome.alarms.get("kotiko-sync"), existing);
     assert.equal(fake.calls.alarms.length, 0);
   });
 });

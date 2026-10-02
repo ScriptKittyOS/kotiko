@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
 // Replaces English words on the page with the words you've marked as known, in every
@@ -6,8 +6,8 @@
 // page rotates between them. Hover a swapped word to see the English and all of them.
 (() => {
   const ext = globalThis.browser ?? globalThis.chrome;
-  const { buildMatcher, matchCase, norm, tooltip } = globalThis.MiraMatcher; // lib/matcher.js
-  const MARK = "slovo-w";
+  const { buildMatcher, matchCase, norm, tooltip } = globalThis.KotikoMatcher; // lib/matcher.js
+  const MARK = "kotiko-w";
   const SKIP = new Set([
     "SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA", "INPUT", "SELECT", "OPTION",
     "CODE", "PRE", "KBD", "SAMP", "SVG", "MATH", "CANVAS", "IFRAME", "TITLE",
@@ -81,11 +81,11 @@
     nodes.forEach(processText);
   }
 
-  function unwrapAll() {
+  function unwrapAll(selector = `span.${MARK}`) {
     const parents = new Set();
-    document.querySelectorAll(`span.${MARK}`).forEach((span) => {
+    document.querySelectorAll(selector).forEach((span) => {
       if (span.parentNode) parents.add(span.parentNode);
-      span.replaceWith(document.createTextNode(span.dataset.en));
+      span.replaceWith(document.createTextNode(span.dataset.en ?? span.textContent));
     });
     parents.forEach((p) => p.normalize());
   }
@@ -141,5 +141,8 @@
     ext.runtime.sendMessage({ type: "sync" }).catch(() => {});
   }
 
+  // Tabs open during the update still have spans from the content script before the
+  // rename; put the page's own text back first. Remove in the next release.
+  unwrapAll("span.slovo-w"); // legacy-name-ok
   if (document.body) init();
 })();

@@ -1,7 +1,7 @@
-# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule Slovo.LLMStub do
+defmodule Kotiko.LLMStub do
   @moduledoc """
   Req.Test stand-in for the OpenAI-compatible model API. Every request is reported to
   the test process as `{:llm_request, model, body, headers}`, so tests can count calls
@@ -17,7 +17,7 @@ defmodule Slovo.LLMStub do
   def stub(fun) do
     test = self()
 
-    Req.Test.stub(Slovo.LLM, fn conn ->
+    Req.Test.stub(Kotiko.LLM, fn conn ->
       {:ok, raw, conn} = Conn.read_body(conn)
       body = Jason.decode!(raw)
       send(test, {:llm_request, body["model"], body, conn.req_headers})

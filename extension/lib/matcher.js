@@ -1,8 +1,8 @@
-// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
 // Finds known English words in text and picks the word to show for each. No DOM or
-// extension APIs, so the same file runs as a content script (globalThis.MiraMatcher)
+// extension APIs, so the same file runs as a content script (globalThis.KotikoMatcher)
 // and in Node tests (module.exports).
 (() => {
   const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -60,6 +60,6 @@
   }
 
   const api = { escapeRe, norm, languageName, buildMatcher, matchCase, describe, tooltip };
-  globalThis.MiraMatcher = api;
+  globalThis.KotikoMatcher = api;
   if (typeof module === "object" && module.exports) module.exports = api;
 })();

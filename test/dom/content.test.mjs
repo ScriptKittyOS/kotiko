@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
 // content.js in jsdom, loaded the way the manifest injects it (lib/matcher.js first).
@@ -44,7 +44,7 @@ async function load(html, { words = WORDS, url = "https://example.com/", ...loca
     fake,
     doc,
     $: (id) => doc.getElementById(id),
-    spans: () => [...doc.querySelectorAll("span.slovo-w")],
+    spans: () => [...doc.querySelectorAll("span.kotiko-w")],
     // Changes extension storage and waits for content.js to react.
     async set(patch) {
       await fake.chrome.storage.local.set(patch);
@@ -140,6 +140,39 @@ describe("restoring", () => {
     const { $, spans } = await load(`<p id="p">my house</p>`, { enabled: false });
     assert.equal(spans().length, 0);
     assert.equal($("p").textContent, "my house");
+  });
+});
+
+describe("after the rename", () => {
+  // Spans the content script made before the rename, with its old class, still in a tab
+  // that was open during the update. legacy-name-ok
+  const OLD = "slovo-w"; // legacy-name-ok
+  const oldSpan = (en, native) => `<span class="${OLD}" data-en="${en}" lang="ru" dir="auto">${native}</span>`;
+
+  test("old spans go back to the page's own text", async () => {
+    const { $, doc, spans } = await load(
+      `<p id="p">My ${oldSpan("House", "Дом")} is your ${oldSpan("house", "дом")}.</p><p id="q">${oldSpan("thanks", "спасибо")}</p>`,
+      { words: [] },
+    );
+    assert.equal(doc.querySelectorAll(`span.${OLD}`).length, 0);
+    assert.equal($("p").textContent, "My House is your house.");
+    assert.equal($("p").childNodes.length, 1, "the restored text is one text node again");
+    assert.equal($("q").textContent, "thanks");
+    assert.equal(spans().length, 0);
+  });
+
+  test("then the page is swapped as usual, with the new class", async () => {
+    const { $, doc, spans } = await load(`<p id="p">My ${oldSpan("house", "дом")} is big.</p>`);
+    assert.equal(doc.querySelectorAll(`span.${OLD}`).length, 0);
+    assert.equal($("p").textContent, "My дом is big.");
+    assert.equal(spans().length, 1);
+    assert.equal(spans()[0].dataset.en, "house");
+  });
+
+  test("switched off, the old spans are still restored", async () => {
+    const { $, doc } = await load(`<p id="p">My ${oldSpan("house", "дом")}.</p>`, { enabled: false });
+    assert.equal(doc.querySelectorAll(`span.${OLD}`).length, 0);
+    assert.equal($("p").textContent, "My house.");
   });
 });
 

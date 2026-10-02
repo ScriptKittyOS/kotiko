@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
 // The fixture corpus and the fixture server that serves it, checked without a browser.
@@ -87,23 +87,23 @@ describe("fixture server", () => {
     }
   });
 
-  test("fake Mira: health is open, the API needs the token", async () => {
+  test("fake Kotiko: health is open, the API needs the token", async () => {
     await control({ reset: true });
-    assert.equal(await (await fetch(`${srv.miraUrl}/health`)).text(), "ok");
-    assert.equal((await fetch(`${srv.miraUrl}/api/words`)).status, 401);
-    const res = await fetch(`${srv.miraUrl}/api/words`, { headers: { authorization: `Bearer ${srv.token}` } });
+    assert.equal(await (await fetch(`${srv.kotikoUrl}/health`)).text(), "ok");
+    assert.equal((await fetch(`${srv.kotikoUrl}/api/words`)).status, 401);
+    const res = await fetch(`${srv.kotikoUrl}/api/words`, { headers: { authorization: `Bearer ${srv.token}` } });
     assert.equal((await res.json()).words.length, 5);
   });
 
-  test("fake Mira: html and slow behaviours", async () => {
-    await control({ reset: true, mira: "html" });
-    const html = await fetch(`${srv.miraUrl}/api/words`, { headers: { authorization: `Bearer ${srv.token}` } });
+  test("fake Kotiko: html and slow behaviours", async () => {
+    await control({ reset: true, kotiko: "html" });
+    const html = await fetch(`${srv.kotikoUrl}/api/words`, { headers: { authorization: `Bearer ${srv.token}` } });
     assert.equal(html.status, 200);
     assert.match(html.headers.get("content-type"), /text\/html/);
 
-    await control({ reset: true, mira: "slow", delayMs: 120 });
+    await control({ reset: true, kotiko: "slow", delayMs: 120 });
     const t = performance.now();
-    await fetch(`${srv.miraUrl}/health`);
+    await fetch(`${srv.kotikoUrl}/health`);
     assert.ok(performance.now() - t >= 100);
     await control({ reset: true });
   });
@@ -142,8 +142,8 @@ describe("fixture server", () => {
 
   test("logs API and model requests for assertions", async () => {
     await control({ reset: true });
-    await fetch(`${srv.miraUrl}/health`);
+    await fetch(`${srv.kotikoUrl}/health`);
     const state = await (await fetch(`${srv.url}/__control`)).json();
-    assert.deepEqual(state.log, [{ method: "GET", path: "/mira/health", auth: null }]);
+    assert.deepEqual(state.log, [{ method: "GET", path: "/kotiko/health", auth: null }]);
   });
 });

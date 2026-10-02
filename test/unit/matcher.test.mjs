@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
 // Today's matcher (extension/lib/matcher.js), pinned before slice 14 rewrites it.
@@ -35,11 +35,11 @@ function swap(text, words, hidden = []) {
 }
 
 describe("module shape", () => {
-  test("exports the matcher API and sets globalThis.MiraMatcher", () => {
+  test("exports the matcher API and sets globalThis.KotikoMatcher", () => {
     for (const k of ["escapeRe", "norm", "languageName", "buildMatcher", "matchCase", "describe", "tooltip"]) {
       assert.equal(typeof M[k], "function", k);
     }
-    assert.equal(globalThis.MiraMatcher, M);
+    assert.equal(globalThis.KotikoMatcher, M);
   });
 });
 

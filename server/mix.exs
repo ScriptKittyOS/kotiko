@@ -1,12 +1,12 @@
-# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule Slovo.MixProject do
+defmodule Kotiko.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :slovo,
+      app: :kotiko,
       # x-release-please-start-version
       version: "0.2.0",
       # x-release-please-end
@@ -20,7 +20,7 @@ defmodule Slovo.MixProject do
   end
 
   def application do
-    [extra_applications: [:logger, :crypto], mod: {Slovo.Application, []}]
+    [extra_applications: [:logger, :crypto], mod: {Kotiko.Application, []}]
   end
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]

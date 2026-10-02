@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 # SPDX-License-Identifier: Apache-2.0
 # Installs the server as a systemd user service that starts at boot, wherever this folder
 # lives (spaces and % in the path are fine). Uses the PATH of the shell you run it from,
@@ -9,7 +9,8 @@ set -euo pipefail
 umask 077
 cd "$(dirname "$0")"
 dir="$(pwd)"
-unit="$HOME/.config/systemd/user/slovo.service"
+unit_dir="$HOME/.config/systemd/user"
+unit="$unit_dir/kotiko.service"
 wait_seconds="${INSTALL_WAIT_SECONDS:-20}"
 
 if [ ! -f .env ]; then
@@ -43,10 +44,21 @@ exec_escape() {
 echo "Fetching dependencies and compiling (the first time takes a minute or two)..."
 ./run.sh --compile
 
-mkdir -p "$(dirname "$unit")"
+# Before the rename to Kotiko the service had the old name. Stop it (that frees the
+# database and the port), keep its unit file in case you customised it, and forget it.
+old_unit="$unit_dir/slovo.service" # legacy-name-ok
+if [ -f "$old_unit" ]; then
+  echo "Replacing the old slovo service with kotiko..." # legacy-name-ok
+  systemctl --user disable --now slovo # legacy-name-ok
+  mv -f "$old_unit" "$old_unit.bak"
+  systemctl --user daemon-reload
+  echo "Stopped and disabled slovo.service; its unit file is kept as $old_unit.bak" # legacy-name-ok
+fi
+
+mkdir -p "$unit_dir"
 cat > "$unit" <<EOF
 [Unit]
-Description=Vocabulary server and Telegram bot
+Description=Kotiko vocabulary server and Telegram bot
 After=network-online.target
 Wants=network-online.target
 StartLimitIntervalSec=300
@@ -66,8 +78,8 @@ WantedBy=default.target
 EOF
 
 systemctl --user daemon-reload
-systemctl --user enable slovo
-systemctl --user restart slovo
+systemctl --user enable kotiko
+systemctl --user restart kotiko
 loginctl enable-linger "$USER" 2>/dev/null || true
 echo "Installed $unit"
 
@@ -93,18 +105,18 @@ if command -v curl >/dev/null; then
   for _ in $(seq "$wait_seconds"); do
     if body=$(curl -fsS --max-time 2 "$url" 2>/dev/null); then
       echo "Running: $body"
-      echo "Logs:     journalctl --user -u slovo -f"
-      echo "Restart:  systemctl --user restart slovo   (after editing .env)"
+      echo "Logs:     journalctl --user -u kotiko -f"
+      echo "Restart:  systemctl --user restart kotiko   (after editing .env)"
       exit 0
     fi
     sleep 1
   done
   echo "The server didn't answer $url within $wait_seconds s. Its last log lines:" >&2
-  journalctl --user -u slovo -n 20 --no-pager >&2 || true
-  status=$(systemctl --user show -p ExecMainStatus --value slovo 2>/dev/null || echo "unknown")
+  journalctl --user -u kotiko -n 20 --no-pager >&2 || true
+  status=$(systemctl --user show -p ExecMainStatus --value kotiko 2>/dev/null || echo "unknown")
   echo "Exit status: $status (78 means a mistake in .env; the lines above say which)." >&2
   exit 1
 fi
 
-echo "Logs:     journalctl --user -u slovo -f"
-echo "Restart:  systemctl --user restart slovo   (after editing .env)"
+echo "Logs:     journalctl --user -u kotiko -f"
+echo "Restart:  systemctl --user restart kotiko   (after editing .env)"

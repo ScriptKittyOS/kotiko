@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
 // Slice 26: background sync correctness in a real browser. A token fixed while a request
@@ -15,7 +15,7 @@ const storage = (page, keys) => page.evaluate((k) => globalThis.chrome.storage.l
 
 test("fixing the token during a slow sync shows the new result, never the old 401", async ({ server, popup }) => {
   await server.control({ words: WORDS });
-  const p = await popup.connect(server.miraUrl, server.token);
+  const p = await popup.connect(server.kotikoUrl, server.token);
 
   // Record every status line the popup shows from here on.
   await p.evaluate(() => {
@@ -28,7 +28,7 @@ test("fixing the token during a slow sync shows the new result, never the old 40
     });
   });
 
-  await server.control({ mira: "slow", delayMs: 2000 });
+  await server.control({ kotiko: "slow", delayMs: 2000 });
   await p.locator("#token").fill("wrong-token");
   await p.locator("#save").click();
   // The request with the wrong token is now waiting on the slow server.
@@ -49,14 +49,14 @@ test("fixing the token during a slow sync shows the new result, never the old 40
   expect(shown.filter((t) => /rejected/i.test(t))).toEqual([]);
 
   // The server did see the wrong token once; that answer was dropped.
-  const log = (await server.state()).log.filter((r) => r.path === "/mira/api/words");
+  const log = (await server.state()).log.filter((r) => r.path === "/kotiko/api/words");
   expect(log.some((r) => r.auth === "Bearer wrong-token")).toBe(true);
 });
 
 test("a word added against a slow server is on the next page", async ({ context, server, popup }) => {
   await server.control({ words: WORDS });
-  await popup.connect(server.miraUrl, server.token);
-  await server.control({ mira: "slow", delayMs: 3000 });
+  await popup.connect(server.kotikoUrl, server.token);
+  await server.control({ kotiko: "slow", delayMs: 3000 });
 
   const added = await popup.add("sobaka");
   await expect(added).toHaveText(/^Added собака \(sobaka\) = dog · Russian undo$/);
@@ -74,7 +74,7 @@ test("a word added against a slow server is on the next page", async ({ context,
 
 test("an address typed without http:// connects", async ({ server, popup }) => {
   await server.control({ words: WORDS });
-  const bare = server.miraUrl.replace(/^http:\/\//, "");
+  const bare = server.kotikoUrl.replace(/^http:\/\//, "");
   const p = await popup.connect(bare, server.token);
   await expect(p.locator("#status")).toHaveText(/^2 words known, synced/);
 });
@@ -82,7 +82,7 @@ test("an address typed without http:// connects", async ({ server, popup }) => {
 test("an address with a user name explains what to do instead of 'can't reach'", async ({ server, popup }) => {
   const p = await popup.page();
   if (!(await p.locator("#conn").evaluate((d) => d.open))) await p.locator("#conn summary").click();
-  await p.locator("#serverUrl").fill(server.miraUrl.replace("http://", "http://me:secret@"));
+  await p.locator("#serverUrl").fill(server.kotikoUrl.replace("http://", "http://me:secret@"));
   await p.locator("#token").fill(server.token);
   await p.locator("#save").click();
   await expect(p.locator("#status")).toHaveText(/^Check the server address\. .*token/);

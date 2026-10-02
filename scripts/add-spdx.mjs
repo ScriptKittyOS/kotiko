@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
 // Adds the SPDX header to tracked source files that lack one. Idempotent.
@@ -7,7 +7,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 
 // REUSE-IgnoreStart
-const COPY = "SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors";
+const COPY = "SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors";
 const LIC = "SPDX-License-Identifier: Apache-2.0";
 // REUSE-IgnoreEnd
 const styles = {
