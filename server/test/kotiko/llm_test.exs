@@ -19,7 +19,8 @@ defmodule Kotiko.LLMTest do
     LLMStub.stub(fn "m1", conn -> LLMStub.answer(conn, @da) end)
 
     assert {:ok, %{intent: "lookup", words: [word]}} = interpret()
-    assert %{lang: "ru", native: "да", english: "yes", english_forms: "yes"} = word
+    # Today's "english" and "english_forms" are read as slice 07's gloss and forms.
+    assert %{lang: "ru", native: "да", gloss: "yes", forms: ["yes"], base_lang: "en"} = word
     assert LLMStub.requests() == ["m1"]
   end
 
@@ -158,7 +159,7 @@ defmodule Kotiko.LLMTest do
     end
   end
 
-  test "drops words missing lang, native or english and normalizes the rest" do
+  test "drops words missing lang, native or gloss and normalizes the rest" do
     LLMStub.stub(fn _, conn ->
       LLMStub.answer(
         conn,
@@ -174,6 +175,110 @@ defmodule Kotiko.LLMTest do
       )
     end)
 
-    assert {:ok, %{words: [%{lang: "zh", native: "狗", english_forms: "dog\ndogs"}]}} = interpret()
+    assert {:ok, %{words: [%{lang: "zh", native: "狗", gloss: "dog", forms: ["dog", "dogs"]}]}} =
+             interpret()
+  end
+
+  describe "slice 07 fields (placeholder prompt until slice 09)" do
+    test "asks for pronunciation and the English respelling key" do
+      LLMStub.stub(fn _, conn -> LLMStub.answer(conn, @da) end)
+      interpret()
+
+      assert_received {:llm_request, "m1", body, _headers}
+      [%{"content" => system} | _] = body["messages"]
+      assert system =~ "pronunciation"
+      assert system =~ "Key for English readers"
+      refute system =~ "Key for Spanish readers"
+      refute system =~ "The learner reads"
+    end
+
+    test "with several bases, asks for one entry per base and reads them" do
+      answer =
+        LLMStub.words([
+          %{
+            lang: "ja",
+            native: "犬",
+            romanization: "inu",
+            base_lang: "es",
+            gloss: "perro",
+            forms: ["perro", "perros"],
+            pronunciation: "i-nu"
+          },
+          %{
+            lang: "ja",
+            native: "犬",
+            romanization: "inu",
+            base_lang: "en",
+            gloss: "dog",
+            forms: "dog, dogs",
+            pronunciation: "ee-noo"
+          },
+          # No base_lang with several bases: Kotiko can't tell which pages it is for.
+          %{lang: "ja", native: "猫", english: "cat", english_forms: ["cat"]}
+        ])
+
+      LLMStub.stub(fn _, conn -> LLMStub.answer(conn, answer) end)
+
+      {result, _log} =
+        with_log(fn -> LLM.interpret("犬", [], base_langs: ["es", "en"], hint_lang: "ja") end)
+
+      assert {:ok, %{words: [es, en]}} = result
+
+      assert %{base_lang: "es", gloss: "perro", forms: ["perro", "perros"], pronunciation: "i-nu"} =
+               es
+
+      assert %{base_lang: "en", gloss: "dog", forms: ["dog", "dogs"], pronunciation: "ee-noo"} =
+               en
+
+      assert_received {:llm_request, "m1", body, _headers}
+      [%{"content" => system} | _] = body["messages"]
+      assert system =~ "The learner reads: es, en"
+      assert system =~ "Key for Spanish readers"
+      assert system =~ "selected on a page in ja"
+    end
+
+    test "a base with no respelling key is told to leave pronunciation null" do
+      LLMStub.stub(fn _, conn -> LLMStub.answer(conn, @da) end)
+      interpret("da", base_langs: ["de"])
+
+      assert_received {:llm_request, "m1", body, _headers}
+      [%{"content" => system} | _] = body["messages"]
+      assert system =~ "For entries whose base is de, pronunciation is null."
+    end
+  end
+
+  describe "respell/1 (the one-time pronunciation refresh)" do
+    @items [%{lang: "ru", native: "спасибо", sense: "", base_langs: ["en"]}]
+
+    test "sends the items as JSON and returns the answer's items" do
+      LLMStub.stub(fn _, conn ->
+        LLMStub.answer(conn, %{
+          items: [%{lang: "ru", native: "спасибо", base_lang: "en", pronunciation: "spa-SEE-ba"}]
+        })
+      end)
+
+      assert {:ok, [%{"pronunciation" => "spa-SEE-ba"}]} = LLM.respell(@items)
+      assert_received {:llm_request, "m1", body, _headers}
+      assert [%{"content" => system}, %{"content" => user}] = body["messages"]
+      assert system =~ "You write pronunciations"
+
+      assert Jason.decode!(user) == %{
+               "items" => [
+                 %{"lang" => "ru", "native" => "спасибо", "sense" => "", "base_langs" => ["en"]}
+               ]
+             }
+    end
+
+    test "tries at most two models and tells rate limits from the daily limit" do
+      LLMStub.stub(fn _, conn -> LLMStub.rate_limited(conn) end)
+      assert {{:error, :rate_limited}, _} = with_log(fn -> LLM.respell(@items) end)
+      assert LLMStub.requests() == ["m1", "m2"]
+
+      LLMStub.stub(fn _, conn ->
+        LLMStub.status(conn, 429, "Rate limit exceeded: free-models-per-day")
+      end)
+
+      assert {{:error, :quota_exhausted}, _} = with_log(fn -> LLM.respell(@items) end)
+    end
   end
 end

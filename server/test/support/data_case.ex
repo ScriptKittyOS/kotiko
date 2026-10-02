@@ -25,9 +25,17 @@ defmodule Kotiko.DataCase do
   def setup_sandbox(tags) do
     pid = Sandbox.start_owner!(Kotiko.Repo, shared: not tags[:async])
     on_exit(fn -> Sandbox.stop_owner(pid) end)
+
+    # The sandbox's transaction is deferred, unlike the server's (immediate): a test that
+    # reads and then writes would get "Database busy" at once if the previous test's
+    # connection hadn't rolled back yet. Taking the write lock first waits for it instead.
+    Ecto.Adapters.SQL.query!(
+      Kotiko.Repo,
+      "UPDATE sync_state SET last_seq = last_seq WHERE id = 1"
+    )
   end
 
-  @doc "Word attributes as the LLM module returns them."
+  @doc "A word as a client or the model sends it (slice 07 fields, string or atom keys)."
   def word_attrs(attrs \\ %{}) do
     Map.merge(
       %{
@@ -35,16 +43,24 @@ defmodule Kotiko.DataCase do
         language: "Russian",
         native: "да",
         romanization: "da",
-        english: "yes",
-        english_forms: "yes",
+        base_lang: "en",
+        gloss: "yes",
+        forms: ["yes"],
         note: "The everyday yes."
       },
       Map.new(attrs)
     )
   end
 
+  @doc "Checks `attrs` like `Kotiko.WordInput.validate/2` and returns the attributes to save."
+  def valid_attrs(attrs \\ %{}, opts \\ []) do
+    {:ok, valid, _dropped} = Kotiko.WordInput.validate(word_attrs(attrs), opts)
+    valid
+  end
+
+  @doc "Saves a word through `Kotiko.Words.add/2` and returns it."
   def word_fixture(attrs \\ %{}, status \\ "active") do
-    {:ok, word} = Kotiko.Words.upsert(word_attrs(attrs), status)
+    {:ok, %{word: word}} = Kotiko.Words.add(%{valid_attrs(attrs) | status: status})
     word
   end
 

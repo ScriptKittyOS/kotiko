@@ -13,7 +13,11 @@ defmodule Kotiko.ConnCase do
       import Plug.Conn
       import Plug.Test
       import Kotiko.ConnCase
-      import Kotiko.DataCase, only: [word_fixture: 1, word_fixture: 2, put_app_env: 2]
+
+      import Kotiko.DataCase,
+        only: [word_fixture: 0, word_fixture: 1, word_fixture: 2, put_app_env: 2]
+
+      alias Kotiko.Repo
       alias Kotiko.Router
     end
   end

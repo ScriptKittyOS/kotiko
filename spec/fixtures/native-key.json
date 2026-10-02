@@ -1,0 +1,145 @@
+{
+  "description": "native_key (slice 07 section 2): NFC, Unicode default lowercase, final sigma as σ. Elixir and JavaScript must give `key` for every `input`. Slice 09 owns this file and extends it.",
+  "cases": [
+    {
+      "input": "ΣΑΣ",
+      "key": "σασ",
+      "note": "Greek final sigma, all capitals"
+    },
+    {
+      "input": "σας",
+      "key": "σασ",
+      "note": "Greek, lowercase with final sigma"
+    },
+    {
+      "input": "Οδός",
+      "key": "οδόσ",
+      "note": "Greek word with accent"
+    },
+    {
+      "input": "İstanbul",
+      "key": "i̇stanbul",
+      "note": "Turkish dotted capital I"
+    },
+    {
+      "input": "ılık",
+      "key": "ılık",
+      "note": "Turkish dotless i"
+    },
+    {
+      "input": "Straße",
+      "key": "straße",
+      "note": "German sharp s"
+    },
+    {
+      "input": "STRAẞE",
+      "key": "straße",
+      "note": "German capital sharp s"
+    },
+    {
+      "input": "Hund",
+      "key": "hund",
+      "note": "German noun"
+    },
+    {
+      "input": "Москва",
+      "key": "москва",
+      "note": "Cyrillic"
+    },
+    {
+      "input": "Ёлка",
+      "key": "ёлка",
+      "note": "Cyrillic with ё"
+    },
+    {
+      "input": "Їжак",
+      "key": "їжак",
+      "note": "Ukrainian"
+    },
+    {
+      "input": "Բարեւ",
+      "key": "բարեւ",
+      "note": "Armenian"
+    },
+    {
+      "input": "მადლობა",
+      "key": "მადლობა",
+      "note": "Georgian Mkhedruli (caseless)"
+    },
+    {
+      "input": "ᲛᲐᲓᲚᲝᲑᲐ",
+      "key": "მადლობა",
+      "note": "Georgian Mtavruli capitals"
+    },
+    {
+      "input": "ありがとう",
+      "key": "ありがとう",
+      "note": "Japanese (caseless)"
+    },
+    {
+      "input": "谢谢",
+      "key": "谢谢",
+      "note": "Chinese (caseless)"
+    },
+    {
+      "input": "감사합니다",
+      "key": "감사합니다",
+      "note": "Korean (caseless)"
+    },
+    {
+      "input": "شكرا",
+      "key": "شكرا",
+      "note": "Arabic (caseless)"
+    },
+    {
+      "input": "תודה",
+      "key": "תודה",
+      "note": "Hebrew (caseless)"
+    },
+    {
+      "input": "Phở",
+      "key": "phở",
+      "note": "Vietnamese NFC"
+    },
+    {
+      "input": "Phở",
+      "key": "phở",
+      "note": "Vietnamese NFD"
+    },
+    {
+      "input": "Café",
+      "key": "café",
+      "note": "Latin with combining acute (NFD)"
+    },
+    {
+      "input": "ᏣᎳᎩ",
+      "key": "ꮳꮃꭹ",
+      "note": "Cherokee"
+    },
+    {
+      "input": "𐐔𐐯𐑅",
+      "key": "𐐼𐐯𐑅",
+      "note": "Deseret (astral plane)"
+    },
+    {
+      "input": "ÑANDÚ",
+      "key": "ñandú",
+      "note": "Spanish"
+    },
+    {
+      "input": "IJssel",
+      "key": "ijssel",
+      "note": "Dutch IJ"
+    },
+    {
+      "input": "Į",
+      "key": "į",
+      "note": "Lithuanian with dot"
+    },
+    {
+      "input": "Добрый День",
+      "key": "добрый день",
+      "note": "Phrase with spaces"
+    }
+  ]
+}
