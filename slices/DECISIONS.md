@@ -6,6 +6,12 @@ and why. Open questions live in each slice's own "Open questions" section and in
 
 ## 2026-10-02
 
+**Goal: the OpenSSF Best Practices badge at silver.** *Maintainer.* Register for passing
+the day the repository goes public (a private repository can't earn it, and the badge's
+repository URL can only change every 180 days, so register under the final
+`ScriptKittyOS/kotiko`), then work toward silver. Gold is limited by time, more
+contributors and an outside security review. See [53](53-openssf-best-practices/SPEC.md).
+
 **Pronunciation is its own field, written for the learner, and audio ships before release.**
 *Maintainer.* Reported: the hover showed "pazhaluysta" for пожалуйста, which is said
 "pa-ZHAL-sta" (and спасибо is "spa-SEE-ba"). Cause: one `romanization` field asked the
