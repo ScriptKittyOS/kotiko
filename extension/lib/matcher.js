@@ -59,7 +59,54 @@
     return lines.join("\n");
   }
 
-  const api = { escapeRe, norm, languageName, buildMatcher, matchCase, describe, tooltip };
+  // A lone capital letter next to a numeral, an acronym or a code is part of a name, not
+  // a word: "AOI I", "World War I", "Henry VIII I", "Type I", "I-95", "I/O". `s` is the
+  // text around the match (content.js adds a little of the neighbouring text) and `i` the
+  // index of the one-letter match in it. Lowercase letters are never skipped here ("a NASA
+  // report" keeps its "a"). Slice 16's token rules replace this.
+  const ROMAN = /^(?=[IVXLCDM])M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/;
+  const JOINER = /[-‐‑/]/; // hyphens and slash; not dashes, which are prose punctuation
+  const ALNUM = /[\p{L}\p{N}]/u;
+  const SPACE = /\s/;
+  const codeLike = (t) =>
+    /\d/.test(t) || ROMAN.test(t) || (t.length >= 2 && /\p{Lu}/u.test(t) && t === t.toUpperCase());
+
+  function skipLetter(s, i) {
+    if (!/^\p{Lu}$/u.test(s[i] ?? "")) return false;
+    // joined to a neighbour: I-95, A-1, I/O, 95-I
+    if (JOINER.test(s[i + 1] ?? "") && ALNUM.test(s[i + 2] ?? "")) return true;
+    if (JOINER.test(s[i - 1] ?? "") && ALNUM.test(s[i - 2] ?? "")) return true;
+
+    // the neighbouring tokens, when only whitespace separates them from the letter
+    let a = i - 1;
+    while (a >= 0 && SPACE.test(s[a])) a--;
+    let p = a;
+    while (p >= 0 && ALNUM.test(s[p])) p--;
+    const prev = a < i - 1 ? s.slice(p + 1, a + 1) : "";
+    let b = i + 1;
+    while (b < s.length && SPACE.test(s[b])) b++;
+    let n = b;
+    while (n < s.length && ALNUM.test(s[n])) n++;
+    const next = b > i + 1 ? s.slice(b, n) : "";
+
+    // Followed by a lowercase word ("I think") it reads as the pronoun, so a number before
+    // it doesn't count: "In 2020 I moved". An acronym or numeral before it always does
+    // ("AOI I and AOI II"), at the cost of "OK I think".
+    const pronounLike = /^\p{Ll}/u.test(next);
+    if (next && codeLike(next)) return true;
+    if (prev && codeLike(prev) && !(pronounLike && /\d/.test(prev))) return true;
+    // A capitalized word before it: "World War I began", "Type I", "Vitamin A". Kept when
+    // that word starts the sentence and a lowercase word follows: "Can I go", "Then I said".
+    if (/^\p{Lu}\p{Ll}/u.test(prev)) {
+      let q = p;
+      while (q >= 0 && SPACE.test(s[q])) q--;
+      const midSentence = q >= 0 && /[\p{L}\p{N},;]/u.test(s[q]);
+      if (midSentence || !pronounLike) return true;
+    }
+    return false;
+  }
+
+  const api = { escapeRe, norm, languageName, buildMatcher, matchCase, describe, tooltip, skipLetter };
   globalThis.KotikoMatcher = api;
   if (typeof module === "object" && module.exports) module.exports = api;
 })();
