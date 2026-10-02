@@ -258,8 +258,11 @@ trademark registration for "KOTIKO" covering language-learning software in a mar
 publish to, or a browser extension in the same stores whose name is "Kotiko" alone and does
 the same job.
 
-**Findings.** Kotiko has not been screened yet. Run steps 1 to 5 and record the date and
-results here before the first store submission. (The screen of the earlier choice, "Mira",
+**Findings, 2026-10-02** (maintainer's screen): no registered or pending KOTIKO trademark
+in the US; no KOTIKO product in language learning, browser extensions or Telegram bots. Risk
+assessed as low. Still to do before the first store submission: the EUIPO search (step 4;
+the listing ships worldwide in English and Spanish), and repeat steps 1 and 2 by hand on
+the day of submission and record the date here. (The screen of the earlier choice, "Mira",
 found high risk and is why it was withdrawn; see [DECISIONS](../DECISIONS.md).)
 
 **Recommendation.**
