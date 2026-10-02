@@ -1,0 +1,44 @@
+{
+ "name": "kak-english-base-unrelated-forms-dropped",
+ "input": {
+  "text": "как",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":\"kak\",\"native_vocalized\":\"как\",\"note\":null,\"lang\":\"ru\",\"native\":\"как\",\"base_lang\":\"en\",\"gloss\":\"how\",\"forms\":[\"how\",\"what\",\"as\",\"like\"],\"pronunciation\":\"kak\"}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [
+   {
+    "native": "как",
+    "base_lang": "en",
+    "form": "what",
+    "reason": "unrelated_form"
+   },
+   {
+    "native": "как",
+    "base_lang": "en",
+    "form": "as",
+    "reason": "unrelated_form"
+   },
+   {
+    "native": "как",
+    "base_lang": "en",
+    "form": "like",
+    "reason": "unrelated_form"
+   }
+  ],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "gloss": "how",
+    "forms": [
+     "how"
+    ]
+   }
+  ]
+ }
+}

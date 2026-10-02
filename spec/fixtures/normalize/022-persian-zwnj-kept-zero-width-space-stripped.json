@@ -1,0 +1,22 @@
+{
+ "name": "persian-zwnj-kept-zero-width-space-stripped",
+ "input": {
+  "text": "mikhaham",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":\"mikhāham\",\"native_vocalized\":null,\"note\":null,\"lang\":\"fa\",\"native\":\"می‌خو​اهم\",\"base_lang\":\"en\",\"gloss\":\"I want\",\"forms\":[\"I want\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "native": "می‌خواهم"
+   }
+  ]
+ }
+}

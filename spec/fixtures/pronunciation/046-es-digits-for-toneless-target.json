@@ -1,0 +1,20 @@
+{
+ "name": "es-digits-for-toneless-target",
+ "word": {
+  "lang": "ru",
+  "native": "пожалуйста",
+  "base_lang": "es",
+  "pronunciation": "pa2-ZHAL-sta"
+ },
+ "expect": {
+  "word": {
+   "pronunciation": null
+  },
+  "dropped_fields": [
+   {
+    "field": "pronunciation",
+    "reason": "bad_pronunciation"
+   }
+  ]
+ }
+}

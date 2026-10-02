@@ -1,0 +1,35 @@
+{
+ "name": "english-irregular-verb-forms",
+ "input": {
+  "text": "idti",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"идти\",\"base_lang\":\"en\",\"gloss\":\"go\",\"forms\":[\"go\",\"goes\",\"going\",\"went\",\"gone\",\"walk\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [
+   {
+    "native": "идти",
+    "base_lang": "en",
+    "form": "walk",
+    "reason": "unrelated_form"
+   }
+  ],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "forms": [
+     "go",
+     "goes",
+     "going",
+     "went",
+     "gone"
+    ]
+   }
+  ]
+ }
+}

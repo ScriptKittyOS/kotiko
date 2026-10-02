@@ -690,6 +690,24 @@ describe("message senders (research 03 E3)", () => {
   });
 });
 
+describe("language tags (slice 08)", () => {
+  test("on update, languages hidden under an old code stay hidden under the canonical one", async () => {
+    const { fake, store } = loadBackground({ fetch: () => Promise.reject(new TypeError("offline")), local: { hiddenLangs: ["cmn", "iw", "zh", "ja", "not a tag"] } });
+    await fake.fireInstalled({ reason: "update", previousVersion: "0.2.0" });
+    await fake.idle();
+    await sleep(10);
+    assert.deepEqual(store.hiddenLangs, ["zh", "he", "ja", "not a tag"]);
+  });
+
+  test("a fresh install leaves hidden languages alone", async () => {
+    const { fake, store } = loadBackground({ fetch: () => Promise.reject(new TypeError("offline")), local: { hiddenLangs: ["cmn"] } });
+    await fake.fireInstalled({ reason: "install" });
+    await fake.idle();
+    await sleep(10);
+    assert.deepEqual(store.hiddenLangs, ["cmn"]);
+  });
+});
+
 describe("loading", () => {
   test("Firefox's background.scripts lists the same libraries, in the same order, as importScripts", () => {
     const listed = manifest().background.scripts;

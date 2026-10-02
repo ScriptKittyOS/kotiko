@@ -1,0 +1,33 @@
+{
+ "name": "pronunciation-two-capitals-dropped-word-kept",
+ "input": {
+  "text": "пожалуйста",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":\"pozhaluysta\",\"native_vocalized\":\"пожа́луйста\",\"note\":null,\"lang\":\"ru\",\"native\":\"пожалуйста\",\"base_lang\":\"en\",\"gloss\":\"please\",\"forms\":[\"please\"],\"pronunciation\":\"PA-ZHAL-STA\",\"pronunciation_careful\":\"pa-ZHA-lu-sta\"}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [
+   {
+    "native": "пожалуйста",
+    "base_lang": "en",
+    "field": "pronunciation",
+    "reason": "bad_pronunciation"
+   }
+  ],
+  "missing_bases": [],
+  "words": [
+   {
+    "native": "пожалуйста",
+    "pronunciation": null,
+    "pronunciation_careful": null,
+    "pronunciation_source": null,
+    "native_vocalized": "пожа́луйста"
+   }
+  ]
+ }
+}

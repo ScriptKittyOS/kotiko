@@ -1,0 +1,25 @@
+{
+ "name": "base-without-key-gets-no-pronunciation",
+ "input": {
+  "text": "пожалуйста",
+  "mode": "add",
+  "base_langs": [
+   "fr"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":\"pozhaluysta\",\"native_vocalized\":\"пожа́луйста\",\"note\":null,\"lang\":\"ru\",\"native\":\"пожалуйста\",\"base_lang\":\"fr\",\"gloss\":\"s'il vous plaît\",\"forms\":[\"s'il vous plaît\"],\"pronunciation\":\"pa-ZHAL-sta\",\"pronunciation_careful\":\"pa-ZHA-lu-sta\"}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "base_lang": "fr",
+    "pronunciation": null,
+    "pronunciation_careful": null,
+    "pronunciation_source": null
+   }
+  ]
+ }
+}

@@ -1,0 +1,31 @@
+{
+ "name": "english-target-for-spanish-base",
+ "input": {
+  "text": "perro en inglés",
+  "mode": "add",
+  "base_langs": [
+   "es"
+  ]
+ },
+ "raw": "{\"intent\":\"lookup\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"en\",\"native\":\"dog\",\"base_lang\":\"es\",\"gloss\":\"perro\",\"forms\":[\"perro\",\"perros\"],\"pronunciation\":\"dog\"}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "intent": "add",
+  "words": [
+   {
+    "lang": "en",
+    "native": "dog",
+    "base_lang": "es",
+    "gloss": "perro",
+    "forms": [
+     "perro",
+     "perros"
+    ],
+    "pronunciation": "dog"
+   }
+  ]
+ }
+}

@@ -1,0 +1,59 @@
+{
+  "_comment": "unicode_scripts: the Unicode Script property values the script check of native counts (in this order), each with the ISO 15924 codes it satisfies; the first is used unless the tag's own script is among them. Hand-curated input to gen-lang-data.mjs (slice 08 section 1). CLDR gives names, scripts, direction and aliases; this file adds what CLDR doesn't decide for Kotiko: which regions stay distinct groups, which extra scripts are normal, how Chinese and Arabic regions map, and the few languages CLDR has no name for. Change it, then run node spec/tools/gen-lang-data.mjs.",
+  "locales": ["en", "es"],
+  "invalid": ["und", "mul", "mis", "zxx"],
+  "aliases": {
+    "nb": "no"
+  },
+  "sign": ["sgn", "ase", "bfi"],
+  "unicode_scripts": {
+    "Latin": ["Latn", "Latg"], "Cyrillic": ["Cyrl"], "Greek": ["Grek"], "Armenian": ["Armn"],
+    "Georgian": ["Geor"], "Hebrew": ["Hebr"], "Arabic": ["Arab"], "Syriac": ["Syrc"],
+    "Thaana": ["Thaa"], "Nko": ["Nkoo"], "Devanagari": ["Deva"], "Bengali": ["Beng"],
+    "Gurmukhi": ["Guru"], "Gujarati": ["Gujr"], "Oriya": ["Orya"], "Tamil": ["Taml"],
+    "Telugu": ["Telu"], "Kannada": ["Knda"], "Malayalam": ["Mlym"], "Sinhala": ["Sinh"],
+    "Thai": ["Thai"], "Lao": ["Laoo"], "Tibetan": ["Tibt"], "Myanmar": ["Mymr"],
+    "Khmer": ["Khmr"], "Ethiopic": ["Ethi"], "Cherokee": ["Cher"],
+    "Canadian_Aboriginal": ["Cans"], "Mongolian": ["Mong"], "Tifinagh": ["Tfng"],
+    "Ol_Chiki": ["Olck"], "Vai": ["Vaii"], "Adlam": ["Adlm"], "Yi": ["Yiii"],
+    "Bopomofo": ["Bopo"], "Hangul": ["Hang", "Kore"], "Hiragana": ["Hira", "Jpan"],
+    "Katakana": ["Kana", "Jpan"], "Han": ["Hani", "Hans", "Hant", "Jpan", "Kore"]
+  },
+  "languages": {
+    "acm": { "names": { "en": "Mesopotamian Arabic", "es": "árabe mesopotámico" }, "endonym": "عراقي", "script": "Arab", "scripts": ["Arab"] },
+    "afb": { "names": { "en": "Gulf Arabic", "es": "árabe del Golfo" }, "endonym": "خليجي", "script": "Arab", "scripts": ["Arab"] },
+    "apc": { "names": { "en": "Levantine Arabic", "es": "árabe levantino" }, "endonym": "شامي", "script": "Arab", "scripts": ["Arab"] }
+  },
+  "overrides": {
+    "ar": {
+      "region_languages": {
+        "EG": "arz", "MA": "ary", "DZ": "arq", "TN": "aeb",
+        "LB": "apc", "SY": "apc", "JO": "apc", "PS": "apc",
+        "IQ": "acm",
+        "SA": "afb", "AE": "afb", "KW": "afb", "QA": "afb", "BH": "afb"
+      }
+    },
+    "az": { "scripts": ["Latn", "Arab", "Cyrl"] },
+    "crr": { "script": "Latn", "scripts": ["Latn"] },
+    "en": { "regions": ["GB", "US"] },
+    "es": {
+      "regions": ["ES", "MX", "419"],
+      "region_aliases": {
+        "AR": "419", "BO": "419", "BZ": "419", "CL": "419", "CO": "419", "CR": "419",
+        "CU": "419", "DO": "419", "EC": "419", "GT": "419", "HN": "419", "NI": "419",
+        "PA": "419", "PE": "419", "PR": "419", "PY": "419", "SV": "419", "US": "419",
+        "UY": "419", "VE": "419"
+      }
+    },
+    "fr": { "regions": ["CA"] },
+    "ku": { "script_languages": { "Arab": "ckb" } },
+    "pa": { "scripts": ["Guru", "Arab"] },
+    "pt": { "regions": ["BR", "PT"], "base_regions": ["BR", "PT"] },
+    "tlh": { "script": "Latn", "scripts": ["Latn"] },
+    "yue": { "scripts": ["Hant", "Hans"], "region_scripts": { "CN": "Hans" } },
+    "zh": {
+      "scripts": ["Hans", "Hant"],
+      "region_scripts": { "TW": "Hant", "HK": "Hant", "MO": "Hant", "CN": "Hans", "SG": "Hans" }
+    }
+  }
+}

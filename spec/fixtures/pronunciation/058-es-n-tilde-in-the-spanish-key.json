@@ -1,0 +1,15 @@
+{
+ "name": "es-n-tilde-in-the-spanish-key",
+ "word": {
+  "lang": "ru",
+  "native": "нет",
+  "base_lang": "es",
+  "pronunciation": "ñet"
+ },
+ "expect": {
+  "word": {
+   "pronunciation": "ñet"
+  },
+  "dropped_fields": []
+ }
+}

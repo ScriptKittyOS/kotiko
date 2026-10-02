@@ -1,0 +1,23 @@
+{
+ "name": "romanization-for-latin-target-nulled-silently",
+ "input": {
+  "text": "gracias",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":\"gracias\",\"native_vocalized\":null,\"note\":null,\"lang\":\"es\",\"native\":\"gracias\",\"base_lang\":\"en\",\"gloss\":\"thank you\",\"forms\":[\"thank you\",\"thanks\"],\"pronunciation\":\"GRA-syas\"}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "romanization": null,
+    "pronunciation": "GRA-syas"
+   }
+  ]
+ }
+}

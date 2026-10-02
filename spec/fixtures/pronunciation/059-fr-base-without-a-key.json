@@ -1,0 +1,16 @@
+{
+ "name": "fr-base-without-a-key",
+ "word": {
+  "lang": "ru",
+  "native": "пожалуйста",
+  "base_lang": "fr",
+  "pronunciation": "pa-ZHAL-sta"
+ },
+ "expect": {
+  "word": {
+   "pronunciation": null,
+   "pronunciation_source": null
+  },
+  "dropped_fields": []
+ }
+}

@@ -1,0 +1,33 @@
+{
+ "name": "repair-forms-cjk-separators",
+ "input": {
+  "text": "perro",
+  "mode": "add",
+  "base_langs": [
+   "es"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ja\",\"native\":\"犬\",\"base_lang\":\"es\",\"gloss\":\"perro\",\"forms\":\"perro、perros，perra；perrito\"}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [
+   {
+    "native": "犬",
+    "base_lang": "es",
+    "form": "perrito",
+    "reason": "unrelated_form"
+   }
+  ],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "forms": [
+     "perro",
+     "perros",
+     "perra"
+    ]
+   }
+  ]
+ }
+}

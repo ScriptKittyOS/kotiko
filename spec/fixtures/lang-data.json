@@ -1,0 +1,86 @@
+{
+ "description": "Slice 09 section 1: which spec/lang/ folder each file comes from for a base tag (the base, then its language, then _generic; respelling has no fallback).",
+ "cases": [
+  {
+   "base": "en",
+   "folders": {
+    "stopwords": "en",
+    "stem": "en",
+    "variants": "en",
+    "respelling": "en"
+   }
+  },
+  {
+   "base": "es",
+   "folders": {
+    "stopwords": "es",
+    "stem": "es",
+    "variants": "es",
+    "respelling": "es"
+   }
+  },
+  {
+   "base": "pt-BR",
+   "folders": {
+    "stopwords": "_generic",
+    "stem": "_generic",
+    "variants": "_generic",
+    "respelling": null
+   }
+  },
+  {
+   "base": "fr",
+   "folders": {
+    "stopwords": "_generic",
+    "stem": "_generic",
+    "variants": "_generic",
+    "respelling": null
+   }
+  },
+  {
+   "base": "pl",
+   "folders": {
+    "stopwords": "_generic",
+    "stem": "_generic",
+    "variants": "_generic",
+    "respelling": null
+   }
+  },
+  {
+   "base": "ja",
+   "folders": {
+    "stopwords": "_generic",
+    "stem": "_generic",
+    "variants": "_generic",
+    "respelling": null
+   }
+  },
+  {
+   "base": "zh-Hant",
+   "folders": {
+    "stopwords": "_generic",
+    "stem": "_generic",
+    "variants": "_generic",
+    "respelling": null
+   }
+  },
+  {
+   "base": "sr-Latn",
+   "folders": {
+    "stopwords": "_generic",
+    "stem": "_generic",
+    "variants": "_generic",
+    "respelling": null
+   }
+  },
+  {
+   "base": "es-419",
+   "folders": {
+    "stopwords": "es",
+    "stem": "es",
+    "variants": "es",
+    "respelling": "es"
+   }
+  }
+ ]
+}

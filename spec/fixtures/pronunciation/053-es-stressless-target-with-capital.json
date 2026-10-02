@@ -1,0 +1,20 @@
+{
+ "name": "es-stressless-target-with-capital",
+ "word": {
+  "lang": "ja",
+  "native": "ありがとう",
+  "base_lang": "es",
+  "pronunciation": "a-ri-GA-too"
+ },
+ "expect": {
+  "word": {
+   "pronunciation": null
+  },
+  "dropped_fields": [
+   {
+    "field": "pronunciation",
+    "reason": "bad_pronunciation"
+   }
+  ]
+ }
+}

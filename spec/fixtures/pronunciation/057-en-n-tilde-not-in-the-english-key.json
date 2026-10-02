@@ -1,0 +1,20 @@
+{
+ "name": "en-n-tilde-not-in-the-english-key",
+ "word": {
+  "lang": "ru",
+  "native": "нет",
+  "base_lang": "en",
+  "pronunciation": "ñet"
+ },
+ "expect": {
+  "word": {
+   "pronunciation": null
+  },
+  "dropped_fields": [
+   {
+    "field": "pronunciation",
+    "reason": "bad_pronunciation"
+   }
+  ]
+ }
+}

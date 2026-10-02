@@ -1,0 +1,32 @@
+{
+ "name": "stopword-allowed-when-typed-spanish",
+ "input": {
+  "text": "el en alemán",
+  "mode": "add",
+  "base_langs": [
+   "es"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"de\",\"native\":\"der\",\"base_lang\":\"es\",\"gloss\":\"el\",\"forms\":[\"el\",\"la\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [
+   {
+    "native": "der",
+    "base_lang": "es",
+    "form": "la",
+    "reason": "unrelated_form"
+   }
+  ],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "gloss": "el",
+    "forms": [
+     "el"
+    ]
+   }
+  ]
+ }
+}

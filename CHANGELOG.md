@@ -16,6 +16,15 @@ Conventional Commits by release-please.
   labels built from plain `div`s. A lone capital next to a code or numeral ("AOI I",
   "World War I", "I-95") is no longer swapped as the word "I".
 
+- Language names now come from the language code, so Cantonese is always Cantonese. Words
+  saved under old codes such as cmn or iw were merged into their languages; the server
+  backs up your database before it does this.
+- Kotiko now checks every word the model suggests: it won't swap unrelated words like
+  "what" for как, never adds more than 5 words at once, and explains anything it rejects.
+  Ask in your own language, and meanings come back in the languages you read. Every new
+  word comes with how to say it, written for readers of your language, with the stressed
+  syllable in capitals.
+
 ## 0.2.0 (2026-10-01)
 
 - Any language, mixed however you like: choose which languages show from the popup.

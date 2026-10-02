@@ -162,4 +162,49 @@ defmodule Kotiko.BotTest do
     calls = handle(text_update("what's da"))
     assert Enum.any?(TelegramStub.texts(calls), &(&1 =~ "all the free models are busy"))
   end
+
+  describe "language tags (slice 08)" do
+    test "/list finds a language by its name in any shipped locale, endonym or code" do
+      word_fixture(%{lang: "yue", native: "多謝", gloss: "thanks", romanization: "do1 ze6"})
+      word_fixture(%{lang: "ja", native: "犬", gloss: "dog", romanization: "inu"})
+
+      for term <- ["cantonese", "cantonés", "粵語", "yue"] do
+        [text] = handle(text_update("/list " <> term)) |> TelegramStub.texts()
+        assert text =~ "多謝", term
+        refute text =~ "犬", term
+        # The name comes from the tag, never from the model.
+        assert text =~ "Cantonese", term
+      end
+    end
+
+    test "never crashes on any tag in lang-tags.json (F17)" do
+      tags =
+        Path.expand("../../../spec/fixtures/lang-tags.json", __DIR__)
+        |> File.read!()
+        |> Jason.decode!()
+        |> Map.fetch!("cases")
+        |> Enum.map(& &1["input"])
+
+      for tag <- tags do
+        LLMStub.stub(fn _, conn ->
+          LLMStub.answer(conn, LLMStub.words([LLMStub.word(lang: tag)], "add"))
+        end)
+
+        calls = handle(text_update("add da"))
+        texts = TelegramStub.texts(calls)
+        refute Enum.any?(texts, &(&1 =~ "Error:")), inspect(tag)
+        assert texts != [], inspect(tag)
+      end
+    end
+
+    test "a word the checks refuse gets a one-line reason" do
+      LLMStub.stub(fn _, conn ->
+        LLMStub.answer(conn, LLMStub.words([LLMStub.word(native: "spasibo")], "add"))
+      end)
+
+      [text] = handle(text_update("add spasibo")) |> TelegramStub.texts()
+      assert text =~ "spasibo: that isn't written in the language's own script"
+      assert Repo.all(Word) == []
+    end
+  end
 end

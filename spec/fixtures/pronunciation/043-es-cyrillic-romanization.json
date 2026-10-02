@@ -1,0 +1,20 @@
+{
+ "name": "es-cyrillic-romanization",
+ "word": {
+  "lang": "ru",
+  "native": "пожалуйста",
+  "base_lang": "es",
+  "romanization": "пожалуйста"
+ },
+ "expect": {
+  "word": {
+   "romanization": null
+  },
+  "dropped_fields": [
+   {
+    "field": "romanization",
+    "reason": "bad_romanization"
+   }
+  ]
+ }
+}

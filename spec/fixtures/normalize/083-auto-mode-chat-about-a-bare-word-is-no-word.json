@@ -1,0 +1,21 @@
+{
+ "name": "auto-mode-chat-about-a-bare-word-is-no-word",
+ "input": {
+  "text": "как",
+  "mode": "auto",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"chat\",\"words\":[],\"reply\":\"Как is a Russian word!\"}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "intent": "lookup",
+  "words": [],
+  "reply": null,
+  "code": "no_word_found"
+ }
+}

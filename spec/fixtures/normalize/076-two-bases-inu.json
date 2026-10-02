@@ -1,0 +1,34 @@
+{
+ "name": "two-bases-inu",
+ "input": {
+  "text": "犬",
+  "mode": "add",
+  "base_langs": [
+   "es",
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"lookup\",\"words\":[{\"language\":null,\"romanization\":\"inu\",\"native_vocalized\":null,\"note\":null,\"lang\":\"ja\",\"native\":\"犬\",\"base_lang\":\"es\",\"gloss\":\"perro\",\"forms\":[\"perro\",\"perros\"],\"pronunciation\":\"i-nu\"},{\"language\":null,\"romanization\":\"inu\",\"native_vocalized\":null,\"note\":null,\"lang\":\"ja\",\"native\":\"犬\",\"base_lang\":\"en\",\"gloss\":\"dog\",\"forms\":[\"dog\",\"dogs\"],\"pronunciation\":\"ee-noo\"}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "base_lang": "es",
+    "gloss": "perro",
+    "romanization": "inu",
+    "pronunciation": "i-nu",
+    "pronunciation_source": "model"
+   },
+   {
+    "base_lang": "en",
+    "gloss": "dog",
+    "romanization": "inu",
+    "pronunciation": "ee-noo",
+    "pronunciation_source": "model"
+   }
+  ]
+ }
+}

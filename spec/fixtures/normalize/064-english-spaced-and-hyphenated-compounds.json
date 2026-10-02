@@ -1,0 +1,33 @@
+{
+ "name": "english-spaced-and-hyphenated-compounds",
+ "input": {
+  "text": "morozhenoe",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"мороженое\",\"base_lang\":\"en\",\"gloss\":\"ice cream\",\"forms\":[\"ice cream\",\"ice-cream\",\"ice creams\",\"icecream\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [
+   {
+    "native": "мороженое",
+    "base_lang": "en",
+    "form": "icecream",
+    "reason": "unrelated_form"
+   }
+  ],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "forms": [
+     "ice cream",
+     "ice-cream",
+     "ice creams"
+    ]
+   }
+  ]
+ }
+}

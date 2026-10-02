@@ -1,0 +1,26 @@
+{
+ "name": "sign-language-rejected",
+ "input": {
+  "text": "hello in asl",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ase\",\"native\":\"HELLO\",\"base_lang\":\"en\",\"gloss\":\"hello\",\"forms\":[\"hello\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [
+   {
+    "native": "HELLO",
+    "gloss": "hello",
+    "base_lang": "en",
+    "reason": "sign_language_unsupported"
+   }
+  ],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [],
+  "code": "bad_lookup_result"
+ }
+}

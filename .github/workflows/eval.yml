@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Slice 09 section 6: a manual run of the golden evaluation against OpenRouter, with a
+# maintainer's key kept as a secret of the "eval" environment. Never runs on its own. The
+# recordings and RESULTS.md come back as an artifact to review and commit.
+name: Evaluation
+
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: "Models, comma-separated"
+        required: true
+        default: "apodex/apodex-1.1-mini:free,google/gemma-4-31b-it:free"
+      set:
+        description: "core, all or tag:<tag>"
+        required: true
+        default: "core"
+      budget:
+        description: "At most this many requests"
+        required: true
+        default: "40"
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    runs-on: ubuntu-24.04
+    environment: eval
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - run: >-
+          node spec/eval/run-eval.mjs --models "$MODELS" --set "$SET" --budget "$BUDGET" --rpm 15
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          MODELS: ${{ inputs.models }}
+          SET: ${{ inputs.set }}
+          BUDGET: ${{ inputs.budget }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: eval-results
+          path: |
+            spec/eval/recorded/
+            spec/eval/RESULTS.md
+          retention-days: 30

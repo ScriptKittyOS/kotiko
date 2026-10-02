@@ -1,0 +1,24 @@
+{
+ "name": "en-stress-mismatch",
+ "word": {
+  "lang": "ru",
+  "native": "пожалуйста",
+  "base_lang": "en",
+  "pronunciation": "pa-ZHAL-sta",
+  "pronunciation_careful": "pa-ZHA-lu-sta",
+  "native_vocalized": "пожалу́йста"
+ },
+ "expect": {
+  "word": {
+   "pronunciation": "pa-ZHAL-sta",
+   "pronunciation_careful": "pa-ZHA-lu-sta",
+   "native_vocalized": null
+  },
+  "dropped_fields": [
+   {
+    "field": "native_vocalized",
+    "reason": "stress_mismatch"
+   }
+  ]
+ }
+}

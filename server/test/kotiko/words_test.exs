@@ -221,7 +221,7 @@ defmodule Kotiko.WordsTest do
 
     test "a word can't be its own base" do
       assert {:error, :target_is_base, _} =
-               Kotiko.WordInput.validate(%{
+               Kotiko.WordSpec.validate_word(%{
                  lang: "en",
                  native: "dog",
                  base_lang: "en",
@@ -416,19 +416,20 @@ defmodule Kotiko.WordsTest do
       assert Words.langs_matching("klingon") == []
     end
 
-    test "keeps the first name a language was saved under" do
-      word_fixture(%{
-        language: "Mandarin",
-        lang: "zh",
-        native: "狗",
-        gloss: "dog",
-        romanization: "gǒu"
-      })
-
+    test "language names come from the tag, never from the model" do
       %{word: w} =
-        add(%{language: "Chinese", lang: "zh", native: "猫", gloss: "cat", romanization: "māo"})
+        add(%{
+          language: "Mandarin",
+          lang: "yue",
+          native: "多謝",
+          gloss: "thanks",
+          romanization: nil
+        })
 
-      assert w.language == "Mandarin"
+      assert Word.to_api(w).language == "粵語"
+      assert Word.to_legacy_json(w).language == "Cantonese"
+      assert Words.langs_matching("cantonés") == ["yue"]
+      assert Words.langs_matching("粵語") == ["yue"]
     end
   end
 

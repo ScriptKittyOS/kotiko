@@ -1,0 +1,25 @@
+{
+ "name": "stopword-allowed-when-typed-english",
+ "input": {
+  "text": "the in german",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"de\",\"native\":\"der\",\"base_lang\":\"en\",\"gloss\":\"the\",\"forms\":[\"the\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "gloss": "the",
+    "forms": [
+     "the"
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kotiko.org/spec/respell-output.schema.json",
+  "title": "What the respell prompt asks the model to return",
+  "description": "One item per (word, base). lang and native are copied from the request; an item that matches no requested (lang, native, base_lang) is ignored.",
+  "type": "object",
+  "required": [
+    "items"
+  ],
+  "properties": {
+    "items": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "lang": {
+                "type": "string"
+              },
+              "native": {
+                "type": "string"
+              },
+              "base_lang": {
+                "type": "string"
+              },
+              "pronunciation": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "pronunciation_careful": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "native_vocalized": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "type": "object"
+        }
+      ]
+    }
+  }
+}

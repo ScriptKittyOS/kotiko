@@ -1,0 +1,39 @@
+{
+ "name": "basic-base-polish-uses-generic",
+ "input": {
+  "text": "sobaka",
+  "mode": "add",
+  "base_langs": [
+   "pl"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"собака\",\"base_lang\":\"pl\",\"gloss\":\"pies\",\"forms\":[\"pies\",\"psy\",\"piesek\",\"p\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [
+   {
+    "native": "собака",
+    "base_lang": "pl",
+    "form": "psy",
+    "reason": "unrelated_form"
+   },
+   {
+    "native": "собака",
+    "base_lang": "pl",
+    "form": "p",
+    "reason": "bad_form"
+   }
+  ],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "base_lang": "pl",
+    "forms": [
+     "pies",
+     "piesek"
+    ]
+   }
+  ]
+ }
+}

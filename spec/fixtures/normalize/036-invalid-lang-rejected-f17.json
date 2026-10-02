@@ -1,0 +1,26 @@
+{
+ "name": "invalid-lang-rejected-f17",
+ "input": {
+  "text": "qapla",
+  "mode": "auto",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"lookup\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"i\",\"native\":\"Qapla'\",\"base_lang\":\"en\",\"gloss\":\"success\",\"forms\":[\"success\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [
+   {
+    "native": "Qapla'",
+    "gloss": "success",
+    "base_lang": "en",
+    "reason": "invalid_lang"
+   }
+  ],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [],
+  "code": "bad_lookup_result"
+ }
+}

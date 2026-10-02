@@ -1,0 +1,20 @@
+{
+ "name": "es-mandarin-tone-5",
+ "word": {
+  "lang": "zh",
+  "native": "谢谢",
+  "base_lang": "es",
+  "pronunciation": "shie5-shie"
+ },
+ "expect": {
+  "word": {
+   "pronunciation": null
+  },
+  "dropped_fields": [
+   {
+    "field": "pronunciation",
+    "reason": "bad_pronunciation"
+   }
+  ]
+ }
+}

@@ -11,6 +11,7 @@ defmodule Kotiko.Word do
   buttons; `uuid` is the public id. Writes go through `Kotiko.Words`.
   """
   use Ecto.Schema
+  alias Kotiko.Lang
 
   schema "words" do
     field :uuid, :string
@@ -30,8 +31,6 @@ defmodule Kotiko.Word do
     field :status, :string, default: "active"
     field :origin, :string, default: "add"
     field :source_text, :string
-    # Deprecated: the model's English name for the language. Slice 08 drops it.
-    field :language, :string
     field :deleted_at, :utc_datetime_usec
     field :merged_into, :string
     field :seq, :integer
@@ -43,64 +42,6 @@ defmodule Kotiko.Word do
 
   def statuses, do: @statuses
   def origins, do: @origins
-
-  # A BCP 47 tag: language plus optional script subtag ("ru", "ar", "zh-Hant").
-  @lang_format ~r/^[a-z]{2,3}(-[A-Z][a-z]{3})?$/
-
-  @doc "True for a tag `normalize_lang/1` can produce. Slice 08 replaces this check."
-  def lang?(tag) when is_binary(tag), do: Regex.match?(@lang_format, tag)
-  def lang?(_), do: false
-
-  @doc ~S"""
-  Normalizes a language tag from the model: "ZH_cn" -> "zh", "zh-hant-TW" -> "zh-Hant".
-  Region subtags are dropped so one language doesn't split into several groups.
-  """
-  def normalize_lang(tag) when is_binary(tag) do
-    [primary | rest] = tag |> String.trim() |> String.replace("_", "-") |> String.split("-")
-    script = Enum.find(rest, &(String.length(&1) == 4 and &1 =~ ~r/^[A-Za-z]+$/))
-    primary = String.downcase(primary)
-
-    case script && String.capitalize(script) do
-      nil -> primary
-      "Hans" when primary == "zh" -> primary
-      s -> "#{primary}-#{s}"
-    end
-  end
-
-  def normalize_lang(_), do: nil
-
-  @doc """
-  Normalizes a base language tag: "es", "pt-BR", "zh-Hant" (slice 50 section 2). A stand-in
-  for slice 50's `baseTagOf`: keeps a script or region subtag, in canonical case.
-  """
-  def normalize_base(tag) when is_binary(tag) do
-    [primary | rest] = tag |> String.trim() |> String.replace("_", "-") |> String.split("-")
-
-    sub =
-      Enum.find_value(rest, fn s ->
-        cond do
-          String.length(s) == 4 and s =~ ~r/^[A-Za-z]+$/ -> String.capitalize(s)
-          String.length(s) == 2 and s =~ ~r/^[A-Za-z]+$/ -> String.upcase(s)
-          true -> nil
-        end
-      end)
-
-    tag = if sub, do: "#{String.downcase(primary)}-#{sub}", else: String.downcase(primary)
-    if tag =~ ~r/^[a-z]{2,3}(-([A-Z][a-z]{3}|[A-Z]{2}))?$/, do: tag
-  end
-
-  def normalize_base(_), do: nil
-
-  @doc """
-  True when a target language and a base language are the same language (slice 50's
-  "same base" test, reduced to the primary subtag until slice 08 ships).
-  """
-  def same_language?(lang, base) when is_binary(lang) and is_binary(base),
-    do: primary(lang) == primary(base)
-
-  def same_language?(_, _), do: false
-
-  defp primary(tag), do: tag |> String.split("-") |> hd() |> String.downcase()
 
   @doc "True once a tombstone's content has been scrubbed (30 days after the delete)."
   def scrubbed?(%__MODULE__{native_key: key, uuid: uuid}), do: key == uuid
@@ -128,13 +69,16 @@ defmodule Kotiko.Word do
       updated_at: timestamp(w.updated_at),
       deleted_at: timestamp(w.deleted_at),
       merged_into: w.merged_into,
-      language: w.language
+      # The endonym, derived from the tag (slice 08 section 4): a neutral label for clients
+      # that can't name languages themselves.
+      language: Lang.endonym(w.lang)
     }
   end
 
   @doc """
-  The 0.2 shape for the legacy `GET /api/words`: integer id, `english` (the gloss) and the
-  enabled forms as strings. The one place on the server that maps a field to English.
+  The 0.2 shape for the legacy `GET /api/words`: integer id, `english` (the gloss), the
+  enabled forms as strings and `language` as the English name derived from the tag (what
+  a 0.2 extension shows). The one place on the server that maps a field to English.
 
   Also carries the base language and the pronunciation fields (slice 07 section 7) for the
   word card (slice 19); 0.2 extensions ignore fields they don't know.
@@ -143,7 +87,7 @@ defmodule Kotiko.Word do
     %{
       id: w.id,
       lang: w.lang,
-      language: w.language,
+      language: Lang.name(w.lang, "en"),
       native: w.native,
       romanization: w.romanization,
       english: w.gloss,

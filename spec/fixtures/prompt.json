@@ -1,0 +1,134 @@
+{
+ "description": "Slice 09 section 2: the system prompt both runtimes build for a request, compared by SHA-256 of the UTF-8 text.",
+ "cases": [
+  {
+   "name": "one English base, add box",
+   "request": {
+    "base_langs": [
+     "en"
+    ],
+    "mode": "add",
+    "recent": [],
+    "hint_lang": null
+   },
+   "contains": [
+    "reads en (English)",
+    "Key for English readers",
+    "Examples (base en)",
+    "\"add a word\" box"
+   ],
+   "excludes": [
+    "English speaker",
+    "Key for Spanish readers",
+    "For entries whose base is",
+    "Put pronunciation in romanization",
+    "Example with two base languages"
+   ],
+   "sha256": "ccf0b2d887d8a993b28afd007f5c41740df78cec1ef12450c2ceed85d9995003",
+   "length": 8920
+  },
+  {
+   "name": "Spanish and English, recent, hint",
+   "request": {
+    "base_langs": [
+     "es",
+     "en"
+    ],
+    "mode": "add",
+    "recent": [
+     "ru",
+     "ja"
+    ],
+    "hint_lang": "ja-JP"
+   },
+   "contains": [
+    "reads es (español), en (English)",
+    "Key for Spanish readers",
+    "Key for English readers",
+    "Examples (base es)",
+    "ru (русский), ja (日本語)",
+    "on a page in 日本語",
+    "Example with two base languages"
+   ],
+   "sha256": "db14d046d684eaa59ac168c232963e546cf97bb5e36b62284faebbac8b4ea4ca",
+   "length": 10540
+  },
+  {
+   "name": "Japanese base without a key",
+   "request": {
+    "base_langs": [
+     "ja"
+    ],
+    "mode": "auto",
+    "recent": [],
+    "hint_lang": null
+   },
+   "contains": [
+    "Examples (base ja)",
+    "For entries whose base is ja"
+   ],
+   "excludes": [
+    "Keys:\nes:",
+    "\"add a word\" box"
+   ],
+   "sha256": "1abd3d634a432bb8ec8ffdb90359fb53ff6e9df1b7be3c5d0fb352d01162dfcd",
+   "length": 7881
+  },
+  {
+   "name": "Polish base, generic examples",
+   "request": {
+    "base_langs": [
+     "pl"
+    ],
+    "mode": "auto"
+   },
+   "contains": [
+    "Examples (base pl;",
+    "polski"
+   ],
+   "sha256": "b65b6412739d58e7d577537fabf0a4230285bafd0785e71a4c6b7cce68ddd151",
+   "length": 7873
+  },
+  {
+   "name": "Brazilian Portuguese base",
+   "request": {
+    "base_langs": [
+     "pt-BR",
+     "es"
+    ],
+    "mode": "add"
+   },
+   "contains": [
+    "pt-BR (português)",
+    "For entries whose base is pt-BR"
+   ],
+   "sha256": "a20357315cde3b2d8f12afb23584839c4ef5bf219b6c72eb21953bcd02edf99e",
+   "length": 9437
+  },
+  {
+   "name": "respell, two bases",
+   "respell": [
+    {
+     "lang": "ru",
+     "native": "спасибо",
+     "sense": "",
+     "base_langs": [
+      "en",
+      "es"
+     ]
+    }
+   ],
+   "contains": [
+    "You write pronunciations",
+    "Key for English readers",
+    "Key for Spanish readers"
+   ],
+   "excludes": [
+    "\"gloss\"",
+    "Examples (base"
+   ],
+   "sha256": "6301c8055da4028a5aa012fd443c52fd5edc8679bcec8d7a0eb5ae70ddd64c42",
+   "length": 3322
+  }
+ ]
+}

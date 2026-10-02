@@ -1,0 +1,271 @@
+{
+ "description": "Slice 08 section 6 and slice 50 section 2: baseTagOf / Kotiko.Lang.base_tag (cases) and sameBase / same_base? (same_base). Run in both runtimes.",
+ "cases": [
+  {
+   "input": "es-PR",
+   "base": "es"
+  },
+  {
+   "input": "es",
+   "base": "es"
+  },
+  {
+   "input": "es-419",
+   "base": "es"
+  },
+  {
+   "input": "es-ES",
+   "base": "es"
+  },
+  {
+   "input": "es-MX",
+   "base": "es"
+  },
+  {
+   "input": "en-US",
+   "base": "en"
+  },
+  {
+   "input": "en-GB",
+   "base": "en"
+  },
+  {
+   "input": "en",
+   "base": "en"
+  },
+  {
+   "input": "pt-BR",
+   "base": "pt-BR"
+  },
+  {
+   "input": "pt-PT",
+   "base": "pt-PT"
+  },
+  {
+   "input": "pt",
+   "base": "pt"
+  },
+  {
+   "input": "pt-AO",
+   "base": "pt"
+  },
+  {
+   "input": "zh-TW",
+   "base": "zh-Hant"
+  },
+  {
+   "input": "zh-HK",
+   "base": "zh-Hant"
+  },
+  {
+   "input": "zh-MO",
+   "base": "zh-Hant"
+  },
+  {
+   "input": "zh-CN",
+   "base": "zh-Hans"
+  },
+  {
+   "input": "zh-SG",
+   "base": "zh-Hans"
+  },
+  {
+   "input": "zh",
+   "base": "zh-Hans"
+  },
+  {
+   "input": "zh-Hant",
+   "base": "zh-Hant"
+  },
+  {
+   "input": "zh-Hans",
+   "base": "zh-Hans"
+  },
+  {
+   "input": "cmn",
+   "base": "zh-Hans"
+  },
+  {
+   "input": "iw",
+   "base": "he"
+  },
+  {
+   "input": "ja-JP",
+   "base": "ja"
+  },
+  {
+   "input": "ja",
+   "base": "ja"
+  },
+  {
+   "input": "ko-KR",
+   "base": "ko"
+  },
+  {
+   "input": "sr",
+   "base": "sr-Cyrl"
+  },
+  {
+   "input": "sr-Latn",
+   "base": "sr-Latn"
+  },
+  {
+   "input": "sr-Cyrl-RS",
+   "base": "sr-Cyrl"
+  },
+  {
+   "input": "ar-EG",
+   "base": "arz"
+  },
+  {
+   "input": "ar",
+   "base": "ar"
+  },
+  {
+   "input": "ar-SA",
+   "base": "afb"
+  },
+  {
+   "input": "fr-CA",
+   "base": "fr"
+  },
+  {
+   "input": "de-AT",
+   "base": "de"
+  },
+  {
+   "input": "yue",
+   "base": "yue-Hant"
+  },
+  {
+   "input": "ru-RU",
+   "base": "ru"
+  },
+  {
+   "input": "tl",
+   "base": "fil"
+  },
+  {
+   "input": "x-dothraki",
+   "base": null
+  },
+  {
+   "input": "ase",
+   "base": null
+  },
+  {
+   "input": "i",
+   "base": null
+  },
+  {
+   "input": "",
+   "base": null
+  },
+  {
+   "input": "xyz",
+   "base": "xyz"
+  }
+ ],
+ "same_base": [
+  {
+   "a": "zh",
+   "b": "zh-Hans",
+   "same": true
+  },
+  {
+   "a": "zh",
+   "b": "zh-Hant",
+   "same": true
+  },
+  {
+   "a": "zh-CN",
+   "b": "zh-Hant",
+   "same": false
+  },
+  {
+   "a": "zh-TW",
+   "b": "zh-Hant",
+   "same": true
+  },
+  {
+   "a": "zh-TW",
+   "b": "zh-Hans",
+   "same": false
+  },
+  {
+   "a": "pt-BR",
+   "b": "pt-PT",
+   "same": true
+  },
+  {
+   "a": "pt-BR",
+   "b": "pt",
+   "same": true
+  },
+  {
+   "a": "es-PR",
+   "b": "es",
+   "same": true
+  },
+  {
+   "a": "en-US",
+   "b": "en-GB",
+   "same": true
+  },
+  {
+   "a": "sr",
+   "b": "sr-Latn",
+   "same": true
+  },
+  {
+   "a": "sr-Cyrl",
+   "b": "sr-Latn",
+   "same": false
+  },
+  {
+   "a": "sr-Cyrl",
+   "b": "sr",
+   "same": true
+  },
+  {
+   "a": "ru",
+   "b": "uk",
+   "same": false
+  },
+  {
+   "a": "iw",
+   "b": "he",
+   "same": true
+  },
+  {
+   "a": "ar-EG",
+   "b": "ar",
+   "same": false
+  },
+  {
+   "a": "en",
+   "b": "es",
+   "same": false
+  },
+  {
+   "a": "ja-JP",
+   "b": "ja",
+   "same": true
+  },
+  {
+   "a": "x-dothraki",
+   "b": "x-dothraki",
+   "same": true
+  },
+  {
+   "a": "x-dothraki",
+   "b": "x-valyrian",
+   "same": false
+  },
+  {
+   "a": "i",
+   "b": "i",
+   "same": false
+  }
+ ]
+}

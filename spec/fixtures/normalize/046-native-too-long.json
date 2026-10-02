@@ -1,0 +1,26 @@
+{
+ "name": "native-too-long",
+ "input": {
+  "text": "long",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"ддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддд\",\"base_lang\":\"en\",\"gloss\":\"long\",\"forms\":[\"long\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [
+   {
+    "native": "ддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддд",
+    "gloss": "long",
+    "base_lang": "en",
+    "reason": "too_long"
+   }
+  ],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [],
+  "code": "bad_lookup_result"
+ }
+}

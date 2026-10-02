@@ -1,0 +1,24 @@
+{
+ "name": "serbian-latin-becomes-sr-latn",
+ "input": {
+  "text": "hvala in serbian latin",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":\"hvala\",\"native_vocalized\":null,\"note\":null,\"lang\":\"sr\",\"native\":\"hvala\",\"base_lang\":\"en\",\"gloss\":\"thank you\",\"forms\":[\"thank you\",\"thanks\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "lang": "sr-Latn",
+    "native": "hvala",
+    "romanization": null
+   }
+  ]
+ }
+}

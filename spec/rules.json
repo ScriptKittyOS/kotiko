@@ -1,0 +1,23 @@
+{
+  "max_input_chars": 200,
+  "max_words": 5,
+  "max_base_langs": 4,
+  "max_native_chars": 64,
+  "max_gloss_chars": 64,
+  "max_sense_chars": 64,
+  "max_romanization_chars": 64,
+  "max_pronunciation_chars": 96,
+  "max_note_chars": 200,
+  "max_form_chars": 40,
+  "max_forms": 10,
+  "max_reply_chars": 300,
+  "max_respell_items": 20,
+  "max_vocabulary": 20000,
+  "min_form_graphemes": 2,
+  "min_form_graphemes_unspaced": 1,
+  "unspaced_scripts": ["Hans", "Hant", "Jpan", "Kore", "Thai", "Laoo", "Khmr", "Mymr"],
+  "generic_stem_graphemes": 3,
+  "min_stem_graphemes": 2,
+  "chat_max_words": 3,
+  "temperature": 0.2
+}

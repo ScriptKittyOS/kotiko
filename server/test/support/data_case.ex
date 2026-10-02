@@ -52,9 +52,9 @@ defmodule Kotiko.DataCase do
     )
   end
 
-  @doc "Checks `attrs` like `Kotiko.WordInput.validate/2` and returns the attributes to save."
+  @doc "Checks `attrs` like `Kotiko.WordSpec.validate_word/2` and returns the attributes to save."
   def valid_attrs(attrs \\ %{}, opts \\ []) do
-    {:ok, valid, _dropped} = Kotiko.WordInput.validate(word_attrs(attrs), opts)
+    {:ok, valid, _dropped} = Kotiko.WordSpec.validate_word(word_attrs(attrs), opts)
     valid
   end
 

@@ -1,0 +1,21 @@
+{
+ "name": "auto-mode-real-chat-keeps-reply",
+ "input": {
+  "text": "what's the weather like today?",
+  "mode": "auto",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"chat\",\"words\":[],\"reply\":\"I can't check the weather, but I can look up words.\"}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "intent": "chat",
+  "words": [],
+  "reply": "I can't check the weather, but I can look up words.",
+  "code": null
+ }
+}

@@ -1,0 +1,26 @@
+{
+ "name": "missing-native",
+ "input": {
+  "text": "da",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"base_lang\":\"en\",\"gloss\":\"yes\",\"forms\":[\"yes\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [
+   {
+    "native": null,
+    "gloss": "yes",
+    "base_lang": "en",
+    "reason": "missing_field"
+   }
+  ],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [],
+  "code": "bad_lookup_result"
+ }
+}

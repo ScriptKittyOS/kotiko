@@ -1,0 +1,32 @@
+{
+ "name": "two-bases-pozhaluysta-shared-target-fields",
+ "input": {
+  "text": "пожалуйста",
+  "mode": "add",
+  "base_langs": [
+   "es",
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":\"pozhaluysta\",\"native_vocalized\":\"пожа́луйста\",\"note\":null,\"lang\":\"ru\",\"native\":\"пожалуйста\",\"base_lang\":\"es\",\"gloss\":\"por favor\",\"forms\":[\"por favor\"],\"pronunciation\":\"pa-ZHAL-sta\",\"pronunciation_careful\":\"pa-ZHA-lu-sta\"},{\"language\":null,\"romanization\":\"pazhaluysta\",\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"пожалуйста\",\"base_lang\":\"en\",\"gloss\":\"please\",\"forms\":[\"please\"],\"pronunciation\":\"pa-ZHAL-sta\",\"pronunciation_careful\":\"pa-ZHA-lu-sta\"}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "base_lang": "es",
+    "romanization": "pozhaluysta",
+    "native_vocalized": "пожа́луйста",
+    "pronunciation_source": "model"
+   },
+   {
+    "base_lang": "en",
+    "romanization": "pozhaluysta",
+    "native_vocalized": "пожа́луйста",
+    "pronunciation_source": "model"
+   }
+  ]
+ }
+}

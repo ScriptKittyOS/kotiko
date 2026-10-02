@@ -1,0 +1,17 @@
+{
+ "name": "es-careful-equal-to-everyday",
+ "word": {
+  "lang": "ru",
+  "native": "пожалуйста",
+  "base_lang": "es",
+  "pronunciation": "pa-ZHAL-sta",
+  "pronunciation_careful": "pa-ZHAL-sta"
+ },
+ "expect": {
+  "word": {
+   "pronunciation": "pa-ZHAL-sta",
+   "pronunciation_careful": null
+  },
+  "dropped_fields": []
+ }
+}

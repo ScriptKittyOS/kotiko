@@ -1,0 +1,23 @@
+{
+ "name": "en-two-capital-syllables",
+ "word": {
+  "lang": "ru",
+  "native": "пожалуйста",
+  "base_lang": "en",
+  "pronunciation": "PA-ZHAL-STA",
+  "pronunciation_careful": "pa-ZHA-lu-sta"
+ },
+ "expect": {
+  "word": {
+   "pronunciation": null,
+   "pronunciation_careful": null,
+   "pronunciation_source": null
+  },
+  "dropped_fields": [
+   {
+    "field": "pronunciation",
+    "reason": "bad_pronunciation"
+   }
+  ]
+ }
+}

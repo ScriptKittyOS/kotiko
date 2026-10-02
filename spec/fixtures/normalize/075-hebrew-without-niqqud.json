@@ -1,0 +1,24 @@
+{
+ "name": "hebrew-without-niqqud",
+ "input": {
+  "text": "toda",
+  "mode": "add",
+  "base_langs": [
+   "es"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":\"toda\",\"native_vocalized\":null,\"note\":null,\"lang\":\"he\",\"native\":\"תודה\",\"base_lang\":\"es\",\"gloss\":\"gracias\",\"forms\":[\"gracias\"],\"pronunciation\":\"to-DA\"}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "lang": "he",
+    "gloss": "gracias",
+    "pronunciation": "to-DA"
+   }
+  ]
+ }
+}

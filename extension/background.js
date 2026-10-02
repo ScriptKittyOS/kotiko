@@ -7,7 +7,7 @@
 // The libraries load through importScripts in Chrome's service worker, and through the
 // manifest's background.scripts list (before this file) in Firefox's event page.
 if (!globalThis.SyncController && typeof importScripts === "function") {
-  importScripts("lib/url.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js", "lib/i18n.js", "lib/badge.js", "lib/words-v1.js");
+  importScripts("lib/url.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js", "lib/i18n.js", "lib/badge.js", "spec/spec.js", "lib/lang.js", "lib/words-v1.js");
 }
 
 const ext = globalThis.browser ?? globalThis.chrome;
@@ -134,8 +134,20 @@ function ensureAlarm() {
 }
 ensureAlarm();
 
+// Slice 08: languages hidden under an old code stay hidden under the canonical one, so a
+// hidden "cmn" is a hidden "zh" once the server re-tags its words.
+async function migrateHiddenLangs() {
+  const { hiddenLangs = [] } = await ext.storage.local.get({ hiddenLangs: [] });
+  const canonical = (tag) => globalThis.KotikoLang.canonical(tag);
+  const mapped = [...new Set(hiddenLangs.map((tag) => (canonical(tag).ok ? canonical(tag).tag : tag)))];
+  if (JSON.stringify(mapped) !== JSON.stringify(hiddenLangs)) await ext.storage.local.set({ hiddenLangs: mapped });
+}
+
 ext.runtime.onInstalled.addListener((details) => {
-  if (details?.reason === "update") Promise.resolve(ext.alarms.clear(OLD_ALARM)).catch(() => {});
+  if (details?.reason === "update") {
+    Promise.resolve(ext.alarms.clear(OLD_ALARM)).catch(() => {});
+    migrateHiddenLangs().catch(() => {});
+  }
   ensureAlarm();
   sync.request({ reason: "installed" });
 });

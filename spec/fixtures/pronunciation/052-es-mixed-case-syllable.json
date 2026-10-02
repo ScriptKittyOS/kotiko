@@ -1,0 +1,20 @@
+{
+ "name": "es-mixed-case-syllable",
+ "word": {
+  "lang": "ru",
+  "native": "пожалуйста",
+  "base_lang": "es",
+  "pronunciation": "pa-Zhal-sta"
+ },
+ "expect": {
+  "word": {
+   "pronunciation": null
+  },
+  "dropped_fields": [
+   {
+    "field": "pronunciation",
+    "reason": "bad_pronunciation"
+   }
+  ]
+ }
+}

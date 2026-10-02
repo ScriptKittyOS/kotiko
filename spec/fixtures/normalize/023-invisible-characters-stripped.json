@@ -1,0 +1,27 @@
+{
+ "name": "invisible-characters-stripped",
+ "input": {
+  "text": "spasibo",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"﻿спа­сибо\",\"base_lang\":\"en\",\"gloss\":\"thank​ you\",\"forms\":[\"thank you\",\"thanks\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "native": "спасибо",
+    "gloss": "thank you",
+    "forms": [
+     "thank you",
+     "thanks"
+    ]
+   }
+  ]
+ }
+}

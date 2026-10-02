@@ -1,0 +1,33 @@
+{
+ "name": "respell-bad-field-dropped",
+ "input": {
+  "items": [
+   {
+    "lang": "ru",
+    "native": "хорошо",
+    "sense": "",
+    "base_langs": [
+     "en"
+    ]
+   }
+  ]
+ },
+ "raw": "{\"items\":[{\"native_vocalized\":\"хорошо́\",\"pronunciation_careful\":null,\"lang\":\"ru\",\"native\":\"хорошо\",\"base_lang\":\"en\",\"pronunciation\":\"KHA-RA-SHO\"}]}",
+ "expect": {
+  "dropped_fields": [
+   {
+    "native": "хорошо",
+    "base_lang": "en",
+    "field": "pronunciation",
+    "reason": "bad_pronunciation"
+   }
+  ],
+  "items": [
+   {
+    "pronunciation": null,
+    "native_vocalized": "хорошо́",
+    "pronunciation_source": null
+   }
+  ]
+ }
+}

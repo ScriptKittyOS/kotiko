@@ -1,0 +1,33 @@
+{
+ "name": "kak-spanish-base-que-dropped",
+ "input": {
+  "text": "как",
+  "mode": "add",
+  "base_langs": [
+   "es"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":\"kak\",\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"как\",\"base_lang\":\"es\",\"gloss\":\"cómo\",\"forms\":[\"cómo\",\"como\",\"qué\"],\"pronunciation\":\"kak\"}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [
+   {
+    "native": "как",
+    "base_lang": "es",
+    "form": "qué",
+    "reason": "unrelated_form"
+   }
+  ],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "gloss": "cómo",
+    "forms": [
+     "cómo",
+     "como"
+    ]
+   }
+  ]
+ }
+}

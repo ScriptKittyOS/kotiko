@@ -1,0 +1,36 @@
+{
+ "name": "spanish-irregular-verb-ir",
+ "input": {
+  "text": "ir en francés",
+  "mode": "add",
+  "base_langs": [
+   "es"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"fr\",\"native\":\"aller\",\"base_lang\":\"es\",\"gloss\":\"ir\",\"forms\":[\"ir\",\"voy\",\"va\",\"fue\",\"ido\",\"yendo\",\"caminar\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [
+   {
+    "native": "aller",
+    "base_lang": "es",
+    "form": "caminar",
+    "reason": "unrelated_form"
+   }
+  ],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "forms": [
+     "ir",
+     "voy",
+     "va",
+     "fue",
+     "ido",
+     "yendo"
+    ]
+   }
+  ]
+ }
+}

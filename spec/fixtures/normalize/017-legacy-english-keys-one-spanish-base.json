@@ -1,0 +1,23 @@
+{
+ "name": "legacy-english-keys-one-spanish-base",
+ "input": {
+  "text": "da",
+  "mode": "add",
+  "base_langs": [
+   "es"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"lang\":\"ru\",\"native\":\"да\",\"english\":\"sí\",\"english_forms\":[\"sí\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "base_lang": "es",
+    "gloss": "sí"
+   }
+  ]
+ }
+}

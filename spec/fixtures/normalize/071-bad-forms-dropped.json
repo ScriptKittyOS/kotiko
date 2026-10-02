@@ -1,0 +1,50 @@
+{
+ "name": "bad-forms-dropped",
+ "input": {
+  "text": "sobaka",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"собака\",\"base_lang\":\"en\",\"gloss\":\"dog\",\"forms\":[\"dog\",\"d\",\"<b>dog</b>\",\"dog🐶\",\"dogsssssssssssssssssssssssssssssssssssssssss\",\"dogs\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [
+   {
+    "native": "собака",
+    "base_lang": "en",
+    "form": "d",
+    "reason": "bad_form"
+   },
+   {
+    "native": "собака",
+    "base_lang": "en",
+    "form": "<b>dog</b>",
+    "reason": "bad_form"
+   },
+   {
+    "native": "собака",
+    "base_lang": "en",
+    "form": "dog🐶",
+    "reason": "bad_form"
+   },
+   {
+    "native": "собака",
+    "base_lang": "en",
+    "form": "dogsssssssssssssssssssssssssssssssssssssssss",
+    "reason": "bad_form"
+   }
+  ],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "forms": [
+     "dog",
+     "dogs"
+    ]
+   }
+  ]
+ }
+}

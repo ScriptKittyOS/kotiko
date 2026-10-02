@@ -1,0 +1,17 @@
+{
+ "name": "one-syllable-word-and-a-stressed-one",
+ "word": {
+  "lang": "ru",
+  "native": "до свидания",
+  "base_lang": "en",
+  "pronunciation": "da svi-DA-nya",
+  "native_vocalized": "до свида́ния"
+ },
+ "expect": {
+  "word": {
+   "pronunciation": "da svi-DA-nya",
+   "native_vocalized": "до свида́ния"
+  },
+  "dropped_fields": []
+ }
+}
