@@ -9,7 +9,7 @@
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js",
-    "scripts": ["lib/url.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js", "lib/i18n.js", "lib/badge.js", "background.js"]
+    "scripts": ["lib/url.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js", "lib/i18n.js", "lib/badge.js", "spec/spec.js", "lib/lang.js", "background.js"]
   },
   "content_scripts": [
     {

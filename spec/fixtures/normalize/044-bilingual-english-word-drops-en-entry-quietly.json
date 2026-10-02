@@ -1,0 +1,25 @@
+{
+ "name": "bilingual-english-word-drops-en-entry-quietly",
+ "input": {
+  "text": "dog",
+  "mode": "add",
+  "base_langs": [
+   "es",
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"en\",\"native\":\"dog\",\"base_lang\":\"es\",\"gloss\":\"perro\",\"forms\":[\"perro\",\"perros\"]},{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"en\",\"native\":\"dog\",\"base_lang\":\"en\",\"gloss\":\"dog\",\"forms\":[\"dog\",\"dogs\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "lang": "en",
+    "base_lang": "es",
+    "gloss": "perro"
+   }
+  ]
+ }
+}

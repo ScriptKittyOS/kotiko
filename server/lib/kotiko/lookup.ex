@@ -3,95 +3,36 @@
 
 defmodule Kotiko.Lookup do
   @moduledoc """
-  Free-form text to checked words: asks the model (`Kotiko.LLM`), then checks each entry
-  (`Kotiko.WordInput`). Shared by the add routes and the Telegram bot. Saving is the
-  caller's choice, so a preview saves nothing.
+  Free-form text to checked words: asks the model (`Kotiko.LLM`), whose answer
+  `Kotiko.WordSpec` extracts, normalises and validates (slice 09). Shared by the add
+  routes and the Telegram bot. Saving is the caller's choice, so a preview saves nothing.
 
   While a lookup runs, `busy?/0` is true, so background jobs (the pronunciation refresh)
   wait and the learner's own adds always go first.
   """
-  alias Kotiko.{LLM, Text, WordInput, Words}
-
-  @max_words 5
+  alias Kotiko.{LLM, Words}
 
   @doc """
   Interprets `text`. Options: `:base_langs` (default `["en"]`), `:hint_lang`, `:add` (the
   add box: always an add), `:origin`, `:status` (for the saved words).
 
-  Returns `{:ok, %{intent, words: [attrs], rejected: [map], dropped_fields: [map], reply}}`
-  or `{:error, message}` when no model answered.
+  Returns `{:ok, result}` (`Kotiko.WordSpec.process/2`'s result, with `status` and
+  `origin` on each word) or `{:error, message}` when no model answered.
   """
   def interpret(text, opts \\ []) do
     bases = opts[:base_langs] || ["en"]
-
     llm_opts = [add: opts[:add] || false, base_langs: bases, hint_lang: opts[:hint_lang]]
+    recent = Enum.map(Words.recent_languages(), & &1.lang)
 
-    case busy(fn -> LLM.interpret(text, Words.recent_languages(), llm_opts) end) do
-      {:ok, %{intent: intent, words: words, reply: reply}} ->
-        {:ok, check(words, intent, reply, bases, opts)}
+    case busy(fn -> LLM.interpret(text, recent, llm_opts) end) do
+      {:ok, result} ->
+        extra = %{status: opts[:status] || "active", origin: opts[:origin] || "add"}
+        {:ok, %{result | words: Enum.map(result.words, &Map.merge(&1, extra))}}
 
       {:error, _} = e ->
         e
     end
   end
-
-  defp check(words, intent, reply, bases, opts) do
-    checked =
-      Enum.map(words, fn w ->
-        WordInput.validate(w,
-          base_langs: bases,
-          source: :model,
-          origin: opts[:origin] || "add",
-          status: opts[:status] || "active"
-        )
-      end)
-
-    {valid, dropped} =
-      for {:ok, attrs, d} <- checked, reduce: {[], []} do
-        {vs, ds} -> {vs ++ [attrs], ds ++ Enum.map(d, &Map.merge(&1, summary(attrs)))}
-      end
-
-    {valid, too_many} = cap_words(valid)
-
-    rejected =
-      for({:error, reason, s} <- checked, do: Map.put(s, :reason, to_string(reason))) ++
-        Enum.map(too_many, &Map.put(summary(&1), :reason, "too_many_words"))
-
-    %{
-      intent: intent,
-      words: valid |> share_target_fields(bases),
-      rejected: rejected,
-      dropped_fields: dropped,
-      reply: reply
-    }
-  end
-
-  # At most @max_words distinct target words; their entries for several bases count once.
-  defp cap_words(valid) do
-    keys = valid |> Enum.map(&group/1) |> Enum.uniq() |> Enum.take(@max_words) |> MapSet.new()
-    Enum.split_with(valid, &MapSet.member?(keys, group(&1)))
-  end
-
-  # Entries for the same target word get the romanization and native_vocalized of the
-  # primary base's entry (or the first that has one), so a group's records agree.
-  defp share_target_fields(valid, bases) do
-    by_group = Enum.group_by(valid, &group/1)
-
-    Enum.map(valid, fn attrs ->
-      entries =
-        Enum.sort_by(
-          by_group[group(attrs)],
-          &(Enum.find_index(bases, fn b -> b == &1.base_lang end) || 99)
-        )
-
-      Map.merge(attrs, %{
-        romanization: Enum.find_value(entries, & &1.romanization),
-        native_vocalized: Enum.find_value(entries, & &1.native_vocalized)
-      })
-    end)
-  end
-
-  defp group(attrs), do: {attrs.lang, Text.native_key(attrs.native), attrs.sense}
 
   @doc "The `rejected` and `dropped_fields` entry fields that say which word it was."
   def summary(attrs),

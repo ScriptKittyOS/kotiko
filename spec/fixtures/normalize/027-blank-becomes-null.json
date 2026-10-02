@@ -1,0 +1,24 @@
+{
+ "name": "blank-becomes-null",
+ "input": {
+  "text": "da",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":\"  \",\"native_vocalized\":\" \",\"note\":\"\",\"lang\":\"ru\",\"native\":\"да\",\"base_lang\":\"en\",\"gloss\":\"yes\",\"forms\":[\"yes\"],\"pronunciation\":\"da\"}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "romanization": null,
+    "note": null,
+    "native_vocalized": null
+   }
+  ]
+ }
+}

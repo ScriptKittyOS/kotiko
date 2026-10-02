@@ -1,0 +1,33 @@
+{
+ "name": "mandarin-tones-in-two-keys",
+ "input": {
+  "text": "谢谢",
+  "mode": "add",
+  "base_langs": [
+   "es",
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":\"xièxie\",\"native_vocalized\":null,\"note\":null,\"lang\":\"zh\",\"native\":\"谢谢\",\"base_lang\":\"es\",\"gloss\":\"gracias\",\"forms\":[\"gracias\"],\"pronunciation\":\"shie4-shie\"},{\"language\":null,\"romanization\":\"xièxie\",\"native_vocalized\":null,\"note\":null,\"lang\":\"zh\",\"native\":\"谢谢\",\"base_lang\":\"en\",\"gloss\":\"thank you\",\"forms\":[\"thank you\",\"thanks\"],\"pronunciation\":\"SHYEH4-shyeh\"}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [
+   {
+    "native": "谢谢",
+    "base_lang": "en",
+    "field": "pronunciation",
+    "reason": "bad_pronunciation"
+   }
+  ],
+  "missing_bases": [],
+  "words": [
+   {
+    "pronunciation": "shie4-shie"
+   },
+   {
+    "pronunciation": null
+   }
+  ]
+ }
+}

@@ -10,10 +10,10 @@ defmodule Kotiko.WordMerge do
   Pure: `changes/3` takes the existing word and the incoming one as maps and returns only
   the fields that change. Used by `Kotiko.Words.add/2` and by the v2 migration.
   """
-  alias Kotiko.{Text, WordInput}
+  alias Kotiko.{Text, WordSpec}
   alias Kotiko.Word.Forms
 
-  @fill ~w(romanization native_vocalized note source_text language)a
+  @fill ~w(romanization native_vocalized note source_text)a
 
   @doc """
   The fields of `existing` that `incoming` changes, as a map (empty when nothing changes).
@@ -64,7 +64,7 @@ defmodule Kotiko.WordMerge do
       (Enum.map(incoming[:forms] || [], &Forms.form/1) ++ gloss)
       |> Enum.reject(&(is_nil(&1.text) or MapSet.member?(seen, Text.fold(&1.text))))
       |> Enum.uniq_by(&Text.fold(&1.text))
-      |> Enum.take(max(WordInput.max_forms() - length(old), 0))
+      |> Enum.take(max(WordSpec.max_forms() - length(old), 0))
 
     if new == [], do: acc, else: Map.put(acc, :forms, old ++ new)
   end

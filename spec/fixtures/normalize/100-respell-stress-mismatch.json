@@ -1,0 +1,32 @@
+{
+ "name": "respell-stress-mismatch",
+ "input": {
+  "items": [
+   {
+    "lang": "ru",
+    "native": "молоко",
+    "sense": "",
+    "base_langs": [
+     "es"
+    ]
+   }
+  ]
+ },
+ "raw": "{\"items\":[{\"native_vocalized\":\"мо́локо\",\"pronunciation_careful\":null,\"lang\":\"ru\",\"native\":\"молоко\",\"base_lang\":\"es\",\"pronunciation\":\"ma-la-KO\"}]}",
+ "expect": {
+  "dropped_fields": [
+   {
+    "native": "молоко",
+    "base_lang": "es",
+    "field": "native_vocalized",
+    "reason": "stress_mismatch"
+   }
+  ],
+  "items": [
+   {
+    "pronunciation": "ma-la-KO",
+    "native_vocalized": null
+   }
+  ]
+ }
+}

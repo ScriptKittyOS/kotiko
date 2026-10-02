@@ -819,6 +819,132 @@ The prompt change bumps `spec/VERSION`'s minor version. Recorded eval answers fr
 it lack the pronunciation fields; `--replay` scores them as null, so new recordings are
 made for the top three models before the change merges.
 
+## Implementation notes
+
+Recorded when the slice was built (branch `slice/08-09-lookups`, with slice 08).
+Requirements above are unchanged; these are the choices, the deviations and what is left.
+
+**The folder.** Everything in section 1 exists except the files of other slices
+(`models.json` 10, `providers.json` 11, `export.schema.json` 12, `boundaries.json` and the
+other per-base files of 14, 16, 17, 22, 36) and slice 07's `fixtures/merge.json`, left for
+slice 11's store, which is the second runtime it needs. `spec/lang/` has `en`, `es` and
+`_generic`; Good-level bases (fr, de, ja, …) use `_generic` until their stopword lists are
+reviewed. Additions: `spec/tools/lang-curation.json` (slice 08), `spec/tools/fixture-results.mjs`
+and `spec/fixtures/normalize-results.json` (below), `spec/fixtures/{input,lang-data,prompt}.json`
+and `spec/fixtures/stem/`. `spec/VERSION` is 2.0.0.
+
+- `pronunciation.json` is `{schemes, targets}`: `schemes` holds the description the prompt
+  carries for `{{romanization_schemes}}`; targets also say `neutral_tone` (Mandarin may
+  leave the neutral syllable without a digit, Cantonese may not), `stress_marked` and
+  `vowel_letters` (ru, uk, be), which the code read from lists before. Lookup is by full
+  tag, then language when the tag names no script; a target with no entry gets no scheme
+  when its script is Latin, else `"unspecified"`, and `"unknown"` stress.
+- `rules.json` also holds `max_sense_chars`, `min_form_graphemes` (2),
+  `min_form_graphemes_unspaced` (1) with `unspaced_scripts` (Hans, Hant, Jpan, Kore, Thai,
+  Laoo, Khmr, Mymr; Korean is included because 개 is a whole word), `generic_stem_graphemes`,
+  `min_stem_graphemes`, `chat_max_words` and `temperature`.
+- `prompt.md`: sections are fenced blocks with the info string `prompt <name>`; everything
+  else is commentary. A line whose placeholders all render empty is left out (that is how
+  the "bases without a key" sentence disappears). The two-base example is its own section,
+  `multi_base`, added when there is more than one base. `examples._generic` uses
+  `{{primary_base}}` and angle-bracketed glosses. `{{base_list}}`, `{{recent_list}}` and
+  `{{lang_name}}` use the endonyms of `languages.json` in both runtimes, so the text is
+  byte-identical (`spec/fixtures/prompt.json` compares SHA-256).
+- Stopword lists leave out words learners add as words: no, not, there, so, yet (en);
+  no, muy, más, era, eran, fue, fueron (es; fue is a form of ir).
+
+**Pipeline** (`Kotiko.WordSpec`, `extension/lib/wordspec.js`). Choices where the text
+leaves room:
+
+- Unparseable content is `{:error, :unparseable}` / `{error: "unparseable"}`; the server
+  tries the next model, as before. `words` as an object (not a single word) is read in key
+  order, so both runtimes agree. At most `max_words × bases` entries are read; entries past
+  that are not reported one by one.
+- The gloss gets the same punctuation stripping as forms, so "¿perro?" is "perro" in both.
+  Form rules run in the order bad_form, unrelated_form, stopword, and the cap (too_many_forms)
+  last, so ten junk forms can't push out a real one. A related form is one whose every word
+  (split on anything but letters, marks, digits and apostrophes) shares a candidate stem
+  with a word of the gloss; stems are candidate sets (irregular lemmas, the first matching
+  suffix rule's roots, variants), Spanish strips acute accents and diaereses for stems only.
+- `same_as_gloss` compares `native` with the gloss and the forms before the form rules run.
+- `missing_bases` lists every requested base (other than the word's own language) with no
+  surviving entry, including bases whose entry was rejected. `target_is_base` rejections of
+  a word that kept another entry are removed from `rejected`.
+- `result.code` is set only when no word survived and the intent isn't real chat.
+- Respell: answers are matched on (canonical lang, native key, base) in the order asked, so
+  homographs (замок castle and lock) asked twice get their answers in order. At most
+  `max_respell_items × max_base_langs` answer items are read. The stress agreement runs per
+  item. `known` (slice 49) isn't checked yet.
+- **Deviation**: the acceptance case "пожалу́йста with pa-ZHAL-sta lists stress_mismatch"
+  needs the careful form pa-ZHA-lu-sta in the answer, because section 4 compares only when
+  the syllables match the vowel letters (pa-ZHAL-sta has 3 for 4 vowels). The fixtures do so.
+- Structured words from clients (`POST /api/v1/words` with `word`, `/batch`, `PATCH`) go
+  through `Kotiko.WordSpec.validate_word/2` and `patch/1`, which replace `Kotiko.WordInput`:
+  the shape, lengths, canonical tag and script check, `target_is_base`, and D2, but not the
+  model rules (forms against the gloss, stopwords), since those words are the learner's own.
+- `Kotiko.Pronunciation` keeps its name and API for the refresh job and edits, now reading
+  `pronunciation.json` and the respelling keys.
+
+**Parity.** Each `spec/fixtures/normalize/*.json` (101: 95 lookups, 6 respell) has a
+hand-written `expect` with the keys a reader checks; `normalize-results.json` holds the
+full output of the JavaScript pipeline for every fixture (`node spec/tools/fixture-results.mjs`),
+and the Elixir test requires exactly that output, so the runtimes can't drift silently.
+63 pronunciation fixtures cover every D2 row for both keys. The stem tables have 116 pairs
+for `en` and for `es` and 32 for `_generic` (the test plan asks for 200 per Full base;
+more pairs can be added with the reviews). Data files are checked by a small JSON Schema
+checker in `test/helpers/json-schema.mjs` instead of `ajv` (no new test dependency).
+
+**Server.** `Kotiko.Spec` reads `spec/` at compile time (`@external_resource`), so the
+server needs the repository layout to build; a Docker build must use the repository root
+as its context (slice 40). `Kotiko.LLM` builds the prompt with `Kotiko.WordSpec.Prompt`
+and hands the raw content to `WordSpec.process/2`; its retries, timeouts and model order
+are unchanged (slice 10). `extract_json/1`, `normalize/1` and the placeholder prompt are
+gone. `Kotiko.Lookup` no longer caps or shares fields itself. `POST /api/v1/words` (text)
+now also returns `dropped_forms`, `missing_bases` and, when nothing survived, `code`
+(slice 25's `no_word_found`, `bad_lookup_result`, `rejected_same_as_gloss`), still with
+status 200; the add path never returns `reply`. The bot sends a one-line reason per refused
+word ("spasibo: that isn't written in the language's own script"; slice 25 owns wording).
+`LLM.respell/1` returns the items checked by `process_respell/2`.
+
+**Extension.** `extension/spec/` is the synced copy (`spec.js` sets `KOTIKO_SPEC`);
+`lib/lang.js` is loaded by the background today; `lib/wordspec.js` is used by the tests and
+the eval runner until slice 11 makes lookups local.
+
+**Evaluation.** `golden.jsonl` has 133 cases (29 core; 84 with base en, 41 es, 6 ja, 6
+fr; 55 pronunciation cases, 28 of them respell, including замок for en and es and one
+batch of 20). The runner records answers keyed by case, model and a hash of the exact
+system and user text. No live model was called while building this slice: the committed
+recordings are hand-written references (`reference/hand-written`, which passes every case,
+and `reference/old-prompt-shape`, the same words in the 0.2 prompt's shape, which scores
+65.5% on core), and `RESULTS.md` is their replay. The first real numbers come from the
+maintainer's run:
+
+```
+OPENROUTER_API_KEY="$(sed -n "s/^LLM_API_KEY=//p" server/.env | tr -d "'\"")" \
+  node spec/eval/run-eval.mjs --models apodex/apodex-1.1-mini:free,google/gemma-4-31b-it:free \
+  --set core --budget 40 --rpm 15
+```
+
+It reads the free requests left from `GET /api/v1/key` first and refuses to start if this
+run's requests are more than that; with `--budget 40` it sends at most 40 requests (core
+cases first, about 3 minutes at 15 a minute), and the same command the next day resumes
+with the remaining 18 of the 58 the core set needs for two models (`--set all`: 266).
+Then `node spec/eval/run-eval.mjs --replay --set all` rewrites `RESULTS.md`; commit it
+with `spec/eval/recorded/`. A `workflow_dispatch` workflow (`.github/workflows/eval.yml`)
+does the same with the `OPENROUTER_API_KEY` secret of an `eval` environment. If
+OpenRouter's `/key` doesn't report `free_model_daily_requests`, the runner says so and
+only `--budget` limits the run.
+
+**CI.** A `spec` job runs `sync-extension.mjs --check`, `gen-lang-data.mjs --check`,
+`fixture-results.mjs --check`, `run-eval.mjs --replay --set all --check`, the three Node
+test files and `mix test --only spec`; the other jobs run the same tests in full.
+
+**Left for slice 10.** Which models to call and in what order (`spec/models.json` from
+the RESULTS numbers), retries, deadlines, quota tracking and the lookup cache; turning
+`lookup_failed`'s message matching into structured errors; a follow-up call for
+`missing_bases` if the eval shows free models skip bases (open question 6); the respell
+budget (still two models and 45 s each); `response_format: json_schema` where it helps.
+
 ## Open questions
 
 1. **Stopwords: reject or allow with a warning?** Recommendation: reject unless the user

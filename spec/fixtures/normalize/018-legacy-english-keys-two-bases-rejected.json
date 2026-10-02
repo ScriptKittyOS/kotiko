@@ -1,0 +1,27 @@
+{
+ "name": "legacy-english-keys-two-bases-rejected",
+ "input": {
+  "text": "da",
+  "mode": "add",
+  "base_langs": [
+   "es",
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"lang\":\"ru\",\"native\":\"да\",\"english\":\"yes\",\"english_forms\":[\"yes\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [
+   {
+    "native": "да",
+    "gloss": null,
+    "base_lang": null,
+    "reason": "missing_field"
+   }
+  ],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [],
+  "code": "bad_lookup_result"
+ }
+}

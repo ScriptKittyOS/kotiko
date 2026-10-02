@@ -1,0 +1,23 @@
+{
+ "name": "legacy-klingon-tag-accepted",
+ "input": {
+  "text": "qapla",
+  "mode": "auto",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"lookup\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"i-klingon\",\"native\":\"Qapla'\",\"base_lang\":\"en\",\"gloss\":\"success\",\"forms\":[\"success\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "lang": "tlh",
+    "native": "Qapla'"
+   }
+  ]
+ }
+}

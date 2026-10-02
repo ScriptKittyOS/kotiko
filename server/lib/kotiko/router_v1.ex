@@ -10,15 +10,24 @@ defmodule Kotiko.RouterV1 do
   """
   use Plug.Router
   require Logger
-  alias Kotiko.{AddRequests, Lookup, PronunciationRefresh, Text, UUID7, Word, WordInput, Words}
+
+  alias Kotiko.{
+    AddRequests,
+    Lang,
+    Lookup,
+    PronunciationRefresh,
+    Spec,
+    UUID7,
+    Word,
+    WordSpec,
+    Words
+  }
 
   plug :match
   plug :dispatch
 
   @max_limit 20_000
   @max_batch 500
-  @max_bases 4
-  @max_input 200
 
   # ── reads ────────────────────────────────────────────────────────────
 
@@ -26,8 +35,8 @@ defmodule Kotiko.RouterV1 do
     conn = fetch_query_params(conn)
     q = conn.query_params
 
-    with {:ok, langs} <- tags(q["lang"], &Word.normalize_lang/1, "lang"),
-         {:ok, bases} <- tags(q["base"], &Word.normalize_base/1, "base"),
+    with {:ok, langs} <- tags(q["lang"], &canonical/1, "lang"),
+         {:ok, bases} <- tags(q["base"], &Lang.base_tag/1, "base"),
          {:ok, statuses} <- statuses(q["status"]),
          {:ok, limit} <- limit(q["limit"]) do
       cursor = Words.last_seq()
@@ -100,9 +109,7 @@ defmodule Kotiko.RouterV1 do
   end
 
   defp add_text(conn, body, crid) do
-    text = Text.clean(body["text"])
-
-    with {:ok, text} <- input(text),
+    with {:ok, text} <- WordSpec.prepare_input(body["text"]),
          {:ok, bases} <- base_langs(body["base_langs"]),
          {:ok, hint} <- hint_lang(body["hint_lang"]) do
       opts = [add: true, base_langs: bases, hint_lang: hint, origin: "add"]
@@ -113,10 +120,10 @@ defmodule Kotiko.RouterV1 do
         AddRequests.once(crid, fn -> lookup_and_save(text, opts, crid) end) |> respond(conn)
       end
     else
-      {:error, :empty} ->
+      {:error, :empty_input} ->
         error(conn, 400, "empty_input", "Type a word to add.")
 
-      {:error, :too_long} ->
+      {:error, :input_too_long} ->
         error(conn, 400, "input_too_long", "That's a lot of text for one word.")
 
       {:error, field} ->
@@ -134,11 +141,8 @@ defmodule Kotiko.RouterV1 do
         json(
           conn,
           200,
-          %{
-            candidates: candidates,
-            rejected: found.rejected,
-            dropped_fields: found.dropped_fields
-          }
+          %{candidates: candidates}
+          |> Map.merge(outcome(found))
           |> put_reply(found.reply)
         )
 
@@ -153,11 +157,8 @@ defmodule Kotiko.RouterV1 do
         {:ok, json} =
           Lookup.save(found.words, [explicit: true], fn results ->
             body =
-              %{
-                results: Enum.flat_map(results, &result_json/1),
-                rejected: found.rejected,
-                dropped_fields: found.dropped_fields
-              }
+              %{results: Enum.flat_map(results, &result_json/1)}
+              |> Map.merge(outcome(found))
               |> put_reply(found.reply)
               |> Jason.encode!()
 
@@ -172,8 +173,21 @@ defmodule Kotiko.RouterV1 do
     end
   end
 
+  # What the pipeline found besides the words (slice 09 section 4): rejections with
+  # reasons, dropped forms and fields, bases the model skipped, and slice 25's code when
+  # no word survived.
+  defp outcome(found) do
+    %{
+      rejected: found.rejected,
+      dropped_forms: found.dropped_forms,
+      dropped_fields: found.dropped_fields,
+      missing_bases: found.missing_bases
+    }
+    |> then(&if(found.code, do: Map.put(&1, :code, found.code), else: &1))
+  end
+
   defp structured(word, default_origin) when is_map(word),
-    do: WordInput.validate(word, origin: default_origin, status: "active")
+    do: WordSpec.validate_word(word, origin: default_origin, status: "active")
 
   defp structured(_word, _origin), do: {:error, :not_an_object, %{}}
 
@@ -226,8 +240,8 @@ defmodule Kotiko.RouterV1 do
   defp candidate(attrs) do
     attrs
     |> Map.take(~w(lang native base_lang sense romanization native_vocalized gloss forms
-                   pronunciation pronunciation_careful pronunciation_source note language)a)
-    |> Map.merge(%{status: "active", origin: attrs.origin})
+                   pronunciation pronunciation_careful pronunciation_source note)a)
+    |> Map.merge(%{status: "active", origin: attrs.origin, language: Lang.endonym(attrs.lang)})
   end
 
   defp put_reply(body, nil), do: body
@@ -255,7 +269,7 @@ defmodule Kotiko.RouterV1 do
   patch "/words/:id" do
     with true <- UUID7.valid?(id) || :gone,
          {:ok, expected} <- if_updated_at(conn),
-         {:ok, patch} <- WordInput.patch(conn.body_params) do
+         {:ok, patch} <- WordSpec.patch(conn.body_params) do
       case Words.update(id, patch, if_updated_at: expected) do
         {:ok, w} -> json(conn, 200, %{word: Word.to_api(w)})
         {:error, e} -> write_error(conn, e)
@@ -371,15 +385,19 @@ defmodule Kotiko.RouterV1 do
     end
   end
 
-  defp input(nil), do: {:error, :empty}
-
-  defp input(text) do
-    if Text.length(text) > @max_input, do: {:error, :too_long}, else: {:ok, text}
+  defp canonical(tag) do
+    case Lang.canonical(tag) do
+      {:ok, t} -> t
+      _ -> nil
+    end
   end
 
-  defp base_langs(list) when is_list(list) and list != [] and length(list) <= @max_bases do
-    bases = Enum.map(list, &Word.normalize_base/1)
-    if Enum.all?(bases, &is_binary/1), do: {:ok, Enum.uniq(bases)}, else: {:error, "base_langs"}
+  defp base_langs(list) when is_list(list) and list != [] do
+    bases = Enum.map(list, &Lang.base_tag/1)
+
+    if length(list) <= Spec.rule(:max_base_langs) and Enum.all?(bases, &is_binary/1),
+      do: {:ok, Enum.uniq(bases)},
+      else: {:error, "base_langs"}
   end
 
   defp base_langs(_), do: {:error, "base_langs"}
@@ -387,8 +405,10 @@ defmodule Kotiko.RouterV1 do
   defp hint_lang(nil), do: {:ok, nil}
 
   defp hint_lang(tag) do
-    lang = Word.normalize_lang(tag)
-    if Word.lang?(lang), do: {:ok, lang}, else: {:error, "hint_lang"}
+    case Lang.canonical(tag) do
+      {:ok, lang} -> {:ok, lang}
+      _ -> {:error, "hint_lang"}
+    end
   end
 
   # From the body's if_updated_at or an If-Match: "<updated_at>" header.

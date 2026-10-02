@@ -1,0 +1,22 @@
+{
+ "name": "en-careful-invalid",
+ "word": {
+  "lang": "ru",
+  "native": "пожалуйста",
+  "base_lang": "en",
+  "pronunciation": "pa-ZHAL-sta",
+  "pronunciation_careful": "PA-ZHA-lu-sta"
+ },
+ "expect": {
+  "word": {
+   "pronunciation": "pa-ZHAL-sta",
+   "pronunciation_careful": null
+  },
+  "dropped_fields": [
+   {
+    "field": "pronunciation_careful",
+    "reason": "bad_pronunciation"
+   }
+  ]
+ }
+}

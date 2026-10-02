@@ -1,0 +1,24 @@
+{
+ "name": "add-mode-never-returns-reply",
+ "input": {
+  "text": "da",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"chat\",\"words\":[{\"language\":null,\"romanization\":\"da\",\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"да\",\"base_lang\":\"en\",\"gloss\":\"yes\",\"forms\":[\"yes\"],\"pronunciation\":\"da\"}],\"reply\":\"Here is da.\"}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "intent": "add",
+  "reply": null,
+  "words": [
+   {
+    "native": "да"
+   }
+  ]
+ }
+}

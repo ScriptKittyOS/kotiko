@@ -1,0 +1,16 @@
+{
+ "name": "learner-source-kept",
+ "word": {
+  "lang": "ru",
+  "native": "пожалуйста",
+  "base_lang": "en",
+  "pronunciation": "pa-ZHAL-sta",
+  "pronunciation_source": "user"
+ },
+ "expect": {
+  "word": {
+   "pronunciation_source": "user"
+  },
+  "dropped_fields": []
+ }
+}

@@ -1,0 +1,34 @@
+{
+ "name": "english-spelling-variants",
+ "input": {
+  "text": "tsvet",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"цвет\",\"base_lang\":\"en\",\"gloss\":\"colour\",\"forms\":[\"colour\",\"color\",\"colours\",\"colors\",\"hue\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [
+   {
+    "native": "цвет",
+    "base_lang": "en",
+    "form": "hue",
+    "reason": "unrelated_form"
+   }
+  ],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "forms": [
+     "colour",
+     "color",
+     "colours",
+     "colors"
+    ]
+   }
+  ]
+ }
+}

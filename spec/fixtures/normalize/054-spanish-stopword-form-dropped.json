@@ -1,0 +1,32 @@
+{
+ "name": "spanish-stopword-form-dropped",
+ "input": {
+  "text": "perro",
+  "mode": "add",
+  "base_langs": [
+   "es"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"de\",\"native\":\"Hund\",\"base_lang\":\"es\",\"gloss\":\"el perro\",\"forms\":[\"el perro\",\"el\",\"perros\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [
+   {
+    "native": "Hund",
+    "base_lang": "es",
+    "form": "el",
+    "reason": "stopword"
+   }
+  ],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "forms": [
+     "el perro",
+     "perros"
+    ]
+   }
+  ]
+ }
+}

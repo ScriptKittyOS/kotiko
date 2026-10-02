@@ -1,0 +1,21 @@
+{
+ "name": "add-mode-chat-without-words-is-no-word-found",
+ "input": {
+  "text": "hmm",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"chat\",\"words\":[],\"reply\":\"Hello! How can I help?\"}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "intent": "add",
+  "words": [],
+  "reply": null,
+  "code": "no_word_found"
+ }
+}

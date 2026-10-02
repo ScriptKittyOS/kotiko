@@ -3,264 +3,276 @@
 
 defmodule Kotiko.Pronunciation do
   @moduledoc """
-  Checks the pronunciation fields of a word (slice 07 section 7): `pronunciation`,
-  `pronunciation_careful` and `native_vocalized`. A failing field never rejects the word:
-  it is set to nil and listed in `dropped_fields`.
+  The target-side and pronunciation fields of a word (slice 09 section 4, D2; slice 07
+  section 7): `romanization`, `pronunciation`, `pronunciation_careful` and
+  `native_vocalized`. A failing field never rejects the word: it is set to nil and listed
+  in `dropped_fields`.
 
-  Minimal stand-in for slice 09: the facts per target language and the respelling key
-  alphabets below are what slice 09 moves to `spec/pronunciation.json` and
-  `spec/lang/<base>/respelling.json`, with its full validator (`Kotiko.WordSpec`).
+  The facts per target are `spec/pronunciation.json`; the respelling keys are
+  `spec/lang/<base>/respelling.json` (only bases with a reviewed key get a
+  pronunciation). `extension/lib/wordspec.js` implements the same rules.
   """
-  alias Kotiko.Text
+  alias Kotiko.{Lang, Spec, Text, WordSpec}
 
-  @max_chars 96
+  @pron Spec.pronunciation()
+  @targets @pron["targets"]
+  @langs Spec.languages()["languages"]
   @acute "́"
 
-  # Targets with word stress, written with one capital syllable per word.
-  @lexical ~w(ru uk be bg sr hr bs sl mk pl cs sk es en de it pt nl el ro ca gl ar he fa tr
-              sv no nb da is ka hy lt lv sq eu)
-  # Targets without word stress: all lowercase.
-  @no_stress ~w(ja ko fr vi zh yue)
-  @tones %{"zh" => 1..4, "yue" => 1..6}
-  # Marks that `native_vocalized` may add to `native`.
-  @marks %{
-    "ru" => ~r/\x{0301}/u,
-    "uk" => ~r/\x{0301}/u,
-    "be" => ~r/\x{0301}/u,
-    "ar" => ~r/[\x{064B}-\x{065F}\x{0670}]/u,
-    "he" => ~r/[\x{0591}-\x{05C7}]/u
-  }
-  @stress_marked ~w(ru uk be)
-  # Bases with a respelling key and its letters (slice 07 section 7: en and es at launch).
-  @alphabets %{"en" => "a-zA-Z", "es" => "a-zA-ZñÑ"}
-
-  @doc "Base languages that get a `pronunciation` (those with a respelling key)."
-  def bases_with_key, do: Map.keys(@alphabets)
-
-  @doc "True when records for `base` get a pronunciation."
-  def key?(base), do: Map.has_key?(@alphabets, base_primary(base))
-
-  @doc """
-  Checks the three fields of `word` (a map with `lang`, `native`, `base_lang` and the
-  fields) and returns `{word, dropped}`: the word with failing fields set to nil and the
-  list of `%{field, reason}` that were dropped. `pronunciation_source` follows
-  `pronunciation`: kept (default `"model"`) when it survives, else nil.
-  """
-  def check(word) do
-    {word, []}
-    |> check_pronunciation()
-    |> check_vocalized()
-    |> stress_agreement()
+  @doc "Base folders that have a respelling key, so their records get a `pronunciation`."
+  def bases_with_key do
+    for {folder, files} <- Spec.lang_folders(), Map.has_key?(files, "respelling"), do: folder
   end
 
-  defp check_pronunciation({word, dropped}) do
-    target = word[:lang]
-    base = word[:base_lang]
+  @doc "True when records for `base` get a pronunciation."
+  def key?(base), do: not is_nil(WordSpec.lang_data(base).respelling)
+
+  @doc """
+  Checks the fields of `word` (a map with `lang`, `native`, `base_lang` and the fields)
+  and the stress agreement of `native_vocalized`. Returns `{word, dropped}`: the word with
+  failing fields set to nil and the list of `%{field, reason}` that were dropped.
+  `pronunciation_source` follows `pronunciation`: kept when it survives ("model" unless it
+  says "user"), else nil.
+  """
+  def check(word) do
+    facts = facts(word[:lang])
+    {word, dropped} = check_fields(word, facts)
+
+    if stress_agrees?(word, facts) do
+      {word, dropped}
+    else
+      {Map.put(word, :native_vocalized, nil),
+       dropped ++ [%{field: "native_vocalized", reason: "stress_mismatch"}]}
+    end
+  end
+
+  @doc """
+  The facts for a target (slice 09 section 1): by the full tag, then by its language when
+  the tag names no script; a target with no entry gets no romanization scheme when its
+  script is Latin and "unspecified" otherwise, and "unknown" stress.
+  """
+  def facts(tag) do
+    {lang, script} =
+      case Lang.parse(tag || "") do
+        %{lang: l, script: s} -> {l, s}
+        _ -> {nil, nil}
+      end
+
+    entry = @targets[tag] || if(is_nil(script) and lang, do: @targets[lang])
+
+    defaults = %{
+      "stress_marked" => false,
+      "neutral_tone" => false,
+      "vowel_letters" => "",
+      "vocalization_marks" => [],
+      "tones" => nil
+    }
+
+    if entry do
+      Map.merge(defaults, entry)
+    else
+      script = script || get_in(@langs, [lang || "", "script"])
+
+      Map.merge(defaults, %{
+        "romanization" => if(script == "Latn", do: nil, else: "unspecified"),
+        "stress" => "unknown"
+      })
+    end
+  end
+
+  @doc """
+  D2 without the stress agreement (which runs after a word's entries share their
+  target-side fields): returns `{word, dropped}`.
+  """
+  def check_fields(word, facts) do
+    key = WordSpec.lang_data(word[:base_lang] || "").respelling
+
+    {word, []}
+    |> romanization(facts)
+    |> pronunciation(facts, key)
+    |> vocalized(facts)
+  end
+
+  defp romanization({word, dropped}, %{"romanization" => nil}),
+    do: {Map.put(word, :romanization, nil), dropped}
+
+  defp romanization({word, dropped}, _facts) do
+    r = word[:romanization]
 
     cond do
-      not key?(base) ->
-        {clear_pronunciation(word), dropped}
+      is_nil(r) ->
+        {word, dropped}
 
-      is_nil(word[:pronunciation]) ->
-        {clear_pronunciation(word), dropped}
+      not Regex.match?(~r/^[\p{Latin}\p{M}0-9'’ʻʼ .·-]+$/u, r) ->
+        {Map.put(word, :romanization, nil), dropped ++ [drop("romanization", "bad_romanization")]}
 
-      not valid?(word[:pronunciation], target, base) ->
-        {clear_pronunciation(word),
-         dropped ++ [%{field: "pronunciation", reason: "bad_pronunciation"}]}
+      Text.length(r) > Spec.rule(:max_romanization_chars) ->
+        {Map.put(word, :romanization, nil), dropped ++ [drop("romanization", "too_long")]}
 
       true ->
-        careful = word[:pronunciation_careful]
+        {word, dropped}
+    end
+  end
 
-        {careful, dropped} =
-          cond do
-            is_nil(careful) or careful == word[:pronunciation] ->
-              {nil, dropped}
+  defp pronunciation({word, dropped}, facts, key) do
+    p = word[:pronunciation]
 
-            valid?(careful, target, base) ->
-              {careful, dropped}
+    cond do
+      is_nil(key) or is_nil(p) ->
+        {clear(word), dropped}
 
-            true ->
-              {nil, dropped ++ [%{field: "pronunciation_careful", reason: "bad_pronunciation"}]}
-          end
+      not valid?(p, facts, key) ->
+        {clear(word), dropped ++ [drop("pronunciation", "bad_pronunciation")]}
 
-        source =
-          if word[:pronunciation_source] in ["model", "user"],
-            do: word[:pronunciation_source],
-            else: "model"
+      true ->
+        {careful, dropped} = careful(word[:pronunciation_careful], p, facts, key, dropped)
+        source = if word[:pronunciation_source] == "user", do: "user", else: "model"
 
         {Map.merge(word, %{pronunciation_careful: careful, pronunciation_source: source}),
          dropped}
     end
   end
 
-  defp clear_pronunciation(word) do
-    Map.merge(word, %{pronunciation: nil, pronunciation_careful: nil, pronunciation_source: nil})
+  defp careful(nil, _p, _facts, _key, dropped), do: {nil, dropped}
+  defp careful(p, p, _facts, _key, dropped), do: {nil, dropped}
+
+  defp careful(c, _p, facts, key, dropped) do
+    if valid?(c, facts, key),
+      do: {c, dropped},
+      else: {nil, dropped ++ [drop("pronunciation_careful", "bad_pronunciation")]}
   end
 
-  defp check_vocalized({word, dropped}) do
+  defp clear(word),
+    do:
+      Map.merge(word, %{pronunciation: nil, pronunciation_careful: nil, pronunciation_source: nil})
+
+  defp vocalized({word, dropped}, facts) do
     v = word[:native_vocalized]
-    lang = word[:lang]
 
     cond do
       is_nil(v) ->
         {word, dropped}
 
-      not Map.has_key?(@marks, target_primary(lang)) ->
+      facts["vocalization_marks"] == [] ->
         {Map.put(word, :native_vocalized, nil), dropped}
 
-      vocalized_ok?(v, word[:native], target_primary(lang)) ->
+      vocalized_ok?(v, word[:native] || "", facts) ->
         {word, dropped}
 
       true ->
         {Map.put(word, :native_vocalized, nil),
-         dropped ++ [%{field: "native_vocalized", reason: "bad_vocalized"}]}
+         dropped ++ [drop("native_vocalized", "bad_vocalized")]}
     end
   end
 
-  defp vocalized_ok?(v, native, lang) do
-    stripped = Regex.replace(@marks[lang], v, "")
+  defp drop(field, reason), do: %{field: field, reason: reason}
 
-    stripped == native and
-      (lang not in @stress_marked or
+  defp vocalized_ok?(v, native, facts) do
+    stripped = Regex.replace(mark_regex(facts["vocalization_marks"]), v, "")
+
+    stripped == :unicode.characters_to_nfc_binary(native) and
+      (not facts["stress_marked"] or
          Enum.all?(String.split(v, " "), fn w ->
            count(w, @acute) <= 1 and not String.contains?(w, ["ё" <> @acute, "Ё" <> @acute])
          end))
   end
 
-  # ru, uk, be: the vowel carrying U+0301 must be the capitalised syllable of the careful
-  # form (or the everyday one), when that form has one syllable per written vowel.
-  defp stress_agreement({word, dropped}) do
-    lang = target_primary(word[:lang])
+  defp mark_regex(marks) do
+    class =
+      Enum.map_join(marks, fn m ->
+        m |> String.split("-") |> Enum.map_join("-", &"\\x{#{String.replace(&1, "U+", "")}}")
+      end)
+
+    Regex.compile!("[#{class}]", "u")
+  end
+
+  @doc """
+  ru, uk, be: the capital syllable of the careful form (or the everyday one) and the vowel
+  carrying U+0301 in `native_vocalized` must be the same, counted in vowel letters, when
+  the form has one syllable per vowel letter.
+  """
+  def stress_agrees?(word, facts) do
     v = word[:native_vocalized]
     form = word[:pronunciation_careful] || word[:pronunciation]
 
-    if (lang in @stress_marked and v) && form && not agrees?(v, form) do
-      {Map.put(word, :native_vocalized, nil),
-       dropped ++ [%{field: "native_vocalized", reason: "stress_mismatch"}]}
+    if facts["stress_marked"] && v && form do
+      v_words = String.split(v, " ")
+      f_words = String.split(form, " ")
+      vowels = String.codepoints(facts["vowel_letters"])
+
+      length(v_words) != length(f_words) or
+        v_words |> Enum.zip(f_words) |> Enum.all?(&word_agrees?(&1, vowels))
     else
-      {word, dropped}
+      true
     end
   end
 
-  defp agrees?(vocalized, form) do
-    words = String.split(vocalized, " ")
-    spoken = String.split(form, " ")
+  defp word_agrees?({w, f}, vowels) do
+    syllables = String.split(f, "-")
 
-    length(words) != length(spoken) or
-      Enum.zip(words, spoken)
-      |> Enum.all?(fn {w, s} ->
-        syllables = String.split(s, "-")
-        vowels = vowel_positions(w)
-
-        case {length(syllables) == length(vowels), Enum.find_index(syllables, &capital?/1),
-              stressed_vowel(w)} do
-          {false, _, _} -> true
-          {true, nil, nil} -> true
-          {true, cap, stressed} -> cap == stressed
-        end
+    {count, stressed} =
+      w
+      |> String.codepoints()
+      |> Enum.reduce({0, nil}, fn
+        @acute, {n, nil} -> {n, n - 1}
+        c, {n, s} -> {if(c in vowels, do: n + 1, else: n), s}
       end)
+
+    length(syllables) != count or Enum.find_index(syllables, &capital?/1) == stressed
   end
 
-  @vowels String.graphemes("аеёиоуыэюяіїєАЕЁИОУЫЭЮЯІЇЄ")
-
-  defp vowel_positions(word) do
-    word
-    |> String.replace(@acute, "")
-    |> String.graphemes()
-    |> Enum.filter(&(&1 in @vowels))
-  end
-
-  # Index, counted in vowel letters, of the vowel followed by U+0301.
-  defp stressed_vowel(word) do
-    word
-    |> String.codepoints()
-    |> Enum.reduce_while({-1, nil}, fn
-      @acute, {i, _} -> {:halt, {i, i}}
-      c, {i, found} -> {:cont, {if(c in @vowels, do: i + 1, else: i), found}}
-    end)
-    |> elem(1)
-  end
-
-  @doc "True when a pronunciation string follows section 7's format for this target and base."
-  def valid?(p, target, base) when is_binary(p) do
-    tones = Map.get(@tones, target_primary(target))
-    alphabet = Map.fetch!(@alphabets, base_primary(base))
-    digits = if tones, do: "0-9", else: ""
-    chars = Regex.compile!("^[#{alphabet}#{digits}' -]+$", "u")
-
-    Text.length(p) <= @max_chars and Regex.match?(chars, p) and
-      shape?(p, stress(target), tones)
+  @doc "True when a pronunciation follows the format for these target facts and this key."
+  def valid?(p, facts, key) when is_binary(p) do
+    Text.length(p) <= Spec.rule(:max_pronunciation_chars) and
+      Regex.match?(chars(key["alphabet"], facts["tones"]), p) and
+      not Regex.match?(~r/^[ -]|[ -]$|--| {2}| -|- /, p) and
+      Enum.all?(String.split(p, " "), &word_ok?(&1, facts))
   end
 
   def valid?(_, _, _), do: false
 
-  defp shape?(p, stress, tones) do
-    words = String.split(p, " ")
-
-    Enum.all?(words, fn w ->
-      syllables = String.split(w, "-")
-
-      Enum.all?(syllables, &syllable?(&1, tones)) and
-        stress_ok?(syllables, stress) and tones_ok?(syllables, tones)
-    end)
+  defp chars(alphabet, tones) do
+    letters = Regex.escape(String.downcase(alphabet) <> String.upcase(alphabet))
+    Regex.compile!("^[#{letters}#{if tones, do: "0-9"}' -]+$", "u")
   end
 
-  defp syllable?(s, tones) do
-    letters = String.replace(s, ~r/[0-9]+$/, "")
+  defp word_ok?(word, facts) do
+    syllables = String.split(word, "-")
+    parsed = Enum.map(syllables, &Regex.run(~r/^([^0-9]+)([0-9]?)$/u, &1))
 
-    letters != "" and Regex.match?(~r/[^']/u, letters) and not (letters =~ ~r/[0-9]/) and
+    Enum.all?(parsed, &syllable_ok?(&1, facts)) and
+      stress_ok?(Enum.count(parsed, fn [_, l, _] -> capital?(l) end), length(syllables), facts) and
+      tones_ok?(parsed, facts)
+  end
+
+  defp syllable_ok?(nil, _facts), do: false
+
+  defp syllable_ok?([_, letters, digit], facts) do
+    Regex.match?(~r/[^']/, letters) and
       (String.upcase(letters) == letters or String.downcase(letters) == letters) and
-      digit_ok?(s, tones)
+      digit_ok?(digit, facts)
   end
 
-  defp digit_ok?(s, nil), do: not (s =~ ~r/[0-9]/)
+  defp digit_ok?("", %{"tones" => nil}), do: true
+  defp digit_ok?("", facts), do: facts["neutral_tone"]
+  defp digit_ok?(_d, %{"tones" => nil}), do: false
+  defp digit_ok?(d, %{"tones" => [lo, hi]}), do: String.to_integer(d) in lo..hi
 
-  defp digit_ok?(s, range) do
-    case Regex.run(~r/([0-9]+)$/, s) do
-      nil -> true
-      [_, d] -> String.to_integer(d) in range
-    end
+  defp stress_ok?(caps, n, %{"stress" => "lexical"}), do: caps == if(n >= 2, do: 1, else: 0)
+  defp stress_ok?(caps, _n, %{"stress" => "none"}), do: caps == 0
+  defp stress_ok?(_caps, _n, _facts), do: true
+
+  defp tones_ok?(parsed, %{"tones" => [_, _], "neutral_tone" => true}) do
+    length(parsed) == 1 or Enum.any?(parsed, fn [_, _, d] -> d != "" end)
   end
 
-  defp capital?(s) do
+  defp tones_ok?(_parsed, _facts), do: true
+
+  @doc false
+  def capital?(s) do
     letters = String.replace(s, ~r/[^\p{L}]/u, "")
     letters != "" and String.upcase(letters) == letters and String.downcase(letters) != letters
   end
-
-  defp stress_ok?(syllables, :lexical) do
-    caps = Enum.count(syllables, &capital?/1)
-    if length(syllables) >= 2, do: caps == 1, else: caps == 0
-  end
-
-  defp stress_ok?(syllables, :none), do: not Enum.any?(syllables, &capital?/1)
-  defp stress_ok?(_syllables, :unknown), do: true
-
-  defp tones_ok?(_syllables, nil), do: true
-
-  defp tones_ok?(syllables, 1..6//1) do
-    Enum.all?(syllables, &(&1 =~ ~r/[0-9]$/))
-  end
-
-  defp tones_ok?(syllables, _mandarin) do
-    length(syllables) == 1 or Enum.any?(syllables, &(&1 =~ ~r/[0-9]$/))
-  end
-
-  defp stress(target) do
-    t = target_primary(target)
-
-    cond do
-      t in @lexical -> :lexical
-      t in @no_stress -> :none
-      true -> :unknown
-    end
-  end
-
-  defp target_primary(nil), do: nil
-  defp target_primary("yue" <> _), do: "yue"
-  defp target_primary(tag), do: tag |> String.split("-") |> hd()
-
-  defp base_primary(nil), do: nil
-  defp base_primary(tag), do: tag |> String.split("-") |> hd()
 
   defp count(s, sub), do: length(String.split(s, sub)) - 1
 end

@@ -1,0 +1,28 @@
+{
+ "name": "romanian-cedilla-base",
+ "input": {
+  "text": "наука",
+  "mode": "add",
+  "base_langs": [
+   "ro"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":\"Ca în ţară.\",\"lang\":\"ru\",\"native\":\"наука\",\"base_lang\":\"ro\",\"gloss\":\"ştiinţă\",\"forms\":[\"ştiinţă\",\"ştiinţe\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "base_lang": "ro",
+    "gloss": "știință",
+    "forms": [
+     "știință",
+     "științe"
+    ],
+    "note": "Ca în țară."
+   }
+  ]
+ }
+}

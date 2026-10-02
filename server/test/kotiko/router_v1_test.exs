@@ -154,14 +154,15 @@ defmodule Kotiko.RouterV1Test do
         }
       ])
 
+      # The en entry is dropped quietly: the word has an entry for another base (slice 09).
       assert {200,
               %{
                 "results" => [%{"word" => %{"lang" => "en", "base_lang" => "es"}}],
-                "rejected" => [rejected]
+                "rejected" => [],
+                "missing_bases" => []
               }} =
                add_text("dog", ["es", "en"])
 
-      assert rejected["reason"] == "target_is_base"
       assert Enum.all?(Repo.all(Word), &(&1.lang != &1.base_lang))
     end
 
@@ -171,7 +172,7 @@ defmodule Kotiko.RouterV1Test do
       {:ok, _} = Words.update(w["id"], %{note: "My mnemonic"})
 
       stub_answer([
-        Map.merge(@inu_en, %{"note" => nil, "romanization" => nil, "forms" => ["dog", "doggy"]})
+        Map.merge(@inu_en, %{"note" => nil, "romanization" => nil, "forms" => ["dog", "dog's"]})
       ])
 
       assert {200,
@@ -180,7 +181,7 @@ defmodule Kotiko.RouterV1Test do
 
       assert word["note"] == "My mnemonic"
       assert word["romanization"] == "inu"
-      assert Enum.map(word["forms"], & &1["text"]) == ["dog", "dogs", "doggy"]
+      assert Enum.map(word["forms"], & &1["text"]) == ["dog", "dogs", "dog's"]
       assert Enum.map(previous["forms"], & &1["text"]) == ["dog", "dogs"]
 
       assert {200, %{"results" => [%{"result" => "unchanged"} = r]}} = add_text("犬", ["en"])
@@ -211,12 +212,41 @@ defmodule Kotiko.RouterV1Test do
              } = dropped
     end
 
-    test "a chat answer saves nothing and passes the reply on" do
+    test "a chat answer saves nothing, returns no reply text and says no word was found" do
       LLMStub.stub(fn _, conn ->
         LLMStub.answer(conn, %{intent: "chat", words: [], reply: "Hi!"})
       end)
 
-      assert {200, %{"results" => [], "reply" => "Hi!"}} = add_text("hello", ["en"])
+      assert {200, %{"results" => [], "code" => "no_word_found"} = body} =
+               add_text("hello", ["en"])
+
+      refute Map.has_key?(body, "reply")
+    end
+
+    test "words the checks refuse are listed with their reason; dropped forms too" do
+      stub_answer([
+        %{
+          "lang" => "ru",
+          "native" => "spasibo",
+          "base_lang" => "en",
+          "gloss" => "thanks",
+          "forms" => ["thanks"]
+        },
+        %{
+          "lang" => "ru",
+          "native" => "как",
+          "base_lang" => "en",
+          "gloss" => "how",
+          "forms" => ["how", "what", "like"]
+        }
+      ])
+
+      assert {200, %{"results" => [%{"word" => w}]} = body} = add_text("kak", ["en"])
+      assert Enum.map(w["forms"], & &1["text"]) == ["how"]
+      assert [%{"native" => "spasibo", "reason" => "script_mismatch"}] = body["rejected"]
+
+      assert Enum.map(body["dropped_forms"], &{&1["form"], &1["reason"]}) ==
+               [{"what", "unrelated_form"}, {"like", "unrelated_form"}]
     end
 
     test "checks the input before any model call" do

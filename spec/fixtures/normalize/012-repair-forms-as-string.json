@@ -1,0 +1,27 @@
+{
+ "name": "repair-forms-as-string",
+ "input": {
+  "text": "sobaka",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"собака\",\"base_lang\":\"en\",\"gloss\":\"dog\",\"forms\":\"dog, dogs;\\ndog's\"}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "intent": "add",
+  "words": [
+   {
+    "forms": [
+     "dog",
+     "dogs",
+     "dog's"
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,337 @@
+{
+  "_comment": "Per target language (slice 07 section 7): the romanization scheme (null for Latin-script targets, \"unspecified\" until a contributor names one), the stress kind (lexical: one capital syllable per word of two or more syllables; none: all lowercase; a target with no entry is \"unknown\": either shape), the tone digit range or null, and the marks native_vocalized may add. Looked up by the full tag, then by the language when the tag names no script; a target with no entry gets no scheme when its script is Latin and \"unspecified\" otherwise. schemes holds the description the prompt carries for each scheme. Mandarin-style targets (neutral_tone: true) may leave the neutral syllable without a digit; others need a digit on every syllable. stress_marked targets put U+0301 in native_vocalized, checked against the capital syllable by counting vowel_letters.",
+  "schemes": {
+    "kotiko-bgn-pcgn-simple": "Kotiko's simplified BGN/PCGN: а a, б b, в v, г g, д d, е e (ye at the start of a word and after a vowel, ъ or ь), ё yo, ж zh, з z, и i, й y, к k, л l, м m, н n, о o, п p, р r, с s, т t, у u, ф f, х kh, ц ts, ч ch, ш sh, щ shch, ы y, э e, ю yu, я ya; ъ and ь dropped; no stress marks, dots or apostrophes (пожалуйста pozhaluysta)",
+    "ukrainian-national-2010": "the Ukrainian national transliteration of 2010 (дякую dyakuyu)",
+    "belarusian-national-2007": "the Belarusian national system of 2007 (дзякуй dziakuj)",
+    "bulgarian-streamlined-2009": "the Bulgarian Streamlined System of 2009 (благодаря blagodarya)",
+    "serbian-latin": "the Serbian Latin alphabet (хвала hvala)",
+    "pinyin-tone-marks": "Hanyu Pinyin with tone marks and dictionary tones (no tone sandhi), the syllables of one word written together (谢谢 xièxie, 你好 nǐ hǎo)",
+    "jyutping": "Jyutping with tone digits (多謝 do1 ze6)",
+    "hepburn-modified": "modified Hepburn of the kana reading, macrons for long vowels (ありがとう arigatō, 好き suki)",
+    "revised-romanization-2000": "the Revised Romanization of Korean (감사합니다 gamsahamnida)",
+    "ala-lc-simplified": "ALA-LC without dots and macrons, ʿayn and hamza as an apostrophe, the short vowels of Modern Standard Arabic written out (شكرا shukran, مرحبا marhaban)",
+    "hebrew-academy-2006": "the Academy of the Hebrew Language's simplified rules of 2006 (תודה toda)",
+    "elot-743": "ELOT 743 (ευχαριστώ efcharistó)",
+    "hunterian": "Hunterian (धन्यवाद dhanyavad)",
+    "rtgs": "the Royal Thai General System (ขอบคุณ khop khun)",
+    "georgian-national-2002": "the Georgian national system of 2002 (მადლობა madloba)"
+  },
+  "targets": {
+    "ar": {
+      "romanization": "ala-lc-simplified",
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": [
+        "U+064B-U+065F",
+        "U+0670"
+      ]
+    },
+    "be": {
+      "romanization": "belarusian-national-2007",
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": [
+        "U+0301"
+      ],
+      "stress_marked": true,
+      "vowel_letters": "аеёіоуыэюяАЕЁІОУЫЭЮЯ"
+    },
+    "bg": {
+      "romanization": "bulgarian-streamlined-2009",
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "bs": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "ca": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "cs": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "da": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "de": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "el": {
+      "romanization": "elot-743",
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "en": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "es": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "eu": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "fa": {
+      "romanization": "unspecified",
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "fr": {
+      "romanization": null,
+      "stress": "none",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "gl": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "he": {
+      "romanization": "hebrew-academy-2006",
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": [
+        "U+0591-U+05C7"
+      ]
+    },
+    "hi": {
+      "romanization": "hunterian",
+      "stress": "unknown",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "hr": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "hy": {
+      "romanization": "unspecified",
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "is": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "it": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "ja": {
+      "romanization": "hepburn-modified",
+      "stress": "none",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "ka": {
+      "romanization": "georgian-national-2002",
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "ko": {
+      "romanization": "revised-romanization-2000",
+      "stress": "none",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "lt": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "lv": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "mk": {
+      "romanization": "unspecified",
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "nl": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "no": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "pl": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "pt": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "ro": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "ru": {
+      "romanization": "kotiko-bgn-pcgn-simple",
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": [
+        "U+0301"
+      ],
+      "stress_marked": true,
+      "vowel_letters": "аеёиоуыэюяАЕЁИОУЫЭЮЯ"
+    },
+    "sk": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "sl": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "sq": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "sr": {
+      "romanization": "serbian-latin",
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "sr-Latn": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "sv": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "th": {
+      "romanization": "rtgs",
+      "stress": "unknown",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "tr": {
+      "romanization": null,
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "uk": {
+      "romanization": "ukrainian-national-2010",
+      "stress": "lexical",
+      "tones": null,
+      "vocalization_marks": [
+        "U+0301"
+      ],
+      "stress_marked": true,
+      "vowel_letters": "аеєиіїоуюяАЕЄИІЇОУЮЯ"
+    },
+    "vi": {
+      "romanization": null,
+      "stress": "none",
+      "tones": null,
+      "vocalization_marks": []
+    },
+    "yue": {
+      "romanization": "jyutping",
+      "stress": "none",
+      "tones": [
+        1,
+        6
+      ],
+      "vocalization_marks": [],
+      "neutral_tone": false
+    },
+    "yue-Hans": {
+      "romanization": "jyutping",
+      "stress": "none",
+      "tones": [
+        1,
+        6
+      ],
+      "vocalization_marks": [],
+      "neutral_tone": false
+    },
+    "zh": {
+      "romanization": "pinyin-tone-marks",
+      "stress": "none",
+      "tones": [
+        1,
+        4
+      ],
+      "vocalization_marks": [],
+      "neutral_tone": true
+    },
+    "zh-Hant": {
+      "romanization": "pinyin-tone-marks",
+      "stress": "none",
+      "tones": [
+        1,
+        4
+      ],
+      "vocalization_marks": [],
+      "neutral_tone": true
+    }
+  }
+}

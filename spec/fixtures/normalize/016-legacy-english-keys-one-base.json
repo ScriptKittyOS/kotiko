@@ -1,0 +1,26 @@
+{
+ "name": "legacy-english-keys-one-base",
+ "input": {
+  "text": "da",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"lang\":\"ru\",\"language\":\"Russian\",\"native\":\"да\",\"romanization\":\"da\",\"english\":\"yes\",\"english_forms\":[\"yes\"],\"note\":null}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "base_lang": "en",
+    "gloss": "yes",
+    "forms": [
+     "yes"
+    ]
+   }
+  ]
+ }
+}

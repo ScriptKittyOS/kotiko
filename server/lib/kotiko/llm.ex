@@ -7,167 +7,37 @@ defmodule Kotiko.LLM do
   chat API: OpenRouter by default, or Ollama, OpenAI, etc. via LLM_URL.
   """
   require Logger
-  alias Kotiko.Word
-
-  @system """
-  You are a vocabulary assistant for an English speaker learning many languages at once.
-  The user sends a short message, often a voice transcript with misspellings, and the foreign
-  word may be written phonetically in Latin letters (e.g. "what's spaseeba", "add shukran",
-  "add sobaka", "how do you say dog in japanese"). Work out which word(s) in which language
-  they are asking about or want to save. Any language is fine.
-
-  Respond with ONLY a JSON object, no prose, exactly this shape:
-  {
-    "intent": "add" | "lookup" | "chat",
-    "words": [
-      {
-        "lang": "BCP 47 code: ru, zh, ar, ja, es, ko, he, hi...",
-        "language": "English name of the language, e.g. Russian, Mandarin, Arabic",
-        "native": "the word in its own script, dictionary form, as it is normally written",
-        "romanization": "the word in its language's standard Latin-letter spelling, for typing and search: pinyin with tone marks, modified Hepburn, Revised Romanization, simplified BGN/PCGN for Russian (pozhaluysta); never stress or reduced vowels; null if the language uses Latin script",
-        "english": "the single most common English equivalent, lowercase",
-        "english_forms": ["every English form that should be swapped for this word on a web page, e.g. house, houses"],
-        "pronunciation": "how to say native, respelled for the learner (rules below)",
-        "pronunciation_careful": "the same said slowly and clearly; null when it is the same",
-        "native_vocalized": "Russian, Ukrainian, Belarusian: native with U+0301 after the stressed vowel; else null",
-        "note": "one short sentence: gender, aspect, or a tiny usage example"
-      }
-    ],
-    "reply": "only when intent is chat: a brief helpful answer"
-  }
-
-  Rules:
-  - intent is "add" when the user explicitly asks to add, save or remember a word;
-    "lookup" when they ask what something means or how to say something;
-    "chat" when no specific word is involved (then "words" is []).
-  - A message that is only a word or short phrase, in any script or spelled phonetically
-    ("как", "shukran", "xie xie"), is a lookup of that word, never chat.
-  - "How do you say X" means they want the foreign word for English X.
-  - If the user names a language ("in arabic", "japanese for cat"), always use it.
-  - lang is the bare language code. Add a script subtag only when the user asks for a
-    non-default script, e.g. zh-Hant for traditional Chinese.
-  - Dictionary form: nouns singular (nominative where the language has cases), verbs in the
-    infinitive or citation form. Use the language's normal capitalization.
-  - Write native the way it appears in everyday text: simplified characters for Mandarin,
-    no vowel marks (harakat, niqqud) for Arabic or Hebrew. How to say the word goes in
-    pronunciation, never in romanization.
-  - english_forms: only forms of the word's main English meaning, as whole words or short
-    phrases. Include common inflections (plural, -s, -ed, -ing) that keep the meaning.
-    Never add other words or loose synonyms: for "как" that is ["how"], not "what", "as", "like".
-  """
-
-  @add_box """
-
-  This message was typed into an "add a word" box, so it always names one or more words to
-  save: intent is "add", never "chat".
-  """
-
-  # ── Placeholder until slice 09 ──────────────────────────────────────
-  # Slice 09 owns the prompt (spec/prompt.json) and its validator. Until then these
-  # sections add slice 07's pronunciation fields and base languages to today's prompt,
-  # as briefly as possible.
-
-  @pronunciation """
-
-  Pronunciation rules. "pronunciation" tells the learner how to say native, using only
-  the letters of the key below. Join syllables with hyphens and words with spaces. For
-  languages with word stress, write the stressed syllable of each word of two or more
-  syllables in capitals, and only that one; one-syllable words are lowercase. Japanese,
-  Korean, French, Mandarin, Cantonese and Vietnamese: all lowercase. Mandarin and
-  Cantonese: a tone digit after each syllable as actually said (你好 nee2-how3), none for
-  the neutral tone. Write the everyday form a native speaker uses at a normal pace, with
-  the reductions every speaker makes (молоко ma-la-KO; пожалуйста pa-ZHAL-sta), never slang.
-  pronunciation_careful is the word said slowly and clearly (pa-ZHA-lu-sta); null when it
-  is the same, which is most words. No IPA symbols and no accent marks.
-  """
-
-  @keys %{
-    "en" =>
-      "Key for English readers: a as in father, e as in bed, ee as in see, i as in sit, " <>
-        "ih for Russian ы, o as in or, oh as in go, oo as in food, u as in put, uh as in " <>
-        "cup, ay as in day, ai as in aisle, ow as in cow, oy as in boy; g as in go, s as " <>
-        "in see, j as in jam, zh as in measure, kh as in loch, ch as in church, sh as in " <>
-        "ship, ts as in cats, th as in thin, dh as in this, y as in yes. Examples: " <>
-        "спасибо spa-SEE-ba, хорошо kha-ra-SHO, 谢谢 shyeh4-shyeh, gracias GRA-syas.",
-    "es" =>
-      "Key for Spanish readers, read as Spanish: vowels a e i o u, long vowels doubled; " <>
-        "k for [k]; j for [x] and [h], never h; sh for [ʃ]; zh for [ʒ]; z for a buzzing " <>
-        "s; ch, ts; ñ for a palatal n; y before a vowel, i after one; Russian soft " <>
-        "consonants with i before the vowel. Examples: хорошо ja-ra-SHO, пожалуйста " <>
-        "pa-ZHAL-sta, 谢谢 shie4-shie, house jaus."
-  }
-
-  @respell """
-  You write pronunciations for words a learner already saved. The user message is JSON:
-  "items", each with "lang", "native", "sense" and "base_langs". For each item and each of
-  its base languages, return one object {"lang", "native", "base_lang", "pronunciation",
-  "pronunciation_careful", "native_vocalized"}, copying lang and native exactly. Use sense
-  to choose between words spelled alike (замок "castle": ZA-mak; "lock": za-MOK).
-  native_vocalized: for Russian, Ukrainian and Belarusian, native with U+0301 after the
-  stressed vowel (пожа́луйста), never on ё; otherwise null. Return only {"items": [...]}.
-  """
-
-  defp pronunciation_prompt(bases) do
-    keys = bases |> Enum.map(&@keys[base_primary(&1)]) |> Enum.reject(&is_nil/1)
-    without = Enum.reject(bases, &@keys[base_primary(&1)])
-
-    @pronunciation <>
-      Enum.join(keys, "\n") <>
-      if(without == [],
-        do: "",
-        else: "\nFor entries whose base is #{Enum.join(without, ", ")}, pronunciation is null."
-      ) <> "\n"
-  end
-
-  defp bases_prompt(["en"]), do: ""
-
-  defp bases_prompt(bases) do
-    """
-
-    The learner reads: #{Enum.join(bases, ", ")}. Instead of "english" and "english_forms",
-    give one entry per word and per language in that list, each with "base_lang" (that
-    language's code), "gloss" (the meaning in that language, lowercase unless that
-    language always capitalises it) and "forms" (the forms in that language to swap on its
-    pages). Leave out a language when the word itself is in it. pronunciation is written
-    for a reader of the entry's base_lang; romanization and native_vocalized are the same
-    in every entry of a word.
-    """
-  end
-
-  defp hint_prompt(nil), do: ""
-
-  defp hint_prompt(lang),
-    do: "\nThe text was selected on a page in #{lang}; prefer that language.\n"
-
-  defp base_primary(tag), do: tag |> String.split("-") |> hd()
-
-  # ── end of the placeholder ───────────────────────────────────────────
+  alias Kotiko.{Lang, WordSpec}
+  alias Kotiko.WordSpec.Prompt
 
   @doc """
-  `recent` is a list of %{lang, language} the user has been adding lately; it settles
-  ambiguous input like "what's da" (Russian? Serbian?) without the user having to say.
+  Asks the model about `text` with the prompt of `spec/prompt.md` (slice 09) and checks
+  the answer with `Kotiko.WordSpec.process/2`. `recent` is a list of language tags the
+  learner has been adding lately; it settles ambiguous input like "what's da" (Russian?
+  Serbian?) without the learner having to say.
 
-  Tries each model in LLM_MODEL in turn, moving on when one is busy, fails, or (with
-  `add: true`, for the popup's add box) finds no word. Free models are often rate limited.
+  Options: `:base_langs` (default `["en"]`), `:add` (the add box), `:hint_lang`.
+
+  Tries each model in LLM_MODEL in turn, moving on when one is busy, fails, answers with
+  no JSON, or (with `add: true`) finds no word. Free models are often rate limited.
+  Returns `{:ok, result}` (`Kotiko.WordSpec.process/2`'s result) or `{:error, message}`.
   """
   def interpret(text, recent \\ [], opts \\ []) do
     add? = Keyword.get(opts, :add, false)
     bases = Keyword.get(opts, :base_langs) || ["en"]
+    mode = if add?, do: "add", else: "auto"
 
     system =
-      @system <>
-        bases_prompt(bases) <>
-        pronunciation_prompt(bases) <>
-        recent_hint(recent) <>
-        hint_prompt(opts[:hint_lang]) <> if(add?, do: @add_box, else: "")
+      Prompt.system(%{base_langs: bases, mode: mode, recent: recent, hint_lang: opts[:hint_lang]})
 
-    try_models(Application.fetch_env!(:kotiko, :llm_models), system, text, {add?, bases}, [])
+    input = %{text: text, mode: mode, base_langs: bases}
+    try_models(Application.fetch_env!(:kotiko, :llm_models), system, text, {add?, input}, [])
   end
 
   defp try_models([], _system, _text, _req, failures), do: {:error, give_up(failures)}
 
-  defp try_models([model | rest], system, text, {add?, bases} = req, failures) do
-    case ask(model, system, text) |> normalized(model, bases) do
+  defp try_models([model | rest], system, text, {add?, input} = req, failures) do
+    case ask(model, system, text) |> checked(model, input) do
       {:ok, %{words: []}} when add? and rest != [] ->
         log_lookup(
           "LLM #{model}: found no word, trying the next model",
@@ -212,36 +82,59 @@ defmodule Kotiko.LLM do
     end
   end
 
-  defp normalized({:ok, parsed}, model, bases) do
-    result = normalize(parsed, bases)
+  defp checked({:ok, content}, model, input) do
+    case WordSpec.process(input, content) do
+      {:ok, result} ->
+        if result.words == [] and result.rejected != [] do
+          reasons = result.rejected |> Enum.map(& &1.reason) |> Enum.uniq() |> Enum.join(", ")
+          Logger.warning("LLM #{model}: rejected the words it returned (#{reasons})")
+          Logger.debug("LLM #{model}: rejected #{inspect(result.rejected)}")
+        end
 
-    if result.words == [] and parsed["words"] not in [nil, []] do
-      Logger.warning("LLM #{model}: dropped the words it returned (fields missing)")
-      Logger.debug("LLM #{model}: dropped #{inspect(parsed["words"])}")
+        language_check(model, content)
+        {:ok, result}
+
+      {:error, :unparseable} ->
+        {:error, "unexpected answer: #{inspect(content, printable_limit: 300)}"}
     end
-
-    {:ok, result}
   end
 
-  defp normalized(other, _model, _bases), do: other
+  defp checked(other, _model, _input), do: other
+
+  # The model's "language" is a self-check only (slice 08 section 4): names come from the
+  # tag. A disagreement is logged for prompt tuning.
+  defp language_check(model, content) do
+    with %{"words" => words} when is_list(words) <- WordSpec.extract(content) do
+      for %{"lang" => lang, "language" => name} <- words,
+          is_binary(name),
+          {:ok, tag} <- [Lang.canonical(lang)],
+          String.downcase(Lang.name(tag, "en")) != String.downcase(name) do
+        Logger.debug(
+          "LLM #{model}: called #{tag} #{inspect(name)}; Kotiko calls it #{Lang.name(tag, "en")}"
+        )
+      end
+    end
+
+    :ok
+  end
 
   @doc """
   The one-time pronunciation refresh's request (slice 07 section 8): `items` are
   `%{lang, native, sense, base_langs}`, at most 20. Tries at most two models with a
   45-second timeout each (slice 10 replaces this with its bulk batch budget).
 
-  Returns `{:ok, [item]}` with the answer's raw items (string keys), or `{:error, reason}`
-  with `:rate_limited`, `:quota_exhausted` or `{:failed, message}`.
+  Returns `{:ok, [item]}` with the answer's items checked by
+  `Kotiko.WordSpec.process_respell/2` (a failing field is nil), or `{:error, reason}` with
+  `:rate_limited`, `:quota_exhausted` or `{:failed, message}`.
   """
   def respell(items) do
-    bases = items |> Enum.flat_map(& &1.base_langs) |> Enum.uniq()
-    system = @respell <> pronunciation_prompt(bases)
+    system = Prompt.respell_system(items)
     text = Jason.encode!(%{items: items})
     models = :kotiko |> Application.fetch_env!(:llm_models) |> Enum.take(2)
-    respell_models(models, system, text, [])
+    respell_models(models, items, system, text, [])
   end
 
-  defp respell_models([], _system, _text, failures) do
+  defp respell_models([], _items, _system, _text, failures) do
     reasons = Enum.map(failures, &elem(&1, 1))
 
     cond do
@@ -251,21 +144,24 @@ defmodule Kotiko.LLM do
     end
   end
 
-  defp respell_models([model | rest], system, text, failures) do
+  defp respell_models([model | rest], items, system, text, failures) do
     case ask(model, system, text, 45_000) do
-      {:ok, %{"items" => items}} when is_list(items) ->
-        log_lookup("LLM #{model}: respelled #{length(items)} item(s)", "")
-        {:ok, Enum.filter(items, &is_map/1)}
+      {:ok, content} ->
+        case WordSpec.process_respell(items, content) do
+          {:ok, %{items: answers}} ->
+            log_lookup("LLM #{model}: respelled #{length(answers)} item(s)", "")
+            {:ok, answers}
 
-      {:ok, _} ->
-        respell_models(rest, system, text, [{model, "no items"} | failures])
+          {:error, :unparseable} ->
+            respell_models(rest, items, system, text, [{model, "no items"} | failures])
+        end
 
       {:fatal, reason} ->
         {:error, {:failed, reason}}
 
       {:error, reason} ->
         Logger.warning("LLM #{model}: #{reason}")
-        respell_models(rest, system, text, [{model, reason} | failures])
+        respell_models(rest, items, system, text, [{model, reason} | failures])
     end
   end
 
@@ -295,9 +191,8 @@ defmodule Kotiko.LLM do
              [json: body, headers: headers, receive_timeout: timeout, retry: false] ++
                req_options()
            ),
-         content when is_binary(content) <- msg["content"],
-         {:ok, parsed} when is_map(parsed) <- Jason.decode(extract_json(content)) do
-      {:ok, parsed}
+         content when is_binary(content) <- msg["content"] do
+      {:ok, content}
     else
       {:ok, %Req.Response{status: 401}} when is_nil(key) ->
         {:fatal, "LLM_API_KEY isn't set. Add it to server/.env and restart the server"}
@@ -334,78 +229,4 @@ defmodule Kotiko.LLM do
 
   defp api_error(%{"error" => %{"message" => m}}), do: m
   defp api_error(b), do: inspect(b)
-
-  defp recent_hint([]), do: ""
-
-  defp recent_hint(recent) do
-    names = Enum.map_join(recent, ", ", &"#{&1.language || &1.lang} (#{&1.lang})")
-
-    "\nThe user has recently been adding words in: #{names}. If the language of a word is " <>
-      "ambiguous and the user didn't name one, prefer the first (most recent) language in that " <>
-      "list that fits.\n"
-  end
-
-  # Drop any <think>...</think> block and keep the outermost {...}.
-  defp extract_json(content) do
-    content = Regex.replace(~r/<think>.*?<\/think>/s, content, "")
-
-    case {:binary.match(content, "{"), :binary.matches(content, "}")} do
-      {{start, _}, [_ | _] = closes} ->
-        {last, _} = List.last(closes)
-        binary_part(content, start, last - start + 1)
-
-      _ ->
-        content
-    end
-  end
-
-  defp normalize(map, bases) do
-    words =
-      map
-      |> Map.get("words", [])
-      |> List.wrap()
-      |> Enum.filter(&is_map/1)
-      |> Enum.map(&normalize_word(&1, bases))
-      |> Enum.reject(&(blank?(&1.lang) or blank?(&1.native) or blank?(&1.gloss)))
-
-    intent = if map["intent"] in ["add", "lookup", "chat"], do: map["intent"], else: "lookup"
-    intent = if intent == "chat" and words != [], do: "lookup", else: intent
-
-    %{intent: intent, words: words, reply: clean(map["reply"])}
-  end
-
-  # Slice 07's fields. With one base, today's "english" and "english_forms" are read as
-  # gloss and forms, and a missing base_lang is that base (slice 09's legacy-key rule).
-  defp normalize_word(w, bases) do
-    single = match?([_], bases)
-    legacy = fn key, old -> if is_nil(w[key]) and single, do: w[old], else: w[key] end
-
-    forms =
-      legacy.("forms", "english_forms")
-      |> split_forms()
-      |> Enum.map(&clean/1)
-      |> Enum.reject(&blank?/1)
-
-    %{
-      lang: Word.normalize_lang(w["lang"]),
-      language: clean(w["language"]),
-      native: clean(w["native"]),
-      romanization: clean(w["romanization"]),
-      native_vocalized: clean(w["native_vocalized"]),
-      base_lang: clean(w["base_lang"]) || if(single, do: hd(bases)),
-      gloss: clean(legacy.("gloss", "english")),
-      forms: forms,
-      pronunciation: clean(w["pronunciation"]),
-      pronunciation_careful: clean(w["pronunciation_careful"]),
-      note: clean(w["note"])
-    }
-  end
-
-  defp split_forms(s) when is_binary(s), do: String.split(s, ~r/[,;、，；\n]/u)
-  defp split_forms(forms), do: List.wrap(forms)
-
-  defp clean(s) when is_binary(s), do: String.trim(s)
-  defp clean(_), do: nil
-
-  defp blank?(s), do: s in [nil, ""]
 end

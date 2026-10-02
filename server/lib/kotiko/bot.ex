@@ -13,7 +13,7 @@ defmodule Kotiko.Bot do
   """
   use GenServer
   require Logger
-  alias Kotiko.{Lookup, Telegram, Transcriber, Word, Words}
+  alias Kotiko.{Lang, Lookup, Telegram, Transcriber, Word, Words}
 
   @help """
   Kotiko: send me a word and it starts appearing on your web pages in place of the word you'd normally read there.
@@ -155,7 +155,7 @@ defmodule Kotiko.Bot do
             Telegram.send_message(chat, "No words yet. Send me one in any language.")
 
           langs ->
-            lines = Enum.map(langs, &"#{&1.language || &1.lang}  #{&1.count}")
+            lines = Enum.map(langs, &"#{Lang.name(&1.lang, "en")}  #{&1.count}")
             Telegram.send_message(chat, Enum.join(lines, "\n"))
         end
 
@@ -211,6 +211,11 @@ defmodule Kotiko.Bot do
 
     # Meanings in English until slice 41 stores the learner's base languages.
     case Lookup.interpret(text, base_langs: ["en"], origin: "telegram") do
+      {:ok, %{words: [], rejected: [_ | _] = rejected}} ->
+        # One line per word the checks refused (slice 25 owns the wording).
+        lines = Enum.map(rejected, &"• #{&1.native || "?"}: #{rejection(&1.reason)}")
+        Telegram.send_message(chat, "I couldn't use that:\n" <> Enum.join(lines, "\n"))
+
       {:ok, %{words: [], reply: reply}} ->
         Telegram.send_message(
           chat,
@@ -297,7 +302,17 @@ defmodule Kotiko.Bot do
     |> Enum.join("\n")
   end
 
-  defp language_name(%Word{language: l, lang: code}), do: l || code
+  # Names come from the tag, never from the model (slice 08). English until slice 41
+  # stores the learner's interface language.
+  defp language_name(%Word{lang: code}), do: Lang.name(code, "en")
+
+  defp rejection("script_mismatch"), do: "that isn't written in the language's own script"
+  defp rejection("same_as_gloss"), do: "that's already a word in a language you read"
+  defp rejection("target_is_base"), do: "that's already a word in a language you read"
+  defp rejection("invalid_lang"), do: "I couldn't tell which language that is"
+  defp rejection("sign_language_unsupported"), do: "sign languages can't be swapped into text"
+  defp rejection("too_many_words"), do: "only 5 words at a time"
+  defp rejection(_), do: "the answer didn't pass Kotiko's checks"
 
   defp btn(text, data), do: %{text: text, callback_data: data}
 end

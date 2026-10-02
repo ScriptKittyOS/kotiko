@@ -221,16 +221,15 @@ defmodule Kotiko.PronunciationRefresh do
 
   defp write_one(_w, nil), do: :failed
 
+  # The answer was checked by Kotiko.WordSpec.process_respell/2: a failing field is nil.
   defp write_one(w, answer) do
-    case Pronunciation.check(answer) do
-      {%{pronunciation: p} = checked, _dropped} when is_binary(p) ->
-        case Words.update(w.uuid, patch(w, checked), if_updated_at: w.updated_at) do
-          {:ok, _} -> :written
-          {:error, _} -> :stale
-        end
-
-      _ ->
-        :failed
+    if is_binary(answer.pronunciation) do
+      case Words.update(w.uuid, patch(w, answer), if_updated_at: w.updated_at) do
+        {:ok, _} -> :written
+        {:error, _} -> :stale
+      end
+    else
+      :failed
     end
   end
 
@@ -250,22 +249,8 @@ defmodule Kotiko.PronunciationRefresh do
   defp answer_for(w, answers) do
     key = Text.native_key(w.native)
 
-    Enum.find_value(answers, fn a ->
-      native = Text.clean(a["native"])
-
-      if is_binary(native) and Text.native_key(native) == key and
-           Word.normalize_lang(a["lang"]) == w.lang and
-           Word.normalize_base(a["base_lang"]) == w.base_lang do
-        %{
-          lang: w.lang,
-          native: w.native,
-          base_lang: w.base_lang,
-          pronunciation: Text.clean(a["pronunciation"]),
-          pronunciation_careful: Text.clean(a["pronunciation_careful"]),
-          native_vocalized: Text.clean(a["native_vocalized"]),
-          pronunciation_source: "model"
-        }
-      end
+    Enum.find(answers, fn a ->
+      a.lang == w.lang and a.base_lang == w.base_lang and Text.native_key(a.native) == key
     end)
   end
 

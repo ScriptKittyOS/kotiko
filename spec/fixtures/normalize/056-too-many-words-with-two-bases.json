@@ -1,0 +1,63 @@
+{
+ "name": "too-many-words-with-two-bases",
+ "input": {
+  "text": "six words",
+  "mode": "add",
+  "base_langs": [
+   "es",
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"кот\",\"base_lang\":\"es\",\"gloss\":\"gato\",\"forms\":[]},{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"дом\",\"base_lang\":\"es\",\"gloss\":\"casa\",\"forms\":[]},{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"мир\",\"base_lang\":\"es\",\"gloss\":\"paz\",\"forms\":[]},{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"сон\",\"base_lang\":\"es\",\"gloss\":\"sueño\",\"forms\":[]},{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"лес\",\"base_lang\":\"es\",\"gloss\":\"bosque\",\"forms\":[]},{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"сад\",\"base_lang\":\"es\",\"gloss\":\"jardín\",\"forms\":[]}],\"reply\":null}",
+ "expect": {
+  "rejected": [
+   {
+    "native": "сад",
+    "gloss": "jardín",
+    "base_lang": "es",
+    "reason": "too_many_words"
+   }
+  ],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [
+   {
+    "native": "кот",
+    "base_lang": "en"
+   },
+   {
+    "native": "дом",
+    "base_lang": "en"
+   },
+   {
+    "native": "мир",
+    "base_lang": "en"
+   },
+   {
+    "native": "сон",
+    "base_lang": "en"
+   },
+   {
+    "native": "лес",
+    "base_lang": "en"
+   }
+  ],
+  "words": [
+   {
+    "native": "кот"
+   },
+   {
+    "native": "дом"
+   },
+   {
+    "native": "мир"
+   },
+   {
+    "native": "сон"
+   },
+   {
+    "native": "лес"
+   }
+  ]
+ }
+}

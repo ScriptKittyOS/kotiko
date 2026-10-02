@@ -1,0 +1,17 @@
+{
+ "name": "es-careful-without-everyday",
+ "word": {
+  "lang": "ru",
+  "native": "пожалуйста",
+  "base_lang": "es",
+  "pronunciation_careful": "pa-ZHA-lu-sta"
+ },
+ "expect": {
+  "word": {
+   "pronunciation": null,
+   "pronunciation_careful": null,
+   "pronunciation_source": null
+  },
+  "dropped_fields": []
+ }
+}

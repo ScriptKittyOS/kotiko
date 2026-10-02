@@ -1,0 +1,28 @@
+{
+ "name": "two-bases-one-missing",
+ "input": {
+  "text": "犬",
+  "mode": "add",
+  "base_langs": [
+   "es",
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"lookup\",\"words\":[{\"language\":null,\"romanization\":\"inu\",\"native_vocalized\":null,\"note\":null,\"lang\":\"ja\",\"native\":\"犬\",\"base_lang\":\"es\",\"gloss\":\"perro\",\"forms\":[\"perro\",\"perros\"],\"pronunciation\":\"i-nu\"}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [
+   {
+    "native": "犬",
+    "base_lang": "en"
+   }
+  ],
+  "words": [
+   {
+    "base_lang": "es"
+   }
+  ]
+ }
+}

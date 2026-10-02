@@ -1,0 +1,394 @@
+{
+  "kind": "suffix",
+  "strip_accents": true,
+  "irregulars": {
+    "abierto": "abrir",
+    "caigo": "caer",
+    "cayó": "caer",
+    "conozco": "conocer",
+    "cuenta": "contar",
+    "cuento": "contar",
+    "da": "dar",
+    "das": "dar",
+    "di": "dar",
+    "dice": "decir",
+    "dices": "decir",
+    "dicho": "decir",
+    "digo": "decir",
+    "dije": "decir",
+    "dijo": "decir",
+    "dio": "dar",
+    "doy": "dar",
+    "duerme": "dormir",
+    "duermo": "dormir",
+    "durmió": "dormir",
+    "empieza": "empezar",
+    "empiezo": "empezar",
+    "encuentra": "encontrar",
+    "encuentro": "encontrar",
+    "era": "ser",
+    "erais": "ser",
+    "eran": "ser",
+    "eras": "ser",
+    "eres": "ser",
+    "es": "ser",
+    "escrito": "escribir",
+    "estaba": "estar",
+    "estamos": "estar",
+    "estoy": "estar",
+    "estuve": "estar",
+    "estuvo": "estar",
+    "está": "estar",
+    "están": "estar",
+    "estás": "estar",
+    "fue": "ir",
+    "fueron": "ir",
+    "fui": "ir",
+    "fuimos": "ir",
+    "fuiste": "ir",
+    "ha": "haber",
+    "hace": "hacer",
+    "haces": "hacer",
+    "hago": "hacer",
+    "han": "haber",
+    "has": "haber",
+    "hay": "haber",
+    "he": "haber",
+    "hecho": "hacer",
+    "hemos": "haber",
+    "hice": "hacer",
+    "hizo": "hacer",
+    "hube": "haber",
+    "hubo": "haber",
+    "iba": "ir",
+    "iban": "ir",
+    "ibas": "ir",
+    "ido": "ir",
+    "juega": "jugar",
+    "juego": "jugar",
+    "muere": "morir",
+    "muero": "morir",
+    "muerto": "morir",
+    "oigo": "oír",
+    "oye": "oír",
+    "pide": "pedir",
+    "pido": "pedir",
+    "piensa": "pensar",
+    "pienso": "pensar",
+    "pone": "poner",
+    "pones": "poner",
+    "pongo": "poner",
+    "pude": "poder",
+    "pudo": "poder",
+    "puede": "poder",
+    "pueden": "poder",
+    "puedes": "poder",
+    "puedo": "poder",
+    "puesto": "poner",
+    "puse": "poner",
+    "puso": "poner",
+    "quiere": "querer",
+    "quieren": "querer",
+    "quieres": "querer",
+    "quiero": "querer",
+    "quise": "querer",
+    "quiso": "querer",
+    "roto": "romper",
+    "sabe": "saber",
+    "sabes": "saber",
+    "salgo": "salir",
+    "sea": "ser",
+    "seas": "ser",
+    "sido": "ser",
+    "siendo": "ser",
+    "siente": "sentir",
+    "siento": "sentir",
+    "sintió": "sentir",
+    "sois": "ser",
+    "somos": "ser",
+    "son": "ser",
+    "soy": "ser",
+    "supe": "saber",
+    "supo": "saber",
+    "sé": "saber",
+    "tenemos": "tener",
+    "tengo": "tener",
+    "tiene": "tener",
+    "tienen": "tener",
+    "tienes": "tener",
+    "traigo": "traer",
+    "trajo": "traer",
+    "tuve": "tener",
+    "tuvo": "tener",
+    "va": "ir",
+    "vais": "ir",
+    "vamos": "ir",
+    "van": "ir",
+    "vas": "ir",
+    "vaya": "ir",
+    "ve": "ir",
+    "vengo": "venir",
+    "veo": "ver",
+    "ves": "ver",
+    "vi": "ver",
+    "viene": "venir",
+    "vienen": "venir",
+    "vienes": "venir",
+    "vine": "venir",
+    "vino": "venir",
+    "vio": "ver",
+    "visto": "ver",
+    "voy": "ir",
+    "vuelto": "volver",
+    "vuelve": "volver",
+    "vuelves": "volver",
+    "vuelvo": "volver",
+    "yendo": "ir",
+    "éramos": "ser",
+    "íbamos": "ir"
+  },
+  "suffixes": [
+    {
+      "suffix": "iendo",
+      "add": [
+        "er",
+        "ir",
+        ""
+      ]
+    },
+    {
+      "suffix": "ieron",
+      "add": [
+        "er",
+        "ir",
+        ""
+      ]
+    },
+    {
+      "suffix": "aron",
+      "add": [
+        "ar",
+        ""
+      ]
+    },
+    {
+      "suffix": "ando",
+      "add": [
+        "ar",
+        ""
+      ]
+    },
+    {
+      "suffix": "amos",
+      "add": [
+        "ar",
+        ""
+      ]
+    },
+    {
+      "suffix": "emos",
+      "add": [
+        "er",
+        ""
+      ]
+    },
+    {
+      "suffix": "imos",
+      "add": [
+        "ir",
+        ""
+      ]
+    },
+    {
+      "suffix": "aban",
+      "add": [
+        "ar",
+        ""
+      ]
+    },
+    {
+      "suffix": "ados",
+      "add": [
+        "ar",
+        "ado",
+        ""
+      ]
+    },
+    {
+      "suffix": "adas",
+      "add": [
+        "ar",
+        "ado",
+        ""
+      ]
+    },
+    {
+      "suffix": "idos",
+      "add": [
+        "er",
+        "ir",
+        "ido",
+        ""
+      ]
+    },
+    {
+      "suffix": "idas",
+      "add": [
+        "er",
+        "ir",
+        "ido",
+        ""
+      ]
+    },
+    {
+      "suffix": "aba",
+      "add": [
+        "ar",
+        ""
+      ]
+    },
+    {
+      "suffix": "ado",
+      "add": [
+        "ar",
+        ""
+      ]
+    },
+    {
+      "suffix": "ada",
+      "add": [
+        "ar",
+        "ado",
+        ""
+      ]
+    },
+    {
+      "suffix": "ido",
+      "add": [
+        "er",
+        "ir",
+        ""
+      ]
+    },
+    {
+      "suffix": "ida",
+      "add": [
+        "er",
+        "ir",
+        "ido",
+        ""
+      ]
+    },
+    {
+      "suffix": "ces",
+      "add": [
+        "z"
+      ]
+    },
+    {
+      "suffix": "ais",
+      "add": [
+        "ar",
+        ""
+      ]
+    },
+    {
+      "suffix": "eis",
+      "add": [
+        "er",
+        ""
+      ]
+    },
+    {
+      "suffix": "as",
+      "add": [
+        "a",
+        "o",
+        "ar",
+        ""
+      ]
+    },
+    {
+      "suffix": "os",
+      "add": [
+        "o",
+        "a",
+        ""
+      ]
+    },
+    {
+      "suffix": "es",
+      "add": [
+        "",
+        "e",
+        "er",
+        "ir"
+      ]
+    },
+    {
+      "suffix": "an",
+      "add": [
+        "ar",
+        ""
+      ]
+    },
+    {
+      "suffix": "en",
+      "add": [
+        "er",
+        "ir",
+        ""
+      ]
+    },
+    {
+      "suffix": "ar",
+      "add": [
+        ""
+      ]
+    },
+    {
+      "suffix": "er",
+      "add": [
+        ""
+      ]
+    },
+    {
+      "suffix": "ir",
+      "add": [
+        ""
+      ]
+    },
+    {
+      "suffix": "a",
+      "add": [
+        "o",
+        "ar",
+        ""
+      ]
+    },
+    {
+      "suffix": "o",
+      "add": [
+        "a",
+        "ar",
+        "er",
+        "ir",
+        ""
+      ]
+    },
+    {
+      "suffix": "e",
+      "add": [
+        "er",
+        "ir",
+        ""
+      ]
+    },
+    {
+      "suffix": "s",
+      "add": [
+        ""
+      ]
+    }
+  ]
+}

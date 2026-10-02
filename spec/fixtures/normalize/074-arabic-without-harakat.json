@@ -1,0 +1,34 @@
+{
+ "name": "arabic-without-harakat",
+ "input": {
+  "text": "marhaban",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":\"marhaban\",\"native_vocalized\":null,\"note\":null,\"lang\":\"ar\",\"native\":\"مرحبا\",\"base_lang\":\"en\",\"gloss\":\"hello\",\"forms\":[\"hello\",\"hi\"],\"pronunciation\":\"MAR-ha-ban\"}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [
+   {
+    "native": "مرحبا",
+    "base_lang": "en",
+    "form": "hi",
+    "reason": "unrelated_form"
+   }
+  ],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "lang": "ar",
+    "native": "مرحبا",
+    "forms": [
+     "hello"
+    ],
+    "pronunciation": "MAR-ha-ban"
+   }
+  ]
+ }
+}

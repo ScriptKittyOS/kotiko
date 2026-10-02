@@ -1,0 +1,37 @@
+{
+ "name": "japanese-base-generic-rules",
+ "input": {
+  "text": "dog",
+  "mode": "add",
+  "base_langs": [
+   "ja"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"en\",\"native\":\"dog\",\"base_lang\":\"ja\",\"gloss\":\"犬\",\"forms\":[\"犬\",\"いぬ\",\"イヌ\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [
+   {
+    "native": "dog",
+    "base_lang": "ja",
+    "form": "いぬ",
+    "reason": "unrelated_form"
+   },
+   {
+    "native": "dog",
+    "base_lang": "ja",
+    "form": "イヌ",
+    "reason": "unrelated_form"
+   }
+  ],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "forms": [
+     "犬"
+    ]
+   }
+  ]
+ }
+}

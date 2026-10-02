@@ -1,0 +1,31 @@
+{
+ "name": "turkish-base-dotless-i-stays-apart",
+ "input": {
+  "text": "Ирак",
+  "mode": "add",
+  "base_langs": [
+   "tr"
+  ]
+ },
+ "raw": "{\"intent\":\"add\",\"words\":[{\"language\":null,\"romanization\":null,\"native_vocalized\":null,\"note\":null,\"lang\":\"ru\",\"native\":\"Ирак\",\"base_lang\":\"tr\",\"gloss\":\"Irak\",\"forms\":[\"Irak\",\"irak\",\"IRAK\"]}],\"reply\":null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [
+   {
+    "native": "Ирак",
+    "base_lang": "tr",
+    "form": "irak",
+    "reason": "unrelated_form"
+   }
+  ],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "forms": [
+     "Irak"
+    ]
+   }
+  ]
+ }
+}

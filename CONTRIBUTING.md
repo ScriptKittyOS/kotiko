@@ -51,8 +51,9 @@ the server.
   [Conventional Commits](https://www.conventionalcommits.org/): `feat(extension): ...`,
   `fix(server): ...`. Scopes: `server`, `extension`, `spec`, `docs`, `ci`, `release`.
   Mark breaking changes with `!`.
-- Changes to the model prompt or validation include the evaluation summary from
-  [slice 09](slices/09-shared-word-spec-and-prompt/SPEC.md).
+- Changes to the model prompt or validation include the evaluation summary for at least two
+  models from [slice 09](slices/09-shared-word-spec-and-prompt/SPEC.md)'s runner (how to run
+  it within the free quota: [spec/eval/README.md](spec/eval/README.md)).
 - Before 1.0, a minor release may change the HTTP API only if the old route keeps working
   for one more minor version.
 

@@ -13,7 +13,8 @@
 //   { "reset": true,                       back to seed words and normal behaviour
 //     "kotiko": "slow" | "401" | "html" | "500" | null,
 //     "delayMs": 1500,                     how slow "slow" is
-//     "llm": "429" | "429-headers" | "stall" | "prose" | null,
+//     "llm": "429" | "429-headers" | "429-once" | "stall" | "prose" | null,
+//     "llmRemaining": 40 | null,           free requests /key reports (null: not reported)
 //     "words": [...],                      replace the fake server's word list
 //     "token": "..." }                     the bearer token /kotiko/api expects
 //
@@ -88,10 +89,11 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
     delayMs: 1500,
     words: seed(),
     nextId: 1000,
+    llmRemaining: null,
     log: [],
   };
   const reset = () => {
-    Object.assign(state, { token, kotiko: null, llm: null, delayMs: 1500, words: seed(), nextId: 1000 });
+    Object.assign(state, { token, kotiko: null, llm: null, delayMs: 1500, words: seed(), nextId: 1000, llmRemaining: null });
     state.log.length = 0;
   };
 
@@ -140,12 +142,22 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
 
   async function llm(req, res, route) {
     if (route === "/models" && req.method === "GET") return send(res, 200, readJson("llm/models.json"));
-    if (route === "/key" && req.method === "GET") return send(res, 200, readJson("llm/key.json"));
+    if (route === "/key" && req.method === "GET") {
+      const key = readJson("llm/key.json");
+      if (state.llmRemaining !== null) key.data.free_model_daily_requests = { remaining: state.llmRemaining };
+      return send(res, 200, key);
+    }
     if (route !== "/chat/completions" || req.method !== "POST") return send(res, 404, { error: { message: "not found" } });
 
     const body = await readBody(req);
     if (state.llm === "stall") return; // never answers; closed when the server stops
     if (state.llm === "429") return send(res, 429, { error: { message: "Rate limit exceeded", code: 429 } });
+    if (state.llm === "429-once") {
+      state.llm = null;
+      return send(res, 429, { error: { message: "Rate limit exceeded", code: 429 } }, {
+        "x-ratelimit-reset": String(Date.now() + 150),
+      });
+    }
     if (state.llm === "429-headers") {
       return send(res, 429, { error: { message: "Rate limit exceeded", code: 429 } }, {
         "retry-after": "2",
@@ -156,6 +168,7 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
     }
 
     const user = [...(body.messages ?? [])].reverse().find((m) => m.role === "user");
+    if (state.llmRemaining !== null) state.llmRemaining = Math.max(0, state.llmRemaining - 1);
     let content = JSON.stringify(answerFor(user?.content ?? ""));
     if (state.llm === "prose") content = `Sure! Here is the JSON you asked for:\n${content}\nHope that helps {:`;
     return send(res, 200, {
@@ -172,7 +185,7 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
     if (req.method === "GET") return send(res, 200, state);
     const body = await readBody(req);
     if (body.reset) reset();
-    for (const k of ["kotiko", "llm", "delayMs", "token"]) if (k in body) state[k] = body[k];
+    for (const k of ["kotiko", "llm", "delayMs", "token", "llmRemaining"]) if (k in body) state[k] = body[k];
     if (Array.isArray(body.words)) state.words = body.words;
     return send(res, 200, { ok: true });
   }

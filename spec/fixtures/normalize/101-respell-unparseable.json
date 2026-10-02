@@ -1,0 +1,19 @@
+{
+ "name": "respell-unparseable",
+ "input": {
+  "items": [
+   {
+    "lang": "ru",
+    "native": "спасибо",
+    "sense": "",
+    "base_langs": [
+     "en"
+    ]
+   }
+  ]
+ },
+ "raw": "Sorry, I can't.",
+ "expect": {
+  "error": "unparseable"
+ }
+}
