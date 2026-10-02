@@ -7,7 +7,7 @@
 | **Size** | L (several weeks) |
 | **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md), [09-shared-word-spec-and-prompt](../09-shared-word-spec-and-prompt/SPEC.md), [14-matcher-engine](../14-matcher-engine/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages and `spec/lang/<base>/`) |
 | **Unblocks** | [37](../37-language-colors-and-reading-aids/SPEC.md) (readings and vowel marks to display), [49](../49-dictionary-verification/SPEC.md) (fields to verify), [32](../32-page-coverage-and-celebrations/SPEC.md) (`no-standalone.json` per base) |
-| **Sources** | [DECISIONS 2026-10-01: English is not the base language](../DECISIONS.md); [02 C1-C3, C6, D1-D5, E1, E3, E4, G2, G3, section 3](../../docs/research/02-linguistics.md), [01 S9, S18, S21](../../docs/research/01-language-mixing.md), [05 S11, S25](../../docs/research/05-learner-ux.md) |
+| **Sources** | [DECISIONS 2026-10-02: pronunciation is its own field](../DECISIONS.md); [DECISIONS 2026-10-01: English is not the base language](../DECISIONS.md); [02 C1-C3, C6, D1-D5, E1, E3, E4, G2, G3, section 3](../../docs/research/02-linguistics.md), [01 S9, S18, S21](../../docs/research/01-language-mixing.md), [05 S11, S25](../../docs/research/05-learner-ux.md) |
 
 ## Problem
 
@@ -41,7 +41,10 @@ ones are added here):
 - **No grammar.** Whether `native` includes an article is up to the model, so "the dog" can
   become "the der Hund"; gender lands in free-text notes (02 D2). Japanese beginners get kanji
   they can't read, with no kana (02 D4). Arabic and Hebrew drop vowel marks and Russian drops
-  stress, with only the romanization to disambiguate (02 D5).
+  stress, with only the romanization to disambiguate (02 D5). Slice 07 now adds a learner
+  respelling, `pronunciation`, with the stress in capitals
+  ([DECISIONS 2026-10-02](../DECISIONS.md)); what is still missing is the marks in the native
+  script itself and the kana reading.
 - **Variants drift.** Brazilian and European Portuguese, Serbian Cyrillic and Latin, Mandarin
   and Cantonese mix from word to word, because the user can't state a preference (02 E1, E3, E4).
 - **Ambiguous input is saved without asking.** "da", "ni", "sol", "pan" are saved in whichever
@@ -51,7 +54,8 @@ ones are added here):
 
 - Homographs coexist as separate senses, and a form is never silently claimed by the wrong one.
 - Each word can carry part of speech, article, gender, reading, vocalised form and IPA, and the
-  popover shows them.
+  popover shows them (IPA only for learners who turn it on), alongside 07's `pronunciation`
+  without repeating it.
 - A cheap context check chooses between noun and verb senses where it can, and Kotiko skips the
   swap where it can't decide and the user hasn't.
 - The user can state variant preferences that the model and the matcher respect.
@@ -102,9 +106,9 @@ Added to the word (07 stores them; 09 validates and prompts for them; all option
 | `article_indefinite` | | "ein", "un", "une" | popover | experimental absorption |
 | `gender` | m, f, n, c | m | popover, 37 color cue | none |
 | `plural` | target plural | "Hunde", "evler" | popover | optional plural display |
-| `reading` | phonetic script reading | ねこ (ja) | popover, 37 ruby and kana mode, 34 audio | none |
-| `native_vocalized` | native with vowel or stress marks | за́мок, كَتَبَ, שָׁלוֹם | popover, 37 vowel-mark mode | none |
-| `ipa` | IPA | /wa.zo/ | popover | none |
+| `reading` | the word in the language's own phonetic script, for words written with characters a learner may not be able to read: kana for Japanese words with kanji | ねこ (ja) | popover, after the native word; 37 ruby and kana mode; 34 audio | none |
+| `native_vocalized` | `native` with stress or vowel marks in its own script: U+0301 stress for ru, uk, be; harakat for ar; niqqud for he; marks for fa where they help. Stored from slice 07 on (P0), because the popover shows the stress mark on the word | за́мок, пожа́луйста, كَتَبَ, שָׁלוֹם | popover first line (ru, uk, be), 37 vowel-mark mode | none |
+| `ipa` | IPA transcription, for learners who read it; optional and never required | /wa.zo/, /pɐˈʐaɫstə/ | popover, only with "Show IPA" on (off by default) | none |
 | `inflections` | up to 4 labelled forms | `{ "locative": "evde", "polite": "먹어요" }` | popover | none |
 
 Per form (09's structured form object; the form text is in `base_lang`): `ambiguous: boolean`
@@ -113,10 +117,24 @@ Per form (09's structured form object; the form text is in `base_lang`): `ambigu
 in German; **off by default**), `pos` (when the form only fits one: "loves" is a verb form of
 "love" but a noun plural too, so none), and `case` (slice 17).
 
+**Pronunciation fields, one job each.** None repeats another:
+
+| Field | Owner | Side | For |
+|---|---|---|---|
+| `pronunciation`, `pronunciation_careful` | [07](../07-word-model-v2/SPEC.md) section 7 | base | The main learner aid: a respelling in the reader's own spelling, stress in capitals |
+| `romanization` | 07 section 7 | target | The standard Latin spelling, for typing and search |
+| `reading` | this slice | target | The phonetic script reading (kana), for reading the word itself |
+| `native_vocalized` | this slice (stored from 07) | target | Stress or vowel marks on the word in its own script |
+| `ipa` | this slice | target | Experts; optional |
+
+The prompt (09) never puts IPA symbols or stress capitals in `romanization`, never puts kana
+in `pronunciation`, and never asks for `ipa` in place of `pronunciation`.
+
 Target-side fields (`pos`, `article`, `gender`, `plural`, `reading`, `native_vocalized`, `ipa`,
 `inflections`) describe `native` and are the same in every base record of a word: a bilingual
 reader's 犬 for Spanish pages and 犬 for English pages share them, and 07 copies them across the
-group on save (50 §3). `sense` and the forms' flags are base-side and differ per record.
+group on save (50 §3). `sense`, the forms' flags and 07's `pronunciation` fields are base-side and
+differ per record.
 
 ### Homographs as senses
 
@@ -251,9 +269,18 @@ filter gets no context hints.
 
 09's prompt asks for `reading` for Japanese words that contain kanji, `native_vocalized` for
 Arabic, Hebrew, Persian (where marks help), and Russian, Ukrainian and Belarusian stress (U+0301,
-with ё always written in `native`). Russian homographs that differ only in stress are the
-clearest case for `sense` plus `native_vocalized` (за́мок / замо́к). Display modes are 37's; audio
-uses `reading` (34).
+with ё always written in `native` and never marked). The Russian, Ukrainian and Belarusian part
+ships with slice 07 at P0, since the popover (19) shows the stress mark on its first line; the
+rest arrives with this slice. Russian homographs that differ only in stress are the clearest
+case for `sense` plus `native_vocalized` (за́мок / замо́к), and each sense gets its own
+`pronunciation` (ZA-mak, za-MOK; 07). The stress in `native_vocalized` and the capitals in
+`pronunciation` must agree; 09's validator checks it for ru, uk and be by counting vowel
+letters. Display modes are 37's; audio uses `reading` (34).
+
+`ipa` is optional. The popover shows it on its own line below the romanization only when the
+learner turns on "Show IPA in the word card" ("Mostrar el AFI en la tarjeta de palabra";
+`showIpa` in the `s:display` group, default off), because most learners can't read it and the
+respelling already does that job. When 49's dictionary has IPA, it is preferred to the model's.
 
 ### Variant preferences
 
@@ -325,7 +352,8 @@ inline (README decision; 02 D1). Three consequences are handled explicitly:
 
 09 owns the prompt and golden set; this slice requires, for every base the request names:
 
-- the fields above, with `native` bare (no article) and NFC;
+- the fields above, with `native` bare (no article) and NFC, and `ipa` only as an optional extra
+  (07's `pronunciation` is always the learner-facing one);
 - `sense`, gloss and forms written in that base, with `sense` whenever the native word has
   another common meaning;
 - forms from the base's `grammar.json` `form_slots` (both genders for Spanish and French
@@ -354,7 +382,11 @@ inline (README decision; 02 D1). Three consequences are handled explicitly:
       set), and with base `de`, adding "perro" produces Hund, Hunde, Hunden with capitals kept.
 - [ ] A base with no `grammar.json` gets no context hints: a noun/verb clash on its pages is
       skipped.
-- [ ] The popover shows article, gender, plural, reading, vocalised form and IPA when present.
+- [ ] The popover shows article, gender, plural, reading and vocalised form when present, and
+      IPA only when "Show IPA" is on.
+- [ ] A Russian word whose `native_vocalized` stress and `pronunciation` capitals point at
+      different syllables is caught by 09's validator (fixture) and saved without
+      `native_vocalized`.
 - [ ] Natives starting or ending with a hyphen are never swapped.
 - [ ] Turkish coverage on a fixture page excludes articles and suffix prepositions from the
       denominator, on an English page (en list) and on a Spanish page (es list).
@@ -376,7 +408,9 @@ inline (README decision; 02 D1). Three consequences are handled explicitly:
 
 ## Rollout and migration
 
-New fields are nullable; existing words keep working. Forms without `ambiguous` are treated as
+New fields are nullable; existing words keep working. `native_vocalized` already exists from
+07 and is filled for Russian, Ukrainian and Belarusian words by 07's one-time pronunciation
+refresh. Forms without `ambiguous` are treated as
 unambiguous, so existing behaviour doesn't change until words are re-checked. An optional
 "Improve my words" action in the dashboard re-asks the model for missing fields in small,
 quota-aware batches (10). Changelog: "Words can now have more than one meaning, plus grammar:

@@ -5,9 +5,9 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
-| **Depends on** | [06-design-system](../06-design-system/SPEC.md), [15-framework-safe-swapping](../15-framework-safe-swapping/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (gloss per base, `t()`) |
-| **Unblocks** | [34-pronunciation-audio](../34-pronunciation-audio/SPEC.md), [35-reveal-mode-and-review](../35-reveal-mode-and-review/SPEC.md), [37-language-colors-and-reading-aids](../37-language-colors-and-reading-aids/SPEC.md), [45-firefox-android](../45-firefox-android/SPEC.md) |
-| **Sources** | [DECISIONS 2026-10-01, base language](../DECISIONS.md); [05 S24, S25, S36, §3.2](../../docs/research/05-learner-ux.md); [03 D2, D3, D4, E4, E5](../../docs/research/03-browser-extension.md); [02 F4](../../docs/research/02-linguistics.md); [01 S6, S8](../../docs/research/01-language-mixing.md) |
+| **Depends on** | [06-design-system](../06-design-system/SPEC.md), [07-word-model-v2](../07-word-model-v2/SPEC.md) (pronunciation fields), [15-framework-safe-swapping](../15-framework-safe-swapping/SPEC.md), [34-pronunciation-audio](../34-pronunciation-audio/SPEC.md) (speak button; built together and shipped in the same release), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (gloss per base, `t()`) |
+| **Unblocks** | [35-reveal-mode-and-review](../35-reveal-mode-and-review/SPEC.md), [37-language-colors-and-reading-aids](../37-language-colors-and-reading-aids/SPEC.md), [45-firefox-android](../45-firefox-android/SPEC.md) |
+| **Sources** | [DECISIONS 2026-10-02, pronunciation](../DECISIONS.md); [DECISIONS 2026-10-01, base language](../DECISIONS.md); [05 S24, S25, S36, §3.2](../../docs/research/05-learner-ux.md); [03 D2, D3, D4, E4, E5](../../docs/research/03-browser-extension.md); [02 F4](../../docs/research/02-linguistics.md); [01 S6, S8](../../docs/research/01-language-mixing.md) |
 
 ## Problem
 
@@ -23,6 +23,10 @@ tooltip built from the `title` attribute (`extension/content.js:65-71, 96`):
 - It leaks: every site can read `span.slovo-w`, `data-en` and `title`
   (`content.js:92-96`) and learn which languages and words the user is studying; session
   replay tools record it ([03 E4](../../docs/research/03-browser-extension.md)).
+- Its only pronunciation help is the `romanization`, a model's transliteration with no stress:
+  a learner saw "pazhaluysta" for пожалуйста, which is said "pa-ZHAL-sta"
+  ([DECISIONS 2026-10-02](../DECISIONS.md)). Nothing says the text came from a model and may be
+  wrong.
 - The learner has no way to act on a wrong swap from where they see it
   ([05 S25](../../docs/research/05-learner-ux.md)).
 - It assumes the reader reads English: the tooltip always shows the English meaning
@@ -33,9 +37,12 @@ tooltip built from the `title` attribute (`extension/content.js:65-71, 96`):
 
 - One shared popover per page, in a closed shadow root, in the top layer, that opens on
   hover intent, click or tap, and a keyboard command.
-- It shows the native word, romanization, language, the gloss in the base language of the
-  text the word replaced, note, and the other languages for the same base-language form,
-  with correct bidi handling.
+- It shows, in this order, the native word with its stress mark, the pronunciation written
+  for the reader's base language (07 section 7), the romanization, the language, the gloss
+  in the base language of the text the word replaced, note, and the other languages for
+  the same base-language form, with correct bidi handling.
+- It says when a pronunciation is AI-generated and not checked against a dictionary (49),
+  and offers the speak button (34) next to the word.
 - Every label, action and toast is in Kotiko's interface language ([50](../50-ui-localization-and-base-language/SPEC.md)),
   and language names come from `Intl.DisplayNames` in that language.
 - It offers actions in a fixed slot: speak, edit, pause word, wrong meaning here.
@@ -47,7 +54,11 @@ tooltip built from the `title` attribute (`extension/content.js:65-71, 96`):
 
 - The swap element and the WeakMap that maps it to its entry: [15](../15-framework-safe-swapping/SPEC.md).
   This spec calls that element `<kotiko-w>`; 15 owns its name and attributes.
-- Audio: [34](../34-pronunciation-audio/SPEC.md) fills the speak action.
+- Audio: [34](../34-pronunciation-audio/SPEC.md) fills the speak action; it ships in the
+  same release.
+- What the pronunciation fields contain and how they are generated:
+  [07](../07-word-model-v2/SPEC.md) section 7 and [09](../09-shared-word-spec-and-prompt/SPEC.md);
+  how they are checked: [49](../49-dictionary-verification/SPEC.md).
 - Reveal mode and knew-it buttons: [35](../35-reveal-mode-and-review/SPEC.md) uses the same
   popover with the gloss hidden.
 - Grammar fields (part of speech, gender): [36](../36-grammar-and-senses/SPEC.md).
@@ -64,6 +75,10 @@ tooltip built from the `title` attribute (`extension/content.js:65-71, 96`):
 - As a learner who sees "like" swapped in "looks like rain", I want to tell Kotiko this is the
   wrong meaning, right there.
 - As a privacy-minded user, I want sites not to see what I'm learning.
+- As a learner of Russian, I want to see пожа́луйста with its stress mark, read "pa-ZHAL-sta",
+  and press the speaker next to it, so I say it the way people do.
+- As a Spanish reader, I want that respelling in Spanish spelling ("ja-ra-SHO" for хорошо),
+  and to know when it comes from the AI rather than a dictionary.
 - As a reader of Spanish and English pages learning Japanese, I want the popover on a
   Spanish page to say "perro" for 犬, and on an English page to say "dog", with the other
   meaning available underneath.
@@ -73,43 +88,46 @@ tooltip built from the `title` attribute (`extension/content.js:65-71, 96`):
 ### 1. Content and layout
 
 ```
-            …see you soon, 谢谢 for reading.
-                           ┄┄┄┄  ← the swapped word (dotted underline)
+            …come in, пожалуйста, and sit down.
+                      ┄┄┄┄┄┄┄┄┄┄  ← the swapped word (dotted underline)
             ┌──────────────▲─────────────────────────┐
-            │ 谢谢                              (🔈) │  native: --t-word-lg, display role, lang="zh"
-            │ xièxie                                 │  romanization: --t-body, --ink-2
-            │ Chinese · 中文                         │  language: --t-small, --ink-3 (+ color dot, 37)
-            │┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│
-            │ thanks                                 │  gloss in this page's base: --t-lead, --ink (hidden in reveal mode)
-            │ "谢谢你" = thank you.                  │  note (same record, same base): --t-small, --ink-2, max 3 lines
-            │ Also: gracias · спасибо (spasibo)      │  other candidates (18): --t-small
-            │┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│
-            │ Edit   Pause word   Wrong meaning here  │  actions: quiet buttons, 32 px tall
+            │ пожа́луйста                     (speak) │  native_vocalized (stress mark), else native: --t-word-lg, lang="ru"; speak (34)
+            │ pa-ZHAL-sta                            │  pronunciation for this base: --t-lead, --ink; stressed syllable semibold
+            │ Slowly: pa-ZHA-lu-sta                  │  pronunciation_careful, only when present: --t-small, --ink-2
+            │ pozhaluysta · AI-generated             │  romanization, then the source label (49): --t-small, --ink-3
+            │ Russian · русский                      │  language: --t-small, --ink-3 (+ color dot, 37)
+            │┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│
+            │ please                                 │  gloss in this page's base: --t-lead, --ink (hidden in reveal mode)
+            │ Also: bitte · por favor                │  other candidates (18): --t-small
+            │┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│
+            │ Edit   Pause word   Wrong meaning here │  actions: quiet buttons, 32 px tall
             └────────────────────────────────────────┘
 ```
 
-The same word on a Spanish page, interface in Spanish, for a learner whose bases are
-`es` and `en`:
+谢谢 on a Spanish page, interface in Spanish, for a learner whose bases are `es` and `en`
+(Mandarin has no stress mark, so the first line is the plain native word):
 
 ```
             ┌────────────────────────────────────────┐
-            │ 谢谢                              (🔈) │
-            │ xièxie                                 │
+            │ 谢谢                           (speak) │
+            │ shie⁴-shie                             │  pronunciation from the record with base_lang "es" (Spanish key); tone digit raised
+            │ xièxie · Generado por IA               │  romanization (pinyin, dictionary tones) and source label
             │ chino · 中文                           │  language name in the interface language
-            │┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│
+            │┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│
             │ gracias                                │  gloss from the record with base_lang "es"
             │ "谢谢你" = gracias a ti.               │  note from the same record
-            │ En inglés: thanks                      │  other bases' glosses, secondary
+            │ En inglés: thanks                      │  other bases' glosses, secondary (never their pronunciations)
             │ También: спасибо (spasibo)             │
-            │┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│
+            │┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│
             │ Editar   Pausar palabra   No es este significado │
             └────────────────────────────────────────┘
 ```
 
 **Which record.** A swap comes from one word record ([07](../07-word-model-v2/SPEC.md)),
 the one whose `base_lang` matches the language of the text it replaced (slices 14 and
-16 pick the index by that language). The popover shows that record's `gloss`, `note` and
-`sense`. Other records in the same group (same `lang` and `native_key`, other
+16 pick the index by that language). The popover shows that record's `gloss`, `note`,
+`sense` and pronunciation fields (they are base side: a Spanish page shows the Spanish
+respelling). Other records in the same group (same `lang` and `native_key`, other
 `base_lang`) are listed on one secondary line, "In {base name}: {gloss}", in the
 `--t-small` style, at most two, each in `<bdi lang="{base_lang}">`. A learner with one base
 never sees this line.
@@ -117,16 +135,57 @@ never sees this line.
 - Width: content-sized, min 220 px, max 320 px; padding 16; `--r-lg`; `--e-2`
   ([06](../06-design-system/SPEC.md)). An 8 px arrow points at the word.
 - Native word, romanization and each "Also" item are in `<bdi>` with their own `lang`, so
-  Arabic, Hebrew and mixed strings never reorder the line.
+  Arabic, Hebrew and mixed strings never reorder the line. The romanization's `lang` is the
+  target with a Latin script subtag (`ru-Latn`, `zh-Latn-pinyin`); the pronunciation's is
+  the record's `base_lang`, because it is written to be read in that language.
 - "Also" lists the other candidates for the same base-language form in the shown languages, merged
   by identical native string ([01 S6](../../docs/research/01-language-mixing.md): "da ·
   Serbian, Croatian") and including same-language synonyms
   ([01 S8](../../docs/research/01-language-mixing.md): "Also: hogar").
 - The note is truncated at three lines with "More" that expands in place.
-- Speak (34) is a 32 × 32 icon button at the top end; hidden when no matching voice exists.
+- Speak (34) is a 32 × 32 icon button at the top end of the native word's line, so the
+  learner hears the word next to where they read it; hidden when no matching voice exists.
 - The actions row is an extension point: [35](../35-reveal-mode-and-review/SPEC.md) adds
   "I knew it" / "Didn't know" above it; [37](../37-language-colors-and-reading-aids/SPEC.md)
   adds the color dot.
+
+### 1a. The pronunciation block
+
+The first lines of the popover, in this order (fields from [07](../07-word-model-v2/SPEC.md)):
+
+1. **The native word with its stress mark.** `native_vocalized` when the target is Russian,
+   Ukrainian or Belarusian and the field is present (пожа́луйста, U+0301 from
+   [36](../36-grammar-and-senses/SPEC.md)); otherwise `native`. Arabic and Hebrew vowel marks
+   follow 37's vowel-mark mode, not this rule. For Japanese, 36's `reading` follows the word
+   in `--t-small` (好き すき). When 49 found that the dictionary stresses the word differently,
+   this line shows the dictionary's stressed form.
+2. **`pronunciation`**, prominent (`--t-lead`, `--ink`). The capitals are data: the line has
+   `text-transform: none`, and the stressed syllable is also set in semibold, so stress
+   doesn't depend on letter case alone. Mandarin and Cantonese tone digits render as raised
+   numbers (`<sup>`), each with visually hidden text "tone 4" (`popover_tone`).
+3. **`pronunciation_careful`**, only when present: "Slowly: pa-ZHA-lu-sta" (`--t-small`,
+   `--ink-2`).
+4. **`romanization`**, smaller (`--t-small`, `--ink-3`), only when present and different from
+   the native word (Latin-script targets have none), followed by the **source label**.
+
+When `pronunciation` is null (a base without a respelling key, or a saved word the one-time
+refresh hasn't reached yet, 07 section 8), lines 2 and 3 are left out and nothing says why;
+the romanization and the speak button remain. A bilingual reader's other records'
+pronunciations are never shown: they are written for a different language.
+
+**Source label.** One short text label, never color or an icon alone, at the end of line 4
+(or on its own line when there is no romanization). It describes lines 2 and 3, and is
+absent when they are:
+
+| State | When | Label (en / es) |
+|---|---|---|
+| AI-generated | `pronunciation_source: "model"` and no dictionary check (no dictionary installed, or the dictionary has no stress or tone data for the word) | "AI-generated" / "Generado por IA" |
+| Checked | 49's pronunciation check is `verified` or `corrected` | "Checked in Wiktionary" / "Revisado en Wiktionary" (the source's name) |
+| Differs | 49's check is `differs` (the dictionary stresses another syllable and the respelling hasn't been regenerated yet) | "AI-generated. Wiktionary stresses it differently." / "Generado por IA. Wiktionary marca el acento en otra sílaba." Line 1 shows the dictionary's stress. |
+| The learner's own | `pronunciation_source: "user"` | none |
+
+Until slice 49 ships, every model pronunciation is labelled "AI-generated", which is the
+honest default.
 
 ### 2. Actions
 
@@ -208,6 +267,11 @@ popover is part of the page.
   first action; Tab cycles inside it; Esc closes and returns focus; the dialog is announced.
 - Native text carries `lang` so screen readers switch voice; the language name is also
   written out, never conveyed by color.
+- Screen readers spell out words in capitals, so the visible respelling is `aria-hidden`
+  and paired with visually hidden text from `popover_pron_a11y` in lowercase ("Pronunciation:
+  pa-zhal-sta, stress on zhal"), or `popover_pron_a11y_plain` for targets without stress.
+  The romanization gets `popover_romanization_a11y`. The dialog's `aria-label` uses plain
+  `native`, never `native_vocalized`, whose combining marks some screen readers announce.
 - All actions are buttons with visible labels, 32 px tall, at least 24 px apart from each
   other (WCAG 2.5.8); 44 px on coarse pointers.
 - Under reduced motion the popover appears with a 120 ms fade and no movement; otherwise a
@@ -248,6 +312,14 @@ on the canonical tag ([08](../08-language-tags/SPEC.md)), never the model's `lan
 |---|---|---|
 | `popover_language_line` | {language} · {endonym} (endonym omitted when equal) | {language} · {endonym} |
 | `popover_other_base` | In {base}: {gloss} | En {base}: {gloss} |
+| `popover_careful` | Slowly: {pronunciation} | Despacio: {pronunciation} |
+| `popover_pron_ai` | AI-generated | Generado por IA |
+| `popover_pron_checked` | Checked in {source} | Revisado en {source} |
+| `popover_pron_differs` | AI-generated. {source} stresses it differently. | Generado por IA. {source} marca el acento en otra sílaba. |
+| `popover_pron_a11y` | Pronunciation: {pronunciation}, stress on {syllable} | Pronunciación: {pronunciation}, acento en {syllable} |
+| `popover_pron_a11y_plain` | Pronunciation: {pronunciation} | Pronunciación: {pronunciation} |
+| `popover_romanization_a11y` | Romanization: {romanization} | Romanización: {romanization} |
+| `popover_tone` | tone {n} | tono {n} |
 | `popover_also` | Also: {list} | También: {list} |
 | `popover_edit` | Edit | Editar |
 | `popover_pause` | Pause word | Pausar palabra |
@@ -281,7 +353,8 @@ base.
 ### 11. Performance
 
 - Zero cost until the first interaction except the delegated listeners.
-- Opening builds at most ~40 nodes; budget 4 ms on a mid-range laptop.
+- Opening builds at most ~50 nodes (the pronunciation block included); budget 4 ms on a
+  mid-range laptop.
 - No `getComputedStyle` calls on hover except for the theme check at open (memoized per
   ancestor for the page view).
 
@@ -297,6 +370,22 @@ base.
       action; Esc returns focus to the selection.
 - [ ] An Arabic native with a romanization renders in the correct order inside an English
       sentence and inside a Spanish sentence (visual test).
+- [ ] On an English page, a base-`en` пожалуйста record with `native_vocalized`,
+      `pronunciation`, `pronunciation_careful` and `romanization` from the model shows, top to
+      bottom: "пожа́луйста" with the speak button on its line, "pa-ZHAL-sta" (ZHAL semibold),
+      "Slowly: pa-ZHA-lu-sta", "pozhaluysta · AI-generated", then the language line.
+- [ ] On a Spanish page with the interface in Spanish, a base-`es` хорошо record shows
+      "ja-ra-SHO" and "khorosho · Generado por IA"; the learner's `en` record's respelling
+      is not shown.
+- [ ] A pronunciation the learner edited (`pronunciation_source: "user"`) shows no label; a
+      word verified by a fixture dictionary shows "Checked in Wiktionary"; a `differs` word
+      shows the dictionary's stress on the first line and the differs label.
+- [ ] 谢谢 shows "shyeh⁴-shyeh" with a raised 4 whose accessible text is "tone 4", and
+      "xièxie" below it; a Spanish target (gracias, base `en`) shows "GRA-syas" and no
+      romanization line; a word with null `pronunciation` shows no respelling lines and no
+      label.
+- [ ] The accessible text of the pronunciation line is lowercase with the stressed syllable
+      named, in English and Spanish.
 - [ ] With bases `es` and `en` and a 犬 group with glosses "perro" and "dog", the popover on
       a Spanish fixture page shows "perro" as the gloss and "En inglés: dog" underneath; on an
       English page it shows "dog" and "In Spanish: perro" (interface in each language).
@@ -318,11 +407,14 @@ base.
 
 - **Unit (jsdom):** placement math (flip, clamp, arrow), hover-intent timing with fake timers,
   theme detection from ancestor backgrounds, bidi markup, record choice by text language
-  and the other-bases line, `t()` keys present in `en` and `es`.
+  and the other-bases line, `t()` keys present in `en` and `es`; the pronunciation block for
+  every row of the source-label table, stress-marked versus plain native per target, tone
+  digit markup, semibold stressed syllable, and the accessible text.
 - **End-to-end (Playwright):** fixtures with links, buttons, a React app, a dark page,
   `transform`ed containers, `overflow: hidden` parents, a page with hostile CSS, RTL page,
-  slice 50's `es-news.html` and `en-news.html` with a two-base word list, a browser launched
-  with `--lang=es`;
+  slice 50's `es-news.html` and `en-news.html` with a two-base word list (including
+  пожалуйста, хорошо, 谢谢 and gracias with pronunciations for both bases), a browser launched
+  with `--lang=es`; the speak button with 34's stubbed `speechSynthesis`;
   touch emulation for tap and long press; keyboard path; privacy assertions from page
   context.
 - **Manual:** NVDA + Firefox, VoiceOver + Safari later ([51](../51-safari-port/SPEC.md)),
@@ -331,8 +423,10 @@ base.
 ## Rollout and migration
 
 Ships with [15](../15-framework-safe-swapping/SPEC.md)'s element change, replacing `title`
-tooltips in one release. The `cursor: help` hint stays as 15 defines it. Changelog: "Point at, tap, or use a shortcut on any swapped word to see its meaning,
-hear it, and fix it."
+tooltips in one release, together with 34's speak button. The `cursor: help` hint stays as 15
+defines it. Saved words show their pronunciation as 07's one-time refresh reaches them; until
+then the popover shows the romanization alone. Changelog: "Point at, tap, or use a shortcut on
+any swapped word to see its meaning, how to say it, hear it, and fix it."
 
 ## Open questions
 
@@ -344,6 +438,13 @@ hear it, and fix it."
 3. **Edit inline or in the dashboard?** Recommendation: dashboard. Editing every field inside a
    320 px popover on someone else's page is cramped and risky; the popover keeps the two most
    common fixes (pause, wrong meaning) inline.
+
+4. **Show the careful form always, or behind a tap?** Recommendation: always, as one small
+   line, only for the few words that have one; a tap target for one line of text costs more
+   than it saves.
+5. **Where does the source label sit?** Recommendation: at the end of the romanization line,
+   which keeps the pronunciation line clean; it moves to its own line for Latin-script
+   targets.
 
 ## Future work
 
