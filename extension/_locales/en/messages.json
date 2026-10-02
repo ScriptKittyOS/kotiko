@@ -1872,10 +1872,6 @@
       }
     }
   },
-  "dash_add_no_lookup": {
-    "message": "Word lookup isn’t set up on your Kotiko server yet.",
-    "description": "Add failed: the server has no model key."
-  },
   "dash_settings_index": {
     "message": "Settings sections",
     "description": "Accessible name of the settings index."
@@ -2011,5 +2007,131 @@
   "dash_kbd_shift": {
     "message": "Shift",
     "description": "Name of the Shift key in the shortcuts list."
+  },
+  "popup_lookups_left_one": {
+    "message": "$COUNT$ free lookup left today",
+    "description": "Under the add box when 20 or fewer free lookups are left today (slice 10). {count} is a number.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "popup_lookups_left_other": {
+    "message": "$COUNT$ free lookups left today",
+    "description": "Under the add box when 20 or fewer free lookups are left today (slice 10). {count} is a number.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "popup_lookups_none": {
+    "message": "No free lookups left today. They come back at $TIME$.",
+    "description": "Under the add box when no free lookups are left. {time} is a short local time like 2:00 AM.",
+    "placeholders": {
+      "time": {
+        "content": "{time}"
+      }
+    }
+  },
+  "popup_lookups_none_today": {
+    "message": "No free lookups left today. They come back tomorrow.",
+    "description": "Under the add box when no free lookups are left and the reset time isn't known."
+  },
+  "error_quota_exhausted": {
+    "message": "You've used today's free lookups. Try again after $TIME$.",
+    "description": "An add failed: the daily free lookups are used up (slice 25 quota_exhausted). {time} is a short local time.",
+    "placeholders": {
+      "time": {
+        "content": "{time}"
+      }
+    }
+  },
+  "error_quota_exhausted_today": {
+    "message": "You've used today's free lookups. Try again tomorrow.",
+    "description": "An add failed: the daily free lookups are used up, reset time unknown."
+  },
+  "error_quota_exhausted_payment_required": {
+    "message": "$PROVIDER$ needs credit on your account before it will look up words, even free ones. Add credit there, then try again.",
+    "description": "An add failed: the lookup service asks for payment (HTTP 402). {provider} is a service name like OpenRouter.",
+    "placeholders": {
+      "provider": {
+        "content": "{provider}"
+      }
+    }
+  },
+  "error_quota_exhausted_payment_required_generic": {
+    "message": "Your lookup service needs credit on your account before it will look up words, even free ones. Add credit there, then try again.",
+    "description": "An add failed: the lookup service asks for payment, name unknown."
+  },
+  "error_rate_limited": {
+    "message": "Word lookup is busy. Try again in a minute.",
+    "description": "An add failed: too many lookups this minute (slice 25 rate_limited)."
+  },
+  "error_model_unavailable": {
+    "message": "Word lookup isn't answering right now. Try again in a little while.",
+    "description": "An add failed: no lookup service answered (slice 25 model_unavailable)."
+  },
+  "error_lookup_timeout": {
+    "message": "That lookup took too long. Try again.",
+    "description": "An add failed: the lookup ran out of time (slice 25 lookup_timeout)."
+  },
+  "error_bad_lookup_result": {
+    "message": "The lookup came back garbled. Try again.",
+    "description": "An add failed: the answer couldn't be read (slice 25 bad_lookup_result)."
+  },
+  "error_key_rejected": {
+    "message": "$PROVIDER$ didn't accept your Kotiko server's key. Check it in the server's settings.",
+    "description": "An add failed: the lookup service refused the server's key (slice 25 key_rejected). {provider} is a service name like OpenRouter.",
+    "placeholders": {
+      "provider": {
+        "content": "{provider}"
+      }
+    }
+  },
+  "error_key_rejected_generic": {
+    "message": "Your lookup service didn't accept your Kotiko server's key. Check it in the server's settings.",
+    "description": "An add failed: the lookup service refused the server's key, name unknown."
+  },
+  "error_lookup_not_set_up": {
+    "message": "Word lookup isn’t set up on your Kotiko server yet.",
+    "description": "An add failed: the server has no key for its lookup service (slice 25 lookup_not_set_up)."
+  },
+  "error_rejected_same_as_gloss": {
+    "message": "“$TEXT$” is already a word in $BASE$. Try naming the language you want it in.",
+    "description": "The lookup found the word in a language the learner reads. {text} is what they typed; {base} a language name.",
+    "placeholders": {
+      "text": {
+        "content": "{text}"
+      },
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "dash_set_lookups_left_one": {
+    "message": "$COUNT$ of $LIMIT$ free lookups left today.",
+    "description": "Settings, Your Kotiko server: the free lookups left today (slice 10). {count} and {limit} are numbers.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "limit": {
+        "content": "{limit}"
+      }
+    }
+  },
+  "dash_set_lookups_left_other": {
+    "message": "$COUNT$ of $LIMIT$ free lookups left today.",
+    "description": "Settings, Your Kotiko server: the free lookups left today (slice 10). {count} and {limit} are numbers.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "limit": {
+        "content": "{limit}"
+      }
+    }
   }
 }

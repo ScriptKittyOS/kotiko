@@ -190,4 +190,37 @@ test.describe("full stack", () => {
     await dash.reload();
     await expect(row("книга")).toHaveCount(1);
   });
+
+  // Slice 10 on the real server: OpenRouter's own 429 (rate-limit headers) waits and asks
+  // the same model again; a repeated lookup is free; a 429 without a wait stops at once
+  // with slice 25's words; /api/v1/llm/status reports the models.
+  test("429s, the lookup cache and the status route on the real server", async ({ server, popup }) => {
+    const auth = { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" };
+    const modelCalls = async () => (await server.state()).log.filter((r) => r.path === "/llm/v1/chat/completions").length;
+    const preview = (text) =>
+      fetch(`${serverUrl}/api/v1/words`, { method: "POST", headers: auth, body: JSON.stringify({ text, base_langs: ["en"], preview: true }) });
+
+    const before = await modelCalls();
+    await server.control({ llm: "429-once" });
+    const first = await preview("dog in japanese");
+    expect(first.status).toBe(200);
+    expect((await first.json()).candidates.map((c) => c.native)).toEqual(["犬"]);
+    expect(await modelCalls()).toBe(before + 2);
+
+    const again = await preview("Dog in  Japanese");
+    expect(again.status).toBe(200);
+    expect(await modelCalls()).toBe(before + 2);
+
+    const status = await (await fetch(`${serverUrl}/api/v1/llm/status`, { headers: auth })).json();
+    expect(status).toMatchObject({ models: ["fake/model-a:free", "fake/model-b:free"], models_source: "env", quota: null, last_result: "ok" });
+
+    await server.control({ llm: "429" });
+    const p = await popup.connect(serverUrl, TOKEN);
+    const line = await popup.add("hello");
+    await expect(line.locator(".job-text > p")).toHaveText("Word lookup is busy. Try again in a minute.");
+    await expect(line.locator('[data-action="retry"]')).toBeVisible();
+    expect(await modelCalls()).toBe(before + 3);
+    await expect(p.locator("#lookupsLeft")).toBeHidden();
+    await server.control({ llm: null });
+  });
 });

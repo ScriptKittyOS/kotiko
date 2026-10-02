@@ -160,7 +160,11 @@ defmodule Kotiko.BotTest do
     LLMStub.stub(fn _, conn -> LLMStub.rate_limited(conn) end)
 
     calls = handle(text_update("what's da"))
-    assert Enum.any?(TelegramStub.texts(calls), &(&1 =~ "all the free models are busy"))
+
+    assert Enum.any?(
+             TelegramStub.texts(calls),
+             &(&1 == "Word lookup is busy. Try again in a minute.")
+           )
   end
 
   describe "language tags (slice 08)" do

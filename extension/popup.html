@@ -29,6 +29,8 @@
           <span data-icon="enter" data-icon-size="18"></span>
         </button>
       </form>
+      <!-- Slice 10: free lookups left today, from the server's /api/v1/llm/status. -->
+      <p class="add-quota" id="lookupsLeft" hidden></p>
       <ul class="jobs" id="jobs" aria-live="polite"></ul>
     </section>
 
@@ -150,6 +152,7 @@
 
   <script src="lib/i18n.js"></script>
   <script src="ui/icons.js"></script>
+  <script src="lib/lookup-status.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

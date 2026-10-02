@@ -57,13 +57,38 @@ async function request(conn, path, init = {}) {
   }
 }
 
-// For add and remove: the parsed body, or an error with the server's own message.
+// For add and remove: the parsed body, or an error. A failed lookup carries slice 25's code
+// and its details (`retry_at`, `reason`, `provider`) beside the 0.2 string `error` (slice 10),
+// so the popup never reads the message.
 async function api(path, init = {}) {
   const res = await request(await connection(), path, { ...init, signal: AbortSignal.timeout(ADD_TIMEOUT_MS) });
   if (res.status === 401) throw codedError("server_key_rejected", "The server rejected that API token.");
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw codedError("http_error", body.error || `The server answered ${res.status}.`, { status: res.status });
+  if (!res.ok) {
+    const code = typeof body.code === "string" && body.code ? body.code : "http_error";
+    const details = body.details && typeof body.details === "object" ? body.details : {};
+    throw codedError(code, typeof body.error === "string" ? body.error : `The server answered ${res.status}.`, { ...details, status: res.status });
+  }
   return body;
+}
+
+// The server's lookup status (slice 10 §3): free lookups left today and the provider, kept
+// in storage.local.lookupStatus for the popup and the dashboard. An older server without
+// the route clears it; other failures keep the last one.
+async function refreshLookupStatus() {
+  try {
+    const s = await apiV1("/api/v1/llm/status");
+    const status = {
+      provider: typeof s.provider === "string" ? s.provider : null,
+      quota: s.quota && typeof s.quota === "object" ? s.quota : null,
+      at: Date.now(),
+    };
+    await ext.storage.local.set({ lookupStatus: status });
+    return status;
+  } catch (e) {
+    if (e?.code === "server_outdated") await ext.storage.local.set({ lookupStatus: null });
+    throw e;
+  }
 }
 
 // For the `/api/v1` routes (slice 07 §5), whose errors are {error: {code, message, details}}
@@ -180,14 +205,22 @@ ext.runtime.onMessage.addListener(
           return { ok: true };
         },
       },
+      // The free lookups left today, for the popup and the dashboard (slice 10).
+      llmStatus: {
+        from: ["page"],
+        run: () => refreshLookupStatus(),
+      },
       add: {
         from: ["page"],
         check: (msg) => checks.text(msg.text),
         async run(msg) {
+          // Every add (or failed one) changes what's left: read it again afterwards.
           const res = await api("/api/words", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ text: msg.text }),
+          }).finally(() => {
+            refreshLookupStatus().catch(() => {});
           });
           // Show the new words right away; the follow-up sync is authoritative.
           const added = Array.isArray(res.words) ? filterWords(res.words).words : [];

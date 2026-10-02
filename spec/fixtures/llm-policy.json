@@ -1,0 +1,322 @@
+{
+  "_comment": "Slice 10's lookup policy, run by both runtimes (Kotiko.LLM.Policy and extension/lib/llm/policy.js). `classify` turns one HTTP answer (or a transport error) into an outcome; `next` decides what a lookup does after an attempt. Times are milliseconds; header names are lowercase.",
+  "classify": [
+    {
+      "name": "platform 429 with rate-limit headers and Retry-After",
+      "input": {
+        "status": 429,
+        "now_ms": 1790000000000,
+        "headers": { "x-ratelimit-limit": "20", "x-ratelimit-remaining": "0", "x-ratelimit-reset": "1790000002000", "retry-after": "2" },
+        "body": { "error": { "message": "Rate limit exceeded: free-models-per-min", "code": 429 } }
+      },
+      "expect": { "kind": "platform_429", "status": 429, "retry_after_ms": 2000, "reset_in_ms": 2000, "ratelimit_remaining": 0 }
+    },
+    {
+      "name": "platform 429 with a reset in seconds since the epoch",
+      "input": {
+        "status": 429,
+        "now_ms": 1790000000000,
+        "headers": { "x-ratelimit-remaining": "3", "x-ratelimit-reset": "1790000060" },
+        "body": {}
+      },
+      "expect": { "kind": "platform_429", "status": 429, "retry_after_ms": null, "reset_in_ms": 60000, "ratelimit_remaining": 3 }
+    },
+    {
+      "name": "the daily free-model limit, named in the body only",
+      "input": {
+        "status": 429,
+        "now_ms": 1790000000000,
+        "headers": {},
+        "body": { "error": { "message": "Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day", "code": 429 } }
+      },
+      "expect": { "kind": "platform_429", "status": 429, "retry_after_ms": null, "reset_in_ms": null, "ratelimit_remaining": 0, "daily": true }
+    },
+    {
+      "name": "the per-minute free-model limit, named in the body only",
+      "input": {
+        "status": 429,
+        "now_ms": 1790000000000,
+        "headers": {},
+        "body": { "error": { "message": "Rate limit exceeded: free-models-per-min", "code": 429 } }
+      },
+      "expect": { "kind": "platform_429", "status": 429, "retry_after_ms": null, "reset_in_ms": null, "ratelimit_remaining": null }
+    },
+    {
+      "name": "upstream 429: a provider is busy (metadata names it)",
+      "input": {
+        "status": 429,
+        "now_ms": 1790000000000,
+        "headers": {},
+        "body": { "error": { "message": "google/gemma-4-31b-it:free is temporarily rate-limited upstream. Please retry shortly.", "code": 429, "metadata": { "provider_name": "Google AI Studio", "raw": "busy" } } }
+      },
+      "expect": { "kind": "upstream_429", "status": 429 }
+    },
+    {
+      "name": "an unknown 429 counts as the platform's own (it wastes nothing)",
+      "input": { "status": 429, "now_ms": 1790000000000, "headers": {}, "body": { "error": { "message": "Rate limit exceeded", "code": 429 } } },
+      "expect": { "kind": "platform_429", "status": 429, "retry_after_ms": null, "reset_in_ms": null, "ratelimit_remaining": null }
+    },
+    {
+      "name": "400 naming response_format",
+      "input": { "status": 400, "headers": {}, "body": { "error": { "message": "This model does not support response_format of type json_object" } } },
+      "expect": { "kind": "json_unsupported", "status": 400 }
+    },
+    {
+      "name": "400 for a model id that doesn't exist",
+      "input": { "status": 400, "headers": {}, "body": { "error": { "message": "qwen/qwen3.8-27b:free is not a valid model ID" } } },
+      "expect": { "kind": "not_found", "status": 400 }
+    },
+    {
+      "name": "404 no endpoints",
+      "input": { "status": 404, "headers": {}, "body": { "error": { "message": "No endpoints found for apodex/apodex-1.1-mini:free." } } },
+      "expect": { "kind": "not_found", "status": 404 }
+    },
+    {
+      "name": "another 400 is a failed attempt",
+      "input": { "status": 400, "headers": {}, "body": { "error": { "message": "Input too long" } } },
+      "expect": { "kind": "server_error", "status": 400 }
+    },
+    {
+      "name": "401",
+      "input": { "status": 401, "headers": {}, "body": { "error": { "message": "No auth credentials found" } } },
+      "expect": { "kind": "unauthorized", "status": 401 }
+    },
+    {
+      "name": "402",
+      "input": { "status": 402, "headers": {}, "body": { "error": { "message": "Your account has a negative balance" } } },
+      "expect": { "kind": "payment_required", "status": 402 }
+    },
+    {
+      "name": "403 with a moderation reason",
+      "input": { "status": 403, "headers": {}, "body": { "error": { "message": "Input was flagged", "metadata": { "reasons": ["violence"] } } } },
+      "expect": { "kind": "forbidden", "status": 403, "reason": "moderation" }
+    },
+    {
+      "name": "403 without a body",
+      "input": { "status": 403, "headers": {}, "body": "" },
+      "expect": { "kind": "forbidden", "status": 403, "reason": "forbidden" }
+    },
+    {
+      "name": "500",
+      "input": { "status": 500, "headers": {}, "body": "Internal Server Error" },
+      "expect": { "kind": "server_error", "status": 500 }
+    },
+    {
+      "name": "503 overloaded",
+      "input": { "status": 503, "headers": {}, "body": { "error": { "message": "overloaded" } } },
+      "expect": { "kind": "server_error", "status": 503 }
+    },
+    {
+      "name": "a timeout",
+      "input": { "transport": "timeout" },
+      "expect": { "kind": "timeout", "status": null }
+    },
+    {
+      "name": "a refused connection",
+      "input": { "transport": "econnrefused" },
+      "expect": { "kind": "network", "status": null }
+    }
+  ],
+  "next": [
+    {
+      "name": "words: done",
+      "outcome": { "kind": "ok" },
+      "state": { "attempts": 1 },
+      "expect": { "action": "done", "health": "success" }
+    },
+    {
+      "name": "no word: one more model, once",
+      "outcome": { "kind": "no_word", "code": "no_word_found" },
+      "state": { "attempts": 1 },
+      "expect": { "action": "next_model", "health": "none", "no_word": true }
+    },
+    {
+      "name": "no word again: stop with the pipeline's code",
+      "outcome": { "kind": "no_word", "code": "no_word_found" },
+      "state": { "attempts": 2, "no_word_retried": true },
+      "expect": { "action": "stop", "code": "no_word_found", "health": "none" }
+    },
+    {
+      "name": "same as the gloss: stop with that code after the second model",
+      "outcome": { "kind": "no_word", "code": "rejected_same_as_gloss" },
+      "state": { "attempts": 2, "no_word_retried": true },
+      "expect": { "action": "stop", "code": "rejected_same_as_gloss", "health": "none" }
+    },
+    {
+      "name": "no word with no other model: stop",
+      "outcome": { "kind": "no_word", "code": "no_word_found" },
+      "state": { "attempts": 1, "last_model": true },
+      "expect": { "action": "stop", "code": "no_word_found", "health": "none" }
+    },
+    {
+      "name": "unparseable: next model",
+      "outcome": { "kind": "unparseable" },
+      "state": { "attempts": 1 },
+      "expect": { "action": "next_model", "health": "failure" }
+    },
+    {
+      "name": "unparseable on the last attempt: bad_lookup_result",
+      "outcome": { "kind": "unparseable" },
+      "state": { "attempts": 3 },
+      "expect": { "action": "stop", "code": "bad_lookup_result", "health": "failure" }
+    },
+    {
+      "name": "response_format refused: same model once without it",
+      "outcome": { "kind": "json_unsupported", "status": 400 },
+      "state": { "attempts": 1 },
+      "expect": { "action": "retry_same", "wait_ms": 0, "drop_json": true, "health": "none" }
+    },
+    {
+      "name": "response_format refused again: next model",
+      "outcome": { "kind": "json_unsupported", "status": 400 },
+      "state": { "attempts": 2, "json_retried": true },
+      "expect": { "action": "next_model", "health": "failure" }
+    },
+    {
+      "name": "not found: next model, skipped for an hour",
+      "outcome": { "kind": "not_found", "status": 404 },
+      "state": { "attempts": 1 },
+      "expect": { "action": "next_model", "health": "skip_long" }
+    },
+    {
+      "name": "not found on the last model: model_unavailable",
+      "outcome": { "kind": "not_found", "status": 404 },
+      "state": { "attempts": 1, "last_model": true },
+      "expect": { "action": "stop", "code": "model_unavailable", "health": "skip_long" }
+    },
+    {
+      "name": "401 with a key: key_rejected",
+      "outcome": { "kind": "unauthorized", "status": 401 },
+      "state": { "attempts": 1, "has_key": true },
+      "expect": { "action": "stop", "code": "key_rejected", "reason": "unauthorized", "health": "none" }
+    },
+    {
+      "name": "401 without a key: lookup_not_set_up",
+      "outcome": { "kind": "unauthorized", "status": 401 },
+      "state": { "attempts": 1, "has_key": false },
+      "expect": { "action": "stop", "code": "lookup_not_set_up", "reason": "no_key", "health": "none" }
+    },
+    {
+      "name": "402: quota_exhausted, payment required, no retry time",
+      "outcome": { "kind": "payment_required", "status": 402 },
+      "state": { "attempts": 1 },
+      "expect": { "action": "stop", "code": "quota_exhausted", "reason": "payment_required", "retry_in_ms": null, "health": "none" }
+    },
+    {
+      "name": "403: key_rejected with the reason",
+      "outcome": { "kind": "forbidden", "status": 403, "reason": "moderation" },
+      "state": { "attempts": 1 },
+      "expect": { "action": "stop", "code": "key_rejected", "reason": "moderation", "health": "none" }
+    },
+    {
+      "name": "platform 429 with a short Retry-After: wait, same model",
+      "outcome": { "kind": "platform_429", "status": 429, "retry_after_ms": 2000, "reset_in_ms": 2000, "ratelimit_remaining": 0 },
+      "state": { "attempts": 1, "remaining_ms": 20000 },
+      "expect": { "action": "retry_same", "wait_ms": 2000, "health": "none" }
+    },
+    {
+      "name": "platform 429 with only a reset: wait until the reset",
+      "outcome": { "kind": "platform_429", "status": 429, "retry_after_ms": null, "reset_in_ms": 1500, "ratelimit_remaining": 4 },
+      "state": { "attempts": 1, "remaining_ms": 20000 },
+      "expect": { "action": "retry_same", "wait_ms": 1500, "health": "none" }
+    },
+    {
+      "name": "platform 429 whose wait doesn't fit the deadline: rate_limited",
+      "outcome": { "kind": "platform_429", "status": 429, "retry_after_ms": 18000, "reset_in_ms": 18000, "ratelimit_remaining": 0 },
+      "state": { "attempts": 1, "remaining_ms": 20000 },
+      "expect": { "action": "stop", "code": "rate_limited", "retry_in_ms": 18000, "health": "none" }
+    },
+    {
+      "name": "platform 429 with no wait known: rate_limited in a minute, never the next model",
+      "outcome": { "kind": "platform_429", "status": 429, "retry_after_ms": null, "reset_in_ms": null, "ratelimit_remaining": null },
+      "state": { "attempts": 1, "remaining_ms": 20000 },
+      "expect": { "action": "stop", "code": "rate_limited", "retry_in_ms": 60000, "health": "none" }
+    },
+    {
+      "name": "platform 429 on the last attempt: rate_limited",
+      "outcome": { "kind": "platform_429", "status": 429, "retry_after_ms": 1000, "reset_in_ms": 1000, "ratelimit_remaining": 0 },
+      "state": { "attempts": 3, "remaining_ms": 20000 },
+      "expect": { "action": "stop", "code": "rate_limited", "retry_in_ms": 1000, "health": "none" }
+    },
+    {
+      "name": "daily counter at 0 with a reset hours away: quota_exhausted",
+      "outcome": { "kind": "platform_429", "status": 429, "retry_after_ms": null, "reset_in_ms": 36000000, "ratelimit_remaining": 0 },
+      "state": { "attempts": 1, "remaining_ms": 20000 },
+      "expect": { "action": "stop", "code": "quota_exhausted", "reason": "daily_limit", "retry_in_ms": 36000000, "health": "none" }
+    },
+    {
+      "name": "the daily limit named in the body: quota_exhausted at the next reset",
+      "outcome": { "kind": "platform_429", "status": 429, "retry_after_ms": null, "reset_in_ms": null, "ratelimit_remaining": 0, "daily": true },
+      "state": { "attempts": 1, "remaining_ms": 20000 },
+      "expect": { "action": "stop", "code": "quota_exhausted", "reason": "daily_limit", "retry_in_ms": null, "health": "none" }
+    },
+    {
+      "name": "quota says 0: quota_exhausted",
+      "outcome": { "kind": "platform_429", "status": 429, "retry_after_ms": 2000, "reset_in_ms": 2000, "ratelimit_remaining": 5 },
+      "state": { "attempts": 1, "remaining_ms": 20000, "quota_remaining": 0 },
+      "expect": { "action": "stop", "code": "quota_exhausted", "reason": "daily_limit", "retry_in_ms": null, "health": "none" }
+    },
+    {
+      "name": "upstream 429: next model",
+      "outcome": { "kind": "upstream_429", "status": 429 },
+      "state": { "attempts": 1 },
+      "expect": { "action": "next_model", "health": "failure" }
+    },
+    {
+      "name": "upstream 429 on the last attempt: rate_limited",
+      "outcome": { "kind": "upstream_429", "status": 429 },
+      "state": { "attempts": 3 },
+      "expect": { "action": "stop", "code": "rate_limited", "retry_in_ms": 60000, "health": "failure" }
+    },
+    {
+      "name": "5xx: next model",
+      "outcome": { "kind": "server_error", "status": 503 },
+      "state": { "attempts": 1 },
+      "expect": { "action": "next_model", "health": "failure" }
+    },
+    {
+      "name": "5xx on the last attempt: model_unavailable",
+      "outcome": { "kind": "server_error", "status": 500 },
+      "state": { "attempts": 3 },
+      "expect": { "action": "stop", "code": "model_unavailable", "health": "failure" }
+    },
+    {
+      "name": "a connection error with too little time left: model_unavailable",
+      "outcome": { "kind": "network", "status": null },
+      "state": { "attempts": 1, "remaining_ms": 3999 },
+      "expect": { "action": "stop", "code": "model_unavailable", "health": "failure" }
+    },
+    {
+      "name": "a timeout: next model",
+      "outcome": { "kind": "timeout", "status": null },
+      "state": { "attempts": 1, "remaining_ms": 10000 },
+      "expect": { "action": "next_model", "health": "failure" }
+    },
+    {
+      "name": "a timeout with too little time left: lookup_timeout",
+      "outcome": { "kind": "timeout", "status": null },
+      "state": { "attempts": 2, "remaining_ms": 3000 },
+      "expect": { "action": "stop", "code": "lookup_timeout", "health": "failure" }
+    },
+    {
+      "name": "a timeout on the last model: lookup_timeout",
+      "outcome": { "kind": "timeout", "status": null },
+      "state": { "attempts": 1, "last_model": true },
+      "expect": { "action": "stop", "code": "lookup_timeout", "health": "failure" }
+    }
+  ],
+  "defaults": {
+    "state": {
+      "attempts": 1,
+      "max_attempts": 3,
+      "remaining_ms": 20000,
+      "min_attempt_ms": 4000,
+      "daily_reset_min_ms": 120000,
+      "no_word_retried": false,
+      "json_retried": false,
+      "has_key": true,
+      "quota_remaining": null,
+      "last_model": false
+    }
+  }
+}

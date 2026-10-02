@@ -121,8 +121,10 @@ defmodule Kotiko.Router do
 
         {200, body}
 
-      {:error, reason} ->
-        {502, Jason.encode!(%{error: "The language model failed: #{reason}"})}
+      # 0.2 extensions read the string `error`; newer ones read `code` and `details`.
+      {:error, e} ->
+        {status, _retry_after, message, details} = Lookup.http_error(e)
+        {status, Jason.encode!(%{error: message, code: e.code, details: details})}
     end
   end
 

@@ -33,6 +33,10 @@ config :kotiko,
   llm_model_source: :env,
   log_lookups: false,
   llm_req_options: [plug: {Req.Test, Kotiko.LLM}],
+  # Slice 10's budgets at 1/20: an add's 25 s deadline is 1.25 s, a Retry-After of 2 s
+  # waits 100 ms. Quota refreshes run inline, so a test sees their effect at once.
+  llm_time_scale: 0.05,
+  llm_sync_refresh: true,
   telegram_req_options: [plug: {Req.Test, Kotiko.Telegram}],
   transcribe_url: nil,
   transcribe_model: "whisper-1",

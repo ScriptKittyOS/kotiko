@@ -8,8 +8,10 @@ defmodule Kotiko.Janitor do
     * tombstones older than 30 days lose their content (they can't be restored after that)
     * tombstones older than 180 days are removed
     * kept add responses (`client_request_id`) older than 24 hours are removed
+    * lookups kept more than 30 days are removed, and all but the 5,000 hit most
+      recently (slice 10)
 
-  Slices 10 and 41 add their own cleanup steps to `run/1`.
+  Slice 41 adds its own cleanup steps to `run/1`.
   """
   use GenServer
   require Logger
@@ -43,7 +45,8 @@ defmodule Kotiko.Janitor do
     result = %{
       scrubbed: Words.scrub_tombstones(now),
       purged: Words.purge_tombstones(now),
-      add_requests: AddRequests.purge(now)
+      add_requests: AddRequests.purge(now),
+      lookup_cache: Kotiko.LLM.Cache.prune(now)
     }
 
     if result.scrubbed + result.purged > 0 do

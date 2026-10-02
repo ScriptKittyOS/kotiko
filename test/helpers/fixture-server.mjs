@@ -7,8 +7,9 @@
 //   /vendor/*     vendored libraries (test/fixtures/vendor)
 //   /kotiko/*       a fake Kotiko server: GET /health, GET/POST /api/words, DELETE /api/words/:id,
 //                 and the /api/v1 routes the dashboard uses (slice 07 §5, in memory): words
-//                 (GET, GET :id, POST with preview, POST batch, PATCH, DELETE, restore) and
-//                 jobs/pronunciation-refresh (GET, POST pause/resume)
+//                 (GET, GET :id, POST with preview, POST batch, PATCH, DELETE, restore),
+//                 jobs/pronunciation-refresh (GET, POST pause/resume) and llm/status
+//                 (slice 10: the quota is `llmRemaining` of 50; each add uses one)
 //   /llm/v1/*     a fake OpenAI-compatible model: /models, /key, /chat/completions
 //   /__control    POST to switch behaviours, GET to read state and the request log
 //
@@ -21,7 +22,8 @@
 //     "words": [...],                      replace the fake server's word list (0.2 shape)
 //     "v1Words": [...],                    or set full slice 07 records (missing fields filled)
 //     "job": {state, done, total, retry_at}  the pronunciation-refresh job
-//     "failNext": {method, path, status, code, details}  one v1 request answers this error
+//     "failNext": {method, path, status, code, details}  one v1 request (or a legacy POST
+//                                          /api/words, with a 0.2 string error) answers this error
 //     "token": "..." }                     the bearer token /kotiko/api expects
 //
 // Run it by hand with `node test/helpers/fixture-server.mjs [port]`.
@@ -214,6 +216,13 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
       return v1Error(res, fail.status ?? 500, fail.code ?? "internal", fail.message ?? "Failing on purpose.", fail.details ?? {});
     }
     const url = new URL(req.url, "http://fixture.invalid");
+    if (route === "/llm/status" && req.method === "GET") {
+      const r = state.llmRemaining;
+      const midnight = new Date();
+      midnight.setUTCHours(24, 0, 0, 0);
+      const quota = r === null ? null : { used: 50 - r, limit: 50, remaining: r, resets_at: midnight.toISOString(), estimated: false };
+      return send(res, 200, { provider: "openrouter", models: ["fake/model-a:free"], models_source: "live", skipped: [], quota, last_result: null });
+    }
     if (route === "/words" && req.method === "GET") {
       const statuses = (url.searchParams.get("status") ?? "active,paused").split(",");
       const words = state.v1.filter((r) => live(r) && statuses.includes(r.status)).map(api);
@@ -320,6 +329,12 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
     if (route === "/api/words" && req.method === "POST") {
       const body = await readBody(req);
       if (typeof body.text !== "string" || !body.text) return send(res, 400, { error: 'Send {"text": "..."}' });
+      const fail = state.failNext;
+      if (fail && (!fail.method || fail.method === "POST") && fail.path === "/api/words") {
+        state.failNext = null;
+        return send(res, fail.status ?? 502, { error: fail.message ?? "Failing on purpose.", code: fail.code, details: fail.details ?? {} });
+      }
+      if (state.llmRemaining !== null) state.llmRemaining = Math.max(0, state.llmRemaining - 1);
       const answer = answerFor(body.text);
       if (!answer.words?.length) {
         return send(res, 200, { words: [], reply: answer.reply ?? "I couldn't find a word in that." });

@@ -146,8 +146,8 @@ defmodule Kotiko.RouterV1 do
           |> put_reply(found.reply)
         )
 
-      {:error, reason} ->
-        lookup_failed(conn, reason)
+      {:error, e} ->
+        lookup_failed(conn, e)
     end
   end
 
@@ -168,8 +168,8 @@ defmodule Kotiko.RouterV1 do
 
         {200, json}
 
-      {:error, reason} ->
-        {:lookup_failed, reason}
+      {:error, e} ->
+        {:lookup_failed, e}
     end
   end
 
@@ -232,10 +232,20 @@ defmodule Kotiko.RouterV1 do
     [if(p, do: Map.put(base, :previous, Word.to_api(p)), else: base)]
   end
 
+  # The reason can hold the word itself (a changeset): only its shape at warning level
+  # (slice 10 section 6), the whole of it at debug.
   defp result_json({:error, reason}) do
-    Logger.warning("Couldn't save a word: #{inspect(reason)}")
+    Logger.warning("Couldn't save a word: #{save_error(reason)}")
+    Logger.debug("Couldn't save a word: #{inspect(reason)}")
     []
   end
+
+  defp save_error(%Ecto.Changeset{errors: errors}),
+    do: "invalid " <> Enum.map_join(errors, ", ", fn {field, _} -> to_string(field) end)
+
+  defp save_error(reason) when is_atom(reason), do: to_string(reason)
+  defp save_error({reason, _}) when is_atom(reason), do: to_string(reason)
+  defp save_error(_reason), do: "see the debug log"
 
   defp candidate(attrs) do
     attrs
@@ -249,19 +259,16 @@ defmodule Kotiko.RouterV1 do
 
   defp respond({:stored, json}, conn), do: raw_json(conn, 200, json)
   defp respond({200, json}, conn), do: raw_json(conn, 200, json)
-  defp respond({:lookup_failed, reason}, conn), do: lookup_failed(conn, reason)
+  defp respond({:lookup_failed, e}, conn), do: lookup_failed(conn, e)
 
-  # Until slice 10 returns structured errors, the model client's message decides the code.
-  defp lookup_failed(conn, reason) do
-    {status, code} =
-      cond do
-        reason =~ "busy" -> {503, "rate_limited"}
-        reason =~ "LLM_API_KEY isn't set" -> {503, "lookup_not_set_up"}
-        reason =~ "key was rejected" -> {502, "key_rejected"}
-        true -> {502, "model_unavailable"}
-      end
+  # Slice 10's structured lookup errors: slice 25's code, its details and, when known,
+  # when to try again (also as Retry-After).
+  defp lookup_failed(conn, e) do
+    {status, retry_after, message, details} = Lookup.http_error(e)
 
-    error(conn, status, code, "The language model failed: #{reason}")
+    conn
+    |> then(&if(retry_after, do: put_resp_header(&1, "retry-after", "#{retry_after}"), else: &1))
+    |> error(status, e.code, message, details)
   end
 
   # ── edits ────────────────────────────────────────────────────────────
@@ -324,6 +331,16 @@ defmodule Kotiko.RouterV1 do
   end
 
   defp write_error(conn, {:invalid, e}), do: invalid_word(conn, e)
+
+  # ── the lookup client (slice 10 section 3) ───────────────────────────
+
+  # The free lookups left today (OpenRouter with a key; else null), the models a lookup
+  # would ask now and the last lookup's result. Answers from memory: no model call, and
+  # at most one quota refresh in the background.
+  get "/llm/status" do
+    Kotiko.LLM.Quota.maybe_refresh()
+    json(conn, 200, Kotiko.LLM.status())
+  end
 
   # ── the one-time pronunciation refresh (section 8) ───────────────────
 

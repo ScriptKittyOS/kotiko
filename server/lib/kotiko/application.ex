@@ -40,7 +40,7 @@ defmodule Kotiko.Application do
 
     children =
       [Kotiko.WriteLock, Kotiko.Repo, {Task.Supervisor, name: Kotiko.TaskSup}] ++
-        background_children() ++ http_children(http) ++ bot_child()
+        llm_children() ++ background_children() ++ http_children(http) ++ bot_child()
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Kotiko.Supervisor)
   end
@@ -133,13 +133,10 @@ defmodule Kotiko.Application do
     models = Application.fetch_env!(:kotiko, :llm_models)
     provider = if Config.openrouter?(url), do: "OpenRouter", else: url
 
-    source =
-      case Application.get_env(:kotiko, :llm_model_source, :env) do
-        :default -> "the built-in list of free models"
-        :env -> "LLM_MODEL"
-      end
-
-    "#{provider}, #{plural(length(models), "model")} from #{source}"
+    case Application.get_env(:kotiko, :llm_model_source, :env) do
+      :default -> "#{provider}, its current free models (checked 10 s after start)"
+      :env -> "#{provider}, #{plural(length(models), "model")} from LLM_MODEL"
+    end
   end
 
   defp telegram_line do
@@ -175,6 +172,19 @@ defmodule Kotiko.Application do
     Process.sleep(:timer.hours(24))
     Logger.warning(message)
     warn_daily(message)
+  end
+
+  # The lookup client (slice 10): the model list, the quota, the cache's single flight and
+  # the two model calls in flight. Tests keep them but skip the boot fetches.
+  defp llm_children do
+    fetch? = Application.get_env(:kotiko, :background_jobs, true)
+
+    [
+      {Kotiko.LLM.Catalog, fetch: fetch?},
+      {Kotiko.LLM.Quota, fetch: fetch?},
+      Kotiko.LLM.Cache,
+      Kotiko.LLM.Slots
+    ]
   end
 
   # The daily cleanup and the one-time pronunciation refresh (slice 07). Off in tests,

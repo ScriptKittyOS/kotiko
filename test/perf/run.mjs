@@ -181,7 +181,7 @@ async function dashboardWith(words) {
   const dom = new JSDOM(readExt("dashboard.html"), { url: "chrome-extension://perf/dashboard.html", runScripts: "outside-only", pretendToBeVisual: true });
   dom.window.chrome = fake.chrome;
   dom.window.matchMedia = () => ({ matches: true, addEventListener() {}, removeEventListener() {} });
-  for (const rel of ["lib/i18n.js", "ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/word-search.js", "lib/dashboard-model.js", "lib/word-source.js", "dashboard.js"]) {
+  for (const rel of ["lib/i18n.js", "ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/word-search.js", "lib/dashboard-model.js", "lib/word-source.js", "lib/lookup-status.js", "dashboard.js"]) {
     vm.runInContext(readExt(rel), dom.getInternalVMContext());
   }
   await dom.window.KotikoDashboard.ready;

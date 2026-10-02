@@ -5,6 +5,14 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Adding a word now answers within 25 seconds, uses at most 3 requests, and remembers
+  words it already looked up for 30 days. Kotiko follows OpenRouter's current free models
+  automatically (best first, from our evaluation) and shows how many free lookups you have
+  left today. When lookups stop working, the popup says why in plain words (busy, used up
+  until a given time, or a key problem) instead of "the language model failed". The words
+  you look up no longer appear in the server's log. The server adds a table for the lookup
+  cache, so it backs up your database once more on first start.
+
 - **Slovo is now Kotiko.** Your words move automatically from `~/.local/share/slovo` to
   `~/.local/share/kotiko` on first start; the old file is kept as a backup. The service is
   now called `kotiko` (`install-service.sh` replaces the old one). Rename `SLOVO_DATA_DIR`

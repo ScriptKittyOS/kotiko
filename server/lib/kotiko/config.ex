@@ -18,14 +18,9 @@ defmodule Kotiko.Config do
   @default_port 4747
   @default_bind "127.0.0.1"
   @openrouter_url "https://openrouter.ai/api/v1"
-  # Tried in order: free models are often busy, so keep several.
-  @default_models [
-    "apodex/apodex-1.1-mini:free",
-    "qwen/qwen3.8-27b:free",
-    "google/gemma-4-31b-it:free",
-    "dots-studio/dots-3-note-preview:free",
-    "nvidia/nemotron-3-super-120b-a12b:free"
-  ]
+  # Without LLM_MODEL, Kotiko.LLM.Catalog follows OpenRouter's current free models; this
+  # shipped list (spec/models.json `fallback`) is used until the first fetch or a cache.
+  @default_models Kotiko.Spec.models()["fallback"]
   @log_levels ~w(debug info warning error)
   @prefixed_vars ~w(KOTIKO_DATA_DIR KOTIKO_LOG_SQL)
   # The old names still work, with a warning, until a later release removes them.

@@ -12,9 +12,11 @@
 //   await source.deleted()                 -> [{id, at, word}]  tombstones, newest last
 //   await source.write([{op: "patch", id, patch, if_updated_at}, {op: "delete", id}, ...])
 //                                          -> [{ok, word} | {ok: false, code, message, details}]
-//   await source.preview(text, {baseLangs, hintLang}) -> {candidates, rejected}
+//   await source.preview(text, {baseLangs, hintLang}) -> {candidates, rejected, reply, code}
+//                                          (`code`: slice 25's no-word code, or null)
 //   await source.save(words, {requestId})  -> {results, rejected}
 //   await source.refreshJob(action?)       -> {state, done, total, retry_at}
+//   await source.lookupStatus()            -> {provider, quota} free lookups left (slice 10)
 //   source.subscribe(fn)                   -> unsubscribe; fn({reason}) when words may have
 //                                             changed elsewhere (popup, Telegram, refresh job)
 //
@@ -129,7 +131,12 @@
       },
       async preview(text, { baseLangs = ["en"], hintLang = null } = {}) {
         const res = await ask({ type: "words.preview", text, base_langs: baseLangs, hint_lang: hintLang ?? undefined });
-        return { candidates: Array.isArray(res.candidates) ? res.candidates : [], rejected: res.rejected ?? [], reply: res.reply ?? null };
+        return {
+          candidates: Array.isArray(res.candidates) ? res.candidates : [],
+          rejected: res.rejected ?? [],
+          reply: res.reply ?? null,
+          code: typeof res.code === "string" ? res.code : null,
+        };
       },
       async save(words, { requestId } = {}) {
         noteOwn(words);
@@ -140,6 +147,11 @@
       },
       async refreshJob(action) {
         return ask(action ? { type: "job.refresh", action } : { type: "job.refresh" });
+      },
+      // The free lookups left today (slice 10 §3); the background also keeps it in
+      // storage.local.lookupStatus. Slice 11's local source answers from its own client.
+      async lookupStatus() {
+        return ask({ type: "llmStatus" });
       },
       // Asks the background to sync now (the dashboard does this when it gains focus, §10).
       async syncNow() {

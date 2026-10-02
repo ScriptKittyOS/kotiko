@@ -16,19 +16,21 @@ defmodule Kotiko.PronunciationRefresh do
   missing or invalid twice is skipped. Once no word is left, the state is `done` and the
   job never starts again: new words get their pronunciation when they are added.
 
-  Until slice 10 ships, quota is unknown unless `:llm_quota` is set (a function returning
-  `{remaining, resets_at}`, used by the tests); a 429 waits a minute, a daily limit until
-  the next UTC midnight.
+  Quota (slice 10): it stops for the day when `Kotiko.LLM.Quota` knows 10 or fewer free
+  lookups are left, keeping them for the learner's own adds, and resumes after the reset.
+  On `rate_limited` or `quota_exhausted` it waits until the lookup's `retry_at` (a
+  minute, or the next UTC midnight, when the answer didn't say); other failures wait five
+  minutes.
   """
   use GenServer
   import Ecto.Query
   require Logger
   alias Kotiko.{Config, LLM, Lookup, Pronunciation, Repo, Text, Word, Words}
+  alias Kotiko.LLM.Quota
 
   @job "pronunciation_refresh"
   @batch 20
   @max_attempts 2
-  @keep_quota 10
 
   # ── the API (GET and POST /api/v1/jobs/pronunciation-refresh) ────────
 
@@ -119,7 +121,7 @@ defmodule Kotiko.PronunciationRefresh do
       job.state == "waiting" and later?(job.retry_at, now) -> {:wait, job.retry_at}
       Lookup.busy?() -> :busy
       not provider?() -> wait(nil)
-      low = quota_low(now) -> wait(low)
+      low = quota_low() -> wait(low)
       true -> batch(job, now)
     end
   end
@@ -133,17 +135,9 @@ defmodule Kotiko.PronunciationRefresh do
   end
 
   # Keeps the last free lookups of the day for the learner (slice 10 section 3).
-  defp quota_low(now) do
-    case Application.get_env(:kotiko, :llm_quota) do
-      fun when is_function(fun, 0) ->
-        case fun.() do
-          {remaining, resets_at} when remaining <= @keep_quota -> resets_at || next_midnight(now)
-          _ -> nil
-        end
-
-      _ ->
-        nil
-    end
+  defp quota_low do
+    Quota.maybe_refresh()
+    Quota.low?()
   end
 
   defp wait(retry_at) do
@@ -195,14 +189,17 @@ defmodule Kotiko.PronunciationRefresh do
 
         {:continue, written}
 
-      {:error, :rate_limited} ->
-        wait(DateTime.add(now, 1, :minute))
+      {:error, %{code: "rate_limited"} = e} ->
+        wait(e.retry_at || DateTime.add(now, 1, :minute))
 
-      {:error, :quota_exhausted} ->
-        wait(next_midnight(now))
+      {:error, %{code: "quota_exhausted"} = e} ->
+        wait(e.retry_at || next_midnight(now))
 
-      {:error, {:failed, reason}} ->
-        Logger.warning("Pronunciation refresh: #{reason}; trying again in 5 minutes")
+      {:error, %{code: code}} ->
+        Logger.warning(
+          "Pronunciation refresh: the lookup failed (#{code}); trying again in 5 minutes"
+        )
+
         wait(DateTime.add(now, 5, :minute))
     end
   end

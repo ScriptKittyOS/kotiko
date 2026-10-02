@@ -210,7 +210,7 @@ defmodule Kotiko.Bot do
     Telegram.typing(chat)
 
     # Meanings in English until slice 41 stores the learner's base languages.
-    case Lookup.interpret(text, base_langs: ["en"], origin: "telegram") do
+    case Lookup.interpret(text, base_langs: ["en"], origin: "telegram", budget: :telegram) do
       {:ok, %{words: [], rejected: [_ | _] = rejected}} ->
         # One line per word the checks refused (slice 25 owns the wording).
         lines = Enum.map(rejected, &"• #{&1.native || "?"}: #{rejection(&1.reason)}")
@@ -226,8 +226,9 @@ defmodule Kotiko.Bot do
         intent = force_intent || intent
         Enum.each(words, &present_word(chat, &1, intent, text))
 
-      {:error, reason} ->
-        Telegram.send_message(chat, "The language model failed: #{reason}")
+      # One plain line per slice 25 code (41 owns the wording and its translations).
+      {:error, e} ->
+        Telegram.send_message(chat, Lookup.message(e.code, e.details, e.retry_at))
     end
   end
 
