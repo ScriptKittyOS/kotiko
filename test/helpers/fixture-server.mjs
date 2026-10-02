@@ -5,7 +5,10 @@
 //
 //   /pages/*      static fixture pages (test/fixtures/pages)
 //   /vendor/*     vendored libraries (test/fixtures/vendor)
-//   /kotiko/*       a fake Kotiko server: GET /health, GET/POST /api/words, DELETE /api/words/:id
+//   /kotiko/*       a fake Kotiko server: GET /health, GET/POST /api/words, DELETE /api/words/:id,
+//                 and the /api/v1 routes the dashboard uses (slice 07 §5, in memory): words
+//                 (GET, GET :id, POST with preview, POST batch, PATCH, DELETE, restore) and
+//                 jobs/pronunciation-refresh (GET, POST pause/resume)
 //   /llm/v1/*     a fake OpenAI-compatible model: /models, /key, /chat/completions
 //   /__control    POST to switch behaviours, GET to read state and the request log
 //
@@ -15,7 +18,10 @@
 //     "delayMs": 1500,                     how slow "slow" is
 //     "llm": "429" | "429-headers" | "429-once" | "stall" | "prose" | null,
 //     "llmRemaining": 40 | null,           free requests /key reports (null: not reported)
-//     "words": [...],                      replace the fake server's word list
+//     "words": [...],                      replace the fake server's word list (0.2 shape)
+//     "v1Words": [...],                    or set full slice 07 records (missing fields filled)
+//     "job": {state, done, total, retry_at}  the pronunciation-refresh job
+//     "failNext": {method, path, status, code, details}  one v1 request answers this error
 //     "token": "..." }                     the bearer token /kotiko/api expects
 //
 // Run it by hand with `node test/helpers/fixture-server.mjs [port]`.
@@ -44,6 +50,68 @@ const TYPES = {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const norm = (s) => String(s).toLowerCase().replace(/\s+/g, " ").trim();
+const nativeKey = (native) => String(native ?? "").normalize("NFC").toLowerCase().replaceAll("ς", "σ");
+// A fixed UUIDv7-shaped id for a 0.2 integer id, so tests can name words.
+export const uuidFor = (n) => `01900000-0000-7000-8000-${Number(n).toString(16).padStart(12, "0")}`;
+
+// --- The in-memory /api/v1 word store -----------------------------------------------------
+const FORM = (f) => (typeof f === "string" ? { text: f, enabled: true, case: "any", ambiguous: false } : { enabled: true, case: "any", ambiguous: false, ...f });
+let clockMs = Date.UTC(2026, 8, 1, 12, 0, 0);
+// Strictly increasing timestamps, so if_updated_at always tells versions apart.
+const stamp = () => {
+  clockMs = Math.max(clockMs + 1, Date.now());
+  return new Date(clockMs).toISOString();
+};
+
+function record(fields, i = 0) {
+  const at = fields.created_at ?? new Date(Date.UTC(2026, 8, 30, 12, 0, 0) - i * 3_600_000).toISOString();
+  return {
+    id: fields.id ?? uuidFor(fields.legacy_id ?? 9000 + i),
+    legacy_id: fields.legacy_id ?? null,
+    lang: fields.lang,
+    native: fields.native,
+    base_lang: fields.base_lang ?? "en",
+    sense: fields.sense ?? "",
+    romanization: fields.romanization ?? null,
+    native_vocalized: fields.native_vocalized ?? null,
+    gloss: fields.gloss ?? fields.english ?? null,
+    forms: (fields.forms ?? [fields.gloss ?? fields.english]).filter(Boolean).map(FORM),
+    pronunciation: fields.pronunciation ?? null,
+    pronunciation_careful: fields.pronunciation_careful ?? null,
+    pronunciation_source: fields.pronunciation_source ?? (fields.pronunciation ? "model" : null),
+    note: fields.note ?? null,
+    status: fields.status ?? "active",
+    origin: fields.origin ?? "add",
+    source_text: fields.source_text ?? null,
+    created_at: at,
+    updated_at: fields.updated_at ?? at,
+    deleted_at: fields.deleted_at ?? null,
+    merged_into: null,
+    language: fields.language ?? null,
+  };
+}
+
+const fromLegacy = (w, i) => record({ ...w, id: uuidFor(w.id), legacy_id: w.id, gloss: w.english }, i);
+const api = (r) => {
+  const out = { ...r };
+  delete out.legacy_id;
+  return out;
+};
+const toLegacy = (r) => ({
+  id: r.legacy_id,
+  lang: r.lang,
+  language: r.language,
+  native: r.native,
+  romanization: r.romanization,
+  english: r.gloss,
+  forms: r.forms.filter((f) => f.enabled).map((f) => f.text),
+  note: r.note,
+  base_lang: r.base_lang,
+  native_vocalized: r.native_vocalized,
+  pronunciation: r.pronunciation,
+  pronunciation_careful: r.pronunciation_careful,
+  pronunciation_source: r.pronunciation_source,
+});
 
 function send(res, status, body, headers = {}) {
   const isText = typeof body === "string";
@@ -89,13 +157,147 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
     delayMs: 1500,
     words: seed(),
     nextId: 1000,
+    v1: [],
+    job: { state: "done", done: 0, total: 0 },
+    failNext: null,
     llmRemaining: null,
     log: [],
   };
+  state.v1 = state.words.map(fromLegacy);
   const reset = () => {
-    Object.assign(state, { token, kotiko: null, llm: null, delayMs: 1500, words: seed(), nextId: 1000, llmRemaining: null });
+    Object.assign(state, { token, kotiko: null, llm: null, delayMs: 1500, words: seed(), nextId: 1000, job: { state: "done", done: 0, total: 0 }, failNext: null, llmRemaining: null });
+    state.v1 = state.words.map(fromLegacy);
     state.log.length = 0;
   };
+
+  // The 0.2 list the background syncs: live, active records for English pages, newest
+  // first, each with a 0.2 integer id. Rebuilt after every write.
+  function syncLegacy() {
+    for (const r of state.v1) r.legacy_id ??= state.nextId++;
+    state.words = state.v1
+      .filter((r) => !r.deleted_at && r.status === "active" && r.base_lang === "en")
+      .sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0))
+      .map(toLegacy);
+  }
+
+  const v1Error = (res, status, code, message, details = {}) => send(res, status, { error: { code, message, details } });
+  const live = (r) => !r.deleted_at;
+  const sameKey = (a, b) => a.lang === b.lang && nativeKey(a.native) === nativeKey(b.native) && (a.sense ?? "") === (b.sense ?? "") && a.base_lang === b.base_lang;
+
+  // Saves a structured word (07 merge-not-overwrite, reduced): an existing live word with the
+  // same key is "unchanged".
+  function saveWord(w, origin) {
+    const existing = state.v1.find((r) => live(r) && sameKey(r, { ...w, base_lang: w.base_lang ?? "en" }));
+    if (existing) return { result: "unchanged", word: api(existing) };
+    const now = stamp();
+    const r = record({ ...w, id: undefined, origin: w.origin ?? origin, created_at: now, updated_at: now, legacy_id: state.nextId++ });
+    r.id = `0190${Date.now().toString(16).slice(-4)}-${String(state.nextId).padStart(4, "0")}-7000-8000-${Math.random().toString(16).slice(2, 14).padEnd(12, "0")}`;
+    state.v1.unshift(r);
+    return { result: "created", word: api(r) };
+  }
+
+  const candidatesFor = (text, bases) =>
+    (answerFor(text).words ?? []).map(({ english_forms: forms, english, ...w }) => ({
+      ...w,
+      base_lang: bases?.[0] ?? "en",
+      sense: "",
+      gloss: english,
+      forms: forms?.length ? forms : [english],
+      status: "active",
+      origin: "add",
+    }));
+
+  async function v1(req, res, route) {
+    const fail = state.failNext;
+    if (fail && (!fail.method || fail.method === req.method) && (!fail.path || route.startsWith(fail.path))) {
+      state.failNext = null;
+      return v1Error(res, fail.status ?? 500, fail.code ?? "internal", fail.message ?? "Failing on purpose.", fail.details ?? {});
+    }
+    const url = new URL(req.url, "http://fixture.invalid");
+    if (route === "/words" && req.method === "GET") {
+      const statuses = (url.searchParams.get("status") ?? "active,paused").split(",");
+      const words = state.v1.filter((r) => live(r) && statuses.includes(r.status)).map(api);
+      return send(res, 200, { words, cursor: String(state.v1.length) });
+    }
+    if (route === "/jobs/pronunciation-refresh") {
+      if (req.method === "POST") {
+        const body = await readBody(req);
+        if (body.action === "pause" && ["running", "waiting"].includes(state.job.state)) state.job = { ...state.job, state: "paused" };
+        else if (body.action === "resume" && state.job.state === "paused") state.job = { ...state.job, state: "running" };
+        else if (!["pause", "resume"].includes(body.action)) return v1Error(res, 400, "invalid_request", "Send an action.", { field: "action" });
+      }
+      return send(res, 200, state.job);
+    }
+    if (route === "/words" && req.method === "POST") {
+      const body = await readBody(req);
+      if (body.word && typeof body.word === "object") {
+        const out = saveWord(body.word, "manual");
+        syncLegacy();
+        return send(res, 200, { results: [out], rejected: [], dropped_fields: [] });
+      }
+      if (typeof body.text !== "string" || !body.text.trim()) return v1Error(res, 400, "empty_input", "Type a word to add.");
+      if (!Array.isArray(body.base_langs) || !body.base_langs.length) return v1Error(res, 400, "invalid_request", "base_langs", { field: "base_langs" });
+      const candidates = candidatesFor(body.text, body.base_langs);
+      if (body.preview === true) return send(res, 200, { candidates, rejected: [], dropped_fields: [] });
+      const results = candidates.map((c) => saveWord(c, "add"));
+      syncLegacy();
+      return send(res, 200, { results, rejected: [], dropped_fields: [] });
+    }
+    if (route === "/words/batch" && req.method === "POST") {
+      const body = await readBody(req);
+      if (!Array.isArray(body.words)) return v1Error(res, 400, "invalid_request", "Send words.", { field: "words" });
+      const results = body.words.map((w, index) => ({ ...saveWord(w, "bulk"), index }));
+      syncLegacy();
+      return send(res, 200, { results, rejected: [], dropped_fields: [] });
+    }
+    const m = route.match(/^\/words\/([^/]+)(\/restore)?$/);
+    const r = m ? state.v1.find((x) => x.id === decodeURIComponent(m[1])) : null;
+    if (m && m[2] && req.method === "POST") {
+      if (!r) return v1Error(res, 404, "word_gone", "That word was already removed.");
+      if (r.deleted_at) {
+        if (state.v1.some((x) => x !== r && live(x) && sameKey(x, r))) return v1Error(res, 409, "word_conflict", "Another word already has that key.", { reason: "duplicate" });
+        r.deleted_at = null;
+        r.updated_at = stamp();
+        syncLegacy();
+      }
+      return send(res, 200, { word: api(r) });
+    }
+    if (m && req.method === "GET") return r && live(r) ? send(res, 200, { word: api(r) }) : v1Error(res, 404, "word_gone", "That word was already removed.");
+    if (m && req.method === "DELETE") {
+      if (!r) return v1Error(res, 404, "word_gone", "That word was already removed.");
+      if (!r.deleted_at) {
+        r.deleted_at = r.updated_at = stamp();
+        syncLegacy();
+      }
+      return send(res, 200, { word: api(r) });
+    }
+    if (m && req.method === "PATCH") {
+      if (!r || !live(r)) return v1Error(res, 404, "word_gone", "That word was already removed.");
+      const body = await readBody(req);
+      if (body.if_updated_at && body.if_updated_at !== r.updated_at) {
+        return v1Error(res, 409, "word_conflict", "This word changed since.", { reason: "stale", word: api(r) });
+      }
+      const next = { ...r };
+      for (const k of ["lang", "native", "romanization", "native_vocalized", "gloss", "pronunciation", "pronunciation_careful", "pronunciation_source", "note", "status", "sense"]) {
+        if (k in body) next[k] = typeof body[k] === "string" ? body[k].trim() || null : body[k];
+      }
+      if ("forms" in body) next.forms = (Array.isArray(body.forms) ? body.forms : []).map(FORM).filter((f) => f.text);
+      if (!next.native || !next.gloss) return v1Error(res, 400, "invalid_word", "That change isn't a valid word.", { field: !next.native ? "native" : "gloss", reason: "missing_field" });
+      if (!next.forms.some((f) => f.enabled)) return v1Error(res, 400, "invalid_word", "That change isn't a valid word.", { field: "forms", reason: "no_usable_forms" });
+      if (!["active", "paused"].includes(next.status)) return v1Error(res, 400, "invalid_word", "That change isn't a valid word.", { field: "status", reason: "bad_value" });
+      if ("pronunciation" in body && !body.pronunciation) Object.assign(next, { pronunciation: null, pronunciation_careful: null, pronunciation_source: null });
+      else if (("pronunciation" in body || "pronunciation_careful" in body) && !("pronunciation_source" in body)) next.pronunciation_source = "user";
+      if (next.pronunciation && /^[A-Z-]+$/.test(next.pronunciation) && next.pronunciation.includes("-")) {
+        return v1Error(res, 400, "invalid_word", "That change isn't a valid word.", { field: "pronunciation", reason: "bad_pronunciation" });
+      }
+      const other = state.v1.find((x) => x !== r && live(x) && sameKey(x, next));
+      if (other) return v1Error(res, 409, "word_conflict", "Another word already has that key.", { reason: "duplicate", other_id: other.id });
+      Object.assign(r, next, { updated_at: stamp() });
+      syncLegacy();
+      return send(res, 200, { word: api(r) });
+    }
+    return v1Error(res, 404, "not_found", "No such route.");
+  }
 
   // Finds the canned model answer for a user's text.
   const answerFor = (text) => answers[norm(text)] ?? { intent: "add", words: [] };
@@ -112,6 +314,7 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
     }
     if (req.headers.authorization !== `Bearer ${state.token}`) return send(res, 401, "unauthorized");
 
+    if (route.startsWith("/api/v1/")) return v1(req, res, route.slice("/api/v1".length));
     if (route === "/api/words" && req.method === "GET") return send(res, 200, { words: state.words });
 
     if (route === "/api/words" && req.method === "POST") {
@@ -125,6 +328,11 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
         const existing = state.words.find((x) => x.lang === w.lang && x.native === w.native);
         const word = { ...w, forms: forms?.length ? forms : [w.english], id: existing?.id ?? state.nextId++ };
         state.words = [word, ...state.words.filter((x) => x !== existing)];
+        // The same word in the v1 store, so the dashboard sees it.
+        const old = state.v1.find((r) => live(r) && r.lang === w.lang && r.native === w.native && r.base_lang === "en");
+        const now = stamp();
+        if (old) Object.assign(old, { gloss: w.english, forms: word.forms.map(FORM), updated_at: now });
+        else state.v1.unshift(record({ ...word, legacy_id: word.id, id: uuidFor(word.id), created_at: now, updated_at: now }));
         return word;
       });
       return send(res, 200, { words: saved });
@@ -135,6 +343,7 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
       const id = Number(decodeURIComponent(del[1]));
       const before = state.words.length;
       state.words = state.words.filter((w) => w.id !== id);
+      for (const r of state.v1) if (r.legacy_id === id && !r.deleted_at) r.deleted_at = r.updated_at = stamp();
       return state.words.length < before ? send(res, 200, { ok: true }) : send(res, 404, { error: "No such word." });
     }
     return send(res, 404, "not found");
@@ -185,8 +394,15 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
     if (req.method === "GET") return send(res, 200, state);
     const body = await readBody(req);
     if (body.reset) reset();
-    for (const k of ["kotiko", "llm", "delayMs", "token", "llmRemaining"]) if (k in body) state[k] = body[k];
-    if (Array.isArray(body.words)) state.words = body.words;
+    for (const k of ["kotiko", "llm", "delayMs", "token", "job", "failNext", "llmRemaining"]) if (k in body) state[k] = body[k];
+    if (Array.isArray(body.words)) {
+      state.words = body.words;
+      state.v1 = body.words.map(fromLegacy);
+    }
+    if (Array.isArray(body.v1Words)) {
+      state.v1 = body.v1Words.map((w, i) => record(w, i));
+      syncLegacy();
+    }
     return send(res, 200, { ok: true });
   }
 

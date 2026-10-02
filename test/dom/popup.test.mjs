@@ -432,6 +432,21 @@ describe("languages", () => {
   });
 });
 
+describe("the dashboard (slice 21)", () => {
+  test("the footer's Open your words opens the options page (the dashboard) and closes the popup", async () => {
+    const p = await openPopup({ local: { ...CONNECTED, words: WORDS } });
+    let opened = 0;
+    p.fake.chrome.runtime.openOptionsPage = async () => void opened++;
+    let closed = 0;
+    p.win.close = () => void closed++;
+    assert.equal(p.text("#openDashboard"), "Open your words");
+    p.$("#openDashboard").click();
+    await p.settle();
+    assert.equal(opened, 1);
+    assert.equal(closed, 1);
+  });
+});
+
 describe("keyboard and focus (20 §4)", () => {
   test("the add box comes first in the tab order and the header last", async () => {
     const p = await openPopup({ local: { ...CONNECTED, words: WORDS } });

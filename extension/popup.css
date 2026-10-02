@@ -416,6 +416,24 @@ body {
   display: none;
 }
 
+.foot-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  font: var(--t-small) var(--font-ui);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.foot-link:hover {
+  text-decoration: underline;
+}
+
+:dir(rtl) .foot-link .icon,
+[dir="rtl"] .foot-link .icon {
+  transform: scaleX(-1);
+}
+
 /* --- Loading (state L) ------------------------------------------------------------------- */
 .skeleton-chip {
   width: 84px;

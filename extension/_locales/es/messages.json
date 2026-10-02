@@ -653,5 +653,1363 @@
   "settings_online_voices_help": {
     "message": "La palabra que reproduces se envía al servicio de voz de tu navegador.",
     "description": "Help under the online voices switch: what turning it on means for privacy."
+  },
+  "popup_open_dashboard": {
+    "message": "Ver tus palabras",
+    "description": "Popup footer link that opens the dashboard (slice 21)."
+  },
+  "dash_title": {
+    "message": "Tus palabras",
+    "description": "Dashboard page heading and tab title."
+  },
+  "dash_skip_to_search": {
+    "message": "Ir a la búsqueda",
+    "description": "Skip link at the top of the dashboard, visible on keyboard focus."
+  },
+  "dash_add_words": {
+    "message": "Agregar palabras",
+    "description": "Dashboard header's primary button; opens the add sheet."
+  },
+  "dash_more": {
+    "message": "Más",
+    "description": "Accessible name of the dashboard header's ⋯ menu button."
+  },
+  "dash_settings": {
+    "message": "Ajustes",
+    "description": "Dashboard header link and settings page heading."
+  },
+  "dash_summary_one": {
+    "message": "$COUNT$ palabra en $LANGS$ idioma",
+    "description": "Under the dashboard heading. {count} words, {langs} languages.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "langs": {
+        "content": "{langs}"
+      }
+    }
+  },
+  "dash_summary_other": {
+    "message": "$COUNT$ palabras en $LANGS$ idiomas",
+    "description": "Under the dashboard heading. {count} words, {langs} languages.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "langs": {
+        "content": "{langs}"
+      }
+    }
+  },
+  "dash_summary_one_lang_one": {
+    "message": "$COUNT$ palabra",
+    "description": "Under the dashboard heading when all words are in one language.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_summary_one_lang_other": {
+    "message": "$COUNT$ palabras",
+    "description": "Under the dashboard heading when all words are in one language.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_shelf_label": {
+    "message": "Tus idiomas",
+    "description": "Accessible name of the row of language cards (the shelf)."
+  },
+  "dash_shelf_all": {
+    "message": "Todas",
+    "description": "First shelf card: shows every word. Feminine in Spanish (palabras)."
+  },
+  "dash_shelf_all_sub": {
+    "message": "Todos los idiomas",
+    "description": "Second line of the All card."
+  },
+  "dash_shelf_all_label_one": {
+    "message": "Todos los idiomas, $COUNT$ palabra",
+    "description": "Accessible name of the All card.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_shelf_all_label_other": {
+    "message": "Todos los idiomas, $COUNT$ palabras",
+    "description": "Accessible name of the All card.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_shelf_card_label_one": {
+    "message": "$LANGUAGE$, $ENDONYM$, $COUNT$ palabra",
+    "description": "Accessible name of a language card. {language} in the interface language, {endonym} in its own.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      },
+      "endonym": {
+        "content": "{endonym}"
+      },
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_shelf_card_label_other": {
+    "message": "$LANGUAGE$, $ENDONYM$, $COUNT$ palabras",
+    "description": "Accessible name of a language card.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      },
+      "endonym": {
+        "content": "{endonym}"
+      },
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_shelf_card_label_hidden_one": {
+    "message": "$LANGUAGE$, $ENDONYM$, $COUNT$ palabra, oculta en las páginas",
+    "description": "Accessible name of a hidden language's card.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      },
+      "endonym": {
+        "content": "{endonym}"
+      },
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_shelf_card_label_hidden_other": {
+    "message": "$LANGUAGE$, $ENDONYM$, $COUNT$ palabras, ocultas en las páginas",
+    "description": "Accessible name of a hidden language's card.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      },
+      "endonym": {
+        "content": "{endonym}"
+      },
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_shelf_week_one": {
+    "message": "+$COUNT$ esta semana",
+    "description": "On a language card: words added in the last 7 days.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_shelf_week_other": {
+    "message": "+$COUNT$ esta semana",
+    "description": "On a language card: words added in the last 7 days.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_shelf_hidden": {
+    "message": "Oculto",
+    "description": "On a language card whose words aren't shown on pages. Refers to the language (masculine in Spanish)."
+  },
+  "dash_shelf_menu": {
+    "message": "Opciones de $LANGUAGE$",
+    "description": "Accessible name of a language card's ⋯ menu button.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_shelf_hide": {
+    "message": "Ocultar $LANGUAGE$ en las páginas",
+    "description": "Language card menu item. {language} is lowercase in Spanish.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_shelf_show": {
+    "message": "Mostrar $LANGUAGE$ en las páginas",
+    "description": "Language card menu item.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_shelf_delete_all": {
+    "message": "Eliminar todas las palabras en $LANGUAGE$…",
+    "description": "Language card menu item; asks for confirmation.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_shelf_start": {
+    "message": "Empezar un idioma",
+    "description": "Last shelf card: pick a new language, then add its first word."
+  },
+  "dash_start_title": {
+    "message": "¿Qué idioma?",
+    "description": "Title of the language picker opened by Start a language."
+  },
+  "dash_confirm_delete_lang_one": {
+    "message": "¿Eliminar tu $COUNT$ palabra en $LANGUAGE$? Puedes deshacerlo durante 10 segundos.",
+    "description": "Confirmation before deleting a whole language from its card.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_confirm_delete_lang_other": {
+    "message": "¿Eliminar las $COUNT$ palabras en $LANGUAGE$? Puedes deshacerlo durante 10 segundos.",
+    "description": "Confirmation before deleting a whole language from its card.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_confirm_delete_lang_action_one": {
+    "message": "Eliminar $COUNT$ palabra",
+    "description": "Confirm button of that dialog.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_confirm_delete_lang_action_other": {
+    "message": "Eliminar $COUNT$ palabras",
+    "description": "Confirm button of that dialog.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_cancel": {
+    "message": "Cancelar",
+    "description": "Cancel button in dialogs."
+  },
+  "dash_done": {
+    "message": "Listo",
+    "description": "Closes the keyboard shortcuts dialog."
+  },
+  "dash_close": {
+    "message": "Cerrar",
+    "description": "Accessible name of close (×) buttons."
+  },
+  "dash_dismiss": {
+    "message": "Descartar",
+    "description": "Accessible name of a toast's close button."
+  },
+  "dash_search_label": {
+    "message": "Buscar en tus palabras",
+    "description": "Accessible name of the dashboard search field."
+  },
+  "dash_search_placeholder_one": {
+    "message": "Buscar en $COUNT$ palabra",
+    "description": "Search field placeholder.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_search_placeholder_other": {
+    "message": "Buscar en $COUNT$ palabras",
+    "description": "Search field placeholder.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_search_deleted_placeholder_one": {
+    "message": "Buscar en $COUNT$ palabra eliminada",
+    "description": "Search placeholder in Recently deleted.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_search_deleted_placeholder_other": {
+    "message": "Buscar en $COUNT$ palabras eliminadas",
+    "description": "Search placeholder in Recently deleted.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_status_live": {
+    "message": "Activas y en pausa",
+    "description": "Status filter: the default (every word that isn't deleted)."
+  },
+  "dash_status_active": {
+    "message": "Activas",
+    "description": "Status filter: words that swap on pages."
+  },
+  "dash_status_paused": {
+    "message": "En pausa",
+    "description": "Status filter: paused words."
+  },
+  "dash_status_deleted": {
+    "message": "Eliminadas hace poco",
+    "description": "Status filter: words deleted in the last 30 days, with Restore."
+  },
+  "dash_added_any": {
+    "message": "Cualquier fecha",
+    "description": "Added filter: no date limit."
+  },
+  "dash_added_today": {
+    "message": "Hoy",
+    "description": "Added filter."
+  },
+  "dash_added_week": {
+    "message": "Esta semana",
+    "description": "Added filter: the last 7 days."
+  },
+  "dash_added_month": {
+    "message": "Este mes",
+    "description": "Added filter: the last 30 days."
+  },
+  "dash_source_any": {
+    "message": "Cualquier origen",
+    "description": "Source filter: no limit."
+  },
+  "dash_source_typed": {
+    "message": "Escritas",
+    "description": "Source filter: words added one at a time."
+  },
+  "dash_source_imported": {
+    "message": "Importadas",
+    "description": "Source filter: words from a list or file."
+  },
+  "dash_source_telegram": {
+    "message": "Telegram",
+    "description": "Source filter: words added through Telegram."
+  },
+  "dash_sort_newest": {
+    "message": "Recientes",
+    "description": "Sort: newest first (default)."
+  },
+  "dash_sort_oldest": {
+    "message": "Antiguas",
+    "description": "Sort: oldest first."
+  },
+  "dash_sort_native": {
+    "message": "Palabra A–Z",
+    "description": "Sort: by the word, alphabetically in its language."
+  },
+  "dash_sort_meaning": {
+    "message": "Significado A–Z",
+    "description": "Sort: by meaning."
+  },
+  "dash_sort_language": {
+    "message": "Idioma",
+    "description": "Sort: by language name."
+  },
+  "dash_filter_clear": {
+    "message": "Quitar el filtro: $FILTER$",
+    "description": "Accessible name of the × on an active filter chip.",
+    "placeholders": {
+      "filter": {
+        "content": "{filter}"
+      }
+    }
+  },
+  "dash_refresh_running": {
+    "message": "Agregando la pronunciación a tus palabras guardadas: $DONE$ de $TOTAL$.",
+    "description": "Line above the list while the one-time pronunciation refresh runs.",
+    "placeholders": {
+      "done": {
+        "content": "{done}"
+      },
+      "total": {
+        "content": "{total}"
+      }
+    }
+  },
+  "dash_refresh_waiting": {
+    "message": "Esperando consultas gratuitas; sigue a las $TIME$.",
+    "description": "Refresh line while waiting for quota. {time} is a short time like 9:00.",
+    "placeholders": {
+      "time": {
+        "content": "{time}"
+      }
+    }
+  },
+  "dash_refresh_no_provider": {
+    "message": "La pronunciación se agregará cuando configures un servicio de consultas.",
+    "description": "Refresh line when no lookup service is configured."
+  },
+  "dash_refresh_paused": {
+    "message": "Agregar la pronunciación está en pausa: $DONE$ de $TOTAL$.",
+    "description": "Refresh line when paused.",
+    "placeholders": {
+      "done": {
+        "content": "{done}"
+      },
+      "total": {
+        "content": "{total}"
+      }
+    }
+  },
+  "dash_refresh_pause": {
+    "message": "Pausar",
+    "description": "Action on the refresh line."
+  },
+  "dash_refresh_resume": {
+    "message": "Reanudar",
+    "description": "Action on the refresh line."
+  },
+  "dash_refresh_setup": {
+    "message": "Configurar",
+    "description": "Action on the refresh line when no lookup service is set up."
+  },
+  "dash_new_hidden_one": {
+    "message": "$COUNT$ palabra nueva no aparece con tus filtros.",
+    "description": "Strip above the list when a word arrived that the filters hide.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_new_hidden_other": {
+    "message": "$COUNT$ palabras nuevas no aparecen con tus filtros.",
+    "description": "Strip above the list when words arrived that the filters hide.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_new_hidden_show": {
+    "message": "Mostrar",
+    "description": "Clears the filters so the new words show."
+  },
+  "dash_col_select": {
+    "message": "Seleccionar",
+    "description": "Hidden header of the checkbox column."
+  },
+  "dash_col_word": {
+    "message": "Palabra",
+    "description": "Column header."
+  },
+  "dash_col_meaning": {
+    "message": "Significado",
+    "description": "Column header."
+  },
+  "dash_col_language": {
+    "message": "Idioma",
+    "description": "Column header."
+  },
+  "dash_col_added": {
+    "message": "Agregada",
+    "description": "Column header: when the word was added."
+  },
+  "dash_col_deleted": {
+    "message": "Eliminada",
+    "description": "Column header in Recently deleted."
+  },
+  "dash_col_status": {
+    "message": "Estado",
+    "description": "Hidden header of the status column."
+  },
+  "dash_grid_hint": {
+    "message": "Las flechas mueven, Intro abre, Espacio selecciona, P pausa, Suprimir elimina. Pulsa ? para ver todos los atajos.",
+    "description": "Screen-reader description of the word list."
+  },
+  "dash_more_forms": {
+    "message": "+$COUNT$",
+    "description": "After a meaning: how many other forms the word has (shown in full on hover).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_select_word": {
+    "message": "Seleccionar $NATIVE$",
+    "description": "Accessible name of a row's checkbox.",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      }
+    }
+  },
+  "dash_status_new": {
+    "message": "Nueva",
+    "description": "Status chip on a word that just arrived."
+  },
+  "dash_status_paused_chip": {
+    "message": "En pausa",
+    "description": "Status chip on a paused word."
+  },
+  "dash_status_waiting": {
+    "message": "Esperando para guardar",
+    "description": "Status chip when an edit hasn't reached the server yet."
+  },
+  "dash_restore": {
+    "message": "Restaurar",
+    "description": "Brings a deleted word back."
+  },
+  "dash_restore_label": {
+    "message": "Restaurar $NATIVE$",
+    "description": "Accessible name of a deleted row's Restore button.",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      }
+    }
+  },
+  "dash_empty_title": {
+    "message": "Aún no hay palabras.",
+    "description": "Dashboard with no words: heading."
+  },
+  "dash_empty_body": {
+    "message": "Agrega la primera que te encantaría aprender, en cualquier idioma.",
+    "description": "Dashboard with no words: body."
+  },
+  "dash_no_results": {
+    "message": "Ninguna palabra coincide con “$Q$”.",
+    "description": "Search with no results. {q} is what the learner typed.",
+    "placeholders": {
+      "q": {
+        "content": "{q}"
+      }
+    }
+  },
+  "dash_add_as_new": {
+    "message": "Agregar “$Q$” como palabra nueva",
+    "description": "Button under no results.",
+    "placeholders": {
+      "q": {
+        "content": "{q}"
+      }
+    }
+  },
+  "dash_clear_search": {
+    "message": "Borrar la búsqueda",
+    "description": "Button under no results."
+  },
+  "dash_none_paused": {
+    "message": "No hay palabras en pausa.",
+    "description": "The Paused filter matches nothing."
+  },
+  "dash_none_deleted": {
+    "message": "No se eliminó nada en los últimos 30 días.",
+    "description": "Recently deleted is empty."
+  },
+  "dash_none_filtered": {
+    "message": "Ninguna palabra coincide con estos filtros.",
+    "description": "Filters match nothing."
+  },
+  "dash_clear_filters": {
+    "message": "Quitar los filtros",
+    "description": "Button when filters match nothing."
+  },
+  "dash_not_connected": {
+    "message": "Conecta tu servidor de Kotiko para ver tus palabras aquí.",
+    "description": "Banner when no access key is set."
+  },
+  "dash_offline": {
+    "message": "Estás sin conexión. Tus palabras siguen funcionando en las páginas; los cambios se guardarán cuando vuelvas.",
+    "description": "Banner while the browser is offline."
+  },
+  "dash_error_server_outdated": {
+    "message": "Tu servidor de Kotiko necesita una actualización para esto. Todo lo demás sigue funcionando.",
+    "description": "Slice 25 server_outdated."
+  },
+  "dash_error_word_gone": {
+    "message": "Esa palabra ya se había eliminado.",
+    "description": "Slice 25 word_gone."
+  },
+  "dash_error_duplicate": {
+    "message": "Otra palabra en $LANGUAGE$ ya se escribe así.",
+    "description": "Changing a word's spelling or language to one another word has. {language} lowercase in Spanish.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_conflict": {
+    "message": "Esta palabra cambió desde que la abriste. Ábrela de nuevo para corregirla.",
+    "description": "Slice 25 word_conflict (stale), outside a field."
+  },
+  "dash_conflict_field": {
+    "message": "Esta palabra acaba de cambiar en otro dispositivo.",
+    "description": "Under a field being edited when the word changed elsewhere."
+  },
+  "dash_use_theirs": {
+    "message": "Usar la otra",
+    "description": "Keep the other device's version."
+  },
+  "dash_keep_mine": {
+    "message": "Conservar la mía",
+    "description": "Keep the learner's draft."
+  },
+  "dash_invalid": {
+    "message": "Ese valor no es válido aquí.",
+    "description": "Generic field error."
+  },
+  "dash_required": {
+    "message": "Esto no puede quedar vacío.",
+    "description": "A required field was emptied."
+  },
+  "dash_too_long": {
+    "message": "Es demasiado largo para este campo.",
+    "description": "Field over its length limit."
+  },
+  "dash_bad_romanization": {
+    "message": "Usa letras latinas para la romanización.",
+    "description": "Romanization with other scripts."
+  },
+  "dash_target_is_base": {
+    "message": "Una palabra no puede estar en el idioma de las páginas donde se muestra.",
+    "description": "Moving a word to its own base language."
+  },
+  "dash_pron_stress": {
+    "message": "Escribe en mayúsculas la sílaba acentuada, y solo esa: pa-ZHAL-sta.",
+    "description": "Pronunciation error. Keep the example pa-ZHAL-sta as is."
+  },
+  "dash_pron_letters": {
+    "message": "Usa solo las letras de la guía.",
+    "description": "Pronunciation with letters outside the respelling key."
+  },
+  "dash_stress_mismatch": {
+    "message": "La marca de acento y la pronunciación señalan sílabas distintas.",
+    "description": "Stress-marked form disagrees with the pronunciation."
+  },
+  "dash_vocalized_other_word": {
+    "message": "La forma con acento debe ser la misma palabra con una tilde.",
+    "description": "native_vocalized that isn't the word plus a stress mark."
+  },
+  "dash_forms_last": {
+    "message": "Una palabra necesita al menos un significado.",
+    "description": "Removing the last form."
+  },
+  "dash_forms_last_in": {
+    "message": "Una palabra necesita al menos un significado en $BASE$.",
+    "description": "Removing the last form of a base. {base} is a language name, lowercase in Spanish.",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "dash_inspector_label": {
+    "message": "Detalles de $NATIVE$",
+    "description": "Accessible name of the inspector.",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      }
+    }
+  },
+  "dash_field_native": {
+    "message": "Palabra",
+    "description": "Label of the word field (visually hidden)."
+  },
+  "dash_field_native_name": {
+    "message": "la escritura",
+    "description": "Field name in 'Changed {field} of {native}'."
+  },
+  "dash_field_romanization": {
+    "message": "Romanización",
+    "description": "Label of the romanization field (visually hidden)."
+  },
+  "dash_field_romanization_placeholder": {
+    "message": "Agregar una romanización",
+    "description": "Placeholder of the empty romanization field."
+  },
+  "dash_field_romanization_name": {
+    "message": "la romanización",
+    "description": "Field name in the change toast."
+  },
+  "dash_field_vocalized": {
+    "message": "Con marca de acento",
+    "description": "Label of the stress-marked form (Russian, Ukrainian, Belarusian)."
+  },
+  "dash_field_vocalized_name": {
+    "message": "la marca de acento",
+    "description": "Field name in the change toast."
+  },
+  "dash_field_meaning": {
+    "message": "Significado",
+    "description": "Label of a base's meaning field."
+  },
+  "dash_field_meaning_name": {
+    "message": "el significado",
+    "description": "Field name in the change toast."
+  },
+  "dash_field_forms": {
+    "message": "Formas en las páginas",
+    "description": "Label of the forms (the words pages say) chips."
+  },
+  "dash_field_forms_name": {
+    "message": "las formas",
+    "description": "Field name in the change toast."
+  },
+  "dash_field_pronunciation": {
+    "message": "Pronunciación",
+    "description": "Label of the pronunciation field."
+  },
+  "dash_field_pronunciation_name": {
+    "message": "la pronunciación",
+    "description": "Field name in the change toast."
+  },
+  "dash_field_careful": {
+    "message": "Despacio",
+    "description": "Label of the careful (slow) pronunciation field."
+  },
+  "dash_field_careful_name": {
+    "message": "la pronunciación lenta",
+    "description": "Field name in the change toast."
+  },
+  "dash_field_note": {
+    "message": "Nota",
+    "description": "Label of the note field."
+  },
+  "dash_field_note_name": {
+    "message": "la nota",
+    "description": "Field name in the change toast."
+  },
+  "dash_form_add": {
+    "message": "+ Agregar",
+    "description": "Placeholder of the add-a-form input."
+  },
+  "dash_form_add_label": {
+    "message": "Agregar formas en $BASE$, separadas por comas",
+    "description": "Accessible name of the add-a-form input.",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "dash_form_remove": {
+    "message": "Quitar $FORM$",
+    "description": "Accessible name of a form chip's ×.",
+    "placeholders": {
+      "form": {
+        "content": "{form}"
+      }
+    }
+  },
+  "dash_saved": {
+    "message": "Guardado",
+    "description": "Shown beside a field for a moment after it saves."
+  },
+  "dash_speak": {
+    "message": "Decir $NATIVE$ ($LANGUAGE$)",
+    "description": "Accessible name of the speak button.",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      },
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_move": {
+    "message": "Mover",
+    "description": "Inspector link that moves the word to another language."
+  },
+  "dash_move_to": {
+    "message": "Mover a…",
+    "description": "Selection bar button."
+  },
+  "dash_move_title": {
+    "message": "¿A qué idioma?",
+    "description": "Title of the language picker for moving."
+  },
+  "dash_lang_search": {
+    "message": "Buscar idiomas",
+    "description": "Search field in the language picker."
+  },
+  "dash_shows": {
+    "message": "Kotiko muestra $NATIVE$ donde las páginas dicen “$GLOSS$”.",
+    "description": "Inspector line showing how the word appears on pages. {base} is available too.",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      },
+      "gloss": {
+        "content": "{gloss}"
+      }
+    }
+  },
+  "dash_on_pages_in": {
+    "message": "En páginas en $BASE$",
+    "description": "Heading of a base language's block in the inspector. {base} lowercase in Spanish.",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "dash_remove_meaning": {
+    "message": "Quitar este significado",
+    "description": "Removes one base's record of a word."
+  },
+  "dash_add_meaning_in": {
+    "message": "Agregar un significado en $BASE$",
+    "description": "Adds a record for a base language the word has no meaning in.",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "dash_swap_on_pages": {
+    "message": "Cambiar en las páginas",
+    "description": "Switch: active (on) or paused (off)."
+  },
+  "dash_added_on": {
+    "message": "Agregada el $DATE$",
+    "description": "Inspector provenance.",
+    "placeholders": {
+      "date": {
+        "content": "{date}"
+      }
+    }
+  },
+  "dash_added_from": {
+    "message": "Agregada el $DATE$ desde “$TEXT$”",
+    "description": "Inspector provenance with the text the learner typed.",
+    "placeholders": {
+      "date": {
+        "content": "{date}"
+      },
+      "text": {
+        "content": "{text}"
+      }
+    }
+  },
+  "dash_changed_on": {
+    "message": "Cambiada el $DATE$",
+    "description": "Inspector: last change.",
+    "placeholders": {
+      "date": {
+        "content": "{date}"
+      }
+    }
+  },
+  "dash_deleted_on": {
+    "message": "Eliminada el $DATE$",
+    "description": "Inspector of a deleted word.",
+    "placeholders": {
+      "date": {
+        "content": "{date}"
+      }
+    }
+  },
+  "dash_delete_word": {
+    "message": "Eliminar palabra",
+    "description": "Inspector's quiet danger button; no confirmation, Undo in the toast."
+  },
+  "dash_delete": {
+    "message": "Eliminar",
+    "description": "Selection bar button."
+  },
+  "dash_pause": {
+    "message": "Pausar",
+    "description": "Selection bar button."
+  },
+  "dash_resume": {
+    "message": "Reanudar",
+    "description": "Selection bar button."
+  },
+  "dash_selection_label": {
+    "message": "Palabras seleccionadas",
+    "description": "Accessible name of the selection bar."
+  },
+  "dash_selected_count_one": {
+    "message": "$COUNT$ seleccionada",
+    "description": "Selection bar count.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_selected_count_other": {
+    "message": "$COUNT$ seleccionadas",
+    "description": "Selection bar count.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_select_all_one": {
+    "message": "Seleccionar $COUNT$",
+    "description": "Link in the selection bar.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_select_all_other": {
+    "message": "Seleccionar las $COUNT$",
+    "description": "Link in the selection bar.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_clear_selection": {
+    "message": "Quitar la selección",
+    "description": "Accessible name of the selection bar's ×."
+  },
+  "dash_toast_changed": {
+    "message": "Se cambió $FIELD$ de $NATIVE$.",
+    "description": "Toast after an edit; Undo follows. {field} is like 'the meaning'.",
+    "placeholders": {
+      "field": {
+        "content": "{field}"
+      },
+      "native": {
+        "content": "{native}"
+      }
+    }
+  },
+  "dash_toast_deleted_word": {
+    "message": "Se eliminó $NATIVE$.",
+    "description": "Toast after deleting one word; Undo follows.",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      }
+    }
+  },
+  "dash_toast_deleted_one": {
+    "message": "Se eliminó $COUNT$ palabra.",
+    "description": "Toast after deleting words; Undo follows.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_toast_deleted_other": {
+    "message": "Se eliminaron $COUNT$ palabras.",
+    "description": "Toast after deleting several words; Undo follows.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_toast_paused_word": {
+    "message": "Se pausó $NATIVE$.",
+    "description": "Toast after pausing one word.",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      }
+    }
+  },
+  "dash_toast_paused_one": {
+    "message": "Se pausó $COUNT$ palabra.",
+    "description": "Toast after pausing words.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_toast_paused_other": {
+    "message": "Se pausaron $COUNT$ palabras.",
+    "description": "Toast after pausing several words.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_toast_resumed_word": {
+    "message": "$NATIVE$ vuelve a cambiarse en las páginas.",
+    "description": "Toast after resuming one word.",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      }
+    }
+  },
+  "dash_toast_resumed_one": {
+    "message": "Se reanudó $COUNT$ palabra.",
+    "description": "Toast after resuming words.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_toast_resumed_other": {
+    "message": "Se reanudaron $COUNT$ palabras.",
+    "description": "Toast after resuming several words.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_toast_moved_word": {
+    "message": "$NATIVE$ pasó a $LANGUAGE$.",
+    "description": "Toast after moving one word.",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      },
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_toast_moved_one": {
+    "message": "Se movió $COUNT$ palabra a $LANGUAGE$.",
+    "description": "Toast after moving words.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_toast_moved_other": {
+    "message": "Se movieron $COUNT$ palabras a $LANGUAGE$.",
+    "description": "Toast after moving several words.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_toast_restored_one": {
+    "message": "Se restauró $COUNT$ palabra.",
+    "description": "Toast after restoring.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_toast_restored_other": {
+    "message": "Se restauraron $COUNT$ palabras.",
+    "description": "Toast after restoring.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_toast_meaning_removed": {
+    "message": "Se quitó el significado en $BASE$ de $NATIVE$.",
+    "description": "Toast after removing one base's record.",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      },
+      "native": {
+        "content": "{native}"
+      }
+    }
+  },
+  "dash_keys_title": {
+    "message": "Atajos de teclado",
+    "description": "Dialog title and ⋯ menu item."
+  },
+  "dash_key_search": {
+    "message": "Buscar",
+    "description": "Shortcut description."
+  },
+  "dash_key_move": {
+    "message": "Moverse entre palabras",
+    "description": "Shortcut description."
+  },
+  "dash_key_open": {
+    "message": "Abrir la palabra",
+    "description": "Shortcut description."
+  },
+  "dash_key_toggle": {
+    "message": "Seleccionar o no",
+    "description": "Shortcut description."
+  },
+  "dash_key_extend": {
+    "message": "Ampliar la selección",
+    "description": "Shortcut description."
+  },
+  "dash_key_select_all": {
+    "message": "Seleccionar todas las palabras visibles",
+    "description": "Shortcut description."
+  },
+  "dash_key_delete": {
+    "message": "Eliminar (con Deshacer)",
+    "description": "Shortcut description."
+  },
+  "dash_key_pause": {
+    "message": "Pausar o reanudar",
+    "description": "Shortcut description."
+  },
+  "dash_key_move_lang": {
+    "message": "Mover a otro idioma",
+    "description": "Shortcut description."
+  },
+  "dash_key_add": {
+    "message": "Agregar palabras",
+    "description": "Shortcut description."
+  },
+  "dash_key_escape": {
+    "message": "Cerrar, luego quitar la selección, luego la búsqueda",
+    "description": "Shortcut description."
+  },
+  "dash_key_undo": {
+    "message": "Deshacer el último cambio",
+    "description": "Shortcut description."
+  },
+  "dash_key_help": {
+    "message": "Mostrar estos atajos",
+    "description": "Shortcut description."
+  },
+  "dash_add_title": {
+    "message": "Agregar palabras",
+    "description": "Title of the add sheet."
+  },
+  "dash_add_hint": {
+    "message": "Buscando palabras en $LANGUAGE$.",
+    "description": "Under the add box after Start a language.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_add_hint_clear": {
+    "message": "Cualquier idioma",
+    "description": "Removes the language hint."
+  },
+  "dash_add_added": {
+    "message": "Se agregó $WORD$",
+    "description": "A saved word in the add sheet; {word} is the word, its meaning and language.",
+    "placeholders": {
+      "word": {
+        "content": "{word}"
+      }
+    }
+  },
+  "dash_add_choose": {
+    "message": "$COUNT$ palabras en “$TEXT$”. Desmarca las que no quieras.",
+    "description": "Four or more words found: nothing is saved until the learner chooses.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "text": {
+        "content": "{text}"
+      }
+    }
+  },
+  "dash_add_keep_one": {
+    "message": "Agregar $COUNT$ palabra",
+    "description": "Saves the ticked words.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_add_keep_other": {
+    "message": "Agregar $COUNT$ palabras",
+    "description": "Saves the ticked words.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_add_no_lookup": {
+    "message": "La búsqueda de palabras aún no está configurada en tu servidor de Kotiko.",
+    "description": "Add failed: the server has no model key."
+  },
+  "dash_settings_index": {
+    "message": "Secciones de ajustes",
+    "description": "Accessible name of the settings index."
+  },
+  "dash_back_to_words": {
+    "message": "Tus palabras",
+    "description": "Link from settings back to the list."
+  },
+  "dash_set_ui_lang": {
+    "message": "Idioma de Kotiko",
+    "description": "Settings section: interface language."
+  },
+  "dash_set_ui_lang_help": {
+    "message": "El idioma de los botones y mensajes de Kotiko. Tus palabras no cambian.",
+    "description": "Help under the interface language section."
+  },
+  "dash_ui_lang_auto": {
+    "message": "Igual que mi navegador ($LANGUAGE$)",
+    "description": "Default interface language option.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_set_connection": {
+    "message": "Tu servidor de Kotiko",
+    "description": "Settings section: server address and access key."
+  },
+  "dash_set_access_key_help": {
+    "message": "Se guarda solo en este navegador. Las páginas web no pueden leerla.",
+    "description": "Help under the access key field."
+  },
+  "dash_set_test": {
+    "message": "Probar la conexión",
+    "description": "Checks the server now."
+  },
+  "dash_set_saved": {
+    "message": "Guardado. Revisando tu servidor…",
+    "description": "Toast after the address or key changes."
+  },
+  "dash_set_connected_one": {
+    "message": "Conexión correcta. Tu servidor tiene $COUNT$ palabra.",
+    "description": "Connection status.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_set_connected_other": {
+    "message": "Conexión correcta. Tu servidor tiene $COUNT$ palabras.",
+    "description": "Connection status.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_set_appearance": {
+    "message": "Apariencia",
+    "description": "Settings section."
+  },
+  "dash_set_theme": {
+    "message": "Tema",
+    "description": "Appearance: theme label."
+  },
+  "dash_theme_system": {
+    "message": "Sistema",
+    "description": "Theme option."
+  },
+  "dash_theme_light": {
+    "message": "Claro",
+    "description": "Theme option."
+  },
+  "dash_theme_dark": {
+    "message": "Oscuro",
+    "description": "Theme option."
+  },
+  "dash_set_motion": {
+    "message": "Reducir el movimiento",
+    "description": "Appearance: motion label."
+  },
+  "dash_motion_system": {
+    "message": "Como mi sistema",
+    "description": "Reduce motion option: follow the system."
+  },
+  "dash_motion_on": {
+    "message": "Siempre",
+    "description": "Reduce motion option: always reduce."
+  },
+  "dash_set_about": {
+    "message": "Acerca de",
+    "description": "Settings section."
+  },
+  "dash_set_version": {
+    "message": "Kotiko $VERSION$",
+    "description": "About: the extension's version.",
+    "placeholders": {
+      "version": {
+        "content": "{version}"
+      }
+    }
+  },
+  "dash_set_source": {
+    "message": "Código fuente",
+    "description": "About: link to the repository."
+  },
+  "dash_set_license": {
+    "message": "Licencia (Apache-2.0)",
+    "description": "About: link to the license."
+  },
+  "dash_list_unavailable": {
+    "message": "Tus palabras aparecerán aquí cuando tu servidor responda.",
+    "description": "Empty list while the server can't be reached."
+  },
+  "dash_move_elsewhere": {
+    "message": "Otro idioma…",
+    "description": "Last item of the Move menu."
+  },
+  "dash_kbd_enter": {
+    "message": "Intro",
+    "description": "Name of the Enter key in the shortcuts list, as printed on keyboards."
+  },
+  "dash_kbd_space": {
+    "message": "Espacio",
+    "description": "Name of the space bar in the shortcuts list."
+  },
+  "dash_kbd_delete": {
+    "message": "Supr",
+    "description": "Name of the Delete key in the shortcuts list, as printed on keyboards."
+  },
+  "dash_kbd_shift": {
+    "message": "Mayús",
+    "description": "Name of the Shift key in the shortcuts list."
   }
 }

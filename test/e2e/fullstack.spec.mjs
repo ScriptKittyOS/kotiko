@@ -149,4 +149,45 @@ test.describe("full stack", () => {
     await expect(p.locator("#jobs li").first()).toHaveText("Removed собака.");
     await expect(p.locator("#count")).toHaveText("1 word");
   });
+
+  // Slice 21 on the real server's /api/v1: add through the preview (nothing saved before
+  // the learner's Enter), edit a pronunciation, pause, delete and restore.
+  test("the dashboard reads, adds, edits, pauses, deletes and restores on the real server", async ({ context, popup }) => {
+    const p = await popup.connect(serverUrl, TOKEN);
+    const [dash] = await Promise.all([context.waitForEvent("page"), p.locator("#openDashboard").click()]);
+    await expect(dash.locator("#app")).toHaveAttribute("data-ready", "true");
+    const row = (native) => dash.locator(".wrow", { has: dash.locator(".w-native", { hasText: native }) });
+
+    await dash.locator("#addWords").click();
+    await dash.locator("#addText").fill("kniga");
+    await dash.locator("#addText").press("Enter");
+    await expect(dash.locator(".add-job.is-done")).toContainText("Added книга");
+    await dash.keyboard.press("Escape");
+    await expect(row("книга")).toHaveCount(1);
+
+    await row("книга").click();
+    const pron = dash.locator("#inspector .pron-field").first();
+    await pron.fill("KNEE-ga");
+    await pron.press("Enter");
+    await expect(dash.locator("#inspector .fld-pron-field .saved").first()).toBeVisible();
+    await expect(dash.locator("#inspector .pron-preview b")).toHaveText("KNEE");
+    await expect(dash.locator("#inspector .pron-label")).toBeHidden();
+
+    await pron.fill("KNEE-GA");
+    await pron.press("Enter");
+    await expect(dash.locator("#inspector .fld-pron-field .field-error").first()).toContainText("Write the stressed syllable in capitals");
+
+    await dash.locator(".insp-swap").click();
+    await expect(row("книга").locator(".c-status")).toHaveText("Paused");
+    await dash.reload();
+    await expect(row("книга").locator(".c-status")).toHaveText("Paused");
+
+    await row("книга").click();
+    await dash.locator(".insp-delete").click();
+    await expect(row("книга")).toHaveCount(0);
+    await dash.locator("#toasts .toast-undo").click();
+    await expect(row("книга")).toHaveCount(1);
+    await dash.reload();
+    await expect(row("книга")).toHaveCount(1);
+  });
 });

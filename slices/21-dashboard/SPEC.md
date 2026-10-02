@@ -555,3 +555,189 @@ Changelog: "A new page for all your words: search, edit, pause, move and delete,
 - A server-served version of the same page for phones (the server already has the data).
 - A "words seen today" view once [46](../46-local-stats-and-recap/SPEC.md) exists.
 - Sense editing when [36](../36-grammar-and-senses/SPEC.md) lands.
+
+## Implementation notes
+
+*2026-10-02, first build, on [06](../06-design-system/SPEC.md)'s tokens and against
+today's backend: the self-hosted server's `/api/v1` ([07](../07-word-model-v2/SPEC.md) §5)
+reached through the background. Requirements above are unchanged; this records what exists
+now and what waits for other slices.*
+
+**Where words come from today.** [11](../11-local-first-mode/SPEC.md)'s IndexedDB store
+isn't built, so the dashboard reads and writes through a small data-source module,
+`extension/lib/word-source.js` (`list`, `deleted`, `write([{op, id, patch,
+if_updated_at}])`, `preview`, `save`, `refreshJob`, `subscribe`). Its one implementation,
+`createServerSource`, sends messages to the background, whose handlers
+(`extension/lib/words-v1.js`: `words.list`, `words.write`, `words.deleted`,
+`words.preview`, `words.save`, `job.refresh`, extension pages only) call `GET
+/api/v1/words?status=active,paused`, `PATCH` (with `if_updated_at`), `DELETE`,
+`POST …/restore`, `POST /api/v1/words` (`preview`, structured `word`), `POST
+/api/v1/words/batch` and the pronunciation-refresh job, a few requests at a time.
+Slice 11 adds a second source with the same methods over IndexedDB (§10's
+`changesSince`); nothing in `dashboard.js` changes. The pages keep reading the legacy
+`storage.local.words` projection: after every dashboard write the background asks for a
+sync, so edits, pauses and deletes reach open pages within a moment. The server is not
+changed.
+
+**Built.**
+
+- `extension/dashboard.html|css|js`, registered as `options_ui` (`open_in_tab`), so the
+  toolbar's right-click Options opens it; the popup's footer has "Open your words"
+  (`runtime.openOptionsPage`, which focuses an open dashboard instead of a second tab).
+  Hash routes as §1 (`#words`, `#words/{id}`, `#words?lang=…&status=…&q=…&sort=…`,
+  `#add`, `#settings`, `#settings/{section}`), mirrored with `replaceState`.
+- Layout per §2: header (mark, wordmark, Add words, ⋯, Settings), the title and a
+  word/language count, the **language shelf** (endonym in the word face with its `lang`,
+  name in the interface language, count, "+n this week", Hidden; selecting filters, All
+  clears; each card's ⋯ has Show/Hide on pages and the one confirmed action, Delete all
+  {language} words; "+ Start a language" picks a language for the add box's hint), the
+  search and filter chips, the list card and the inspector side by side at ≥ 960 px; a
+  modal sheet below that; two-line rows and a scrolling page below 600 px.
+- **The list**: one row per word group (`lang` + `native_key`, the server's rule,
+  checked against `spec/fixtures/native-key.json`), so 犬 with `en` and `es` records reads
+  "dog · perro"; the native word first in `--t-word`, romanization in `--ink-3`, meaning per
+  base (one base: gloss and "+n"), language, Added (relative for a week, then a date),
+  status chips (Paused, New, Waiting to save). Virtualized: fixed 52/64 px rows, the
+  visible rows plus 10 above and below, `role="grid"` with `aria-multiselectable`,
+  `aria-rowcount`/`aria-rowindex` and `aria-activedescendant` on the active row; scroll
+  position anchors on the first visible row when rows arrive above it.
+- **Search** (`extension/lib/word-search.js`): one folded string per group built on load
+  and updated per changed group; folds case (Turkish-style casing by the word's language),
+  accents, tone marks and Arabic/Hebrew points; pronunciations also match without hyphens
+  and spaces; exact native matches first, then the list's order; matches in weight 600
+  `--purple-text`. No results offers "Add “{q}” as a new word" and Clear search.
+- **Filters**: status (Active and paused by default, Active, Paused, Recently deleted),
+  added (Any time, Today, This week, This month), source (07 `origin`), sort (Newest,
+  Oldest, Word A-Z with `Intl.Collator(lang)`, Meaning A-Z, Language). Active chips show ×.
+  The model has "Meaning in" and "Missing a meaning in" but no chip yet (see below).
+- **Inspector**: the specimen (editable in place), romanization, language with Move, the
+  stress-marked form for ru/uk/be (checked against the pronunciation's capitals), "Kotiko
+  shows X where pages say “…”." per base, one block per base record (meaning, forms chip
+  editor with "+ Add" taking several and refusing to remove the last, Pronunciation and
+  Slowly for bases with a key, the stressed syllable in semibold below, the source label in
+  19's words, note, Remove this meaning), "+ Add a meaning in {base}" (typed; see below),
+  Swap on pages, Added/Changed, Delete word. Every field saves on Enter or blur, with a
+  "Saved" check for 1.5 s, an optimistic list update, a "Changed {field} of {native}."
+  toast with Undo, and Ctrl/Cmd+Z. Pronunciation input is checked inline with 07 §7's
+  rules (the same table as the server's `Kotiko.Pronunciation`) before anything is sent;
+  editing one sets `pronunciation_source: "user"` and the AI-generated label goes. A
+  stale save or a change from elsewhere while a field is being edited keeps the draft and
+  offers Use theirs / Keep mine; any other failure reverts the field with 25's words and
+  Try again. The speak button is 34's (`lib/speak.js`), shown when a voice exists.
+- **Delete, Undo, Recently deleted**: delete is immediate with a 10 s Undo toast (toasts
+  are `role="status"`, pause on hover and focus); Recently deleted lists tombstones with
+  Restore. The server keeps tombstones 30 days but has no route that lists them, so the
+  background records words deleted from extension pages in `storage.local.recentlyDeleted`
+  (30 days, at most 5,000) and the view reads that. Words deleted on Telegram or another
+  device don't appear there until [39](../39-multi-device-sync/SPEC.md)'s change feed.
+- **Selection and bulk** (§6): click, Shift+click, Ctrl/Cmd+click, checkboxes on hover and
+  on every row once something is checked, Ctrl/Cmd+A; the floating bar with Pause, Resume,
+  Move to…, Delete (Restore in Recently deleted), each undoable. 500 words delete in one
+  message and come back with one Undo.
+- **Keyboard** (§12) when focus is in the list: arrows, Home/End, Page Up/Down, Enter,
+  Space, Shift+arrows, Ctrl/Cmd+A, Delete/Backspace, P, M, N, Esc (inspector, then
+  selection, then search), Ctrl/Cmd+Z, ? (a dialog listing them), / from anywhere. The
+  search field has focus when the page opens, so finding a word is one step.
+- **The refresh line** (§3) from `GET /api/v1/jobs/pronunciation-refresh`, polled every
+  15 s while the page is visible and the job isn't done; Pause and Resume post the action;
+  the visible numbers follow the job and the `role="status"` copy is announced at most once
+  a minute.
+- **Live updates** (§10): the background bumps `wordsVersion` (`{at, by}`) after each write
+  from a page; the dashboard reloads when another page wrote, or when the background's sync
+  changed the pages' list for reasons other than its own recent edits (a popup add, a
+  Telegram add on the next sync, the refresh job). New words that match the filters get the
+  wash and a "New" chip; others are counted in "{n} new words aren't shown by your filters.
+  Show". It asks for a sync when the window gains focus.
+- **Adding** (`#add`, N, Add words, "Add “q” as a new word"): the popup's add box with 24's
+  rules over the server's preview: nothing is saved before the learner's Enter; one to
+  three words are then saved with Undo each; four or more wait in a checklist ("Add {k}
+  words"). Base languages come from `storage.local.baseLangs` when [50](../50-ui-localization-and-base-language/SPEC.md)
+  writes it, else the bases the learner's words already have (English first).
+- **States** (§11): loading (six `--sunken` rows after 150 ms, no shimmer), no words
+  (kitten, copy, Add words), not connected (banner to Connection), unreachable or a rejected
+  key or a non-Kotiko address (25's banners, Details, Try again; the list says why it's
+  empty), an older server without `/api/v1` (`server_outdated`), no results, filters
+  excluding everything, offline (edits stay and rows show "Waiting to save"; they're sent
+  on `online`, focus or every 30 s), error on one edit.
+- **Settings** (§9) on the same page, saving on change: **Kotiko's language** (Same as my
+  browser, English, Español; stored as `ui.uiLang` in `storage.sync`; `lib/i18n.js` now
+  loads the chosen `_locales/<locale>/messages.json` and the page re-renders in place,
+  keeping scroll), **Your Kotiko server** (address and access key, typed only on this full
+  page, the key hidden with Show; Test the connection; status in plain words), **Voices**
+  (online voices, 34), **Appearance** (theme System/Light/Dark and Reduce motion, read by
+  `ui/theme.js` on every page), **About** (version, source code, license). The popup's own
+  connection settings stay as they are.
+- Copy: every string through `KotikoI18n` in `en` and `es` (226 new keys, counting plural forms). **Every `es`
+  string is pending native review** (50 §9); choices to review: "Activas y en pausa",
+  "Eliminadas hace poco", "Usar la otra"/"Conservar la mía", "Despacio" for Slowly, "Supr"
+  and "Intro" for the key names. "No words yet" drops "or a list you already have" until
+  bulk add ([13](../13-bulk-add/SPEC.md)) exists, as slice 20 did.
+- Accessibility (27): the grid pattern above; the inspector is a labelled region, or a
+  modal dialog with a focus trap on narrow screens; menus are menu buttons with arrow keys
+  and type-ahead; radio groups apply on arrows; every icon button is named; RTL words sit
+  in `<bdi dir="auto">` with their `lang`; reduced motion (the media query or the setting)
+  fades instead of moving; forced colors outline selection. Word data is only ever text
+  (ESLint's no-unsanitized rules; a test renders `<img onerror>` as text). New color pairs
+  are in `extension/ui/tools/contrast.mjs` (72 pairs pass in both themes).
+
+**Steps today** (§13's counting):
+
+| Task | Steps |
+|---|---|
+| Open the dashboard | 2 (popup, Open your words), or 2 (right-click the toolbar button, Options) |
+| Find a word (dashboard open) | 1 (type) |
+| Fix one base's meaning of a word | 3 (select, edit the meaning field, Enter) |
+| Fix a romanization or pronunciation | 3 from the dashboard (select, edit, Enter); from a page waits for the popover's Edit (19) |
+| Pause one word | 2 (select, P) |
+| Pause 40 contiguous words | 3 (click first, Shift+click last, P) |
+| Delete a word | 2 (select, Delete) |
+| Undo that | 1 (Undo in the toast, or Ctrl/Cmd+Z) |
+| Restore a word deleted earlier | 3 (status chip, Recently deleted, Restore) |
+| Move a word to another language | 3 (select, M, pick) |
+| Add a word | 3 (N, type, Enter) |
+| See how many words per language | 0 (the shelf) |
+| Add a language you read | waits for 50 |
+| Export everything as CSV | waits for 12 |
+
+**Waiting for other slices** (absent, not disabled, per §9; hooks are comments in
+`dashboard.html` and `dashboard.js`): "Languages you read in", "Add meanings in {base}",
+"For pages in {base}" and the base-language upgrade note ([50](../50-ui-localization-and-base-language/SPEC.md));
+the lookup mode, provider and AI key ([11](../11-local-first-mode/SPEC.md)); IndexedDB
+reads and `changesSince`, durable queued edits, `storage_full` ([11](../11-local-first-mode/SPEC.md));
+bulk paste, file drop and "Import a list or file" in `#add` and ⋯ ([13](../13-bulk-add/SPEC.md));
+Export (E, the bar, ⋯, the shelf menu) and Your data ([12](../12-export-import-and-delete/SPEC.md));
+Focus and Color on the shelf ([18](../18-language-precedence-and-mixing/SPEC.md),
+[37](../37-language-colors-and-reading-aids/SPEC.md)); Reading, Learning and Shortcuts
+settings (31, 16, 37, 43, 32, 35, 46, 33); "Well known" (35); "How to read this" (the
+respelling key, 09's `respelling.json` and 44); merging with an existing word when a new
+spelling or language collides (07's merge has no route yet: the inspector says "Another
+{language} word is already spelled like that."); the lookup for "+ Add a meaning in
+{base}" (it opens an empty meaning to type); the "Meaning in" filter chip (shown only to
+learners with more than one base, so with 50); Japanese kana matched against romanization
+in search; Telegram and other-device deletes in Recently deleted (39); the popover's Edit
+linking to `#words/{id}` (19); the privacy policy and "Show welcome again" in About (28,
+22); the step-count scripts and axe-core pass as CI checks (27); the server-served phone
+version (Future work).
+
+**Tests.** `test/unit/word-search.test.mjs` (folding, the acceptance searches, ranking,
+highlight ranges), `test/unit/dashboard-model.test.mjs` (grouping and native keys, sort,
+filters, shelf, tombstones, routes, undo stack, refresh line, pronunciation and stress
+checks, forms, UUIDv7, dates), `test/unit/word-source.test.mjs` (the source and the
+background's word routes with fakes: per-op errors, Recently deleted, live-update
+filtering), `test/bg/dashboard-api.test.mjs` (the real background against the fixture
+server's in-memory `/api/v1`: reads, an edit reaching `storage.local.words`, delete and
+restore, stale and duplicate conflicts, invalid fields, preview saving nothing, the job,
+slice 25 codes), `test/dom/dashboard.test.mjs` (43 jsdom tests: every state, search,
+filters, inspector saves and Undo, pronunciation refusal, two-base edits, conflicts,
+offline queueing, delete/restore, bulk with 500 words, keyboard, the refresh line in
+both languages, live updates, adding, settings and switching to Español, Spanish
+strings, names and text-only rendering), `test/e2e/dashboard.spec.mjs` (Chromium: open
+from the popup as the options page, edit and Ctrl+Z, delete with Undo and restore, a
+popup add arriving live, search) and a full-stack test in `test/e2e/fullstack.spec.mjs`
+(the dashboard on the real Elixir server: add through the preview, edit a pronunciation,
+refused capitals, pause, delete and Undo). `npm run perf` has budgets for grouping and
+indexing, sorting and one search keystroke at 5,000 and 20,000 words, scrolling 20,000
+rows (100 frames) and opening with 20,000 (jsdom). The fixture server gained the v1
+routes in memory (`v1Words`, `job` and `failNext` controls). Screenshots in light and
+dark, English and Spanish: `node test/visual/dashboard-screenshots.mjs <dir>` (for
+review; not in CI).

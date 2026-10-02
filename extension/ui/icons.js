@@ -40,6 +40,13 @@
       ["path", { d: "M14 11.5v3.25a1.5 1.5 0 0 1-1.5 1.5h-7.25a1.5 1.5 0 0 1-1.5-1.5V7.5A1.5 1.5 0 0 1 5.25 6H8.5" }],
     ],
     more: [dot(5, 10, 1.25), dot(10, 10, 1.25), dot(15, 10, 1.25)],
+    // The dashboard (slice 21): search, restore and the keyboard map.
+    search: [["circle", { cx: 8.75, cy: 8.75, r: 5 }], ["path", { d: "M12.5 12.5l4 4" }]],
+    restore: [["path", { d: "M4.5 10a5.5 5.5 0 1 0 1.6-3.9" }], ["path", { d: "M4.25 3.75v3h3" }]],
+    keyboard: [
+      ["rect", { x: 2.75, y: 5.25, width: 14.5, height: 9.5, rx: 2 }],
+      ["path", { d: "M6 8.5h.01M9 8.5h.01M12 8.5h.01M15 8.5h.01M6.5 11.75h7" }],
+    ],
     // Pronunciation audio (slice 34): a speaker with two sound waves.
     speaker: [
       ["path", { d: "M3.75 7.75v4.5h2.9L10.5 15.4V4.6L6.65 7.75z" }],

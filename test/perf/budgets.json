@@ -20,11 +20,48 @@
   "wordcard.cardFor.x1000": {
     "budget_ms": 40,
     "ci_factor": 3,
-    "note": "1,000 word cards; one card's model is a thousandth of this, well inside 19 \u00a711's 4 ms per open (DOM included)."
+    "note": "1,000 word cards; one card's model is a thousandth of this, well inside 19 §11's 4 ms per open (DOM included)."
   },
   "speak.pickVoice.x1000": {
     "budget_ms": 60,
     "ci_factor": 3,
     "note": "1,000 voice choices over every recorded voice list (60 voices)."
+  },
+  "dashboard.groupAndIndex.5k": {
+    "budget_ms": 60,
+    "ci_factor": 3,
+    "note": "Slice 21: grouping 5,000 records into rows and building the search index, once per load."
+  },
+  "dashboard.sort.native.5k": {
+    "budget_ms": 15,
+    "ci_factor": 3
+  },
+  "dashboard.search.keystroke.5k": {
+    "budget_ms": 16,
+    "ci_factor": 3,
+    "note": "21 §4: under 16 ms per keystroke for 5,000 words."
+  },
+  "dashboard.groupAndIndex.20k": {
+    "budget_ms": 250,
+    "ci_factor": 3
+  },
+  "dashboard.sort.native.20k": {
+    "budget_ms": 60,
+    "ci_factor": 3
+  },
+  "dashboard.search.keystroke.20k": {
+    "budget_ms": 50,
+    "ci_factor": 3,
+    "note": "21 §4: under 50 ms per keystroke for 20,000 words."
+  },
+  "dashboard.scroll.20k.x100": {
+    "budget_ms": 300,
+    "ci_factor": 3,
+    "note": "100 scroll steps of the virtualized list with 20,000 words in jsdom; a step is one frame's work, so 3 ms each is far from 21 §14's 50 ms long task."
+  },
+  "dashboard.open.20k": {
+    "budget_ms": 800,
+    "ci_factor": 3,
+    "note": "21 §14: interactive within 800 ms with 20,000 words (jsdom, from script start to the first rows; the server's answer is excluded)."
   }
 }
