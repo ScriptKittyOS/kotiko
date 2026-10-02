@@ -5,6 +5,16 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Kotiko now works without a server. Your words live in your browser and Kotiko looks new
+  words up with your own free OpenRouter key, or any provider you like (OpenAI, Anthropic,
+  Google Gemini, Groq, Ollama, LM Studio or another address), set up in the dashboard's
+  Settings, Word lookups. Or type a word with its meaning, like "gato = cat", with no AI
+  at all. Adds never wait: they finish with the popup closed, and wait for busy or used-up
+  free lookups instead of failing. Your key and your server's access key are kept where web
+  pages can't read them. Already running a Kotiko server? Nothing changes; you can keep
+  using it, or move your words into the browser from Settings, Your Kotiko server. Back up
+  regularly: uninstalling an extension deletes its data.
+
 - Adding a word now answers within 25 seconds, uses at most 3 requests, and remembers
   words it already looked up for 30 days. Kotiko follows OpenRouter's current free models
   automatically (best first, from our evaluation) and shows how many free lookups you have

@@ -42,7 +42,7 @@
         <img class="first-run-art art-dark" src="ui/art/kitten-curious-on-purple.png" alt="" width="64" height="55" />
         <div class="first-run-text">
           <h2 class="first-run-title" id="firstRunTitle" data-i18n="popup_first_run_title"></h2>
-          <p class="first-run-body" data-i18n="popup_first_run_body"></p>
+          <p class="first-run-body" id="firstRunBody" data-i18n="popup_first_run_body"></p>
           <button class="btn btn-primary" id="getStarted" type="button" data-i18n="popup_get_started"></button>
         </div>
       </section>
@@ -108,8 +108,9 @@
   </div>
 
   <!--
-    Connection settings, inside the popup until the dashboard's settings (slice 21) exist;
-    then the settings button opens dashboard.html#settings instead.
+    Server connection settings, inside the popup since slice 20. The token goes to the
+    background (slice 11 §3) and is never read back; the AI key for lookups is typed only
+    in the dashboard's settings (DECISIONS: a full extension page, never the popup).
   -->
   <div class="popup settings" id="settings" hidden>
     <header class="bar">

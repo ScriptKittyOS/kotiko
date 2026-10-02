@@ -183,8 +183,17 @@ describe("states (§11)", () => {
     assert.equal(d.$("#addSheet").hidden, false);
   });
 
+  test("words in this browser with no AI set up: a banner that leads to Word lookups (slice 11)", async () => {
+    const d = await openDashboard({ local: {}, backend: fakeBackend({ words: [] }) });
+    assert.equal(d.text("#banners .banner-body"), "Word lookups aren't set up. New words need their meaning typed, or set up lookups.");
+    d.$("#banners .btn").click();
+    await d.settle();
+    assert.equal(d.w.location.hash, "#settings/lookups");
+    assert.equal(d.$("#settingsView").hidden, false);
+  });
+
   test("not connected: a banner that leads to Connection settings", async () => {
-    const d = await openDashboard({ local: {}, backend: fakeBackend({ failList: { error: "no token", code: "server_key_rejected", details: { reason: "no_token" } } }) });
+    const d = await openDashboard({ local: { wordsHome: "server", keys: { server: false } }, backend: fakeBackend({ failList: { error: "no token", code: "server_key_rejected", details: { reason: "no_token" } } }) });
     assert.equal(d.text("#banners .banner-body"), "Connect your Kotiko server to see your words here.");
     d.$("#banners .btn").click();
     await d.settle();
@@ -721,14 +730,15 @@ describe("settings (§9)", () => {
   test("every built section, each saving on change", async () => {
     const d = await openDashboard({ hash: "#settings" });
     assert.equal(d.$("#settingsView").hidden, false);
-    assert.deepEqual(d.$$("#settingsIndex a").map((a) => a.textContent), ["Kotiko’s language", "Your Kotiko server", "Voices", "Appearance", "About"]);
+    assert.deepEqual(d.$$("#settingsIndex a").map((a) => a.textContent), ["Kotiko’s language", "Word lookups", "Your Kotiko server", "Voices", "Appearance", "About"]);
     assert.equal(d.$("#accessKey").type, "password", "the key is typed here, hidden by default");
-    assert.equal(d.$("#accessKey").value, "t0ken");
+    assert.equal(d.$("#accessKey").value, "", "a saved token is never read back (slice 11)");
     d.$("#serverUrl").value = "http://127.0.0.1:5000";
     d.$("#serverUrl").dispatchEvent(new d.w.Event("input"));
     d.$("#serverUrl").dispatchEvent(new d.w.Event("change"));
     await d.settle();
-    assert.equal(d.store.serverUrl, "http://127.0.0.1:5000");
+    assert.deepEqual(d.backend.sent.find((m) => m.type === "server.connect"), { type: "server.connect", url: "http://127.0.0.1:5000" });
+    assert.equal(d.store.serverUrl, CONNECTED.serverUrl, "nothing new is written where content scripts read");
     d.$("#onlineVoices").click();
     await d.settle();
     assert.equal(d.store.speech.allowOnline, true);
@@ -796,5 +806,158 @@ describe("interface language and accessibility (50, 27)", () => {
     d.rows()[0].click();
     await d.settle();
     assert.equal(d.$$("#inspector b").length, 0);
+  });
+});
+
+describe("Word lookups and the words' home (slice 11)", () => {
+  const PROVIDERS = JSON.parse(readExt("spec/providers.json")).providers.map(({ id, label, baseUrl, keyRequired, keyUrl, modelSource, local, beta, free }) => ({ id, label, baseUrl, keyRequired, keyUrl, modelSource, local: !!local, beta: !!beta, free: !!free }));
+  const LOCAL = { wordsHome: "local", lookup: { kind: "none", provider: "openrouter", baseUrl: null, model: null, dataCollection: "allow" }, server: { url: "http://localhost:4747" }, keys: { server: false, providers: {} } };
+
+  // The background's settings and secrets routes, over plain state.
+  function withSettings(b, settings = LOCAL, masked = {}) {
+    const st = { ...clone(settings), masked: { ...masked } };
+    const base = b.answer;
+    b.st = st;
+    b.answer = (msg) => {
+      switch (msg.type) {
+        case "backend.get":
+          b.sent.push(clone(msg));
+          return { wordsHome: st.wordsHome, lookup: clone(st.lookup), server: clone(st.server), keys: clone(st.keys), providers: PROVIDERS, bases: ["en"] };
+        case "secrets.describe":
+          b.sent.push(clone(msg));
+          return { secrets: { ...st.masked } };
+        case "backend.set":
+          b.sent.push(clone(msg));
+          st.lookup = { ...st.lookup, ...msg.lookup };
+          return { ok: true, lookup: clone(st.lookup) };
+        case "secrets.set":
+          b.sent.push(clone(msg));
+          st.masked[msg.id] = `${msg.value.slice(0, 6)}…${msg.value.slice(-4)}`;
+          st.keys.providers[msg.id.split(":")[1]] = true;
+          return { ok: true, masked: st.masked[msg.id] };
+        case "secrets.remove":
+          b.sent.push(clone(msg));
+          delete st.masked[msg.id];
+          return { ok: true };
+        case "backend.test":
+          b.sent.push(clone(msg));
+          return { ok: true, model: "fake/model-a:free", ms: 1234, quota: { remaining: 41, limit: 50 } };
+        case "migrate.preview":
+          b.sent.push(clone(msg));
+          return { to: msg.to, count: 23, server: st.server.url };
+        case "migrate.run":
+          b.sent.push(clone(msg));
+          st.wordsHome = msg.to;
+          return msg.to === "server" ? { ok: true, total: 23, created: 20, updated: 2, unchanged: 1 } : { ok: true, total: 23 };
+        default:
+          return base(msg);
+      }
+    };
+    return b;
+  }
+
+  test("the section lists the eight presets, the server when one is connected, and Nobody; a key is pasted, saved, shown masked", async () => {
+    const backend = withSettings(fakeBackend());
+    const d = await openDashboard({ local: LOCAL, hash: "#settings/lookups", backend });
+    const radios = () => d.$$("#providerOptions [role=radio]").map((r) => r.textContent);
+    assert.deepEqual(radios(), ["OpenRouter (free)", "OpenAI", "Anthropic (beta)", "Google Gemini", "Groq", "Ollama", "LM Studio", "Another service", "Nobody: I'll type meanings myself"]);
+    assert.equal(d.$('#providerOptions [aria-checked="true"]').textContent, "Nobody: I'll type meanings myself");
+    assert.equal(d.text("#lookupState"), "New words need their meaning typed: gato = cat.");
+    assert.ok(d.$$("#providerOptions [role=radio]").every((r) => !r.hasAttribute("lang")));
+    assert.equal(d.text("#banners .banner-body"), "Word lookups aren't set up. New words need their meaning typed, or set up lookups.");
+
+    d.$$("#providerOptions [role=radio]")[0].click();
+    await d.settle();
+    assert.deepEqual(backend.sent.find((m) => m.type === "backend.set"), { type: "backend.set", lookup: { kind: "provider", provider: "openrouter", baseUrl: null, model: null } });
+    assert.equal(d.$("#lookupKeyField").hidden, false);
+    assert.equal(d.text("#lookupKeyLabel"), "OpenRouter key");
+    assert.equal(d.$("#lookupKey").type, "password");
+    assert.equal(d.$("#getKey").href, "https://openrouter.ai/settings/keys");
+    assert.equal(d.text("#providerNote"), "Free models by default. A key with a credit limit is the safest choice.");
+    assert.equal(d.text("#lookupState"), "Paste a key to start looking words up.");
+    assert.equal(d.$("#dataCollectionRow").hidden, false);
+
+    d.$("#lookupKey").value = "sk-or-v1-abcdefghijklmnopqrstuvwxyz-a1b2";
+    d.$("#saveKey").click();
+    await d.settle();
+    assert.deepEqual(backend.sent.find((m) => m.type === "secrets.set"), { type: "secrets.set", id: "provider:openrouter", value: "sk-or-v1-abcdefghijklmnopqrstuvwxyz-a1b2" });
+    assert.equal(d.$("#lookupKey").value, "", "the page keeps nothing");
+    assert.equal(d.text("#lookupKeyMasked"), "Saved key: sk-or-…a1b2");
+    assert.equal(d.$("#lookupKeyEntry").hidden, true);
+    assert.equal(d.text("#lookupState"), "Ready to look words up.");
+    assert.equal(d.$("#banners").children.length, 0, "the banner goes once lookups work");
+    assert.equal(JSON.stringify(d.store).includes("abcdefghijklmnop"), false, "never in storage");
+
+    d.$("#testLookup").click();
+    await d.settle();
+    assert.equal(d.text("#lookupState"), "It works. fake/model-a:free answered in 1.2 s.");
+
+    d.$("#replaceKey").click();
+    assert.equal(d.$("#lookupKeyEntry").hidden, false);
+    d.$("#removeKey").click();
+    await d.settle();
+    assert.deepEqual(backend.sent.find((m) => m.type === "secrets.remove"), { type: "secrets.remove", id: "provider:openrouter" });
+    assert.equal(d.text("#lookupState"), "Paste a key to start looking words up.");
+  });
+
+  test("Ollama needs no key, shows its one setting and an editable address; the model is optional", async () => {
+    const backend = withSettings(fakeBackend(), { ...LOCAL, lookup: { ...LOCAL.lookup, kind: "provider", provider: "ollama" } });
+    const d = await openDashboard({ local: LOCAL, hash: "#settings/lookups", backend });
+    assert.equal(d.$("#lookupKeyField").hidden, true);
+    assert.equal(d.$("#noKeyNeeded").hidden, false);
+    assert.match(d.text("#providerNote"), /OLLAMA_ORIGINS=chrome-extension:\/\/\*,moz-extension:\/\/\*/);
+    assert.equal(d.$("#lookupBaseUrl").value, "http://localhost:11434/v1");
+    assert.equal(d.text("#lookupState"), "Ready to look words up.");
+    d.$("#lookupBaseUrl").value = "http://192.168.1.9:11434/v1";
+    d.$("#lookupBaseUrl").dispatchEvent(new d.w.Event("change"));
+    d.$("#lookupModel").value = "llama3.2";
+    d.$("#lookupModel").dispatchEvent(new d.w.Event("change"));
+    await d.settle();
+    const sets = backend.sent.filter((m) => m.type === "backend.set").map((m) => m.lookup);
+    assert.deepEqual(sets, [{ baseUrl: "http://192.168.1.9:11434/v1" }, { model: "llama3.2" }]);
+  });
+
+  test("moving words to a server: connecting doesn't move them; the count is shown first, then the result", async () => {
+    const backend = withSettings(fakeBackend(), { ...LOCAL, keys: { server: true, providers: {} } }, { server: "tok-12…wxyz" });
+    const d = await openDashboard({ local: LOCAL, hash: "#settings/connection", backend });
+    assert.equal(d.text("#wordsHomeText"), "Your words are kept in this browser.");
+    assert.equal(d.$("#accessKey").placeholder, "Saved: tok-12…wxyz. Type a new one to replace it.");
+    d.$("#moveWords").click();
+    await d.settle();
+    assert.equal(d.text("#moveText"), "Upload your 23 words to http://localhost:4747? Words the server already has are merged, never doubled.");
+    assert.equal(d.text("#moveConfirm"), "Upload 23 words");
+    assert.equal(backend.sent.some((m) => m.type === "migrate.run"), false, "nothing moves before Confirm");
+    d.$("#moveConfirm").click();
+    await d.settle(10);
+    assert.deepEqual(backend.sent.find((m) => m.type === "migrate.run"), { type: "migrate.run", to: "server", forget: false, serverLookups: false });
+    assert.match(d.text("#toasts") ?? d.doc.body.textContent, /Done\. 20 added, 2 merged, 1 already there\./);
+    assert.equal(d.text("#wordsHomeText"), "Your words are kept on your Kotiko server.");
+  });
+
+  test("copying the server's words here: the dialog says the server keeps its copy and offers to forget it", async () => {
+    const backend = withSettings(fakeBackend(), { ...LOCAL, wordsHome: "server", lookup: { ...LOCAL.lookup, kind: "server" }, keys: { server: true, providers: {} } });
+    const d = await openDashboard({ local: { ...CONNECTED, wordsHome: "server" }, hash: "#settings/connection", backend });
+    d.$("#moveWords").click();
+    await d.settle();
+    assert.match(d.text("#moveText"), /^Copy your 23 words from the server into this browser\? The server keeps its copy\./);
+    assert.equal(d.$("#moveForgetRow").hidden, false);
+    d.$("#moveForget").checked = true;
+    d.$("#moveCancel").click();
+    assert.equal(d.$("#moveBox").hidden, true);
+    d.$("#moveWords").click();
+    await d.settle();
+    d.$("#moveForget").checked = true;
+    d.$("#moveConfirm").click();
+    await d.settle(10);
+    assert.deepEqual(backend.sent.filter((m) => m.type === "migrate.run"), [{ type: "migrate.run", to: "local", forget: true, serverLookups: false }]);
+  });
+
+  test("in Spanish, the section reads in Spanish", async () => {
+    const backend = withSettings(fakeBackend(), { ...LOCAL, lookup: { ...LOCAL.lookup, kind: "provider" } });
+    const d = await openDashboard({ local: LOCAL, locale: "es", hash: "#settings/lookups", backend });
+    assert.equal(d.text("#setLookupsTitle"), "Búsqueda de palabras");
+    assert.equal(d.text("#lookupKeyLabel"), "Clave de OpenRouter");
+    assert.equal(d.$$("#providerOptions [role=radio]")[0].textContent, "OpenRouter (gratis)");
+    assert.equal(d.text("#lookupState"), "Pega una clave para empezar a buscar palabras.");
   });
 });

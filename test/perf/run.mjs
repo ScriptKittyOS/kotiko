@@ -167,6 +167,22 @@ for (const [label, count] of [["5k", 5000], ["20k", 20000]]) {
   benchmarks[`dashboard.search.keystroke.${label}`] = { setup: prepared, run: ({ index, ids }) => `${index.search("kot12", ids).length}` };
 }
 
+// Slice 11: the words content scripts read, projected from the store after each write
+// (§2: building the projection for 5,000 words under 30 ms, writing it under 50 ms). The
+// write is measured into the fake storage area, which copies values the way Chrome's does.
+const Projection = requireExt("lib/projection.js");
+const { createFakeChrome: fakeChrome } = await import("../helpers/fake-chrome.mjs");
+const localRecords = manyWords(5000).map((w) => ({ ...w, status: "active", deleted_at: null, forms: (w.forms ?? [w.gloss]).map((f) => (typeof f === "string" ? { text: f, enabled: true } : f)) }));
+benchmarks["local.projection.build.5k"] = () => `${Projection.project(localRecords, ["en", "es"]).length}`;
+benchmarks["local.projection.write.5k"] = {
+  setup: () => fakeChrome().chrome.storage.local,
+  run: async (storage) => {
+    const words = Projection.project(localRecords, ["en", "es"]);
+    await storage.set({ words, baseLangs: ["en", "es"], wordsVersion: { n: 1, at: 0, by: null } });
+    return `${words.length}`;
+  },
+};
+
 const { JSDOM } = await import("jsdom");
 const { createFakeChrome } = await import("../helpers/fake-chrome.mjs");
 const { createI18n } = await import("../helpers/fake-i18n.mjs");

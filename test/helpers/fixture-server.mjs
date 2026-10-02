@@ -19,6 +19,7 @@
 //     "delayMs": 1500,                     how slow "slow" is
 //     "llm": "429" | "429-headers" | "429-once" | "stall" | "prose" | null,
 //     "llmRemaining": 40 | null,           free requests /key reports (null: not reported)
+//     "llmDelayMs": 0,                     how long the fake model thinks before answering
 //     "words": [...],                      replace the fake server's word list (0.2 shape)
 //     "v1Words": [...],                    or set full slice 07 records (missing fields filled)
 //     "job": {state, done, total, retry_at}  the pronunciation-refresh job
@@ -163,11 +164,12 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
     job: { state: "done", done: 0, total: 0 },
     failNext: null,
     llmRemaining: null,
+    llmDelayMs: 0,
     log: [],
   };
   state.v1 = state.words.map(fromLegacy);
   const reset = () => {
-    Object.assign(state, { token, kotiko: null, llm: null, delayMs: 1500, words: seed(), nextId: 1000, job: { state: "done", done: 0, total: 0 }, failNext: null, llmRemaining: null });
+    Object.assign(state, { token, kotiko: null, llm: null, delayMs: 1500, words: seed(), nextId: 1000, job: { state: "done", done: 0, total: 0 }, failNext: null, llmRemaining: null, llmDelayMs: 0 });
     state.v1 = state.words.map(fromLegacy);
     state.log.length = 0;
   };
@@ -391,6 +393,7 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
       });
     }
 
+    if (state.llmDelayMs) await sleep(state.llmDelayMs);
     const user = [...(body.messages ?? [])].reverse().find((m) => m.role === "user");
     if (state.llmRemaining !== null) state.llmRemaining = Math.max(0, state.llmRemaining - 1);
     let content = JSON.stringify(answerFor(user?.content ?? ""));
@@ -409,7 +412,7 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
     if (req.method === "GET") return send(res, 200, state);
     const body = await readBody(req);
     if (body.reset) reset();
-    for (const k of ["kotiko", "llm", "delayMs", "token", "job", "failNext", "llmRemaining"]) if (k in body) state[k] = body[k];
+    for (const k of ["kotiko", "llm", "delayMs", "token", "job", "failNext", "llmRemaining", "llmDelayMs"]) if (k in body) state[k] = body[k];
     if (Array.isArray(body.words)) {
       state.words = body.words;
       state.v1 = body.words.map(fromLegacy);

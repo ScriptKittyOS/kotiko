@@ -509,6 +509,132 @@ Uses slice [02](../02-test-harness-and-ci/SPEC.md)'s harness.
   words into the browser from Settings, Server. Back up regularly with Export: uninstalling
   an extension deletes its data."
 
+## Implementation notes
+
+*2026-10-02, first build (branch `slice/11-local-first`). Requirements above are unchanged;
+this records the choices, the deviations and what waits for other slices. No live call to
+any provider was made: every path is tested against stubbed `fetch` and the fixture
+server's fake model.*
+
+**Built.**
+
+- `extension/lib/store.js`: the `kotiko` IndexedDB database, version 1, with `words`
+  (indexes `natural`, `group`, `updated_at`, `lang`, `base_lang`), `outbox`, `secrets`,
+  `meta`, plus **`jobs`** (add jobs already applied, by job id: slice 24's idempotency
+  ledger; a second application returns the first one's results) and **`lookupCache`**
+  (slice 10's cache, 30 days, 5,000 entries). `upsertByNatural`, `update` (with
+  `if_updated_at`, the server's `word_conflict`/`word_gone` codes), `remove`, `restore`,
+  `replaceAll`, `seed`, `changesSince`, `recentLangs`; `native_key` is stored for indexing
+  and never leaves the store. The 20,000-word cap fails adds with `vocabulary_full`.
+- `extension/lib/word-merge.js`, the twin of `Kotiko.WordMerge`; `spec/fixtures/merge.json`
+  (13 cases, slice 09's missing file) is run by both `test/unit/word-merge.test.mjs` and
+  `server/test/kotiko/word_merge_test.exs`.
+- `extension/lib/projection.js`: after each committed write, 100 ms later, one `set` of
+  `words`, `baseLangs` and `wordsVersion`. Forms are projected as the texts of enabled forms
+  (what today's matcher reads; slice 14 can switch to the flags). `wordsVersion` keeps
+  slice 21's `{at, by}` and adds the integer `n`, so the dashboard still ignores its own
+  echoes. 5,000 words: about 1 ms to build, 14 ms to build and write (`npm run perf`,
+  budgets 30 and 50 ms).
+- `spec/providers.json` (eight presets; copied into `extension/spec/` and `KOTIKO_SPEC`),
+  `extension/lib/llm/catalog.js` (the twin of `Kotiko.LLM.Catalog`'s filter, order and
+  health) and `extension/lib/llm/client.js`: cache, quota gate (`/key`, estimated between
+  reads, `reserve_for_learner` for background jobs), chain, attempts under
+  `lib/llm/policy.js`, answers through `lib/wordspec.js`. The cache key is the server's
+  (spec version, prompt hash, mode, hint, recent, bases, folded text), prefixed with the
+  provider. "Only use services that don't keep my text" sends
+  `provider: {data_collection: "deny"}` to OpenRouter (off by default, open question 1).
+- `extension/lib/add-queue.js`: the core of slice 24's job (record shape of 24 §1 in
+  `storage.local.addJobs`, states, waiting codes, backoff, 3-day limit, 20 most recent,
+  resume at worker start with the same id, at most two at a time). `lookup_not_set_up`
+  waits with no timer and runs when a key or provider is saved (open question 5's
+  recommendation). A retry time already past still waits 2 s, so a busy provider is never
+  asked in a loop.
+- `extension/lib/refresh-job.js`: slice 07 §8 for words kept here, one request at a time,
+  only while no add job is queued, running or waiting, never at 10 or fewer free lookups;
+  it reports `waiting` with no time while no provider is set up (the server's shape).
+- `extension/lib/local-mode.js`: the settings, the upgrade (§8) and the background's word
+  routes over the store (`words.list/write/deleted/preview/save`, `job.refresh`), so the
+  dashboard reaches either home through the same messages and `dashboard.js` didn't change
+  for words. `extension/lib/pkce.js`: Connect OpenRouter's pieces (below).
+- `background.js`: `secrets.set/remove/describe`, `backend.get/set/test`,
+  `server.connect`, `migrate.preview/run`, `jobs.retry/cancel/dismiss/seen`, `oauth.start`
+  (pages only) and `oauth.code` (the docs origin's callback page only); the manifest adds
+  `unlimitedStorage` and the libraries, in the same order for Firefox's
+  `background.scripts`.
+- Popup: the local first-run card ("Add your first word", "Set up lookups" opening the
+  dashboard at `#settings/lookups`), the "Word lookups aren't set up" banner, job lines
+  from `addJobs` (looking up, waiting with its reason and Cancel, failed with the learner's
+  own wording, added with Undo), finished jobs shown once when it reopens. Dashboard: the
+  "Word lookups" settings section (provider choice, key pasted and shown masked with
+  Replace and Remove, Get a key, the address for Ollama, LM Studio and another service,
+  the model, the data switch, Test with its quota note, status) and "Where your words
+  live" with both moves, each counted and confirmed first. 80 new strings in `en` and
+  `es`; **every `es` string is pending native review** (each says so in its description).
+
+**Choices and deviations.**
+
+- **Server installs keep today's data path.** With `wordsHome = "server"` the pages' list
+  is still the legacy `GET /api/words` result, byte for byte, and a server that also looks
+  words up still gets the popup's add as `POST /api/words` with the old reply. What changes
+  for such an install: the token and address leave `storage.local` (into `secrets` and
+  `storage.local.server`), and the cached words are also seeded into the store. Pulled
+  words are not mirrored into the store and the `outbox` store exists but is unused: the
+  dashboard's edits still go straight to the server, as in slice 21. Slice 39 (or 24, when
+  server adds become jobs) fills both.
+- **Settings live in `storage.local`** (`wordsHome`, `lookup`, `server`, `keys`), which
+  slice 39 makes the working copy of `s:lookup` and `s:server`; nothing is written to
+  `storage.sync` yet. `keys` holds booleans only, so pages can tell a key exists.
+- **The popup keeps slice 20's server connection form**, now sending the address and token
+  to the background and never reading the token back (a masked placeholder instead). The
+  AI key is typed only on the dashboard. Connecting a server from the popup while words
+  live here opens the dashboard to move them, after the count.
+- **Server → local** reads `GET /api/v1/words?status=active,paused` (slice 12's export route
+  doesn't exist yet) and needs a v1 server; an older one answers `server_outdated`. The
+  legacy adapter of §8 step 4 isn't needed because server installs keep the legacy sync.
+  "Keep using the server to look words up" makes `lookup.kind = "server"` with words here:
+  the server's `preview` looks up, nothing is saved there.
+- **Bases**: a new local install takes the browser's language (`storage.local.baseLangs`,
+  which the dashboard already read); upgraded installs without a token add `en` when cached
+  words exist; a server install's bases are untouched. Slice 50 replaces the detection.
+- **Manual adds** ("native = meaning", 24 §7's separators and parentheses) take the
+  language from the hint, else a recent language whose script fits, else the script's usual
+  language (Han is `zh`); Latin-script words with neither go to the lookup. The picker is
+  24's. Words saved without a pronunciation nudge the refresh.
+- **Connect OpenRouter** stays a hook: the docs site's callback page (44) doesn't exist, so
+  the button isn't shown; `oauth.start`, `oauth.code` and `lib/pkce.js` are built and
+  tested with stubs.
+- **Anthropic** uses the compatibility layer with `jsonMode: "none"` and a manual model
+  (`claude-haiku-4-5`), marked beta (open question 2). Model preference lists for OpenAI,
+  Gemini and Groq are a first guess; the learner can type any model id.
+- The popup's size guard on everything it loads moved from 100 to 110 KB; its own files
+  are 57 KB, inside 20 §8's 60 KB.
+- `test/helpers/load-script.mjs` gives every vm-run background a fresh fake-indexeddb
+  (`fake-indexeddb` 6.2.5, dev only). The e2e tests restart the service worker through CDP
+  (`ServiceWorker.stopAllWorkers`) to stand in for an update and a crash: reloading an
+  unpacked extension disables it in this harness.
+
+**Waiting for other slices.** Two-way sync, `changesSince` consumers, settings in
+`storage.sync` and the outbox (39); export, import and delete-all, and their use in the
+moves (12); the welcome tab's setup (22); `needs_choice`, `addManual`, relang, the hint
+chip, drafts and server adds as jobs (24); `storage_full` and `vocabulary_full` wording
+review (25); the Firefox permission check for provider origins and the CSP for LAN `http://`
+servers (28); the docs-site callback (44); the Firefox "delete site data on close" release
+check (§2 contingency, manual).
+
+**Tests.** `test/unit/llm-client.test.mjs` (every preset's URL, headers and JSON mode; 401,
+daily quota, Retry-After, busy upstream, `response_format` fallback, unknown models,
+prose, no word, network, stall, abort; quota gate, cache, Test, respell, PKCE),
+`test/unit/local-store.test.mjs` (store, projection, queue, refresh, manual parsing,
+upgrade), `test/unit/word-merge.test.mjs`, `test/bg/local-mode.test.mjs` (the real
+background: fresh local install with and without a provider, idempotent jobs, resume,
+two bases, merge, the dashboard's routes, quota waiting, secrets in no storage area,
+privileged messages refused to content scripts, the upgrade with and without a token and
+interrupted, both moves including a failure halfway with 300 words), DOM tests for the
+popup's jobs and states and the dashboard's section, `test/e2e/local.spec.mjs` (Chromium:
+a fresh profile looks a word up with the fake model and swaps it, a manual word with no
+network, an add finishing with the popup closed, a worker stopped mid-lookup, a server
+install upgraded with nothing changed). Screenshots: `node test/visual/local-screenshots.mjs <dir>`.
+
 ## Open questions
 
 1. **Train-on-prompts default.** Many free OpenRouter models route to providers that may

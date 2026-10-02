@@ -9,6 +9,7 @@ import path from "node:path";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 import { JSDOM } from "jsdom";
+import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 export const EXT_DIR = path.join(ROOT, "extension");
@@ -66,7 +67,8 @@ export function injectContentScripts(dom) {
 
 // Runs a script in a fresh vm context with the given globals (for background.js).
 // The context gets its own built-ins; timers, fetch and friends come from Node unless
-// overridden. Returns the context, whose properties are the script's globals.
+// overridden, and a fresh, empty IndexedDB (fake-indexeddb) per context. Returns the
+// context, whose properties are the script's globals.
 export function runInVm(rel, globals = {}) {
   const ctx = vm.createContext({
     console,
@@ -85,6 +87,10 @@ export function runInVm(rel, globals = {}) {
     Response,
     TextEncoder,
     TextDecoder,
+    crypto: globalThis.crypto,
+    btoa,
+    indexedDB: new IDBFactory(),
+    IDBKeyRange,
     fetch: () => Promise.reject(new TypeError("fetch is not stubbed in this test")),
     ...globals,
   });

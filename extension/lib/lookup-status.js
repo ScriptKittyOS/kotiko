@@ -7,7 +7,9 @@
 // and the dashboard say the same thing.
 //
 //   quotaLine(status, {locale, now})      -> {key, params} | null
-//   lookupProblem(code, details, {locale}) -> {key, params} | null (null: not a lookup code)
+//   lookupProblem(code, details, {locale, local}) -> {key, params} | null (null: not a lookup code)
+//                                          `local`: the learner's own key in this browser (slice 11),
+//                                          not the server's
 //
 // `status` is the server's GET /api/v1/llm/status (slice 10 §3), as the background keeps it
 // in storage.local.lookupStatus: {provider, quota: {used, limit, remaining, resets_at,
@@ -15,7 +17,7 @@
 (() => {
   const SPEC = globalThis.KOTIKO_SPEC?.models?.policy?.quota;
   const SHOW_AT = SPEC?.show_at_or_below ?? 20;
-  const PROVIDERS = { openrouter: "OpenRouter" };
+  const PROVIDERS = { openrouter: "OpenRouter", openai: "OpenAI", anthropic: "Anthropic", gemini: "Google Gemini", groq: "Groq", ollama: "Ollama", lmstudio: "LM Studio" };
 
   function time(iso, locale) {
     const at = Date.parse(iso ?? "");
@@ -46,7 +48,7 @@
     return PROVIDERS[provider] ?? provider;
   }
 
-  function lookupProblem(code, details = {}, { locale = "en" } = {}) {
+  function lookupProblem(code, details = {}, { locale = "en", local = false } = {}) {
     const d = details ?? {};
     const provider = providerName(d.provider);
     switch (code) {
@@ -66,9 +68,14 @@
       case "bad_lookup_result":
         return { key: "error_bad_lookup_result", params: {} };
       case "key_rejected":
+        if (local) return provider ? { key: "error_key_rejected_local", params: { provider } } : { key: "error_key_rejected_local_generic", params: {} };
         return provider ? { key: "error_key_rejected", params: { provider } } : { key: "error_key_rejected_generic", params: {} };
       case "lookup_not_set_up":
-        return { key: "error_lookup_not_set_up", params: {} };
+        return { key: local ? "error_lookup_not_set_up_local" : "error_lookup_not_set_up", params: {} };
+      case "vocabulary_full":
+        return { key: "error_vocabulary_full", params: {} };
+      case "storage_full":
+        return { key: "error_storage_full", params: {} };
       default:
         return null;
     }
@@ -90,6 +97,11 @@
     "error_key_rejected",
     "error_key_rejected_generic",
     "error_lookup_not_set_up",
+    "error_key_rejected_local",
+    "error_key_rejected_local_generic",
+    "error_lookup_not_set_up_local",
+    "error_vocabulary_full",
+    "error_storage_full",
   ];
 
   const api = { quotaLine, lookupProblem, providerName, KEYS, SHOW_AT };

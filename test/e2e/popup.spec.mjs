@@ -75,7 +75,7 @@ test.describe("with the browser in Spanish", () => {
 
   test("the popup, its accessible names and the extension's name are Spanish", async ({ server, popup }) => {
     const first = await popup.page();
-    await expect(first.locator("#firstRunTitle")).toHaveText("Termina de configurar Kotiko");
+    await expect(first.locator("#firstRunTitle")).toHaveText("Agrega tu primera palabra");
     await expect(first.locator("#addText")).toHaveAttribute("placeholder", "Agrega una palabra, en cualquier idioma");
     await expect(first.getByRole("switch", { name: "Cambiar palabras en las páginas" })).toBeVisible();
     await expect(first.locator("html")).toHaveAttribute("lang", "es");

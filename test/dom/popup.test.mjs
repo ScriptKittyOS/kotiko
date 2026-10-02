@@ -39,6 +39,8 @@ async function openPopup({ local = {}, locale = "en", tabUrl = `https://${HOST}/
     onSendMessage: (msg) => answer(msg),
   });
   const requested = [];
+  const opened = [];
+  fake.chrome.tabs.create = async (o) => void opened.push(o.url);
   fake.chrome.i18n = createI18n(locale);
   fake.chrome.permissions = {
     contains: async () => permission,
@@ -65,7 +67,7 @@ async function openPopup({ local = {}, locale = "en", tabUrl = `https://${HOST}/
     for (let el = $(sel); el; el = el.parentElement) if (el.hidden) return false;
     return !!$(sel);
   };
-  return { dom, win: dom.window, doc, $, fake, settle, text, visible, requested, store: fake.store.local };
+  return { dom, win: dom.window, doc, $, fake, settle, text, visible, requested, opened, store: fake.store.local };
 }
 
 // Every text node and accessible name a person can perceive, for language checks.
@@ -85,17 +87,30 @@ function perceivable(doc) {
 }
 
 describe("states", () => {
-  test("A, first run: a friendly setup card, no error, no settings panel; the add box has focus", async () => {
-    const p = await openPopup({ local: { syncError: { code: "server_key_rejected", details: { reason: "no_token" } } } });
+  test("A, first run (slice 11: words in this browser): add the first word now, Set up lookups opens the dashboard", async () => {
+    const p = await openPopup({ local: { wordsHome: "local", lookup: { kind: "none", provider: "openrouter" } } });
     assert.ok(p.visible("#firstRun"));
-    assert.equal(p.text("#firstRunTitle"), "Finish setting up Kotiko");
+    assert.equal(p.text("#firstRunTitle"), "Add your first word");
+    assert.match(p.text("#firstRunBody"), /your own AI, free with OpenRouter\. Or type it with its meaning: gato = cat\.$/);
     assert.ok(!p.visible("#langSection"));
     assert.ok(!p.visible("#pageSection"));
     assert.equal(p.$("#banners").children.length, 0);
     assert.ok(p.$("#settings").hidden);
     assert.equal(p.doc.activeElement, p.$("#addText"));
+    assert.equal(p.text("#getStarted"), "Set up lookups");
     p.$("#getStarted").click();
-    assert.ok(!p.$("#settings").hidden, "Get started opens Connection settings");
+    await p.settle();
+    assert.deepEqual(p.opened, ["chrome-extension://fake-extension-id/dashboard.html#settings/lookups"], "the key is typed on a full page, never here");
+    assert.ok(p.$("#settings").hidden);
+  });
+
+  test("A, first run with lookups set up: the card has no button; a fresh profile counts as words in this browser", async () => {
+    const p = await openPopup({ local: { wordsHome: "local", lookup: { kind: "provider", provider: "openrouter" }, keys: { server: false, providers: { openrouter: true } } } });
+    assert.equal(p.text("#firstRunTitle"), "Add your first word");
+    assert.ok(!p.visible("#getStarted"));
+    const fresh = await openPopup();
+    assert.equal(fresh.text("#firstRunTitle"), "Add your first word");
+    assert.equal(fresh.text("#getStarted"), "Set up lookups");
   });
 
   test("B, empty: the empty line and the This page section", async () => {
@@ -233,10 +248,13 @@ describe("server problems (slice 25 codes)", () => {
     }
   });
 
-  test("words without a server say so, without an error", async () => {
-    const { node, body } = await banner({ code: "server_key_rejected", details: { reason: "no_token" } }, WORDS, { token: "" });
-    assert.equal(node.dataset.severity, "info");
-    assert.match(body, /isn't connected to a server.*Your 8 words still work on pages\./);
+  test("words in this browser with no AI set up say so, without an error, and offer Set up lookups", async () => {
+    const p = await openPopup({ local: { words: WORDS, wordsHome: "local", lookup: { kind: "none" } } });
+    assert.equal(p.$("#bannerLookups").dataset.severity, "info");
+    assert.equal(p.text("#bannerLookups .banner-body"), "Word lookups aren't set up. Type a word with its meaning (gato = cat), or set up lookups.");
+    assert.ok(p.$('#banners [data-action="setup-lookups"]'));
+    const ready = await openPopup({ local: { words: WORDS, wordsHome: "local", lookup: { kind: "provider", provider: "ollama" } } });
+    assert.equal(ready.$("#banners").children.length, 0, "Ollama needs no key");
   });
 
   test("the popup never opens settings on its own", async () => {
@@ -325,7 +343,7 @@ describe("adding words (D)", () => {
       [{ error: "Can't reach http://x.", code: "server_unreachable" }, CONNECTED, /^Can't reach your Kotiko server\./, "retry"],
       [{ error: "The language model failed: 429", code: "http_error", details: { status: 502 } }, CONNECTED, /^Word lookup didn't answer\. Try again in a moment\.$/, "retry"],
       [{ error: "Couldn't save", code: "http_error", details: { status: 422 } }, CONNECTED, /^Your Kotiko server couldn't save that word\./, "retry"],
-      [{ error: "Paste your API token to connect.", code: "server_key_rejected" }, { ...CONNECTED, token: "" }, /^Connect your Kotiko server to add words\.$/, "settings"],
+      [{ error: "The server rejected that API token.", code: "server_key_rejected" }, CONNECTED, /^Your Kotiko server didn't accept the access key\./, "settings"],
       [{ error: { code: "invalid_message", message: "text must be 1 to 200 characters" } }, CONNECTED, /^That's a lot of text for one word\./, null],
       [{ words: [], reply: "I couldn't find a word in that." }, CONNECTED, /^Couldn't find a word in “zzz”\. Try the word on its own\.$/, null],
     ];
@@ -549,12 +567,18 @@ describe("keyboard and focus (20 §4)", () => {
 });
 
 describe("settings (Connection, until the dashboard)", () => {
-  test("opens on request with the stored values, saves, and checks the server", async () => {
-    const p = await openPopup({ local: { ...CONNECTED, words: WORDS } });
+  test("opens on request with the stored address, sends address and token to the background, never reads the token back", async () => {
+    const SERVER = { wordsHome: "server", lookup: { kind: "server" }, server: { url: "http://127.0.0.1:4999" }, keys: { server: true, providers: {} }, lastSync: CONNECTED.lastSync, syncError: null };
+    const p = await openPopup({
+      local: { ...SERVER, words: WORDS },
+      answer: (msg) => (msg.type === "secrets.describe" ? { secrets: { server: "t0ken-…wxyz" } } : { ok: true }),
+    });
     p.$("#openSettings").click();
+    await p.settle();
     assert.ok(!p.$("#settings").hidden && p.$("#main").hidden);
-    assert.equal(p.$("#serverUrl").value, CONNECTED.serverUrl);
-    assert.equal(p.$("#accessKey").value, CONNECTED.token);
+    assert.equal(p.$("#serverUrl").value, "http://127.0.0.1:4999");
+    assert.equal(p.$("#accessKey").value, "", "the token isn't in any page");
+    assert.equal(p.$("#accessKey").placeholder, "Saved: t0ken-…wxyz. Type a new one to replace it.");
     assert.equal(p.$("#accessKey").type, "password");
     p.$("#toggleKey").click();
     assert.equal(p.$("#accessKey").type, "text");
@@ -564,21 +588,30 @@ describe("settings (Connection, until the dashboard)", () => {
     p.$("#serverUrl").dispatchEvent(new p.win.Event("input"));
     p.$("#accessKey").focus();
     // A sync landing mid-edit doesn't overwrite fields (research 06 F16).
-    await p.fake.chrome.storage.local.set({ serverUrl: "http://elsewhere:1", token: "other" });
+    await p.fake.chrome.storage.local.set({ server: { url: "http://elsewhere:1" } });
     await p.settle();
     assert.equal(p.$("#serverUrl").value, "http://192.168.1.5:4747");
-    assert.equal(p.$("#accessKey").value, CONNECTED.token);
 
     p.$("#accessKey").value = "  new-key ";
     p.$("#connForm").dispatchEvent(new p.win.Event("submit", { cancelable: true }));
     await p.settle();
-    assert.equal(p.store.serverUrl, "http://192.168.1.5:4747");
-    assert.equal(p.store.token, "new-key");
-    assert.ok(p.fake.calls.sendMessage.some((m) => m.type === "sync" && m.force));
+    assert.deepEqual(p.fake.calls.sendMessage.find((m) => m.type === "server.connect"), { type: "server.connect", url: "http://192.168.1.5:4747", token: "new-key" });
+    assert.equal(p.store.token, undefined, "nothing is written where content scripts read");
+    assert.equal(p.$("#accessKey").value, "");
 
     p.$("#closeSettings").click();
     assert.ok(p.$("#settings").hidden && !p.$("#main").hidden);
     assert.equal(p.doc.activeElement, p.$("#openSettings"));
+  });
+
+  test("connecting a server while words live in this browser opens the dashboard to move them first", async () => {
+    const p = await openPopup({ local: { words: WORDS, wordsHome: "local" }, answer: (msg) => (msg.type === "server.connect" ? { ok: true, wordsHome: "local", needsSwitch: true, count: 8 } : { ok: true }) });
+    p.$("#openSettings").click();
+    p.$("#serverUrl").value = "http://192.168.1.5:4747";
+    p.$("#accessKey").value = "k";
+    p.$("#connForm").dispatchEvent(new p.win.Event("submit", { cancelable: true }));
+    await p.settle();
+    assert.deepEqual(p.opened, ["chrome-extension://fake-extension-id/dashboard.html#settings/connection"]);
   });
 
   test("shows the server's problem in plain words, without a link to itself", async () => {
@@ -615,11 +648,87 @@ describe("interface language (slice 50)", () => {
 });
 
 describe("size (20 §8)", () => {
-  test("the popup's own JS and CSS stay under 60 KB, and everything it loads under 100 KB", () => {
+  // §8's budget is the popup's own files; the guard on everything it loads moved from 100
+  // to 110 KB with slice 11 (local first run, waiting jobs, the lookup set-up state).
+  test("the popup's own JS and CSS stay under 60 KB, and everything it loads under 110 KB", () => {
     const size = (files) => files.reduce((n, f) => n + Buffer.byteLength(readExt(f)), 0);
     const own = ["popup.js", "popup.css"];
     const shared = ["ui/tokens.css", "ui/base.css", "ui/components.css", "ui/icons.js", "ui/theme.js", "lib/i18n.js", "lib/lookup-status.js"];
     assert.ok(size(own) < 60 * 1024, `popup.js + popup.css: ${size(own)} bytes`);
-    assert.ok(size([...own, ...shared]) < 100 * 1024, `everything: ${size([...own, ...shared])} bytes`);
+    assert.ok(size([...own, ...shared]) < 110 * 1024, `everything: ${size([...own, ...shared])} bytes`);
+  });
+});
+
+describe("words in this browser (slice 11): adds are background jobs", () => {
+  const LOCAL = { wordsHome: "local", lookup: { kind: "provider", provider: "openrouter" }, keys: { server: false, providers: { openrouter: true } } };
+  const job = (id, state, extra = {}) => ({ id, text: "shukran", state, createdAt: Date.now(), seen: false, results: [], ...extra });
+  const shukran = { id: "w-1", lang: "ar", native: "شكرا", gloss: "thanks", base_lang: "en", romanization: "shukran" };
+
+  test("Enter sends the job with its own id, clears the box at once, and the line follows addJobs in storage", async () => {
+    const p = await openPopup({ local: { ...LOCAL, words: WORDS } });
+    p.$("#addText").value = "shukran";
+    p.$("#addForm").dispatchEvent(new p.win.Event("submit", { cancelable: true }));
+    assert.equal(p.$("#addText").value, "");
+    assert.equal(p.text("#jobs"), "Looking up shukran…");
+    assert.equal(p.$("#addBtn").disabled, false, "never disabled");
+    const sent = p.fake.calls.sendMessage.find((m) => m.type === "add");
+    assert.match(sent.id, /^[0-9a-f-]{36}$/);
+    assert.equal(sent.text, "shukran");
+    await p.fake.chrome.storage.local.set({ addJobs: [job(sent.id, "looking_up")] });
+    await p.settle();
+    assert.equal(p.text("#jobs"), "Looking up shukran…");
+    await p.fake.chrome.storage.local.set({ addJobs: [job(sent.id, "done", { results: [{ wordId: "w-1", result: "created", word: shukran, undo: null }] })] });
+    await p.settle();
+    assert.match(p.text("#jobs"), /^Added شكرا \(shukran\) = thanks · Arabic\s*Undo$/);
+    p.$('#jobs [data-action="undo"]').click();
+    await p.settle();
+    assert.deepEqual(p.fake.calls.sendMessage.find((m) => m.type === "remove"), { type: "remove", id: "w-1", jobId: sent.id });
+    assert.match(p.text("#jobs"), /^Removed شكرا/);
+  });
+
+  test("a waiting job says why and offers the next step; with no AI set up, Set up lookups", async () => {
+    const retry = new Date(Date.now() + 3_600_000).toISOString();
+    const p = await openPopup({
+      local: {
+        ...LOCAL,
+        words: WORDS,
+        addJobs: [
+          job("01900000-0000-7000-8000-000000000001", "waiting", { text: "kniga", error: { code: "quota_exhausted", details: { retry_at: retry } }, createdAt: Date.now() - 10 }),
+          job("01900000-0000-7000-8000-000000000002", "waiting", { text: "sobaka", error: { code: "lookup_not_set_up", details: {} } }),
+        ],
+      },
+    });
+    const lines = [...p.doc.querySelectorAll('#jobs [data-kind="waiting"]')];
+    assert.equal(lines.length, 2);
+    assert.equal(lines[0].querySelector("p").textContent, "sobaka will be looked up once lookups are set up.");
+    assert.ok(lines[0].querySelector('[data-action="setup-lookups"]'));
+    assert.match(lines[1].querySelector("p").textContent, /^Waiting to look up kniga: today's free lookups are used up\. It runs by itself at \d/);
+    lines[1].querySelector('[data-action="cancel"]').click();
+    await p.settle();
+    assert.deepEqual(p.fake.calls.sendMessage.find((m) => m.type === "jobs.cancel"), { type: "jobs.cancel", id: "01900000-0000-7000-8000-000000000001" });
+  });
+
+  test("a job that finished while the popup was closed shows on open, and counts as seen", async () => {
+    const id = "01900000-0000-7000-8000-000000000003";
+    const p = await openPopup({ local: { ...LOCAL, words: WORDS, addJobs: [job(id, "done", { results: [{ wordId: "w-1", result: "created", word: shukran }] }), job("old", "done", { seen: true, text: "old", results: [{ wordId: "w-2", result: "created", word: { ...shukran, id: "w-2", native: "قديم" } }] })] } });
+    assert.match(p.text("#jobs"), /^Added شكرا/);
+    assert.doesNotMatch(p.text("#jobs"), /قديم/, "seen before: not shown again");
+    assert.deepEqual(p.fake.calls.sendMessage.find((m) => m.type === "jobs.seen"), { type: "jobs.seen", ids: [id] });
+  });
+
+  test("a failed lookup with the learner's own key reads as such and leads to the settings", async () => {
+    const p = await openPopup({ local: { ...LOCAL, words: WORDS, addJobs: [job("01900000-0000-7000-8000-000000000004", "failed", { error: { code: "key_rejected", details: { provider: "openrouter" } } })] } });
+    assert.equal(p.text('#jobs [data-kind="failed"] .job-text > p'), "OpenRouter didn't accept your key. Check it in Settings.");
+    assert.ok(p.$('#jobs [data-action="setup-lookups"]'));
+    p.$('#jobs [data-action="dismiss"]').click();
+    await p.settle();
+    assert.equal(p.$("#jobs").children.length, 0);
+    assert.ok(p.fake.calls.sendMessage.some((m) => m.type === "jobs.dismiss"));
+  });
+
+  test("the free lookups left come from the learner's own provider", async () => {
+    const p = await openPopup({ local: { ...LOCAL, words: WORDS, lookupStatus: { provider: "openrouter", quota: { remaining: 4, limit: 50, resets_at: new Date(Date.now() + 3_600_000).toISOString() } } } });
+    assert.equal(p.text("#lookupsLeft"), "4 free lookups left today");
+    assert.ok(p.fake.calls.sendMessage.some((m) => m.type === "llmStatus"));
   });
 });

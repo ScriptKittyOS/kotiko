@@ -15,14 +15,16 @@ the server (`Kotiko.Spec`, compiled into the release) and the extension (its cop
 | `rules.json` | Every number the validator uses (caps, minimum lengths). |
 | `pronunciation.json` | Per target language: romanization scheme, stress kind, tone range, vocalization marks. |
 | `models.json` | Slice 10: the free models to prefer for lookups and respellings (from `eval/RESULTS.md`), the ones to deny, the shipped fallback list, and the lookup client's budgets (deadlines, attempts, health, quota reserve, cache). |
+| `providers.json` | Slice 11: the lookup provider presets (OpenRouter by default, OpenAI, Anthropic, Google Gemini, Groq, Ollama, LM Studio, Custom): base URL, whether a key is needed, JSON mode, extra headers, where the model list comes from. Never a key. |
 | `languages.json`, `lang-aliases.json` | Language tags (slice 08), generated from Unicode CLDR. |
 | `lang/` | Per base language: stopwords, stem rules, spelling variants, the respelling key. See `lang/README.md`. |
 | `fixtures/` | Shared fixtures both runtimes must pass (below). |
 | `eval/` | The golden evaluation set and its runner. See `eval/README.md`. |
 | `tools/` | `gen-lang-data.mjs` (CLDR data), `sync-extension.mjs` (the extension's copy), `fixture-results.mjs` (the full-output snapshot). |
 
-`providers.json` (slice 11) and `export.schema.json` (slice 12) join this folder with
-their slices.
+`export.schema.json` (slice 12) joins this folder with its slice. `fixtures/merge.json`
+(slice 07's merge rules) is checked by both runtimes: `Kotiko.WordMerge` and the
+extension's `lib/word-merge.js`.
 
 ## How the runtimes use it
 
@@ -31,8 +33,9 @@ their slices.
   `Kotiko.Pronunciation` use them. Nothing under `server/lib` hardcodes a number or a list
   that these files define.
 - **Extension**: `extension/lib/lang.js` and `extension/lib/wordspec.js`, with the data
-  from `extension/spec/spec.js` (`globalThis.KOTIKO_SPEC`). The background loads them today
-  for the language-tag upgrade; the local lookups of slice 11 use the whole pipeline.
+  from `extension/spec/spec.js` (`globalThis.KOTIKO_SPEC`). The background's own lookups
+  (slice 11: `lib/llm/client.js`) build the prompt and check every answer with the whole
+  pipeline.
 
 ## Changing it
 

@@ -1,0 +1,84 @@
+{
+  "description": "Slice 07 section 4's merge rules: what a re-add of a word the learner already has changes. `changes` is exactly the fields that change (an empty object: nothing). Kotiko.WordMerge.changes/3 (server) and KotikoWordMerge.changes (extension, lib/word-merge.js) must both give it. `opts.explicit` is the learner's own add (it un-pauses).",
+  "cases": [
+    {
+      "name": "identical re-add changes nothing",
+      "existing": { "status": "active", "gloss": "thanks", "romanization": "spasibo", "note": "Common.", "forms": [{ "text": "thanks" }, { "text": "thank you" }], "pronunciation": "spa-SEE-ba" },
+      "incoming": { "status": "active", "gloss": "thanks", "romanization": "spasibo", "note": "Common.", "forms": [{ "text": "thanks" }, { "text": "thank you" }], "pronunciation": "spa-SEE-ba" },
+      "changes": {}
+    },
+    {
+      "name": "empty fields are filled, written ones never overwritten",
+      "existing": { "status": "active", "gloss": "dog", "romanization": null, "note": "My note.", "source_text": "", "native_vocalized": null, "forms": [{ "text": "dog" }] },
+      "incoming": { "status": "active", "gloss": "dog", "romanization": "inu", "note": "Model note.", "source_text": "inu", "native_vocalized": null, "forms": [{ "text": "dog" }] },
+      "changes": { "romanization": "inu", "source_text": "inu" }
+    },
+    {
+      "name": "a blank (spaces only) field counts as empty",
+      "existing": { "status": "active", "gloss": "house", "note": "   ", "forms": [{ "text": "house" }] },
+      "incoming": { "status": "active", "gloss": "house", "note": "Masculine.", "forms": [{ "text": "house" }] },
+      "changes": { "note": "Masculine." }
+    },
+    {
+      "name": "the pronunciation fields move together into a word with none",
+      "existing": { "status": "active", "gloss": "please", "pronunciation": null, "pronunciation_careful": null, "pronunciation_source": null, "forms": [{ "text": "please" }] },
+      "incoming": { "status": "active", "gloss": "please", "pronunciation": "pa-ZHAL-sta", "pronunciation_careful": "pa-ZHA-lu-sta", "pronunciation_source": "model", "forms": [{ "text": "please" }] },
+      "changes": { "pronunciation": "pa-ZHAL-sta", "pronunciation_careful": "pa-ZHA-lu-sta", "pronunciation_source": "model" }
+    },
+    {
+      "name": "a learner's pronunciation is kept, and its careful form is never mixed with another answer's",
+      "existing": { "status": "active", "gloss": "please", "pronunciation": "pa-ZHAL-sta", "pronunciation_careful": null, "pronunciation_source": "user", "forms": [{ "text": "please" }] },
+      "incoming": { "status": "active", "gloss": "please", "pronunciation": "pa-ZHA-lu-sta", "pronunciation_careful": "pa-ZHA-lu-sta", "pronunciation_source": "model", "forms": [{ "text": "please" }] },
+      "changes": {}
+    },
+    {
+      "name": "a pronunciation without a source is the model's",
+      "existing": { "status": "active", "gloss": "yes", "pronunciation": "", "forms": [{ "text": "yes" }] },
+      "incoming": { "status": "active", "gloss": "yes", "pronunciation": "da", "forms": [{ "text": "yes" }] },
+      "changes": { "pronunciation": "da", "pronunciation_careful": null, "pronunciation_source": "model" }
+    },
+    {
+      "name": "forms are unioned ignoring case; existing flags stay",
+      "existing": { "status": "active", "gloss": "thanks", "forms": [{ "text": "thanks", "enabled": true, "case": "any", "ambiguous": false }, { "text": "Thank you", "enabled": false, "case": "exact", "ambiguous": true }] },
+      "incoming": { "status": "active", "gloss": "thanks", "forms": [{ "text": "THANKS" }, { "text": "thank you" }, { "text": "thx", "enabled": false }] },
+      "changes": { "forms": [{ "text": "thanks", "enabled": true, "case": "any", "ambiguous": false }, { "text": "Thank you", "enabled": false, "case": "exact", "ambiguous": true }, { "text": "thx", "enabled": false, "case": "any", "ambiguous": false }] }
+    },
+    {
+      "name": "a different incoming gloss becomes a form; the gloss stays",
+      "existing": { "status": "active", "gloss": "dog", "forms": [{ "text": "dog" }] },
+      "incoming": { "status": "active", "gloss": "hound", "forms": [{ "text": "hound" }, { "text": "hounds" }] },
+      "changes": { "forms": [{ "text": "dog", "enabled": true, "case": "any", "ambiguous": false }, { "text": "hound", "enabled": true, "case": "any", "ambiguous": false }, { "text": "hounds", "enabled": true, "case": "any", "ambiguous": false }] }
+    },
+    {
+      "name": "the cap keeps existing forms and drops only new ones",
+      "existing": { "status": "active", "gloss": "a", "forms": [{ "text": "f1" }, { "text": "f2" }, { "text": "f3" }, { "text": "f4" }, { "text": "f5" }, { "text": "f6" }, { "text": "f7" }, { "text": "f8" }, { "text": "f9" }] },
+      "incoming": { "status": "active", "gloss": "f1", "forms": [{ "text": "n1" }, { "text": "n2" }] },
+      "changes": { "forms": [{ "text": "f1", "enabled": true, "case": "any", "ambiguous": false }, { "text": "f2", "enabled": true, "case": "any", "ambiguous": false }, { "text": "f3", "enabled": true, "case": "any", "ambiguous": false }, { "text": "f4", "enabled": true, "case": "any", "ambiguous": false }, { "text": "f5", "enabled": true, "case": "any", "ambiguous": false }, { "text": "f6", "enabled": true, "case": "any", "ambiguous": false }, { "text": "f7", "enabled": true, "case": "any", "ambiguous": false }, { "text": "f8", "enabled": true, "case": "any", "ambiguous": false }, { "text": "f9", "enabled": true, "case": "any", "ambiguous": false }, { "text": "n1", "enabled": true, "case": "any", "ambiguous": false }] }
+    },
+    {
+      "name": "a word already over the cap (migrated) keeps all its forms and gains none",
+      "existing": { "status": "active", "gloss": "a", "forms": [{ "text": "f1" }, { "text": "f2" }, { "text": "f3" }, { "text": "f4" }, { "text": "f5" }, { "text": "f6" }, { "text": "f7" }, { "text": "f8" }, { "text": "f9" }, { "text": "f10" }, { "text": "f11" }] },
+      "incoming": { "status": "active", "gloss": "f1", "forms": [{ "text": "new" }] },
+      "changes": {}
+    },
+    {
+      "name": "an explicit add un-pauses a paused word",
+      "opts": { "explicit": true },
+      "existing": { "status": "paused", "gloss": "cat", "forms": [{ "text": "cat" }] },
+      "incoming": { "status": "active", "gloss": "cat", "forms": [{ "text": "cat" }] },
+      "changes": { "status": "active" }
+    },
+    {
+      "name": "a bulk add or import leaves a paused word paused",
+      "existing": { "status": "paused", "gloss": "cat", "forms": [{ "text": "cat" }] },
+      "incoming": { "status": "active", "gloss": "cat", "forms": [{ "text": "cat" }] },
+      "changes": {}
+    },
+    {
+      "name": "a pending word (a Telegram lookup) becomes what the add says",
+      "existing": { "status": "pending", "gloss": "cat", "forms": [{ "text": "cat" }] },
+      "incoming": { "status": "paused", "gloss": "cat", "forms": [{ "text": "cat" }] },
+      "changes": { "status": "paused" }
+    }
+  ]
+}

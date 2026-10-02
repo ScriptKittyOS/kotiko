@@ -5,9 +5,9 @@
 // languages, pauses the current site, and shows the server's state as plain-language
 // banners (slice 25). Every string comes from _locales through KotikoI18n.
 //
-// Works against today's background: `add`, `remove` and `sync` messages, and the
-// `storage.local` keys enabled, pausedHosts, hiddenLangs, words, lastSync, syncError,
-// serverUrl and token. Hooks for later slices are marked with their number.
+// Talks to the background (`add`, `remove`, `sync`, `jobs.*`, `server.connect`) and reads
+// storage.local (slice 11 adds wordsHome, lookup, server, keys and addJobs). The AI key is
+// never typed here (DECISIONS). Hooks for later slices are marked with their number.
 (() => {
   const ext = globalThis.browser ?? globalThis.chrome;
   const I18n = globalThis.KotikoI18n;
@@ -17,8 +17,15 @@
   const $ = (id) => document.getElementById(id);
 
   const DEFAULTS = {
-    serverUrl: "http://localhost:4747",
+    // Kept here before slice 11; the background moves them into its store at once.
+    serverUrl: null,
     token: "",
+    // Slice 11: where words live, who looks them up, which secrets exist (no key material).
+    wordsHome: null,
+    lookup: null,
+    server: null,
+    keys: null,
+    addJobs: [],
     enabled: true,
     pausedHosts: [],
     hiddenLangs: [],
@@ -32,6 +39,10 @@
     speech: { allowOnline: false, rate: 0.9, voices: {} },
   };
   const MAX_JOBS = 3;
+  const DEFAULT_SERVER = "http://localhost:4747";
+  // Providers that run without a key (spec/providers.json's keyRequired: false).
+  const KEYLESS = new Set(["ollama", "lmstudio", "custom"]);
+  const NO_WORD = new Set(["no_word_found", "rejected_same_as_gloss"]);
   const CHIP_ROWS = 3;
   const MAX_TEXT = 200;
   const STORE_HOSTS = /^(chromewebstore\.google\.com|chrome\.google\.com|addons\.mozilla\.org|microsoftedge\.microsoft\.com)$/;
@@ -79,7 +90,19 @@
     }
   }
 
-  const hasToken = (s) => !!String(s?.token ?? "").trim();
+  const legacyToken = (s) => !!String(s?.token ?? "").trim();
+  const mode = (s) => s?.wordsHome ?? (legacyToken(s) ? "server" : "local");
+  const hasToken = (s) => mode(s) === "server" && (s?.keys?.server === true || legacyToken(s));
+  const lookupKind = (s) => s?.lookup?.kind ?? (legacyToken(s) ? "server" : "none");
+  // Something can look new words up: the learner's provider (with its key) or the server.
+  function lookupReady(s) {
+    const kind = lookupKind(s);
+    if (kind === "provider") return KEYLESS.has(s.lookup.provider) || s?.keys?.providers?.[s.lookup.provider] === true;
+    if (kind === "server") return s?.keys?.server === true || legacyToken(s);
+    return false;
+  }
+  // Adds are background jobs (slice 11 §5) unless a server looks up and keeps the words.
+  const queueMode = (s) => !(mode(s) === "server" && lookupKind(s) === "server");
   // Technical detail for "Details" (25 §3): never translated, each fact once.
   const technical = (...parts) => [...new Set(parts.filter((p) => p !== null && p !== undefined && p !== "").map(String))].join("\n");
 
@@ -119,8 +142,13 @@
     const line = (key, actions = ["retry"], params) => ({ text: t(key, params), details, actions, code });
     if (!online && code === "server_unreachable") return line("error_add_offline");
     // A failed lookup (slice 10's codes, slice 25's words); waiting ones can be retried.
-    const lookup = LookupStatus.lookupProblem(code, res?.details, { locale: I18n.locale() });
-    if (lookup) return line(lookup.key, RETRYABLE.has(code) ? ["retry"] : [], lookup.params);
+    // Lookups in this browser (the learner's own key, or none set up yet) get their own words.
+    const local = lookupKind(state.s) !== "server";
+    const lookup = LookupStatus.lookupProblem(code, res?.details, { locale: I18n.locale(), local });
+    if (lookup) {
+      const fix = local && (code === "key_rejected" || code === "lookup_not_set_up") ? ["setupLookups"] : [];
+      return line(lookup.key, RETRYABLE.has(code) ? ["retry"] : fix, lookup.params);
+    }
     switch (code) {
       case "server_key_rejected":
         return connected ? line("error_server_key_rejected", ["settings"]) : line("error_add_not_connected", ["settings"]);
@@ -154,6 +182,13 @@
     roving: null,
     checking: false,
     dirty: new Set(),
+    // Queue jobs shown since opening, ones not yet in storage, Undo states, done at open.
+    shownJobs: new Set(),
+    optimistic: new Map(),
+    undos: new Map(),
+    doneAtOpen: new Set(),
+    rendered: new Set(),
+    maskedToken: null,
   };
   let jobSeq = 0;
 
@@ -220,20 +255,23 @@
         return el("button", { class: "btn btn-secondary btn-sm", type: "button", onclick: () => setEnabled(true), "data-action": "turn-on" }, t("popup_turn_on"));
       case "allow":
         return el("button", { class: "btn btn-secondary btn-sm", type: "button", onclick: requestPermission, "data-action": "allow" }, t("error_permission_missing_action"));
+      case "setupLookups":
+        return el("button", { class: "btn btn-secondary btn-sm", type: "button", onclick: openLookupSettings, "data-action": "setup-lookups" }, t("popup_set_up_lookups"));
       default:
         return null;
     }
   }
 
   // The same actions as quiet links, for a line under the add box.
-  function actionLink(action, onRetry) {
-    const key = { retry: "error_try_again_action", settings: "error_connection_settings_action" }[action];
+  function actionLink(action, onRetry, onCancel) {
+    const key = { retry: "error_try_again_action", settings: "error_connection_settings_action", setupLookups: "popup_set_up_lookups", cancel: "add_cancel" }[action];
     if (!key) return null;
+    const run = { retry: onRetry, settings: () => openSettings(), setupLookups: openLookupSettings, cancel: onCancel }[action];
     return el("button", {
       class: "link link-quiet",
       type: "button",
-      "data-action": action,
-      onclick: action === "retry" ? onRetry : () => openSettings(),
+      "data-action": action === "setupLookups" ? "setup-lookups" : action,
+      onclick: run,
     }, t(key));
   }
 
@@ -261,7 +299,7 @@
   // "38 free lookups left today" under the add box, at 20 or fewer (20 §2, 10 §3).
   function renderQuota() {
     const node = $("lookupsLeft");
-    const line = hasToken(state.s) ? LookupStatus.quotaLine(state.s?.lookupStatus, { locale: I18n.locale() }) : null;
+    const line = lookupReady(state.s) ? LookupStatus.quotaLine(state.s?.lookupStatus, { locale: I18n.locale() }) : null;
     node.hidden = !line;
     node.textContent = line ? t(line.key, line.params) : "";
   }
@@ -291,6 +329,10 @@
         id: "bannerOff",
       };
     }
+    // Words in this browser: only "no AI set up yet" (11 §9); the first-run card without words.
+    if (mode(s) === "local") {
+      return n && !lookupReady(s) ? { severity: "info", text: t("popup_lookups_off"), actions: ["setupLookups"], id: "bannerLookups" } : null;
+    }
     if (!hasToken(s)) {
       return n ? { severity: "info", text: t("popup_not_connected", { count: n }), actions: ["settings"], id: "bannerSync" } : null;
     }
@@ -314,8 +356,15 @@
 
   function renderSections() {
     const s = state.s;
-    const firstRun = !!s && !hasToken(s) && wordTotal(s.words) === 0;
+    const local = !!s && mode(s) === "local";
+    const firstRun = !!s && (local || !hasToken(s)) && wordTotal(s.words) === 0;
     $("firstRun").hidden = !firstRun;
+    if (firstRun) {
+      $("firstRunTitle").textContent = local ? t("popup_first_run_title_local") : t("popup_first_run_title");
+      $("firstRunBody").textContent = local ? t("popup_first_run_body_local") : t("popup_first_run_body");
+      $("getStarted").textContent = local ? t("popup_set_up_lookups") : t("popup_get_started");
+      $("getStarted").hidden = local && lookupReady(s);
+    }
     $("langSection").hidden = firstRun || !s;
     $("pageSection").hidden = firstRun || !s;
     $("count").textContent = s && !firstRun && wordTotal(s.words) ? t("popup_word_count", { count: wordTotal(s.words) }) : "";
@@ -450,11 +499,46 @@
   }
 
   // --- Recent adds -------------------------------------------------------------------
+  // Queue jobs (`addJobs`, the background's) finish with the popup closed; direct jobs live
+  // in `state.jobs`. A storage job as the lines read it:
+  function viewJob(j) {
+    const e = j.error ?? {};
+    const v = { id: j.id, queue: true, text: j.text, status: { waiting: "waiting", failed: "failed", done: "done" }[j.state] ?? "looking", words: [], known: [], code: e.code, details: e.details ?? {} };
+    if (v.status === "failed") {
+      v.error = NO_WORD.has(e.code) ? { text: t("error_no_word_found", { text: j.text }), details: e.details?.reply ?? "", actions: [] } : addProblem({ code: e.code, details: v.details }, { online: state.online, n: wordTotal(state.s.words) });
+    }
+    for (const r of v.status === "done" ? j.results ?? [] : []) {
+      if (!r?.word) continue;
+      const k = `${j.id}:${r.wordId}`;
+      if (r.result !== "created") {
+        if (!v.known.includes(r.word.native)) v.known.push(r.word.native);
+        continue;
+      }
+      const u = state.undos.get(k);
+      v.words.push({ word: r.word, undo: r.undo ?? u?.state ?? null, undoError: u?.error, fresh: !state.doneAtOpen.has(j.id) && !state.rendered.has(k) });
+      state.rendered.add(k);
+    }
+    return v;
+  }
+
+  // The three most recent jobs that are running or waiting, finished unseen, or shown
+  // since the popup opened.
+  function currentJobs() {
+    if (!state.s || !queueMode(state.s)) return state.jobs;
+    const stored = (state.s.addJobs ?? []).filter((j) => j?.id && j.state !== "cancelled");
+    const list = [...[...state.optimistic.values()].filter((o) => !stored.some((j) => j.id === o.id)), ...stored]
+      .filter((j) => !/done|failed/.test(j.state) || !j.seen || state.shownJobs.has(j.id))
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, MAX_JOBS);
+    for (const j of list) state.shownJobs.add(j.id);
+    return list.map((j) => j.view ?? viewJob(j));
+  }
 
   function jobLines(job) {
     if (job.status === "looking") {
       return [{ key: `${job.id}`, kind: "looking", job }];
     }
+    if (job.status === "waiting") return [{ key: `${job.id}`, kind: "waiting", job }];
     if (job.status === "failed") return [{ key: `${job.id}`, kind: "failed", job }];
     const lines = job.words.map((entry, i) => ({ key: `${job.id}:${i}`, kind: "word", job, entry }));
     if (job.known?.length) lines.push({ key: `${job.id}:known`, kind: "known", job });
@@ -477,10 +561,28 @@
     return I18n.parts(pron ? "add_created" : "add_created_plain", params);
   }
 
+  // Why a job waits (slice 24 §2), and what can be done about it.
+  function waitingLine(job) {
+    const { code, text } = job;
+    const at = Date.parse(job.details.retry_at ?? "");
+    if (code === "lookup_not_set_up") return { text: t("add_waiting_setup", { text }), actions: ["setupLookups", "cancel"] };
+    if (code === "quota_exhausted" && at) return { text: t("add_waiting_quota", { text, time: new Intl.DateTimeFormat(I18n.locale(), { timeStyle: "short" }).format(at) }), actions: ["cancel"] };
+    if (RETRYABLE.has(code)) return { text: t("add_waiting_busy", { text }), actions: ["retry", "cancel"] };
+    return { text: t("add_waiting", { text, reason: addProblem(job, { online: state.online }).text }), actions: ["retry", "cancel"] };
+  }
+
   function lineContent(line) {
     const { job, entry } = line;
     if (line.kind === "looking") {
       return [el("span", { class: "job-text job-looking" }, t("add_looking_up", { text: job.text }))];
+    }
+    if (line.kind === "waiting") {
+      const w = waitingLine(job);
+      const actions = w.actions.map((a) => actionLink(a, () => retryJob(job), () => cancelJob(job))).filter(Boolean);
+      return [
+        icon("info", 18),
+        el("div", { class: "job-text" }, el("p", {}, w.text), el("div", { class: "job-more" }, actions)),
+      ];
     }
     if (line.kind === "known") {
       const words = job.known.map((n, i) => [i ? ", " : "", el("bdi", { class: "word" }, n)]).flat().filter((x) => x !== "");
@@ -525,13 +627,15 @@
 
   function signature(line) {
     if (line.kind === "word") return `word:${line.entry.undo ?? ""}`;
+    if (line.kind === "waiting") return `waiting:${line.job.code ?? ""}`;
+    if (line.kind === "failed") return `failed:${line.job.error?.text ?? ""}`;
     return line.kind;
   }
 
   function renderJobs() {
     const list = $("jobs");
     const existing = new Map([...list.children].map((li) => [li.dataset.key, li]));
-    const lines = state.jobs.flatMap(jobLines);
+    const lines = currentJobs().flatMap(jobLines);
     const next = lines.map((line) => {
       const old = existing.get(line.key);
       if (old && old.dataset.sig === signature(line)) return old;
@@ -571,6 +675,18 @@
     renderJobs();
   }
 
+  // A queue job, persisted by the background before anything else: the popup can close.
+  async function queueJob(text) {
+    const id = globalThis.crypto.randomUUID();
+    const job = { id, text, state: "queued", createdAt: Date.now() };
+    state.optimistic.set(id, job);
+    renderJobs();
+    const res = await send({ type: "add", id, text });
+    // Refused (too long): a line of its own, dismissed locally.
+    if (res?.error) job.view = { id, queue: true, local: true, text, status: "failed", words: [], error: addProblem(res) };
+    renderJobs();
+  }
+
   function submit(e) {
     e.preventDefault();
     const input = $("addText");
@@ -578,38 +694,55 @@
     if (!text) return;
     input.value = "";
     input.focus();
-    const job = { id: ++jobSeq, text, status: "looking", words: [] };
-    state.jobs.unshift(job);
-    trimJobs();
+    if (state.s && queueMode(state.s)) return void queueJob(text);
     if ([...text].length > MAX_TEXT) {
-      job.status = "failed";
-      job.error = { text: t("error_input_too_long"), details: "", actions: [] };
+      state.jobs.unshift({ id: ++jobSeq, text, status: "failed", words: [], error: { text: t("error_input_too_long"), details: "", actions: [] } });
+      trimJobs();
       renderJobs();
       return;
     }
+    const job = { id: ++jobSeq, text, status: "looking", words: [] };
+    state.jobs.unshift(job);
+    trimJobs();
     runJob(job);
   }
 
   function retryJob(job) {
-    runJob(job);
+    if (job.queue) send({ type: "jobs.retry", id: job.id });
+    else runJob(job);
+    $("addText").focus();
+  }
+
+  function cancelJob(job) {
+    if (job.queue) send({ type: "jobs.cancel", id: job.id });
     $("addText").focus();
   }
 
   function dismissJob(job) {
-    state.jobs = state.jobs.filter((j) => j !== job);
+    if (job.queue) {
+      state.optimistic.delete(job.id);
+      if (!job.local) send({ type: "jobs.dismiss", id: job.id });
+      state.s.addJobs = (state.s.addJobs ?? []).filter((j) => j.id !== job.id);
+    } else {
+      state.jobs = state.jobs.filter((j) => j !== job);
+    }
     renderJobs();
     $("addText").focus();
   }
 
   async function undo(job, entry) {
+    const key = `${job.id}:${entry.word.id}`;
     entry.undo = "pending";
+    if (job.queue) state.undos.set(key, { state: "pending" });
     renderJobs();
-    const res = await send({ type: "remove", id: entry.word.id });
+    const res = await send(job.queue ? { type: "remove", id: entry.word.id, jobId: job.id } : { type: "remove", id: entry.word.id });
     if (res?.error) {
       entry.undo = "failed";
       entry.undoError = addProblem(res, { connected: hasToken(state.s), online: state.online, n: wordTotal(state.s?.words) });
+      if (job.queue) state.undos.set(key, { state: "failed", error: entry.undoError });
     } else {
       entry.undo = "done";
+      if (job.queue) state.undos.set(key, { state: "done" });
     }
     renderJobs();
   }
@@ -688,7 +821,7 @@
     Object.assign(state.s, fresh);
     renderFor(["lastSync", "syncError", "words"]);
     // A new or checked connection: the free lookups left on that server (slice 10).
-    if (hasToken(state.s)) send({ type: "llmStatus" });
+    if (lookupReady(state.s)) send({ type: "llmStatus" });
   }
 
   async function checkPermission() {
@@ -714,6 +847,11 @@
   function openSettings() {
     $("main").hidden = true;
     $("settings").hidden = false;
+    // The saved token is never read back; its masked form tells the learner one is saved.
+    send({ type: "secrets.describe" }).then((res) => {
+      state.maskedToken = res?.secrets?.server ?? null;
+      renderSettingsFields();
+    });
     renderSettingsFields();
     renderSettingsStatus();
     renderVoices();
@@ -742,13 +880,11 @@
 
   function renderSettingsFields() {
     if (!state.s) return;
-    const fields = { serverUrl: state.s.serverUrl, accessKey: state.s.token };
-    for (const [id, value] of Object.entries(fields)) {
-      const input = $(id);
-      // Never overwrite a field being edited (research 06 F16).
-      if (document.activeElement === input || state.dirty.has(id)) continue;
-      input.value = value ?? "";
-    }
+    const input = $("serverUrl");
+    // Never overwrite a field being edited (research 06 F16).
+    if (document.activeElement !== input && !state.dirty.has("serverUrl")) input.value = state.s.server?.url ?? state.s.serverUrl ?? "";
+    const key = $("accessKey");
+    key.placeholder = state.maskedToken ? t("settings_key_saved", { masked: state.maskedToken }) : "";
   }
 
   function relativeTime(ts) {
@@ -765,6 +901,7 @@
     const s = state.s;
     if (!s) return box.replaceChildren();
     if (state.checking) return box.replaceChildren(el("p", { class: "conn-checking" }, t("settings_checking")));
+
     if (!hasToken(s)) return box.replaceChildren(el("p", { class: "conn-checking" }, t("settings_not_connected")));
     const problem = syncProblem(s.syncError, wordTotal(s.words));
     if (problem) {
@@ -776,18 +913,36 @@
         el("small", {}, t("settings_last_checked", { time: relativeTime(s.lastSync) })))));
   }
 
+  // The address and token go to the background, which keeps the token where pages can't
+  // read it (slice 11 §3) and checks the connection with them.
   async function saveConnection(e) {
     e.preventDefault();
-    const serverUrl = $("serverUrl").value.trim() || DEFAULTS.serverUrl;
+    const url = $("serverUrl").value.trim() || DEFAULT_SERVER;
     const token = $("accessKey").value.trim();
     state.dirty.clear();
-    state.s.serverUrl = serverUrl;
-    state.s.token = token;
-    await ext.storage.local.set({ serverUrl, token });
-    renderSections();
-    renderBanners();
-    await syncNow();
+    state.checking = true;
+    renderSettingsStatus();
+    const msg = { type: "server.connect", url };
+    if (token) msg.token = token;
+    const res = await send(msg);
+    if (token) $("accessKey").value = "";
+    state.checking = false;
+    // Words kept in this browser move to a server in the dashboard, after seeing the count.
+    if (res?.needsSwitch) return openDashboardAt("#settings/connection");
+    const fresh = await ext.storage.local.get(Object.fromEntries(["lastSync", "syncError", "words", "wordsHome", "lookup", "server", "keys"].map((k) => [k, DEFAULTS[k]])));
+    Object.assign(state.s, fresh);
+    const described = await send({ type: "secrets.describe" });
+    state.maskedToken = described?.secrets?.server ?? state.maskedToken;
+    renderFor(["lastSync", "syncError", "words", "wordsHome", "server", "keys"]);
+    if (hasToken(state.s)) send({ type: "llmStatus" });
   }
+
+  // The dashboard's settings at a section: the AI key is typed there, never here.
+  async function openDashboardAt(hash) {
+    await Promise.resolve(ext.tabs.create({ url: ext.runtime.getURL(`dashboard.html${hash}`) })).catch(() => {});
+    window.close();
+  }
+  const openLookupSettings = () => openDashboardAt("#settings/lookups");
 
   // The dashboard (slice 21) is the extension's options page, so the browser focuses an
   // open one instead of opening a second.
@@ -812,6 +967,11 @@
     pausedHosts: [renderPage],
     token: [renderSections, renderBanners, renderSettingsFields, renderSettingsStatus, renderQuota],
     serverUrl: [renderSettingsFields],
+    wordsHome: [renderSections, renderBanners, renderSettingsStatus, renderQuota, renderJobs],
+    lookup: [renderSections, renderBanners, renderQuota, renderJobs],
+    keys: [renderSections, renderBanners, renderSettingsStatus, renderQuota],
+    server: [renderSettingsFields],
+    addJobs: [renderJobs],
     speech: [renderVoices],
     lookupStatus: [renderQuota],
   };
@@ -886,7 +1046,7 @@
     $("chips").addEventListener("keydown", onChipKeys);
     $("openSettings").addEventListener("click", openSettings);
     $("openDashboard").addEventListener("click", openDashboard);
-    $("getStarted").addEventListener("click", openSettings);
+    $("getStarted").addEventListener("click", () => (state.s && mode(state.s) === "local" ? openLookupSettings() : openSettings()));
     $("closeSettings").addEventListener("click", closeSettings);
     $("connForm").addEventListener("submit", saveConnection);
     $("checkNow").addEventListener("click", () => syncNow());
@@ -941,14 +1101,19 @@
     clearTimeout(loading);
     $("chips").removeAttribute("aria-label");
     state.s = s;
+    // Jobs that finished before the popup opened show their result without the swap motion;
+    // the ones shown now count as seen (24 §9).
+    for (const j of Array.isArray(s.addJobs) ? s.addJobs : []) if (j?.state === "done") state.doneAtOpen.add(j.id);
     $("main").dataset.ready = "true";
     renderAll();
+    const seen = currentJobs().filter((j) => j.queue && (j.status === "done" || j.status === "failed")).map((j) => j.id);
+    if (seen.length) send({ type: "jobs.seen", ids: seen });
 
     // Fire and forget: the background refreshes words if they're stale (slice 26), and the
     // free lookups left today (slice 10); the popup shows what it has until they arrive.
     send({ type: "sync" });
-    if (hasToken(s)) send({ type: "llmStatus" });
+    if (lookupReady(s)) send({ type: "llmStatus" });
   }
 
-  globalThis.KotikoPopup = { wordGroups, wordTotal, languages, hostOf, syncProblem, addProblem, state, ready: init() };
+  globalThis.KotikoPopup = { wordGroups, wordTotal, languages, hostOf, syncProblem, addProblem, mode, lookupReady, state, ready: init() };
 })();
