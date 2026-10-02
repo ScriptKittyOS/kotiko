@@ -302,6 +302,24 @@ describe("adding words (D)", () => {
     assert.match(p.text("#jobs"), /Added gato = cat · Spanish.*Removed perro\./);
   });
 
+  test("a word already in the list is named calmly, with no Undo that could delete it", async () => {
+    const p = await openPopup({
+      local: { ...CONNECTED, words: WORDS },
+      answer: (msg) =>
+        msg.type === "add"
+          ? { words: [w(52, "es", "gato", "cat")], known: ["спасибо"], reply: "Already in your list: спасибо" }
+          : { ok: true },
+    });
+    p.$("#addText").value = "gato and spasibo";
+    p.$("#addForm").dispatchEvent(new p.win.Event("submit", { cancelable: true }));
+    await p.settle();
+    const known = p.$('#jobs [data-kind="known"]');
+    assert.equal(known.textContent, "Already in your list: спасибо");
+    assert.equal(known.querySelectorAll("button").length, 0);
+    assert.equal(p.doc.querySelectorAll('#jobs [data-action="undo"]').length, 1, "only the new word has Undo");
+    assert.equal(p.$('#jobs [data-kind="failed"]'), null);
+  });
+
   test("failures read in plain language, with the right next step", async () => {
     const cases = [
       [{ error: "Can't reach http://x.", code: "server_unreachable" }, CONNECTED, /^Can't reach your Kotiko server\./, "retry"],

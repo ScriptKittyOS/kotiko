@@ -489,5 +489,14 @@
   "error_input_too_long": {
     "message": "That's a lot of text for one word. Try a word or a short phrase.",
     "description": "The add box text is over 200 characters."
+  },
+  "add_already_known": {
+    "message": "Already in your list: $WORDS$",
+    "description": "After adding words the learner already had; no Undo is offered.",
+    "placeholders": {
+      "words": {
+        "content": "{words}"
+      }
+    }
   }
 }

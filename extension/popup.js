@@ -437,7 +437,9 @@
       return [{ key: `${job.id}`, kind: "looking", job }];
     }
     if (job.status === "failed") return [{ key: `${job.id}`, kind: "failed", job }];
-    return job.words.map((entry, i) => ({ key: `${job.id}:${i}`, kind: "word", job, entry }));
+    const lines = job.words.map((entry, i) => ({ key: `${job.id}:${i}`, kind: "word", job, entry }));
+    if (job.known?.length) lines.push({ key: `${job.id}:known`, kind: "known", job });
+    return lines;
   }
 
   function wordNode(w, fresh) {
@@ -460,6 +462,10 @@
     const { job, entry } = line;
     if (line.kind === "looking") {
       return [el("span", { class: "job-text job-looking" }, t("add_looking_up", { text: job.text }))];
+    }
+    if (line.kind === "known") {
+      const words = job.known.map((n, i) => [i ? ", " : "", el("bdi", { class: "word" }, n)]).flat().filter((x) => x !== "");
+      return [el("span", { class: "job-text" }, I18n.parts("add_already_known", { words: el("span", {}, words) }))];
     }
     if (line.kind === "failed") {
       const e = job.error;
@@ -534,9 +540,11 @@
     if (res?.error) {
       job.status = "failed";
       job.error = addProblem(res, { connected: hasToken(state.s), online: state.online, n: wordTotal(state.s?.words) });
-    } else if (Array.isArray(res?.words) && res.words.length) {
+    } else if (res?.words?.length || res?.known?.length) {
       job.status = "done";
-      job.words = res.words.map((word) => ({ word, undo: null, fresh: true }));
+      job.words = (Array.isArray(res.words) ? res.words : []).map((word) => ({ word, undo: null, fresh: true }));
+      // Words the learner already had: named, never offered an Undo that could delete them.
+      job.known = Array.isArray(res.known) ? res.known.filter((n) => typeof n === "string" && n) : [];
     } else {
       job.status = "failed";
       job.error = { text: t("error_no_word_found", { text: job.text }), details: res?.reply ?? "", actions: [] };
