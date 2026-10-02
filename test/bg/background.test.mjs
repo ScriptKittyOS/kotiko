@@ -514,7 +514,10 @@ describe("sync correctness (slice 26)", () => {
     };
     const { send, store, fake } = loadBackground({ fetch, local: { token: "bad", words: [] } });
     const first = send({ type: "sync", force: true }, POPUP);
-    await sleep(10);
+    // Change the token only once the first request is really in flight: the token now
+    // comes from the secrets store, so how soon that request starts depends on the machine.
+    for (let i = 0; i < 200 && seen.length === 0; i++) await sleep(5);
+    assert.equal(seen.length, 1, "the first sync started");
     await fake.chrome.storage.local.set({ token: "good" });
     await fake.idle();
     assert.deepEqual(await first, { ok: true });
@@ -534,7 +537,8 @@ describe("sync correctness (slice 26)", () => {
     });
     const { send, store, fake } = loadBackground({ fetch });
     send({ type: "sync", force: true });
-    await sleep(10);
+    for (let i = 0; i < 200 && requests.length === 0; i++) await sleep(5);
+    assert.equal(requests.length, 1, "the first sync started");
     await fake.chrome.storage.local.set({ serverUrl: "http://127.0.0.1:5000" });
     await fake.idle();
     await sleep(150);
