@@ -35,6 +35,7 @@ defmodule Kotiko.MixProject do
       {:plug, "~> 1.16"},
       {:jason, "~> 1.4"},
       {:req, "~> 0.5"},
+      {:telemetry, "~> 1.0"},
       {:ecto_sql, "~> 3.12"},
       {:ecto_sqlite3, "~> 0.17"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},

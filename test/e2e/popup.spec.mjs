@@ -46,6 +46,30 @@ test("hide a language in two steps and show only one in two (20 §3)", async ({ 
   await expect.poll(() => p.evaluate(() => chrome.storage.local.get("hiddenLangs").then((s) => s.hiddenLangs))).toEqual(["ru"]);
 });
 
+// Slice 10: the free lookups left today come from the server's /api/v1/llm/status, and a
+// failed lookup's code reads in plain words.
+test("free lookups left show under the add box and go down after an add", async ({ server, popup }) => {
+  await server.control({ words: WORDS, llmRemaining: 5 });
+  const p = await popup.connect(server.kotikoUrl, server.token);
+  await expect(p.locator("#lookupsLeft")).toHaveText("5 free lookups left today");
+  await popup.add("shukran");
+  await expect(p.locator("#lookupsLeft")).toHaveText("4 free lookups left today");
+
+  await server.control({ llmRemaining: 30 });
+  await popup.add("sobaka");
+  await expect(p.locator("#lookupsLeft")).toBeHidden();
+});
+
+test("a used-up quota says when lookups come back", async ({ server, popup }) => {
+  await server.control({ words: WORDS });
+  await popup.connect(server.kotikoUrl, server.token);
+  const retryAt = new Date(Date.now() + 4 * 3600_000).toISOString();
+  await server.control({ failNext: { path: "/api/words", status: 429, code: "quota_exhausted", message: "You've used today's free lookups.", details: { reason: "daily_limit", retry_at: retryAt } } });
+  const line = await popup.add("shukran");
+  await expect(line.locator(".job-text > p")).toHaveText(/^You've used today's free lookups\. Try again after \d{1,2}:\d{2}/);
+  await expect(line.locator('[data-action="retry"]')).toHaveCount(0);
+});
+
 test.describe("with the browser in Spanish", () => {
   test.use({ browserLang: "es" });
 

@@ -14,14 +14,15 @@ the server (`Kotiko.Spec`, compiled into the release) and the extension (its cop
 | `prompt.md` | The prompt, in fenced `prompt <name>` sections, with `{{placeholders}}`. |
 | `rules.json` | Every number the validator uses (caps, minimum lengths). |
 | `pronunciation.json` | Per target language: romanization scheme, stress kind, tone range, vocalization marks. |
+| `models.json` | Slice 10: the free models to prefer for lookups and respellings (from `eval/RESULTS.md`), the ones to deny, the shipped fallback list, and the lookup client's budgets (deadlines, attempts, health, quota reserve, cache). |
 | `languages.json`, `lang-aliases.json` | Language tags (slice 08), generated from Unicode CLDR. |
 | `lang/` | Per base language: stopwords, stem rules, spelling variants, the respelling key. See `lang/README.md`. |
 | `fixtures/` | Shared fixtures both runtimes must pass (below). |
 | `eval/` | The golden evaluation set and its runner. See `eval/README.md`. |
 | `tools/` | `gen-lang-data.mjs` (CLDR data), `sync-extension.mjs` (the extension's copy), `fixture-results.mjs` (the full-output snapshot). |
 
-`models.json` (slice 10), `providers.json` (slice 11) and `export.schema.json` (slice 12)
-join this folder with their slices.
+`providers.json` (slice 11) and `export.schema.json` (slice 12) join this folder with
+their slices.
 
 ## How the runtimes use it
 
@@ -61,6 +62,7 @@ differ from what the pinned CLDR version produces.
 | `fixtures/stem/*.json` | is this form related to the gloss? (`en`, `es`, `_generic`) |
 | `fixtures/input.json`, `lang-data.json`, `prompt.json` | input checks, which `lang/` folder a base reads, and the prompt text (by hash) |
 | `fixtures/native-key.json` | the natural key's `native_key` (slice 07) |
+| `fixtures/llm-policy.json` | an HTTP answer -> an outcome, and an outcome -> the lookup's next step (slice 10) |
 
 Licensing: `languages.json` and `lang-aliases.json` (and their copies) contain data derived
 from Unicode CLDR under the Unicode License v3 (`LICENSES/Unicode-3.0.txt`, `NOTICE`).

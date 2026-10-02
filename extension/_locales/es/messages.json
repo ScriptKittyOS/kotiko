@@ -1872,10 +1872,6 @@
       }
     }
   },
-  "dash_add_no_lookup": {
-    "message": "La búsqueda de palabras aún no está configurada en tu servidor de Kotiko.",
-    "description": "Add failed: the server has no model key."
-  },
   "dash_settings_index": {
     "message": "Secciones de ajustes",
     "description": "Accessible name of the settings index."
@@ -2011,5 +2007,131 @@
   "dash_kbd_shift": {
     "message": "Mayús",
     "description": "Name of the Shift key in the shortcuts list."
+  },
+  "popup_lookups_left_one": {
+    "message": "Te queda $COUNT$ búsqueda gratis hoy",
+    "description": "Under the add box when 20 or fewer free lookups are left today (slice 10). {count} is a number.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "popup_lookups_left_other": {
+    "message": "Te quedan $COUNT$ búsquedas gratis hoy",
+    "description": "Under the add box when 20 or fewer free lookups are left today (slice 10). {count} is a number.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "popup_lookups_none": {
+    "message": "No te quedan búsquedas gratis hoy. Vuelven a las $TIME$.",
+    "description": "Under the add box when no free lookups are left. {time} is a short local time like 2:00 AM.",
+    "placeholders": {
+      "time": {
+        "content": "{time}"
+      }
+    }
+  },
+  "popup_lookups_none_today": {
+    "message": "No te quedan búsquedas gratis hoy. Vuelven mañana.",
+    "description": "Under the add box when no free lookups are left and the reset time isn't known."
+  },
+  "error_quota_exhausted": {
+    "message": "Ya usaste las búsquedas gratis de hoy. Inténtalo de nuevo después de las $TIME$.",
+    "description": "An add failed: the daily free lookups are used up (slice 25 quota_exhausted). {time} is a short local time.",
+    "placeholders": {
+      "time": {
+        "content": "{time}"
+      }
+    }
+  },
+  "error_quota_exhausted_today": {
+    "message": "Ya usaste las búsquedas gratis de hoy. Inténtalo de nuevo mañana.",
+    "description": "An add failed: the daily free lookups are used up, reset time unknown."
+  },
+  "error_quota_exhausted_payment_required": {
+    "message": "$PROVIDER$ necesita crédito en tu cuenta antes de buscar palabras, incluso las gratis. Agrega crédito allí y vuelve a intentarlo.",
+    "description": "An add failed: the lookup service asks for payment (HTTP 402). {provider} is a service name like OpenRouter.",
+    "placeholders": {
+      "provider": {
+        "content": "{provider}"
+      }
+    }
+  },
+  "error_quota_exhausted_payment_required_generic": {
+    "message": "Tu servicio de búsqueda necesita crédito en tu cuenta antes de buscar palabras, incluso las gratis. Agrega crédito allí y vuelve a intentarlo.",
+    "description": "An add failed: the lookup service asks for payment, name unknown."
+  },
+  "error_rate_limited": {
+    "message": "La búsqueda de palabras está ocupada. Inténtalo de nuevo en un minuto.",
+    "description": "An add failed: too many lookups this minute (slice 25 rate_limited)."
+  },
+  "error_model_unavailable": {
+    "message": "La búsqueda de palabras no responde ahora. Inténtalo de nuevo en un rato.",
+    "description": "An add failed: no lookup service answered (slice 25 model_unavailable)."
+  },
+  "error_lookup_timeout": {
+    "message": "Esa búsqueda tardó demasiado. Inténtalo de nuevo.",
+    "description": "An add failed: the lookup ran out of time (slice 25 lookup_timeout)."
+  },
+  "error_bad_lookup_result": {
+    "message": "La búsqueda volvió con algo ilegible. Inténtalo de nuevo.",
+    "description": "An add failed: the answer couldn't be read (slice 25 bad_lookup_result)."
+  },
+  "error_key_rejected": {
+    "message": "$PROVIDER$ no aceptó la clave de tu servidor de Kotiko. Revísala en los ajustes del servidor.",
+    "description": "An add failed: the lookup service refused the server's key (slice 25 key_rejected). {provider} is a service name like OpenRouter.",
+    "placeholders": {
+      "provider": {
+        "content": "{provider}"
+      }
+    }
+  },
+  "error_key_rejected_generic": {
+    "message": "Tu servicio de búsqueda no aceptó la clave de tu servidor de Kotiko. Revísala en los ajustes del servidor.",
+    "description": "An add failed: the lookup service refused the server's key, name unknown."
+  },
+  "error_lookup_not_set_up": {
+    "message": "La búsqueda de palabras aún no está configurada en tu servidor de Kotiko.",
+    "description": "An add failed: the server has no key for its lookup service (slice 25 lookup_not_set_up)."
+  },
+  "error_rejected_same_as_gloss": {
+    "message": "“$TEXT$” ya es una palabra en $BASE$. Prueba a decir en qué idioma la quieres.",
+    "description": "The lookup found the word in a language the learner reads. {text} is what they typed; {base} a language name.",
+    "placeholders": {
+      "text": {
+        "content": "{text}"
+      },
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "dash_set_lookups_left_one": {
+    "message": "Te queda $COUNT$ de $LIMIT$ búsquedas gratis hoy.",
+    "description": "Settings, Your Kotiko server: the free lookups left today (slice 10). {count} and {limit} are numbers.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "limit": {
+        "content": "{limit}"
+      }
+    }
+  },
+  "dash_set_lookups_left_other": {
+    "message": "Te quedan $COUNT$ de $LIMIT$ búsquedas gratis hoy.",
+    "description": "Settings, Your Kotiko server: the free lookups left today (slice 10). {count} and {limit} are numbers.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "limit": {
+        "content": "{limit}"
+      }
+    }
   }
 }

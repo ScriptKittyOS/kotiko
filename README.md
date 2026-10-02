@@ -224,10 +224,14 @@ start Kotiko again.
 
 ### A different model
 
-`LLM_URL` takes any OpenAI-compatible API. `LLM_MODEL` is a comma-separated list tried in
-order: when one is busy or finds nothing, the next one gets the word. The built-in list is
-several free OpenRouter models, because free models are often rate limited. Each lookup is
-logged with the model that answered. For a local Ollama:
+`LLM_URL` takes any OpenAI-compatible API. Leave `LLM_MODEL` empty to use OpenRouter's
+current free models: Kotiko reads OpenRouter's model list once a day, keeps the ones that
+can answer in JSON, and asks them in the order the last evaluation found best
+(`spec/models.json`). `LLM_MODEL` is a comma-separated list used exactly as given, in order:
+when one is busy or finds nothing, the next one gets the word. An add answers within 25
+seconds and asks at most 3 models; a word looked up before is answered from a 30-day cache
+without asking again. Each lookup is logged with the model that answered, never with the
+words. For a local Ollama:
 
 ```
 LLM_URL=http://localhost:11434/v1
@@ -264,11 +268,12 @@ access to all websites. Temporary add-ons are removed when Firefox restarts.
   settings must match the server's API token exactly. `mix kotiko.token` in `server/` prints it.
 - **The server answers `421`**: you reached it by a name it doesn't know. Add the name to
   `ALLOWED_HOSTS` in `.env` and restart.
-- **"the API key was rejected"** or **"LLM_API_KEY isn't set"**: check `LLM_API_KEY` in `.env`, then restart
-  the server. It only reads `.env` when it starts.
-- **"all the free models are busy right now"**: everyone shares the free models' capacity,
-  and your key allows 20 requests a minute and 50 a day. Wait a minute, or add $10 of
-  OpenRouter credit for 1000 a day.
+- **"OpenRouter didn't accept your Kotiko server's key"** or **"Word lookup isn't set up"**:
+  check `LLM_API_KEY` in `.env`, then restart the server. It only reads `.env` when it starts.
+- **"Word lookup is busy"**: your key allows 20 requests a minute; wait a minute.
+  **"You've used today's free lookups"**: 50 a day, back at midnight UTC (the popup shows
+  how many are left once 20 or fewer remain); adding $10 of OpenRouter credit once raises
+  that to 1000 a day. `GET /api/v1/llm/status` shows the count and the models in use.
 - **Wrong language picked**: say which, e.g. `da in serbian`, and undo the wrong one.
 - **The bot doesn't answer at all**: check the server log. A `409` means another copy is
   already polling with the same token; stop it.
@@ -289,16 +294,21 @@ Every route except `GET /health` needs `Authorization: Bearer <API token>`.
 | `PATCH /api/v1/words/:id` | Edits the fields you send; `if_updated_at` (or `If-Match`) refuses a stale edit |
 | `DELETE /api/v1/words/:id`, `POST /api/v1/words/:id/restore` | Deletes a word, and undoes that for 30 days |
 | `GET`/`POST /api/v1/jobs/pronunciation-refresh` | The one-time job adding pronunciations to saved words; `{"action": "pause"}` or `"resume"` |
+| `GET /api/v1/llm/status` | The lookup service: `provider`, the `models` an add asks now, and `quota` (`used`, `limit`, `remaining`, `resets_at`; OpenRouter only, else `null`) |
 | `GET /api/words`, `POST /api/words`, `DELETE /api/words/:id` | The routes the 0.2 extension uses (words for English pages only); removed one minor version after `/api/v1` ships |
 | `GET /health` | `{"ok", "name", "version", "api", "db"}`, no token needed; 503 when the database fails |
 
 Errors from `/api/v1` look like `{"error": {"code": "word_conflict", "message": "...", "details": {...}}}`.
+A failed lookup uses the codes `rate_limited` and `quota_exhausted` (429, with `Retry-After`
+and `details.retry_at` when known), `lookup_timeout` and `lookup_not_set_up` (503), and
+`key_rejected`, `model_unavailable` and `bad_lookup_result` (502).
 
 ## Layout
 
 ```
 server/
-  lib/kotiko/llm.ex          prompt that turns a message into word entries (any language)
+  lib/kotiko/llm.ex          asks the model about a message: cache, quota, model order, deadline
+  lib/kotiko/llm/            catalog (which models), quota, cache, policy (what a failure means)
   lib/kotiko/router.ex       the API above (router_v1.ex: the /api/v1 routes)
   lib/kotiko/bot.ex          Telegram long polling, commands, Add/Skip buttons
   lib/kotiko/transcriber.ex  voice note → text

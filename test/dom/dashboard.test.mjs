@@ -22,7 +22,7 @@ after(() => {
 });
 
 // The background's side: /api/v1 semantics over an array, recording every message.
-function fakeBackend({ words = dashboardWords(Date.now()), job = { state: "done", done: 0, total: 0 }, failList = null, candidates = {} } = {}) {
+function fakeBackend({ words = dashboardWords(Date.now()), job = { state: "done", done: 0, total: 0 }, failList = null, candidates = {}, previews = {}, lookupStatus = null } = {}) {
   const b = { words: clone(words), deleted: [], job, sent: [], failList, failWrites: null, stamp: Date.now() };
   const now = () => new Date(++b.stamp).toISOString();
   const find = (id) => b.words.find((w) => w.id === id);
@@ -41,7 +41,10 @@ function fakeBackend({ words = dashboardWords(Date.now()), job = { state: "done"
         if (msg.action === "resume") b.job = { ...b.job, state: "running" };
         return clone(b.job);
       case "words.preview":
+        if (previews[msg.text]) return clone(previews[msg.text]);
         return { candidates: clone(candidates[msg.text] ?? []), rejected: [] };
+      case "llmStatus":
+        return lookupStatus ? clone(lookupStatus) : { error: "x", code: "server_outdated", details: { status: 404 } };
       case "words.save": {
         const results = msg.words.map((w, i) => {
           const word = { ...w, id: `new-${b.words.length}-${i}`, base_lang: w.base_lang ?? "en", status: "active", created_at: now(), updated_at: now() };
@@ -103,7 +106,7 @@ async function openDashboard({ local = CONNECTED, sync = {}, locale = "en", hash
   };
   runInWindow(dom, "lib/i18n.js");
   w.KotikoI18n._setLoader(async (l) => readMessages(l));
-  for (const rel of ["ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/word-search.js", "lib/dashboard-model.js", "lib/word-source.js", "dashboard.js"]) runInWindow(dom, rel);
+  for (const rel of ["ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/word-search.js", "lib/dashboard-model.js", "lib/word-source.js", "lib/lookup-status.js", "dashboard.js"]) runInWindow(dom, rel);
   await w.KotikoDashboard.ready;
   const doc = w.document;
   const $ = (sel) => doc.querySelector(sel);
@@ -646,6 +649,63 @@ describe("adding words (§8; 24's preview, full control)", () => {
     d.$$(".add-job-actions .btn-primary")[0].click();
     await d.settle(10);
     assert.equal(d.backend.sent.find((m) => m.type === "words.save").words.length, 3);
+  });
+
+  test("a failed lookup says why (slice 10's codes), and what it found nothing for", async () => {
+    const soon = new Date(Date.now() + 3 * 3600_000).toISOString();
+    const previews = {
+      a: { error: "x", code: "quota_exhausted", details: { reason: "daily_limit", retry_at: soon, status: 429 } },
+      b: { error: "x", code: "rate_limited", details: { status: 429 } },
+      c: { error: "x", code: "key_rejected", details: { provider: "openrouter", status: 502 } },
+      d: { error: "x", code: "lookup_not_set_up", details: { status: 503 } },
+      e: { error: "x", code: "lookup_timeout", details: { status: 503 } },
+      perro: { candidates: [], rejected: [{ native: "perro", base_lang: "es", reason: "same_as_gloss" }], code: "rejected_same_as_gloss" },
+      zz: { candidates: [], rejected: [{ native: "zz", reason: "script_mismatch" }], code: "bad_lookup_result" },
+    };
+    const expected = {
+      a: /^You've used today's free lookups\. Try again after \d{1,2}:\d{2}/,
+      b: /^Word lookup is busy\. Try again in a minute\./,
+      c: /^OpenRouter didn't accept your Kotiko server's key\./,
+      d: /^Word lookup isn’t set up on your Kotiko server yet\./,
+      e: /^That lookup took too long\. Try again\./,
+      perro: /^“perro” is already a word in Spanish\./,
+      zz: /^The lookup came back garbled\./,
+    };
+    for (const [text, re] of Object.entries(expected)) {
+      const d = await openDashboard({ hash: "#add", backend: fakeBackend({ previews }) });
+      await d.type(d.$("#addText"), text);
+      d.$("#addForm").dispatchEvent(new d.w.Event("submit", { bubbles: true, cancelable: true }));
+      await d.settle(10);
+      assert.match(d.text(".add-job.is-failed .add-job-text"), re, text);
+    }
+  });
+
+  test("free lookups left today: under the add box at 20 or fewer, and in settings", async () => {
+    const resets = new Date(Date.now() + 3600_000).toISOString();
+    const lookupStatus = (remaining) => ({ provider: "openrouter", quota: { used: 50 - remaining, limit: 50, remaining, resets_at: resets, estimated: false }, at: Date.now() });
+
+    let d = await openDashboard({ hash: "#add", backend: fakeBackend({ lookupStatus: lookupStatus(7) }) });
+    await d.settle(10);
+    assert.ok(d.backend.sent.some((m) => m.type === "llmStatus"));
+    assert.equal(d.$("#addQuota").hidden, false);
+    assert.equal(d.text("#addQuota"), "7 free lookups left today");
+
+    d = await openDashboard({ hash: "#add", backend: fakeBackend({ lookupStatus: lookupStatus(38) }) });
+    await d.settle(10);
+    assert.equal(d.$("#addQuota").hidden, true, "38 left: nothing to say");
+
+    d = await openDashboard({ hash: "#settings", backend: fakeBackend({ lookupStatus: lookupStatus(38) }) });
+    await d.settle(10);
+    assert.match(d.text("#connStatus"), /38 of 50 free lookups left today\./);
+
+    d = await openDashboard({ hash: "#add", locale: "es", backend: fakeBackend({ lookupStatus: lookupStatus(0) }) });
+    await d.settle(10);
+    assert.match(d.text("#addQuota"), /^No te quedan búsquedas gratis hoy\. Vuelven a las /);
+
+    // An older server without the status route: nothing.
+    d = await openDashboard({ hash: "#add" });
+    await d.settle(10);
+    assert.equal(d.$("#addQuota").hidden, true);
   });
 
   test("a word that finds nothing says so in plain words", async () => {

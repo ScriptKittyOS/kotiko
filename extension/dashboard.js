@@ -18,6 +18,7 @@
   const Cards = globalThis.KotikoWordCard;
   const Search = globalThis.KotikoSearch;
   const M = globalThis.KotikoDashModel;
+  const LookupStatus = globalThis.KotikoLookupStatus;
   const { t } = I18n;
   const $ = (id) => document.getElementById(id);
 
@@ -74,6 +75,7 @@
     online: navigator.onLine !== false,
     addJobs: [],
     hint: null, // language hint for the add box ("Start a language")
+    lookupStatus: null, // the server's free lookups left today (slice 10)
   };
 
   const index = Search.createIndex();
@@ -494,8 +496,11 @@
         return t("dash_conflict");
       case "invalid_word":
         return invalidText(d.reason ?? null, field ?? d.field);
-      default:
-        return t("error_internal");
+      default: {
+        // A failed lookup (slice 10's codes).
+        const lookup = LookupStatus.lookupProblem(code, d, { locale: I18n.locale() });
+        return lookup ? t(lookup.key, lookup.params) : t("error_internal");
+      }
     }
   }
 
@@ -2031,7 +2036,28 @@
         el("button", { class: "link link-quiet", type: "button", onclick: () => { state.hint = null; hint.hidden = true; $("addText").focus(); } }, t("dash_add_hint_clear")));
     }
     renderAddJobs();
+    renderQuota();
+    refreshQuota();
     $("addText").focus();
+  }
+
+  // "12 free lookups left today" under the add box (slice 10 §3), from the server.
+  function refreshQuota() {
+    Promise.resolve()
+      .then(() => source.lookupStatus?.())
+      .then((s) => {
+        if (s && !s.error) state.lookupStatus = s;
+        renderQuota();
+        if (state.route.view === "settings") renderConnStatus();
+      })
+      .catch(() => {});
+  }
+
+  function renderQuota() {
+    const node = $("addQuota");
+    const line = LookupStatus.quotaLine(state.lookupStatus, { locale: I18n.locale() });
+    node.hidden = !line;
+    node.textContent = line ? t(line.key, line.params) : "";
   }
 
   function closeAdd() {
@@ -2069,7 +2095,7 @@
       job.known = res.candidates.filter((c) => hasWord(c)).map((c) => c.native);
       if (!res.candidates.length) {
         job.status = "failed";
-        job.error = t("error_no_word_found", { text: job.text });
+        job.error = noWordText(res, job.text);
       } else if (M.groupRecords(fresh.map((c, i) => ({ ...c, id: i }))).length >= CONFIRM_AT) {
         job.status = "choose";
         job.candidates = fresh.map((c) => ({ word: c, keep: true }));
@@ -2080,9 +2106,20 @@
       }
     } catch (e) {
       job.status = "failed";
-      job.error = e.code === "lookup_not_set_up" ? t("dash_add_no_lookup") : e.code === "rate_limited" || e.code === "model_unavailable" ? t("error_lookup_failed") : problemText(e);
+      job.error = problemText(e);
     }
     renderAddJobs();
+    refreshQuota();
+  }
+
+  // Why a lookup found nothing to add (slice 09's codes, slice 25's words).
+  function noWordText(res, text) {
+    if (res.code === "bad_lookup_result") return t("error_bad_lookup_result");
+    if (res.code === "rejected_same_as_gloss") {
+      const base = res.rejected?.find((r) => r?.base_lang)?.base_lang ?? bases()[0];
+      return t("error_rejected_same_as_gloss", { text, base: languageName(base) });
+    }
+    return t("error_no_word_found", { text });
   }
 
   const hasWord = (c) => state.records.size && [...state.records.values()].some((r) => r.lang === c.lang && M.nativeKey(r.native) === M.nativeKey(c.native) && (r.base_lang ?? "en") === (c.base_lang ?? "en"));
@@ -2181,6 +2218,7 @@
     renderUiLang();
     renderConnection();
     renderConnStatus();
+    if (String(state.s.token ?? "").trim()) refreshQuota();
     $("onlineVoices").setAttribute("aria-checked", String(state.s.speech?.allowOnline === true));
     renderSegmented($("themeOptions"), [["system", "dash_theme_system"], ["light", "dash_theme_light"], ["dark", "dash_theme_dark"]], state.s.prefs?.theme ?? "system", (v) => setPref("theme", v));
     renderSegmented($("motionOptions"), [["system", "dash_motion_system"], ["reduce", "dash_motion_on"]], state.s.prefs?.motion ?? "system", (v) => setPref("motion", v));
@@ -2318,7 +2356,11 @@
       return box.replaceChildren(el("p", { class: "conn-bad" }, icon("error", 18), el("span", {}, problemText(err))));
     }
     if (!s.lastSync) return box.replaceChildren(el("p", { class: "conn-note" }, t("settings_not_connected")));
-    box.replaceChildren(el("p", { class: "conn-ok" }, icon("success", 18), el("span", {}, t("dash_set_connected", { count: state.groups.length }))));
+    const q = state.lookupStatus?.quota;
+    const left = q && typeof q.remaining === "number" && typeof q.limit === "number" && LookupStatus.quotaLine(state.lookupStatus, { showAt: Infinity })
+      ? el("p", { class: "conn-note" }, t("dash_set_lookups_left", { count: q.remaining, limit: q.limit }))
+      : null;
+    box.replaceChildren(el("p", { class: "conn-ok" }, icon("success", 18), el("span", {}, t("dash_set_connected", { count: state.groups.length }))), left ?? "");
   }
 
   async function setOnlineVoices(on) {

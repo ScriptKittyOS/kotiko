@@ -50,7 +50,7 @@ async function openPopup({ local = {}, locale = "en", tabUrl = `https://${HOST}/
     pretendToBeVisual: true,
   });
   dom.window.chrome = fake.chrome;
-  for (const rel of ["lib/i18n.js", "ui/icons.js", "popup.js"]) runInWindow(dom, rel);
+  for (const rel of ["lib/i18n.js", "ui/icons.js", "lib/lookup-status.js", "popup.js"]) runInWindow(dom, rel);
   await dom.window.KotikoPopup.ready;
   const doc = dom.window.document;
   const $ = (sel) => doc.querySelector(sel);
@@ -342,6 +342,76 @@ describe("adding words (D)", () => {
     }
   });
 
+  test("a failed lookup's code (slice 10) reads in plain language, never 'Word lookup didn't answer'", async () => {
+    const tomorrow = new Date(Date.now() + 6 * 3600_000).toISOString();
+    const cases = [
+      [{ code: "rate_limited", details: { status: 429, retry_at: tomorrow } }, /^Word lookup is busy\. Try again in a minute\.$/, "retry"],
+      [{ code: "quota_exhausted", details: { reason: "daily_limit", retry_at: tomorrow, provider: "openrouter" } }, /^You've used today's free lookups\. Try again after \d{1,2}:\d{2}/, null],
+      [{ code: "quota_exhausted", details: { reason: "payment_required", provider: "openrouter", status: 402 } }, /^OpenRouter needs credit on your account/, null],
+      [{ code: "model_unavailable", details: { status: 502 } }, /^Word lookup isn't answering right now\./, "retry"],
+      [{ code: "lookup_timeout", details: { status: 503 } }, /^That lookup took too long\. Try again\.$/, "retry"],
+      [{ code: "bad_lookup_result", details: { status: 502 } }, /^The lookup came back garbled\./, "retry"],
+      [{ code: "key_rejected", details: { provider: "openrouter", status: 502 } }, /^OpenRouter didn't accept your Kotiko server's key\./, null],
+      [{ code: "lookup_not_set_up", details: { status: 503 } }, /^Word lookup isn’t set up on your Kotiko server yet\.$/, null],
+    ];
+    for (const [res, expected, action] of cases) {
+      const p = await openPopup({ local: { ...CONNECTED, words: WORDS }, answer: (msg) => (msg.type === "add" ? { error: "x", ...res } : { ok: true }) });
+      p.$("#addText").value = "zzz";
+      p.$("#addForm").dispatchEvent(new p.win.Event("submit", { cancelable: true }));
+      await p.settle();
+      const line = p.$('#jobs [data-kind="failed"]');
+      assert.match(line.querySelector(".job-text > p").textContent, expected);
+      if (action) assert.ok(line.querySelector(`[data-action="${action}"]`), `${expected}: ${action}`);
+      else assert.equal(line.querySelector('[data-action="retry"]'), null, `${expected}: no retry`);
+    }
+  });
+
+  test("free lookups left today: shown at 20 or fewer, asked for on open, live", async () => {
+    const resets = new Date(Date.now() + 3600_000).toISOString();
+    const status = (remaining) => ({ provider: "openrouter", quota: { used: 50 - remaining, limit: 50, remaining, resets_at: resets, estimated: false }, at: Date.now() });
+    const asked = [];
+    const p = await openPopup({ local: { ...CONNECTED, words: WORDS, lookupStatus: status(38) }, answer: (msg) => (asked.push(msg.type), { ok: true }) });
+    await p.settle();
+    assert.ok(asked.includes("llmStatus"), "the popup asks the background for a fresh status");
+    assert.ok(!p.visible("#lookupsLeft"), "38 left: nothing to say");
+
+    await p.fake.chrome.storage.local.set({ lookupStatus: status(12) });
+    await p.settle();
+    assert.ok(p.visible("#lookupsLeft"));
+    assert.equal(p.text("#lookupsLeft"), "12 free lookups left today");
+
+    await p.fake.chrome.storage.local.set({ lookupStatus: status(1) });
+    await p.settle();
+    assert.equal(p.text("#lookupsLeft"), "1 free lookup left today");
+
+    await p.fake.chrome.storage.local.set({ lookupStatus: status(0) });
+    await p.settle();
+    assert.match(p.text("#lookupsLeft"), /^No free lookups left today\. They come back at \d{1,2}:\d{2}/);
+
+    // No quota (another provider), or numbers from before the reset: nothing.
+    await p.fake.chrome.storage.local.set({ lookupStatus: { provider: "localhost", quota: null } });
+    await p.settle();
+    assert.ok(!p.visible("#lookupsLeft"));
+    const stale = status(3);
+    stale.quota.resets_at = new Date(Date.now() - 1000).toISOString();
+    await p.fake.chrome.storage.local.set({ lookupStatus: stale });
+    await p.settle();
+    assert.ok(!p.visible("#lookupsLeft"));
+  });
+
+  test("free lookups left, in Spanish; not asked for before the server is connected", async () => {
+    const resets = new Date(Date.now() + 3600_000).toISOString();
+    const lookupStatus = { provider: "openrouter", quota: { used: 45, limit: 50, remaining: 5, resets_at: resets, estimated: true } };
+    const p = await openPopup({ locale: "es", local: { ...CONNECTED, words: WORDS, lookupStatus } });
+    assert.equal(p.text("#lookupsLeft"), "Te quedan 5 búsquedas gratis hoy");
+
+    const asked = [];
+    const q = await openPopup({ local: { words: [], lookupStatus }, answer: (msg) => (asked.push(msg.type), { ok: true }) });
+    await q.settle();
+    assert.ok(!asked.includes("llmStatus"));
+    assert.ok(!q.visible("#lookupsLeft"));
+  });
+
   test("Try again on a failed line runs the add again; dismiss clears it", async () => {
     let n = 0;
     const p = await openPopup({
@@ -548,7 +618,7 @@ describe("size (20 §8)", () => {
   test("the popup's own JS and CSS stay under 60 KB, and everything it loads under 100 KB", () => {
     const size = (files) => files.reduce((n, f) => n + Buffer.byteLength(readExt(f)), 0);
     const own = ["popup.js", "popup.css"];
-    const shared = ["ui/tokens.css", "ui/base.css", "ui/components.css", "ui/icons.js", "ui/theme.js", "lib/i18n.js"];
+    const shared = ["ui/tokens.css", "ui/base.css", "ui/components.css", "ui/icons.js", "ui/theme.js", "lib/i18n.js", "lib/lookup-status.js"];
     assert.ok(size(own) < 60 * 1024, `popup.js + popup.css: ${size(own)} bytes`);
     assert.ok(size([...own, ...shared]) < 100 * 1024, `everything: ${size([...own, ...shared])} bytes`);
   });

@@ -298,6 +298,121 @@ The extension mirrors `Policy` and `Client` in `extension/lib/llm/` with the sam
   remembers words it already looked up. Kotiko follows OpenRouter's current free models
   automatically and shows how many free lookups you have left today."
 
+## Implementation notes
+
+*2026-10-02, first build (branch `slice/10-llm-client`, on the dashboard branch), server
+side. Requirements above are unchanged; this records the choices, the deviations and what
+waits for slice 11. No live call to OpenRouter was made while building it: every path is
+tested against `Req.Test` stubs and the fixture server's fake model.*
+
+**Model order** (`spec/models.json`, with the evidence: date, scores and the RESULTS.md
+run). The 2026-10-02 live evaluation, not "today's check", orders everything:
+
+- `prefer` (lookups): `nvidia/nemotron-3-super-120b-a12b:free` (66.2% pass, 79.3% core,
+  95.2% language), `dots-studio/dots-3-note-preview:free` (63.9 / 75.9 / 92.3),
+  `apodex/apodex-1.1-mini:free` (61.7 / 75.9 / 89.4).
+- `prefer_respell`: dots, apodex, nemotron. Nemotron's respellings were often dropped by
+  the checks (ru en 9 of 15, zh en 3 of 4); dots dropped 1 of 49, apodex none.
+- `fallback`: those three, then `google/gemma-4-31b-it:free` (rate limited upstream for the
+  whole run, unscored) and `qwen/qwen3.8-27b:free` (no `response_format`).
+- `deny` adds `*guard*`, `*coder*` and `openrouter/*` (the free router, open question 1)
+  to the two patterns above.
+
+At runtime: an explicit `LLM_MODEL` is used as given; otherwise the live `/models` list
+filtered and ordered as section 1 says, else the cache file, else `fallback`. A model that
+answered moves to the front of its own chain (lookups and respellings are promoted
+separately) for an hour. An explicit list keeps its order (no promotion) but still skips
+failing models; when every model is skipped, none is.
+
+**Choices where the text leaves room.**
+
+- *429s.* Rate-limit headers mean OpenRouter's own limit. Without headers, the body
+  decides: `free-models-per-day` is the daily limit (`quota_exhausted` until the next UTC
+  midnight), `free-models-per-min` is the per-minute limit, `metadata.provider_name` or
+  "upstream" is a busy provider (next model), anything else is OpenRouter's own (section 2's
+  rule for unknown 429s). OpenRouter's own 429 with no wait named stops at once as
+  `rate_limited` with `retry_at` a minute away. When the attempts run out on upstream 429s
+  the code is `rate_limited` (busy), not `model_unavailable`. The recorded real examples of
+  both kinds are still to capture (test plan, manual, before release).
+- *No word.* A lookup that found no word returns `{:ok, result}` with slice 09's `code`
+  (HTTP 200 with `rejected`, as slice 09 shipped), so the rejections reach the learner;
+  only failures without an answer are errors. Real chat in auto mode (Telegram) is an
+  answer, not a no-word result, so it doesn't ask a second model.
+- *HTTP statuses.* `rate_limited` and `quota_exhausted` (both reasons) are 429,
+  `lookup_timeout` and `lookup_not_set_up` 503, the rest 502. `/api/v1` adds `Retry-After`
+  and `details.retry_at`; `details` also carries `reason`, the provider's `status` and, for
+  `key_rejected` and `quota_exhausted`, `provider`. The legacy `POST /api/words` keeps its
+  string `error` for 0.2 extensions and adds `code` and `details` beside it, which the
+  current popup reads. The plain `message` is English: the server's locales (25, 50) aren't
+  built.
+- *Request fields.* `max_tokens` and `reasoning` are sent only when the catalog lists them
+  for the model; a model the catalog doesn't know gets `response_format` (with the
+  400-without-it retry) and neither of the others. A respelling asks for 4,000 tokens, since
+  20 items times their bases don't fit the lookup's 1,200 (`policy.max_tokens`).
+- *Quota.* The gate applies only when every model in the chain is free (OpenRouter's daily
+  count is for free models). The refresh right after a 429 runs inside the lookup, bounded by
+  what's left of the deadline, because its answer decides between `quota_exhausted` and a
+  retry; the 5-minute refresh runs in the background. `GET /api/v1/llm/status` also reports
+  `models_source` (`env`, `live`, `cache`, `fallback`) and `skipped` (models resting after
+  failures).
+- *Concurrency* is its own small module, `Kotiko.LLM.Slots`, around each attempt (never
+  around a Retry-After wait).
+- *Cache.* The value is the checked result as an Erlang term (Base64 in the `result`
+  column), so it comes back exactly. The table arrives with migration `20261025000000`, a
+  new empty table; like every migration it makes the pre-migration backup once. `fresh:
+  true` exists on `Kotiko.LLM.interpret/3` and `Kotiko.Lookup.interpret/2`; no route sends
+  it yet (19's "wrong meaning", 24's "try again"). A lookup waiting on an identical one in
+  flight gets its result, logged as `cache=shared`.
+- *Catalog.* A model whose entry says nothing about output modalities is taken to write
+  text. Health and promotions live in memory.
+- *Logs.* `LOG_LOOKUPS=true` now sends the input, the raw answer and rejected words to the
+  debug log; without it they are never logged (before: info with it, debug without). The
+  info line is `llm lookup result=… model=… attempts=… ms=… words=… bases=… cache=…`, and
+  `llm respell …` for the refresh job.
+- *Tests.* Budgets run at 1/20 of real time in `config/test.exs` (`llm_time_scale: 0.05`:
+  a 25 s deadline is 1.25 s), and quota refreshes run inline (`llm_sync_refresh`).
+  `test/fixtures/openrouter/models-2026-10-01.json` is reconstructed from the facts
+  recorded on 2026-10-01 (17 free models, 6 with `response_format`,
+  `liquid/lfm-2.5-2.6b:free` with mandatory reasoning, a content-safety model), not a
+  captured response; replace it with the real one, trimmed, when someone fetches it.
+
+**Not built, on purpose.**
+
+- *The follow-up call for `missing_bases`* (section 4, 09 open question 6): bases were
+  complete in 100% of the two-base cases for all three preferred models, above 09's 90%
+  bar. That is 3 cases per model; the golden set needs more two-base cases before this is
+  settled.
+- *`response_format: json_schema`*: nothing in the evaluation shows it helps; JSON mode stays.
+- *The "deny data collection" request field* (open question 3): left to slice 11 with the
+  setting.
+
+**Server changes beyond the LLM modules.** `Kotiko.Lookup.http_error/1` and `message/3`
+turn a failed lookup into the HTTP answer and the bot's one line (`Kotiko.Bot` uses the
+40 s Telegram budget). `Kotiko.PronunciationRefresh` asks `Kotiko.LLM.Quota.low?/0` (10
+left are the learner's) instead of the `:llm_quota` stand-in, and waits until the failed
+lookup's `retry_at`. `Kotiko.Janitor` prunes the cache daily. `Kotiko.Config`'s built-in
+list is `models.json`'s `fallback`, and the startup summary says "its current free models".
+
+**Extension.** The popup shows "{n} free lookups left today" under the add box at 20 or
+fewer and "No free lookups left today. They come back at {time}." at 0 (the "word =
+meaning" hint of 20 waits for slice 24's manual add); the dashboard shows the same line in
+the add sheet and "38 of 50 free lookups left today." under the connection status in
+Settings. Both read the server's status, which the background fetches on `llmStatus` (the
+popup asks on open, the dashboard when the add sheet or Settings opens) and after every add,
+and keeps in `storage.local.lookupStatus`. `extension/lib/lookup-status.js` turns a status
+and slice 10's codes into message keys (en and es) for both pages, replacing
+`error_lookup_failed` for these codes; quota copy says "Try again after {time}" because
+nothing retries by itself until slice 11's queue. `extension/lib/llm/policy.js` is the
+JavaScript twin of `Kotiko.LLM.Policy`; both pass `spec/fixtures/llm-policy.json`
+(18 classifications, 31 next steps). No page loads it yet.
+
+**Left for slice 11.** The extension's own client: `extension/lib/llm/client.js` and
+`catalog.js` over `models.json` and `policy.js`, its quota from `/key`, the IndexedDB
+`lookupCache` with the same key, and the job runner mapping `rate_limited` and
+`quota_exhausted` to `waiting` until `retry_at`. The "deny data collection" option and the
+provider presets. When lookups are local, the popup's line reads the extension's own quota
+in the same `{provider, quota}` shape.
+
 ## Open questions
 
 1. **`openrouter/free` as a last resort.** OpenRouter lists a free router model

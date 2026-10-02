@@ -242,7 +242,9 @@ describe("add and remove relay", () => {
     const { send, store } = loadBackground({ fetch });
     const res = await send({ type: "add", text: "dog in japanese" }, POPUP);
     assert.deepEqual(res, { words: [added] });
-    assert.deepEqual(requests.map((r) => r.method), ["POST", "GET"]);
+    // Besides the free lookups left (slice 10), read after every add.
+    const wordRequests = requests.filter((r) => !r.url.endsWith("/api/v1/llm/status"));
+    assert.deepEqual(wordRequests.map((r) => r.method), ["POST", "GET"]);
     assert.equal(requests[0].url, "http://127.0.0.1:4999/api/words");
     assert.equal(requests[0].headers["Content-Type"], "application/json");
     assert.equal(requests[0].headers.Authorization, "Bearer good-token");
@@ -258,6 +260,53 @@ describe("add and remove relay", () => {
       code: "http_error",
       details: { status: 502 },
     });
+  });
+
+  test("a failed lookup keeps slice 25's code and details (slice 10), not just the text", async () => {
+    const retryAt = "2026-10-03T00:00:00.000Z";
+    const { fetch } = stubFetch((url) =>
+      url.endsWith("/api/words")
+        ? json(429, { error: "You've used today's free lookups.", code: "quota_exhausted", details: { reason: "daily_limit", retry_at: retryAt, provider: "openrouter" } })
+        : json(404, { error: { code: "not_found" } }),
+    );
+    const { send } = loadBackground({ fetch });
+    assert.deepEqual(await send({ type: "add", text: "x" }, POPUP), {
+      error: "You've used today's free lookups.",
+      code: "quota_exhausted",
+      details: { reason: "daily_limit", retry_at: retryAt, provider: "openrouter", status: 429 },
+    });
+  });
+
+  test("llmStatus keeps the free lookups left in storage; adds refresh it; an older server clears it", async () => {
+    const quota = { used: 12, limit: 50, remaining: 38, resets_at: "2026-10-03T00:00:00.000Z", estimated: false };
+    let remaining = 38;
+    let route = true;
+    const { fetch, requests } = stubFetch((url, init) => {
+      if (url.endsWith("/api/v1/llm/status")) {
+        if (!route) return json(404, { error: { code: "not_found", message: "No such route." } });
+        return json(200, { provider: "openrouter", models: ["a:free"], quota: { ...quota, remaining }, last_result: "ok" });
+      }
+      if (init.method === "POST") {
+        remaining--;
+        return json(200, { words: [] , reply: "nothing" });
+      }
+      return json(200, { words: WORDS });
+    });
+    const { send, store, fake } = loadBackground({ fetch });
+    const res = await send({ type: "llmStatus" }, POPUP);
+    assert.equal(res.quota.remaining, 38);
+    assert.deepEqual(store.lookupStatus, { provider: "openrouter", quota, at: fake.clock.now() });
+    assert.equal(requests.at(-1).headers.Authorization, "Bearer good-token");
+
+    await send({ type: "add", text: "x" }, POPUP);
+    await sleep(20);
+    await fake.idle();
+    assert.equal(store.lookupStatus.quota.remaining, 37);
+
+    route = false;
+    assert.equal((await send({ type: "llmStatus" }, POPUP)).code, "server_outdated");
+    assert.equal(store.lookupStatus, null);
+    assert.equal((await send({ type: "llmStatus" }, SENDERS.content)).error.code, "forbidden");
   });
 
   test("remove deletes by id, re-syncs and answers ok", async () => {
@@ -418,6 +467,7 @@ describe("sync correctness (slice 26)", () => {
     let gets = 0;
     const { fetch } = stubFetch(async (url, init) => {
       if (init.method === "POST") return json(200, { words: [added] });
+      if (url.endsWith("/api/v1/llm/status")) return json(404, { error: { code: "not_found" } });
       gets++;
       await sleep(100);
       return json(200, { words: [added, ...WORDS] });

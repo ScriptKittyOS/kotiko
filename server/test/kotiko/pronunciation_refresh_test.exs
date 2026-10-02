@@ -158,20 +158,22 @@ defmodule Kotiko.PronunciationRefreshTest do
     migrated(%{native: "книга", gloss: "word"})
     start_job()
     stub_model()
-    resets = DateTime.add(Words.now(), 3, :hour)
-    put_app_env(:llm_quota, fn -> {10, resets} end)
+    put_app_env(:llm_url, "https://openrouter.ai/api/v1")
+    Kotiko.LLM.Quota.put(%{"free_model_daily_requests" => %{"remaining" => 10}})
+    resets = Kotiko.LLM.Quota.next_midnight(DateTime.utc_now())
 
     assert {:wait, ^resets} = PronunciationRefresh.step()
     assert %{state: "waiting", retry_at: retry_at} = PronunciationRefresh.status()
     assert retry_at == Kotiko.Word.timestamp(resets)
-    assert {:wait, ^resets} = PronunciationRefresh.step()
+    assert {:wait, again} = PronunciationRefresh.step()
+    assert DateTime.compare(again, resets) == :eq
     assert requests() == []
 
-    put_app_env(:llm_quota, fn -> {40, resets} end)
+    Kotiko.LLM.Quota.put(%{"free_model_daily_requests" => %{"remaining" => 40}})
     assert {:continue, 1} = PronunciationRefresh.step(now: DateTime.add(resets, 1, :second))
   end
 
-  test "a daily limit waits until midnight UTC; a rate limit a minute" do
+  test "a daily limit waits until midnight UTC; a rate limit a minute; one request each" do
     migrated(%{native: "книга", gloss: "word"})
     start_job()
     now = ~U[2026-10-02 15:00:00.000000Z]
@@ -180,14 +182,16 @@ defmodule Kotiko.PronunciationRefreshTest do
       LLMStub.status(conn, 429, "Rate limit exceeded: free-models-per-day")
     end)
 
-    assert {:wait, ~U[2026-10-03 00:00:00.000000Z]} = PronunciationRefresh.step(now: now)
+    midnight = Kotiko.LLM.Quota.next_midnight(DateTime.utc_now())
+    assert {:wait, ^midnight} = PronunciationRefresh.step(now: now)
     assert {:wait, _} = PronunciationRefresh.step(now: now)
-    assert length(LLMStub.requests()) == 2
+    # OpenRouter's own limit is shared by every free model: no second model is asked.
+    assert length(LLMStub.requests()) == 1
 
     LLMStub.stub(fn _, conn -> LLMStub.rate_limited(conn) end)
-    later = ~U[2026-10-03 00:00:01.000000Z]
+    later = DateTime.add(midnight, 1, :second)
     assert {:wait, at} = PronunciationRefresh.step(now: later)
-    assert at == DateTime.add(later, 1, :minute)
+    assert_in_delta DateTime.diff(at, DateTime.utc_now()), 60, 2
   end
 
   test "with no provider set up it waits" do

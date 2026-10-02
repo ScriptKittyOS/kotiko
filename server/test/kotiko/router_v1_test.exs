@@ -280,6 +280,116 @@ defmodule Kotiko.RouterV1Test do
       LLMStub.stub(fn _, conn -> LLMStub.status(conn, 503, "down") end)
       assert {502, %{"error" => %{"code" => "model_unavailable"}}} = add_text("perro", ["es"])
     end
+
+    # Slice 10: slice 25's codes with details and, when known, retry_at and Retry-After.
+    test "lookup failures: status, code, details and Retry-After" do
+      cases = [
+        {fn conn -> LLMStub.rate_limited(conn) end, 429, "rate_limited", true},
+        {fn conn -> LLMStub.platform_429(conn, 0, 5 * 3_600_000) end, 429, "quota_exhausted",
+         true},
+        {fn conn -> LLMStub.status(conn, 402) end, 429, "quota_exhausted", false},
+        {fn conn -> LLMStub.status(conn, 401) end, 502, "key_rejected", false},
+        {fn conn -> LLMStub.status(conn, 403) end, 502, "key_rejected", false},
+        {fn conn -> LLMStub.answer(conn, "not json") end, 502, "bad_lookup_result", false},
+        {fn conn -> LLMStub.slow(conn, 5_000, %{}) end, 503, "lookup_timeout", false}
+      ]
+
+      for {stub, status, code, retry?} <- cases do
+        LLMStub.stub(fn _, conn -> stub.(conn) end)
+
+        conn =
+          quiet(fn ->
+            request("POST", "/api/v1/words", auth(), body: %{text: "perro", base_langs: ["es"]})
+          end)
+
+        assert conn.status == status, code
+
+        assert %{"error" => %{"code" => ^code, "message" => message, "details" => details}} =
+                 json_body(conn)
+
+        refute message =~ "perro"
+        assert is_map(details)
+
+        if retry? do
+          assert [seconds] = get_resp_header(conn, "retry-after")
+          assert String.to_integer(seconds) >= 1
+          assert {:ok, _, _} = DateTime.from_iso8601(details["retry_at"])
+        else
+          assert get_resp_header(conn, "retry-after") == []
+          refute Map.has_key?(details, "retry_at")
+        end
+      end
+    end
+
+    test "402 says payment_required and names the provider" do
+      put_app_env(:llm_url, "https://openrouter.ai/api/v1")
+      LLMStub.stub(fn _, conn -> LLMStub.status(conn, 402) end)
+
+      assert {429,
+              %{
+                "error" => %{
+                  "code" => "quota_exhausted",
+                  "details" => %{
+                    "reason" => "payment_required",
+                    "status" => 402,
+                    "provider" => "openrouter"
+                  }
+                }
+              }} = add_text("perro", ["es"])
+    end
+
+    test "with no free lookups left, quota_exhausted and no model call" do
+      put_app_env(:llm_url, "https://openrouter.ai/api/v1")
+      put_app_env(:llm_models, ["a:free"])
+      LLMStub.stub(fn _, _ -> raise "no model call expected" end)
+
+      Kotiko.LLM.Quota.put(%{
+        "free_model_daily_requests" => %{"used" => 50, "limit" => 50, "remaining" => 0}
+      })
+
+      assert {429, %{"error" => %{"code" => "quota_exhausted", "details" => details}}} =
+               add_text("perro", ["es"])
+
+      assert details["reason"] == "daily_limit"
+      assert details["retry_at"] =~ ~r/T00:00:00.000Z$/
+      assert LLMStub.requests() == []
+    end
+  end
+
+  describe "GET /api/v1/llm/status" do
+    test "reports used, limit and remaining from /key, and the models" do
+      put_app_env(:llm_url, "https://openrouter.ai/api/v1")
+
+      LLMStub.stub(fn _, conn -> LLMStub.answer(conn, LLMStub.words([LLMStub.word()])) end,
+        key: %{used: 12, limit: 50, remaining: 38}
+      )
+
+      assert {200, body} = quiet(fn -> call("GET", "/api/v1/llm/status") end)
+
+      assert %{
+               "provider" => "openrouter",
+               "models" => ["m1", "m2", "m3"],
+               "models_source" => "env",
+               "quota" => %{"used" => 12, "limit" => 50, "remaining" => 38, "estimated" => false},
+               "last_result" => _
+             } = body
+
+      assert body["quota"]["resets_at"] =~ ~r/T00:00:00.000Z$/
+
+      add_text("da", ["en"])
+
+      assert {200, %{"quota" => %{"remaining" => 37, "estimated" => true}, "last_result" => "ok"}} =
+               call("GET", "/api/v1/llm/status")
+    end
+
+    test "quota is null for other providers, and the route needs the access key" do
+      LLMStub.stub(fn _, _ -> raise "no model call expected" end)
+
+      assert {200, %{"provider" => "llm.test", "quota" => nil}} =
+               call("GET", "/api/v1/llm/status")
+
+      assert request("GET", "/api/v1/llm/status", []).status == 401
+    end
   end
 
   describe "preview" do
@@ -665,6 +775,16 @@ defmodule Kotiko.RouterV1Test do
   end
 
   describe "legacy POST /api/words" do
+    test "a failed lookup keeps the string error 0.2 reads, plus slice 25's code" do
+      LLMStub.stub(fn _, conn -> LLMStub.rate_limited(conn) end)
+
+      assert {429,
+              %{"error" => message, "code" => "rate_limited", "details" => %{"retry_at" => _}}} =
+               quiet(fn -> call("POST", "/api/words", %{text: "spasibo"}) end)
+
+      assert message == "Word lookup is busy. Try again in a minute."
+    end
+
     test "a new word is in words; a repeat add says it's already there, with no Undo" do
       stub_answer([
         LLMStub.word(

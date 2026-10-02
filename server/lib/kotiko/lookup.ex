@@ -14,14 +14,24 @@ defmodule Kotiko.Lookup do
 
   @doc """
   Interprets `text`. Options: `:base_langs` (default `["en"]`), `:hint_lang`, `:add` (the
-  add box: always an add), `:origin`, `:status` (for the saved words).
+  add box: always an add), `:origin`, `:status` (for the saved words), `:budget` and
+  `:fresh` (`Kotiko.LLM.interpret/3`).
 
   Returns `{:ok, result}` (`Kotiko.WordSpec.process/2`'s result, with `status` and
-  `origin` on each word) or `{:error, message}` when no model answered.
+  `origin` on each word) or `{:error, error}` (`t:Kotiko.LLM.error/0`: slice 25's code,
+  details and `retry_at`) when the lookup failed.
   """
   def interpret(text, opts \\ []) do
     bases = opts[:base_langs] || ["en"]
-    llm_opts = [add: opts[:add] || false, base_langs: bases, hint_lang: opts[:hint_lang]]
+
+    llm_opts = [
+      add: opts[:add] || false,
+      base_langs: bases,
+      hint_lang: opts[:hint_lang],
+      budget: opts[:budget] || :add,
+      fresh: opts[:fresh] || false
+    ]
+
     recent = Enum.map(Words.recent_languages(), & &1.lang)
 
     case busy(fn -> LLM.interpret(text, recent, llm_opts) end) do
@@ -33,6 +43,76 @@ defmodule Kotiko.Lookup do
         e
     end
   end
+
+  # ── failed lookups as HTTP answers (slice 25's codes) ────────────────
+
+  @doc """
+  How a failed lookup answers over HTTP: `{status, retry_after_seconds | nil, message,
+  details}`. `details` carries `reason`, the provider's HTTP `status` and `retry_at`
+  (ISO 8601, UTC) when known; `message` is plain English for clients that show text (the
+  extension renders the code with its own catalog).
+  """
+  def http_error(%{code: code} = e) do
+    retry_at = e[:retry_at]
+
+    details =
+      (e[:details] || %{})
+      |> Map.take([:reason, :status, :provider])
+      |> then(
+        &if(retry_at, do: Map.put(&1, :retry_at, Kotiko.Word.timestamp(retry_at)), else: &1)
+      )
+
+    {http_status(code), retry_after(retry_at), message(code, e[:details] || %{}, retry_at),
+     details}
+  end
+
+  defp http_status(code) when code in ~w(quota_exhausted rate_limited), do: 429
+  defp http_status(code) when code in ~w(lookup_not_set_up lookup_timeout), do: 503
+  defp http_status(_code), do: 502
+
+  defp retry_after(nil), do: nil
+
+  defp retry_after(at),
+    do: max(1, ceil(DateTime.diff(at, DateTime.utc_now(), :millisecond) / 1000))
+
+  @doc "A one-line plain message for a failed lookup's code (the bot and curl users)."
+  def message(code, details \\ %{}, retry_at \\ nil)
+
+  def message("quota_exhausted", %{reason: "payment_required"} = d, _at),
+    do:
+      "#{provider_name(d)} needs credit on your account before it will look up words, " <>
+        "even free ones. Add credit there, or add words yourself."
+
+  def message("quota_exhausted", _d, %DateTime{} = at),
+    do:
+      "You've used today's free lookups. Add words yourself, or try again after " <>
+        "#{Calendar.strftime(at, "%H:%M")} UTC."
+
+  def message("quota_exhausted", _d, _at),
+    do: "You've used today's free lookups. Add words yourself, or try again tomorrow."
+
+  def message("rate_limited", _d, _at), do: "Word lookup is busy. Try again in a minute."
+
+  def message("model_unavailable", _d, _at),
+    do: "Word lookup isn't answering right now. Try again in a little while."
+
+  def message("lookup_timeout", _d, _at), do: "That lookup took too long. Try again."
+
+  def message("bad_lookup_result", _d, _at),
+    do: "The lookup came back garbled. Try again, or add the word yourself."
+
+  def message("key_rejected", d, _at),
+    do:
+      "#{provider_name(d)} didn't accept the server's key (LLM_API_KEY). Check it, then restart the server."
+
+  def message("lookup_not_set_up", _d, _at),
+    do: "Word lookup isn't set up: add LLM_API_KEY to the server's .env and restart it."
+
+  def message(_code, _d, _at), do: "The lookup failed. Try again."
+
+  defp provider_name(%{provider: "openrouter"}), do: "OpenRouter"
+  defp provider_name(%{provider: host}) when is_binary(host), do: host
+  defp provider_name(_), do: "The lookup service"
 
   @doc "The `rejected` and `dropped_fields` entry fields that say which word it was."
   def summary(attrs),

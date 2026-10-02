@@ -12,7 +12,7 @@ defmodule Kotiko.Spec do
 
   @root Path.expand("../../../spec", __DIR__)
 
-  @json_files ~w(languages lang-aliases rules pronunciation)
+  @json_files ~w(languages lang-aliases rules pronunciation models)
   for name <- @json_files, do: @external_resource(Path.join(@root, name <> ".json"))
   @external_resource Path.join(@root, "prompt.md")
   @external_resource Path.join(@root, "VERSION")
@@ -71,6 +71,7 @@ defmodule Kotiko.Spec do
   @aliases read_json.(Path.join(@root, "lang-aliases.json"))
   @rules read_json.(Path.join(@root, "rules.json"))
   @pronunciation read_json.(Path.join(@root, "pronunciation.json"))
+  @models read_json.(Path.join(@root, "models.json"))
   @prompt_text File.read!(Path.join(@root, "prompt.md"))
   @version @root |> Path.join("VERSION") |> File.read!() |> String.trim()
   @lang_data lang_data
@@ -92,6 +93,15 @@ defmodule Kotiko.Spec do
 
   @doc "spec/pronunciation.json: per target language, the romanization scheme and stress kind."
   def pronunciation, do: Map.delete(@pronunciation, "_comment")
+
+  @doc """
+  spec/models.json (slice 10): `prefer`, `prefer_respell`, `deny`, `fallback`, the
+  `evidence` behind the order, and `policy` (budgets, health, catalog, quota, cache).
+  """
+  def models, do: Map.delete(@models, "_comment")
+
+  @doc "One section of models.json's `policy`, by name."
+  def llm_policy(name), do: Map.fetch!(@models["policy"], to_string(name))
 
   @doc "spec/prompt.md, unparsed."
   def prompt_text, do: @prompt_text

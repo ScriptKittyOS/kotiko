@@ -12,6 +12,7 @@
   const ext = globalThis.browser ?? globalThis.chrome;
   const I18n = globalThis.KotikoI18n;
   const Icons = globalThis.KotikoIcons;
+  const LookupStatus = globalThis.KotikoLookupStatus;
   const { t } = I18n;
   const $ = (id) => document.getElementById(id);
 
@@ -24,6 +25,8 @@
     words: [],
     lastSync: null,
     syncError: null,
+    // The server's lookup status (slice 10): {provider, quota, at}, kept by the background.
+    lookupStatus: null,
     // Voices for the speak button (slice 34); the dashboard's voice settings (21) add the
     // rest. Online voices send the word to the browser's voice service, so they're off.
     speech: { allowOnline: false, rate: 0.9, voices: {} },
@@ -106,6 +109,8 @@
     }
   }
 
+  const RETRYABLE = new Set(["rate_limited", "model_unavailable", "lookup_timeout", "bad_lookup_result"]);
+
   // The line for a failed add or undo, from the background's {error, code, details}.
   function addProblem(res, { connected = true, online = true, n = 0 } = {}) {
     const code = res?.code ?? res?.error?.code ?? "internal";
@@ -113,6 +118,9 @@
     const details = technical(typeof res?.error === "string" ? res.error : res?.error?.message, status ? `HTTP ${status}` : null);
     const line = (key, actions = ["retry"], params) => ({ text: t(key, params), details, actions, code });
     if (!online && code === "server_unreachable") return line("error_add_offline");
+    // A failed lookup (slice 10's codes, slice 25's words); waiting ones can be retried.
+    const lookup = LookupStatus.lookupProblem(code, res?.details, { locale: I18n.locale() });
+    if (lookup) return line(lookup.key, RETRYABLE.has(code) ? ["retry"] : [], lookup.params);
     switch (code) {
       case "server_key_rejected":
         return connected ? line("error_server_key_rejected", ["settings"]) : line("error_add_not_connected", ["settings"]);
@@ -249,6 +257,14 @@
   // ---------------------------------------------------------------------------------
   // Rendering. Each section renders from `state`; storage changes re-render only the
   // sections whose keys changed (20 §6).
+
+  // "38 free lookups left today" under the add box, at 20 or fewer (20 §2, 10 §3).
+  function renderQuota() {
+    const node = $("lookupsLeft");
+    const line = hasToken(state.s) ? LookupStatus.quotaLine(state.s?.lookupStatus, { locale: I18n.locale() }) : null;
+    node.hidden = !line;
+    node.textContent = line ? t(line.key, line.params) : "";
+  }
 
   function renderHeader() {
     const on = state.s ? state.s.enabled !== false : true;
@@ -671,6 +687,8 @@
     const fresh = await ext.storage.local.get({ lastSync: null, syncError: null, words: [] });
     Object.assign(state.s, fresh);
     renderFor(["lastSync", "syncError", "words"]);
+    // A new or checked connection: the free lookups left on that server (slice 10).
+    if (hasToken(state.s)) send({ type: "llmStatus" });
   }
 
   async function checkPermission() {
@@ -792,9 +810,10 @@
     syncError: [renderBanners, renderSettingsStatus],
     enabled: [renderHeader, renderBanners],
     pausedHosts: [renderPage],
-    token: [renderSections, renderBanners, renderSettingsFields, renderSettingsStatus],
+    token: [renderSections, renderBanners, renderSettingsFields, renderSettingsStatus, renderQuota],
     serverUrl: [renderSettingsFields],
     speech: [renderVoices],
+    lookupStatus: [renderQuota],
   };
 
   function renderFor(keys) {
@@ -809,6 +828,7 @@
     renderLangs();
     renderPage();
     renderJobs();
+    renderQuota();
   }
 
   function onChipKeys(e) {
@@ -924,8 +944,10 @@
     $("main").dataset.ready = "true";
     renderAll();
 
-    // Fire and forget: the background refreshes words if they're stale (slice 26).
+    // Fire and forget: the background refreshes words if they're stale (slice 26), and the
+    // free lookups left today (slice 10); the popup shows what it has until they arrive.
     send({ type: "sync" });
+    if (hasToken(s)) send({ type: "llmStatus" });
   }
 
   globalThis.KotikoPopup = { wordGroups, wordTotal, languages, hostOf, syncProblem, addProblem, state, ready: init() };
