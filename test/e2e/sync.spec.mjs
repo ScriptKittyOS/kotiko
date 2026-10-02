@@ -17,25 +17,28 @@ test("fixing the token during a slow sync shows the new result, never the old 40
   await server.control({ words: WORDS });
   const p = await popup.connect(server.kotikoUrl, server.token);
 
-  // Record every status line the popup shows from here on.
+  // Record every status the popup shows from here on (settings and the banner area).
   await p.evaluate(() => {
     window.__statuses = [];
-    const el = document.getElementById("status");
-    new MutationObserver(() => window.__statuses.push(el.textContent)).observe(el, {
-      childList: true,
-      characterData: true,
-      subtree: true,
-    });
+    for (const id of ["connStatus", "banners"]) {
+      const el = document.getElementById(id);
+      new MutationObserver(() => window.__statuses.push(el.textContent)).observe(el, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+    }
   });
 
   await server.control({ kotiko: "slow", delayMs: 2000 });
-  await p.locator("#token").fill("wrong-token");
-  await p.locator("#save").click();
+  await p.locator("#openSettings").click();
+  await p.locator("#accessKey").fill("wrong-token");
+  await p.locator("#saveConn").click();
   // The request with the wrong token is now waiting on the slow server.
   await p.waitForTimeout(300);
   const fixedAt = Date.now();
-  await p.locator("#token").fill(server.token);
-  await p.locator("#save").click();
+  await p.locator("#accessKey").fill(server.token);
+  await p.locator("#saveConn").click();
 
   // Long enough for both requests to have answered had the first not been cancelled.
   await expect.poll(async () => (await storage(p, ["lastSync"])).lastSync ?? 0, { timeout: 10_000 }).toBeGreaterThan(fixedAt);
@@ -44,9 +47,9 @@ test("fixing the token during a slow sync shows the new result, never the old 40
   const s = await storage(p, ["syncError", "lastSync", "words"]);
   expect(s.syncError).toBeNull();
   expect(s.words.map((w) => w.native)).toEqual(["дом", "спасибо"]);
-  await expect(p.locator("#status")).toHaveText(/^2 words known, synced/);
+  await expect(p.locator("#connStatus")).toHaveText(/^Connected\. Your server has 2 words\./);
   const shown = await p.evaluate(() => window.__statuses);
-  expect(shown.filter((t) => /rejected/i.test(t))).toEqual([]);
+  expect(shown.filter((t) => /didn't accept/i.test(t))).toEqual([]);
 
   // The server did see the wrong token once; that answer was dropped.
   const log = (await server.state()).log.filter((r) => r.path === "/kotiko/api/words");
@@ -59,7 +62,7 @@ test("a word added against a slow server is on the next page", async ({ context,
   await server.control({ kotiko: "slow", delayMs: 3000 });
 
   const added = await popup.add("sobaka");
-  await expect(added).toHaveText(/^Added собака \(sobaka\) = dog · Russian undo$/);
+  await expect(added).toHaveText(/^Added собака \(sobaka\) = dog · Russian\s*Undo$/);
 
   const page = await context.newPage();
   await page.goto(server.page("basic.html"));
@@ -76,15 +79,19 @@ test("an address typed without http:// connects", async ({ server, popup }) => {
   await server.control({ words: WORDS });
   const bare = server.kotikoUrl.replace(/^http:\/\//, "");
   const p = await popup.connect(bare, server.token);
-  await expect(p.locator("#status")).toHaveText(/^2 words known, synced/);
+  await expect(p.locator("#count")).toHaveText("2 words");
 });
 
 test("an address with a user name explains what to do instead of 'can't reach'", async ({ server, popup }) => {
   const p = await popup.page();
-  if (!(await p.locator("#conn").evaluate((d) => d.open))) await p.locator("#conn summary").click();
+  await p.locator("#openSettings").click();
   await p.locator("#serverUrl").fill(server.kotikoUrl.replace("http://", "http://me:secret@"));
-  await p.locator("#token").fill(server.token);
-  await p.locator("#save").click();
-  await expect(p.locator("#status")).toHaveText(/^Check the server address\. .*token/);
+  await p.locator("#accessKey").fill(server.token);
+  await p.locator("#saveConn").click();
+  await expect(p.locator("#connStatus .banner-body")).toHaveText(
+    "That server address doesn't look right. Try one like http://localhost:4747.",
+  );
+  await p.locator("#connStatus summary").click();
+  await expect(p.locator("#connStatus details pre")).toContainText("Leave the user name and password out of the address");
   expect((await server.state()).log).toEqual([]);
 });

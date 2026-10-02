@@ -212,6 +212,7 @@ describe("message router", () => {
     write: { from: ["page"], check: (m) => (m.n > 0 ? null : "n must be positive"), run: async (m) => ({ n: m.n }) },
     oauth: { from: ["docs"], run: async () => ({ ok: true }) },
     boom: { from: ["page"], run: async () => Promise.reject(Object.assign(new Error("nope"), { code: "http_error" })) },
+    bang: { from: ["page"], run: async () => Promise.reject(Object.assign(new Error("gone"), { code: "http_error", details: { status: 502 } })) },
   };
   const router = createMessageRouter({ runtime, handlers, docsOrigin: "https://docs.example" });
 
@@ -248,5 +249,9 @@ describe("message router", () => {
 
   test("handler errors answer with the message and code", async () => {
     assert.deepEqual((await call(router, { type: "boom" }, popup)).answer, { error: "nope", code: "http_error" });
+  });
+
+  test("handler errors carry their details, so the popup can choose its words", async () => {
+    assert.deepEqual((await call(router, { type: "bang" }, popup)).answer, { error: "gone", code: "http_error", details: { status: 502 } });
   });
 });

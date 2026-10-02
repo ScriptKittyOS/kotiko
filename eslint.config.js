@@ -51,7 +51,7 @@ export default [
   },
   {
     // Pure modules also export themselves for Node tests when `module` exists.
-    files: ["extension/lib/**/*.js"],
+    files: ["extension/lib/**/*.js", "extension/ui/**/*.js"],
     languageOptions: { globals: { module: "readonly" } },
   },
   {
@@ -65,8 +65,8 @@ export default [
   {
     // Callbacks passed to page.evaluate() run in the browser. Playwright fixtures must
     // destructure their first argument, even when it's empty.
-    files: ["test/e2e/**/*.mjs"],
-    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+    files: ["test/e2e/**/*.mjs", "test/visual/**/*.mjs"],
+    languageOptions: { globals: { ...globals.node, ...globals.browser, ...globals.webextensions } },
     rules: { "no-empty-pattern": ["error", { allowObjectPatternsAsParameters: true }] },
   },
 ];

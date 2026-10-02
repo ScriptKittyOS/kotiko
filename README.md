@@ -69,14 +69,16 @@ again, with a pairing string. To pick your own instead, set `API_TOKEN` in `.env
 1. Open `chrome://extensions` (Brave: `brave://extensions`, Edge: `edge://extensions`).
 2. Turn on **Developer mode** (top right).
 3. Click **Load unpacked** and choose the `extension` folder.
-4. Pin Kotiko, click its icon, open **Connection**, paste your API token, click **Save connection**.
+4. Pin Kotiko, click its icon, then **Get started** (or the settings button). Enter the
+   server address, paste your API token as the **Access key**, and click **Save and connect**.
 
-The popup should say "0 words known, synced just now".
+Settings should say "Connected. Your server has 0 words."
 
 ### 4. Try it
 
-Type `shukran` in the popup's box and press **Add**. It answers
-"Added شكرا (shukran) = thanks · Arabic". Open any page with the word "thanks" in it.
+Type `shukran` in the popup's box and press **Enter**. The box clears at once, and a moment
+later the line under it reads "Added شكرا (shukran) = thanks · Arabic", with **Undo**. Open any
+page with the word "thanks" in it.
 
 ---
 
@@ -101,14 +103,15 @@ say them.
 
 ## Choosing languages
 
-The popup lists every language you have words in. Tick any combination:
+The popup shows a chip for every language you have words in, named in that language
+(Русский, العربية, 日本語). Click a chip to show or hide it:
 
 - **All of them**: when several languages know the same English word, the page rotates between
   them ("thanks" becomes спасибо, then 谢谢, then شكرا). Hover any of them to see all three.
-- **Just one**: hover a language and click **only**.
-- **Some**: untick the ones you want to rest. **show all** brings everything back.
+- **Just one**: click the ◎ at the end of its chip (or press F on the chip).
+- **Some**: click the ones you want to rest. **Show all** brings everything back.
 
-A language you've hidden stays hidden until you tick it again; a language you've just started
+A language you've hidden stays hidden until you show it again; a language you've just started
 always shows up. **Swap words on pages** turns everything off, and **Pause on this site** turns
 it off for one site.
 
@@ -249,10 +252,10 @@ access to all websites. Temporary add-ons are removed when Firefox restarts.
 
 ## Troubleshooting
 
-- **Popup says it can't reach the server**: is `./run.sh` running? Does the address in
-  Connection match `PORT`/`BIND`?
-- **"The server rejected that API token"**: the token in the popup must match the server's
-  exactly. `mix kotiko.token` in `server/` prints it.
+- **Popup says it can't reach your Kotiko server**: is `./run.sh` running? Does the address
+  in the popup's settings match `PORT`/`BIND`? **Details** under the message shows what failed.
+- **"Your Kotiko server didn't accept the access key"**: the access key in the popup's
+  settings must match the server's API token exactly. `mix kotiko.token` in `server/` prints it.
 - **The server answers `421`**: you reached it by a name it doesn't know. Add the name to
   `ALLOWED_HOSTS` in `.env` and restart.
 - **"the API key was rejected"** or **"LLM_API_KEY isn't set"**: check `LLM_API_KEY` in `.env`, then restart
@@ -293,6 +296,8 @@ extension/
   background.js              syncs words from the server, relays adds from the popup
   content.js                 swaps words on the page, watches for new content
   popup.html / popup.js      add a word, choose languages, on/off, per-site pause, connection
+  ui/                        design system: tokens, base, components, icons (slice 06)
+  _locales/                  every interface string, English and Spanish
 ```
 
 ## License

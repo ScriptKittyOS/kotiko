@@ -1,0 +1,211 @@
+/* SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/*
+ * Reset, typography by script, focus, reduced motion and forced colors (slice 06 §2, §5,
+ * §9, §4.3). Link after tokens.css and before components.css.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font: var(--t-body) var(--font-ui);
+  color: var(--ink);
+  background: var(--canvas);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+p,
+ul,
+ol {
+  margin: 0;
+}
+
+ul,
+ol {
+  padding: 0;
+  list-style: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* Counts line up (06 §5.2). */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Visually hidden, still read by screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- Script-aware type (06 §5.1) --------------------------------------------------
+ * Han characters are unified in Unicode, so glyph shapes follow `lang`. Each rule
+ * prepends that language's families to the shared stack; components set
+ * `font-family: var(--font-ui)` (or the --t-* shorthand with it), so the nearest `lang`
+ * wins. --font-word is the display role: a serif for Latin, Cyrillic and Greek, the
+ * script's own stack for everything else, at the same size.
+ */
+:root {
+  --font-word: var(--font-display);
+}
+
+:lang(ja) {
+  --font-ui: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", "Noto Sans CJK JP", "Noto Sans JP", var(--font-ui-stack);
+}
+
+:lang(zh),
+:lang(zh-Hans),
+:lang(zh-CN) {
+  --font-ui: "PingFang SC", "Microsoft YaHei UI", "Noto Sans CJK SC", "Noto Sans SC", "Source Han Sans SC", var(--font-ui-stack);
+}
+
+:lang(zh-Hant),
+:lang(zh-TW) {
+  --font-ui: "PingFang TC", "Microsoft JhengHei UI", "Noto Sans CJK TC", "Noto Sans TC", var(--font-ui-stack);
+}
+
+:lang(zh-HK),
+:lang(yue) {
+  --font-ui: "PingFang HK", "Noto Sans CJK HK", "Microsoft JhengHei UI", var(--font-ui-stack);
+}
+
+:lang(ko) {
+  --font-ui: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans CJK KR", "Noto Sans KR", var(--font-ui-stack);
+}
+
+:lang(ar),
+:lang(fa) {
+  --font-ui: "Noto Naskh Arabic", "Geeza Pro", "Segoe UI", "Tahoma", var(--font-ui-stack);
+}
+
+:lang(ur) {
+  --font-ui: "Noto Nastaliq Urdu", "Noto Naskh Arabic", "Geeza Pro", "Segoe UI", "Tahoma", var(--font-ui-stack);
+}
+
+/* Scripts the display serif doesn't cover well keep their own stack for words. */
+[lang] {
+  --font-word: var(--font-display);
+}
+
+:lang(ja), :lang(zh), :lang(ko), :lang(yue),
+:lang(ar), :lang(fa), :lang(ur), :lang(ps), :lang(he), :lang(yi),
+:lang(hi), :lang(mr), :lang(ne), :lang(sa), :lang(bn), :lang(as), :lang(pa), :lang(gu),
+:lang(or), :lang(ta), :lang(te), :lang(kn), :lang(ml), :lang(si),
+:lang(th), :lang(lo), :lang(km), :lang(my), :lang(bo),
+:lang(ka), :lang(hy), :lang(am), :lang(ti) {
+  --font-word: var(--font-ui);
+}
+
+/* Line height by script (06 §5.2), for running text. */
+:where(:lang(ja), :lang(zh), :lang(ko), :lang(yue)) {
+  line-height: 1.6;
+}
+
+:where(:lang(ar), :lang(fa), :lang(ur), :lang(ps), :lang(hi), :lang(mr), :lang(ne), :lang(bn),
+  :lang(pa), :lang(gu), :lang(ta), :lang(te), :lang(kn), :lang(ml), :lang(si), :lang(th),
+  :lang(lo), :lang(km), :lang(my)) {
+  line-height: 1.7;
+}
+
+/* --- Focus (06 §10, WCAG 2.4.7) ---------------------------------------------------- */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* --- Motion (06 §9) -----------------------------------------------------------------
+ * Under reduced motion (the media query, or <html data-motion="reduce"> for Kotiko's own
+ * setting) transitions and animations last at most --d-fast, and animations marked
+ * `.motion` (the ones that move things) don't run at all.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 120ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 120ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .motion,
+  .motion::before,
+  .motion::after {
+    animation-name: none !important;
+    transform: none !important;
+  }
+}
+
+:root[data-motion="reduce"] *,
+:root[data-motion="reduce"] *::before,
+:root[data-motion="reduce"] *::after {
+  animation-duration: 120ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 120ms !important;
+}
+
+:root[data-motion="reduce"] .motion,
+:root[data-motion="reduce"] .motion::before,
+:root[data-motion="reduce"] .motion::after {
+  animation-name: none !important;
+  transform: none !important;
+}
+
+/* --- Forced colors (06 §4.3) ---------------------------------------------------------- */
+@media (forced-colors: active) {
+  * {
+    box-shadow: none !important;
+  }
+
+  :focus-visible {
+    outline-color: Highlight;
+  }
+}

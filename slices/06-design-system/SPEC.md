@@ -623,3 +623,134 @@ light and dark themes."
   [17](../17-casing-and-script-display/SPEC.md) shows tofu is common.
 - A token export (JSON) for the docs site ([44](../44-docs-site/SPEC.md)) and a server-served
   word manager.
+
+## Implementation notes
+
+*2026-10-02, with the popup rewrite ([20](../20-popup-redesign/SPEC.md)). What exists now,
+what waits for the slices that need it. Requirements above are unchanged.*
+
+**Built.**
+
+- `extension/ui/tools/color.mjs` (sRGB, OKLab/OKLCH, WCAG contrast, Machado 2009 CVD
+  simulation), `derive-palette.mjs` (§3.1) and `contrast.mjs` (§4.1, §4.2). Development
+  tooling only; nothing in the extension loads them. Release builds should leave out
+  `extension/ui/tools/` ([30](../30-release-pipeline/SPEC.md)).
+- `derive-palette.mjs` writes every theme-dependent token (the fixed values of §3 and §8
+  live in the script) between `<generated:…>` markers in `tokens.css`, in three blocks:
+  light, dark under `prefers-color-scheme`, and dark under `[data-theme="dark"]`.
+  `--check` fails when `tokens.css` is stale. Colors outside sRGB lose chroma in 0.005
+  steps: that step size reproduces every "derived" value in §3 for `#8A63EA` exactly
+  (with a finer step, purple-soft comes out `#EFECFF`). A unit test checks the
+  reproduction, the spec's ratios for `#8A63EA`, and three other inputs.
+- `contrast.mjs` reads `tokens.css`, checks every pair below in both themes, fails under
+  4.5:1 (text) or 3:1 (non-text and large text), and fails if `primary` and `danger` come
+  within ΔE 8 under any simulated deficiency. It runs in CI's "versions and licenses"
+  job together with `derive-palette.mjs --check`, and `--markdown` prints these tables.
+- `tokens.css` (color, type scale as `font` shorthands used as
+  `font: var(--t-body) var(--font-ui)`, space, radius, elevation, motion, target size,
+  the §4.5 language palette, reduced motion, more contrast), `base.css` (reset, script
+  stacks by `:lang()`, `--font-word` for the display role, line heights, focus, reduced
+  motion including `<html data-motion="reduce">`, forced colors), `components.css`
+  (button, link, input, switch, language chip, status pill, banner, details, list row,
+  toast, empty state, card, skeleton, dotted rule, the word with its dotted underline and
+  the swap motion), `icons.js` (§11 set plus `circle`, `target`, `enter`, `back`) and
+  `theme.js` (applies `prefs.theme` before first paint from a localStorage copy; the
+  setting itself is [21](../21-dashboard/SPEC.md)'s).
+- Tests: `test/unit/design-system.test.mjs` (math, derivation, AA, raw-hex lint for
+  component and page CSS, no remote resources, no uppercase or letter spacing).
+
+**Brand input `#8E5EFA`** (OKLCH L 0.614, C 0.221, h 292.9; hue shift 0.1°, so the
+neutrals keep their values). Derived tokens, light / dark:
+
+| Token | Light | Dark |
+|---|---|---|
+| `--primary` | #8351EC | #A08AEB |
+| `--primary-hover` | #723CD7 | #B2A0F5 |
+| `--purple-text`, `--focus` | #7A46E1 | #A08AEB |
+| `--purple-soft` | #EFECFE | #2B2148 |
+| `--selected` | #EBE8FE | #2D2546 |
+
+Computed ratios for `#8E5EFA`, from `node extension/ui/tools/contrast.mjs --markdown`.
+The rows after `brand`/`surface` are pairs the popup added (text and links on the status
+tints, the failed-add line, the count on a chip that is on); they extend §4.1's allowed
+list.
+
+| Foreground | Background | Use | Needs | Light | Dark |
+|---|---|---|---|---|---|
+| `ink` | `canvas` | Body text | 4.5 | 15.72 | 16.20 |
+| `ink` | `surface` | Body text | 4.5 | 16.92 | 15.06 |
+| `ink` | `sunken` | Body text | 4.5 | 14.54 | 16.61 |
+| `ink` | `selected` | Selected row text | 4.5 | 14.11 | 12.54 |
+| `ink-2` | `canvas` | Secondary text | 4.5 | 7.53 | 10.14 |
+| `ink-2` | `surface` | Secondary text | 4.5 | 8.11 | 9.43 |
+| `ink-2` | `selected` | Secondary on selected | 4.5 | 6.76 | 7.85 |
+| `ink-3` | `canvas` | Tertiary, placeholder | 4.5 | 5.29 | 6.98 |
+| `ink-3` | `surface` | Tertiary, placeholder | 4.5 | 5.70 | 6.49 |
+| `ink-3` | `sunken` | Tertiary on sunken | 4.5 | 4.90 | 7.16 |
+| `ink-3` | `selected` | Tertiary on selected | 4.5 | 4.75 | 5.40 |
+| `on-brand` | `brand` | Large text on the brand surface | 3 | 4.09 | 4.09 |
+| `on-primary` | `primary` | Primary button label | 4.5 | 4.82 | 6.42 |
+| `on-primary` | `primary-hover` | Primary button hover | 4.5 | 6.28 | 8.09 |
+| `purple-text` | `surface` | Links, selected labels | 4.5 | 5.54 | 6.01 |
+| `purple-text` | `canvas` | Links | 4.5 | 5.15 | 6.47 |
+| `purple-text` | `sunken` | Links on sunken | 4.5 | 4.76 | 6.63 |
+| `purple-text` | `purple-soft` | Chip on | 4.5 | 4.77 | 5.18 |
+| `purple-text` | `selected` | Purple on selected | 4.5 | 4.62 | 5.00 |
+| `orange-text` | `surface` | Orange text | 4.5 | 6.19 | 8.71 |
+| `orange-text` | `canvas` | Orange text | 4.5 | 5.75 | 9.37 |
+| `orange-text` | `orange-soft` | Orange text on tint | 4.5 | 5.13 | 7.34 |
+| `on-orange` | `orange` | Text on orange | 4.5 | 5.12 | 7.54 |
+| `blue` | `surface` | Info text | 4.5 | 6.08 | 8.76 |
+| `blue` | `blue-soft` | Info on tint | 4.5 | 5.10 | 7.56 |
+| `success` | `surface` | Success text | 4.5 | 5.96 | 8.67 |
+| `success` | `success-soft` | Success on tint | 4.5 | 5.09 | 7.11 |
+| `warning` | `surface` | Warning text | 4.5 | 6.13 | 10.26 |
+| `warning` | `warning-soft` | Warning on tint | 4.5 | 5.37 | 8.62 |
+| `danger` | `surface` | Error text | 4.5 | 7.05 | 6.47 |
+| `danger` | `danger-soft` | Error on tint | 4.5 | 5.79 | 5.84 |
+| `inverse-ink` | `inverse-bg` | Toast text | 4.5 | 15.72 | 16.20 |
+| `border` | `surface` | Control boundary | 3 | 3.66 | 4.02 |
+| `border` | `canvas` | Control boundary | 3 | 3.40 | 4.32 |
+| `border` | `sunken` | Control boundary | 3 | 3.15 | 4.43 |
+| `focus` | `surface` | Focus ring | 3 | 5.54 | 6.01 |
+| `focus` | `canvas` | Focus ring | 3 | 5.15 | 6.47 |
+| `primary` | `surface` | Primary button shape | 3 | 4.82 | 6.01 |
+| `primary` | `canvas` | Primary button shape | 3 | 4.48 | 6.47 |
+| `orange` | `surface` | Meter fill | 3 | 5.12 | 6.92 |
+| `brand` | `canvas` | Brand tile or band edge | 3 | 3.80 | 4.53 |
+| `brand` | `surface` | Brand tile or band edge | 3 | 4.09 | 4.21 |
+| `ink` | `warning-soft` | Banner text (state) | 4.5 | 14.82 | 12.65 |
+| `ink` | `blue-soft` | Banner text (info) | 4.5 | 14.19 | 12.99 |
+| `ink` | `danger-soft` | Banner text (blocking) | 4.5 | 13.89 | 13.59 |
+| `ink-2` | `sunken` | Secondary on sunken | 4.5 | 6.96 | 10.40 |
+| `ink-2` | `warning-soft` | Banner details | 4.5 | 7.10 | 7.92 |
+| `ink-2` | `blue-soft` | Banner details | 4.5 | 6.80 | 8.13 |
+| `ink-2` | `danger-soft` | Banner details | 4.5 | 6.65 | 8.51 |
+| `purple-text` | `warning-soft` | Link in a banner | 4.5 | 4.85 | 5.05 |
+| `purple-text` | `blue-soft` | Link in a banner | 4.5 | 4.65 | 5.19 |
+| `purple-text` | `danger-soft` | Link in a banner | 4.5 | 4.55 | 5.43 |
+| `danger` | `canvas` | Failed add line | 4.5 | 6.55 | 6.97 |
+| `ink-3` | `purple-soft` | Count on a chip that is on | 4.5 | 4.91 | 5.60 |
+
+Color-vision separations (ΔE OKLab × 100), `#8E5EFA`:
+
+| Pair (light / dark) | Normal | Protan | Deutan | Tritan |
+|---|---|---|---|---|
+| success vs danger | 24.8 / 28.2 | 13.5 / 17.3 | 10.9 / 11.2 | 28.5 / 33.9 |
+| success vs warning | 17.5 / 22.6 | 13.6 / 18.3 | 15 / 21.6 | 18.3 / 23.2 |
+| warning vs danger | 14 / 22.3 | 10.5 / 21.6 | 4.2 / 14.4 | 10.2 / 17.4 |
+| danger vs orange-text | 7.9 / 13.8 | 8.3 / 13.4 | 4.7 / 8.5 | 3.3 / 11.5 |
+| danger vs purple-text | 27.1 / 20.4 | 27.3 / 14.6 | 26.5 / 18.5 | 23.4 / 21.4 |
+| blue vs purple-text | 13.1 / 12.2 | 5.3 / 12.2 | 5.5 / 9.5 | 7.2 / 12.4 |
+| primary vs danger | 27.9 / 20.4 | 29.2 / 14.6 | 27.2 / 18.5 | 24.1 / 21.4 |
+
+**Not built yet.** `ui/popover-style.js` and its token-equality check (with
+[19](../19-word-popover/SPEC.md)); `ui/gallery.html` and its four-mode screenshot tests
+(the popup's screenshot script, `test/visual/popup-screenshots.mjs`, covers the
+components in use for now); the segmented control (with [31](../31-density-and-amount/SPEC.md)),
+popover, milestone card and meter (with [19](../19-word-popover/SPEC.md) and
+[32](../32-page-coverage-and-celebrations/SPEC.md)); the `--brand` versus `brand/` CI
+comparison (waits for the final artwork); the status-icon test across every page (the
+popup's DOM test checks its own status lines); the reduced-motion `getAnimations()`
+check and the remote-request check in Playwright for every page (the e2e network guard
+already fails any non-local request).

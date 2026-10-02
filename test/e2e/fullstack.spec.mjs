@@ -119,11 +119,11 @@ test.describe("full stack", () => {
 
   test("adds a word through the popup on the real server and sees it on basic.html", async ({ context, server, popup }) => {
     const p = await popup.connect(serverUrl, TOKEN);
-    await expect(p.locator("#status")).toHaveText(/^0 words known, synced/);
+    await expect(p.locator("#emptyWords")).toBeVisible();
 
     const added = await popup.add("shukran");
-    await expect(added).toHaveText(/^Added شكرا \(shukran\) = thanks · Arabic undo$/);
-    await expect(p.locator("#status")).toHaveText(/^1 word known, synced/);
+    await expect(added).toHaveText(/^Added شكرا \(shukran\) = thanks · Arabic\s*Undo$/);
+    await expect(p.locator("#count")).toHaveText("1 word");
 
     const modelCalls = (await server.state()).log.filter((r) => r.path === "/llm/v1/chat/completions");
     expect(modelCalls).toHaveLength(1);

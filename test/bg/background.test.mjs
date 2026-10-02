@@ -250,12 +250,13 @@ describe("add and remove relay", () => {
     assert.deepEqual(store.words, [added, ...WORDS]);
   });
 
-  test("add passes the server's error back to the popup", async () => {
+  test("add passes the server's error and its status back to the popup", async () => {
     const { fetch } = stubFetch(() => json(502, { error: "The language model failed: rate limited" }));
     const { send } = loadBackground({ fetch });
     assert.deepEqual(await send({ type: "add", text: "x" }, POPUP), {
       error: "The language model failed: rate limited",
       code: "http_error",
+      details: { status: 502 },
     });
   });
 
@@ -280,7 +281,7 @@ describe("add and remove relay", () => {
   test("remove encodes the id into the path", async () => {
     const { fetch, requests } = stubFetch(() => json(404, { error: "No such word." }));
     const { send } = loadBackground({ fetch });
-    assert.deepEqual(await send({ type: "remove", id: "1/../x?y" }, POPUP), { error: "No such word.", code: "http_error" });
+    assert.deepEqual(await send({ type: "remove", id: "1/../x?y" }, POPUP), { error: "No such word.", code: "http_error", details: { status: 404 } });
     assert.equal(requests[0].url, "http://127.0.0.1:4999/api/words/1%2F..%2Fx%3Fy");
   });
 });
@@ -696,5 +697,46 @@ describe("loading", () => {
       .flatMap((m) => [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]));
     assert.deepEqual(listed, [...imported, "background.js"]);
     assert.equal(manifest().background.service_worker, "background.js");
+  });
+});
+
+describe("toolbar badge (slice 20 §5)", () => {
+  function withAction(local = {}) {
+    const fake = createFakeChrome({
+      runtimeId: EXT_ID,
+      local: { serverUrl: "http://127.0.0.1:4999", token: "", ...local },
+      tabs: [
+        { id: 1, active: true, url: "https://en.wikipedia.org/wiki/Cat" },
+        { id: 2, active: false, url: "https://example.com/" },
+      ],
+    });
+    const badges = new Map();
+    const titles = new Map();
+    fake.chrome.action = {
+      setBadgeText: async ({ tabId, text }) => void badges.set(tabId, text),
+      setBadgeBackgroundColor: async () => {},
+      setTitle: async ({ tabId, title }) => void titles.set(tabId, title),
+    };
+    fake.chrome.i18n = { getMessage: (k) => ({ badge_off: "off", action_title: "Kotiko", action_title_off: "Kotiko · off", action_title_paused: "Kotiko · paused on {host}", ui_locale: "en" })[k] ?? "" };
+    runInVm("background.js", { chrome: fake.chrome, fetch: () => Promise.reject(new TypeError("offline")), Date: fake.clock.Date });
+    return { fake, badges, titles };
+  }
+
+  test("pausing a site marks its tabs off, and turning Kotiko off marks every tab", async () => {
+    const { fake, badges, titles } = withAction();
+    await fake.idle();
+    await sleep(10);
+    assert.equal(badges.get(1), "");
+    await fake.chrome.storage.local.set({ pausedHosts: ["en.wikipedia.org"] });
+    await fake.idle();
+    await sleep(10);
+    assert.equal(badges.get(1), "off");
+    assert.equal(badges.get(2), "");
+    assert.equal(titles.get(1), "Kotiko · paused on en.wikipedia.org");
+    await fake.chrome.storage.local.set({ enabled: false, pausedHosts: [] });
+    await fake.idle();
+    await sleep(10);
+    assert.deepEqual([badges.get(1), badges.get(2)], ["off", "off"]);
+    assert.equal(titles.get(2), "Kotiko · off");
   });
 });

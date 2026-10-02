@@ -62,9 +62,10 @@
         .then(() => handler.run(msg, sender))
         .then(sendResponse, (e) => {
           if (onError) onError(e, msg);
-          sendResponse(e && typeof e.code === "string"
-            ? { error: String(e.message ?? e.code), code: e.code }
-            : { error: String(e?.message ?? e) });
+          if (!e || typeof e.code !== "string") return sendResponse({ error: String(e?.message ?? e) });
+          // Details (an HTTP status, a reason) let the UI choose its words (slice 25).
+          const details = e.details && typeof e.details === "object" && Object.keys(e.details).length ? e.details : null;
+          sendResponse({ error: String(e.message ?? e.code), code: e.code, ...(details ? { details } : {}) });
         });
       return true;
     };

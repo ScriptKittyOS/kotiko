@@ -1,0 +1,686 @@
+/* SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/*
+ * Kotiko components (slice 06 §10). Token names only; no raw colors. Logical properties
+ * throughout, so every component mirrors in right-to-left interfaces.
+ *
+ * Built so far (what the popup, slice 20, needs): button, link, input, switch, language
+ * chip, status pill, banner (status message), list row, toast, empty state, skeleton,
+ * dotted rule, the word. The segmented control, popover, milestone card and meter come
+ * with the slices that use them (31, 19, 32).
+ */
+
+/* --- The word (06 §1 rule 1) and its dotted underline (rule 2) ------------------------ */
+.word {
+  font: var(--t-word) var(--font-word);
+  color: var(--ink);
+  unicode-bidi: isolate;
+}
+
+/* The one ornament: a row of dots under the learner's word, drawn from the inline start. */
+.dots {
+  position: relative;
+  display: inline-block;
+}
+
+.dots::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: -3px;
+  height: 2px;
+  background-image: radial-gradient(circle, var(--orange) 0.9px, transparent 1.1px);
+  background-size: 5px 2px;
+  background-repeat: repeat-x;
+  background-position: 0 50%;
+  transform-origin: left center;
+}
+
+:dir(rtl) .dots::after,
+[dir="rtl"] .dots::after {
+  transform-origin: right center;
+}
+
+/* The signature swap (06 §9): the word fades in from a soft blur, then its dots draw in. */
+.swap-in {
+  animation: kotiko-swap-in var(--d-swap) var(--ease-enter) both;
+}
+
+.swap-in.dots::after {
+  animation: kotiko-dots-in 200ms var(--ease-standard) calc(var(--d-swap) * 0.6) both;
+}
+
+@keyframes kotiko-swap-in {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes kotiko-dots-in {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* --- Dotted rule (06 §10) -------------------------------------------------------------- */
+.rule {
+  height: 2px;
+  border: 0;
+  margin: 0;
+  background-image: radial-gradient(circle, var(--divider) 1px, transparent 1.2px);
+  background-size: 6px 2px;
+  background-repeat: repeat-x;
+}
+
+/* --- Buttons (06 §10) --------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  min-height: 32px;
+  min-width: var(--target-min);
+  padding: 0 14px;
+  font: var(--t-body-strong) var(--font-ui);
+  white-space: nowrap;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--ink);
+  text-decoration: none;
+  transition:
+    background-color var(--d-fast) var(--ease-standard),
+    color var(--d-fast) var(--ease-standard),
+    transform var(--d-fast) var(--ease-standard);
+}
+
+.btn .icon {
+  flex: none;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-secondary {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--ink);
+}
+
+.btn-secondary:hover {
+  background: var(--sunken);
+}
+
+.btn-quiet {
+  color: var(--ink-2);
+}
+
+.btn-quiet:hover {
+  background: var(--sunken);
+  color: var(--ink);
+}
+
+.btn-danger {
+  color: var(--danger);
+}
+
+.btn-danger:hover {
+  background: var(--danger-soft);
+}
+
+.btn-icon {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--r-sm);
+  color: var(--ink-2);
+}
+
+.btn-icon:hover {
+  background: var(--sunken);
+  color: var(--ink);
+}
+
+.btn-sm {
+  min-height: var(--target-min);
+  padding: 0 var(--s-4);
+  border-radius: var(--r-sm);
+  font: var(--t-small) var(--font-ui);
+  font-weight: 600;
+}
+
+.btn[aria-disabled="true"],
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary:active {
+    transform: none;
+  }
+}
+
+/* A link that looks like one: purple and underlined, so it never relies on color alone. */
+.link {
+  display: inline;
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--purple-text);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.link:hover {
+  text-decoration-thickness: 2px;
+}
+
+.link-quiet {
+  font-weight: 500;
+}
+
+/* --- Input (06 §10) ------------------------------------------------------------------ */
+.field {
+  display: block;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 var(--s-5);
+  font: var(--t-body) var(--font-ui);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  transition: border-color var(--d-fast) var(--ease-standard);
+}
+
+.field::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
+}
+
+.field:hover {
+  border-color: var(--ink-2);
+}
+
+/* The focus ring sits on the field's own edge: one crisp 2 px line, no double border. */
+.field:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -1px;
+}
+
+.field[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.field-label {
+  display: block;
+  margin-block-end: var(--s-2);
+  font: var(--t-small) var(--font-ui);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.field-help {
+  margin-block-start: var(--s-2);
+  font: var(--t-small) var(--font-ui);
+  color: var(--ink-3);
+}
+
+/* --- Switch (06 §10) ------------------------------------------------------------------ */
+.switch {
+  position: relative;
+  flex: none;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  border-radius: var(--r-full);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--border);
+  transition: background-color var(--d-base) var(--ease-standard);
+}
+
+.switch::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 3px;
+  inset-inline-start: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--ink-3);
+  transition:
+    transform var(--d-base) var(--ease-standard),
+    background-color var(--d-base) var(--ease-standard);
+}
+
+/* The check inside the thumb carries the on state without color (06 §4.2). */
+.switch::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 7px;
+  inset-inline-start: 21.5px;
+  width: 5px;
+  height: 3px;
+  border-inline-start: 1.5px solid var(--primary);
+  border-block-end: 1.5px solid var(--primary);
+  transform: rotate(-45deg);
+  opacity: 0;
+  transition: opacity var(--d-fast) var(--ease-standard);
+}
+
+[aria-checked="true"] > .switch,
+.switch[aria-checked="true"] {
+  background: var(--primary);
+  box-shadow: none;
+}
+
+[aria-checked="true"] > .switch::before,
+.switch[aria-checked="true"]::before {
+  background: var(--on-primary);
+  transform: translateX(16px);
+}
+
+:dir(rtl) [aria-checked="true"] > .switch::before,
+[dir="rtl"] [aria-checked="true"] > .switch::before {
+  transform: translateX(-16px);
+}
+
+[aria-checked="true"] > .switch::after,
+.switch[aria-checked="true"]::after {
+  opacity: 1;
+}
+
+/* A whole row that toggles: label and switch are one target. */
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-5);
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--s-5);
+  margin: 0;
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  text-align: start;
+  font: var(--t-body) var(--font-ui);
+  color: var(--ink);
+}
+
+.switch-row:hover {
+  background: var(--sunken);
+}
+
+/* --- Language chip (06 §10) ------------------------------------------------------------ */
+.chip-group {
+  display: inline-flex;
+  align-items: stretch;
+  max-width: 100%;
+  border-radius: var(--r-sm);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 28px;
+  min-width: var(--target-min);
+  padding: 0 var(--s-4) 0 var(--s-3);
+  font: var(--t-small) var(--font-ui);
+  font-weight: 500;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: var(--purple-soft);
+  color: var(--purple-text);
+  transition:
+    background-color var(--d-base) var(--ease-standard),
+    color var(--d-base) var(--ease-standard);
+}
+
+.chip .chip-glyph {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.chip .chip-label {
+  overflow-wrap: anywhere;
+}
+
+.chip .chip-count {
+  font: var(--t-caption) var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+
+.chip[aria-pressed="true"] .chip-count {
+  color: var(--purple-text);
+}
+
+.chip[aria-pressed="false"] {
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  color: var(--ink-3);
+}
+
+.chip[aria-pressed="false"] .chip-count {
+  color: var(--ink-3);
+}
+
+.chip:hover {
+  background: var(--selected);
+}
+
+.chip[aria-pressed="false"]:hover {
+  background: var(--sunken);
+  color: var(--ink-2);
+}
+
+/* The trailing button in a chip group (Show only / Focus). */
+.chip-group > .chip:not(:only-child) {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+
+.chip-aux {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--target-min);
+  min-height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-inline-start: 1px solid var(--canvas);
+  border-start-end-radius: var(--r-sm);
+  border-end-end-radius: var(--r-sm);
+  background: var(--purple-soft);
+  color: var(--ink-3);
+}
+
+.chip-aux:hover {
+  background: var(--selected);
+  color: var(--purple-text);
+}
+
+.chip-group:has(.chip[aria-pressed="false"]) > .chip-aux {
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-inline-start: 0;
+  color: var(--ink-3);
+}
+
+.chip-group:has(.chip[aria-pressed="false"]) > .chip-aux:hover {
+  background: var(--sunken);
+}
+
+/* Focus mode (slice 18): filled primary. Used for "Show only" until 18 ships. */
+.chip[data-only="true"],
+.chip[data-only="true"] + .chip-aux {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.chip[data-only="true"] .chip-count {
+  color: var(--on-primary);
+}
+
+/* --- Status pill (06 §10: status chip) ------------------------------------------------- */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 22px;
+  padding: 0 var(--s-4) 0 var(--s-3);
+  border-radius: var(--r-full);
+  font: var(--t-caption) var(--font-ui);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pill-info {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.pill-neutral {
+  background: var(--sunken);
+  color: var(--ink-2);
+}
+
+/* --- Banner: the status area (slice 25 §3) ---------------------------------------------
+ * Always an icon of a distinct shape plus words; never color alone (06 §4.2).
+ *   .banner-state    warning tint: outages, "your words still work"
+ *   .banner-info     blue tint: offline, off, unsupported page
+ *   .banner-blocking error tint: something the learner must fix
+ */
+.banner {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  column-gap: var(--s-4);
+  row-gap: var(--s-3);
+  padding: var(--s-5) var(--s-5) var(--s-5) var(--s-4);
+  border-radius: var(--r-md);
+  font: var(--t-body) var(--font-ui);
+  color: var(--ink);
+}
+
+.banner > .icon {
+  margin-block-start: 0;
+}
+
+.banner-body {
+  min-width: 0;
+}
+
+.banner-actions {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-4) var(--s-5);
+}
+
+.banner-state {
+  background: var(--warning-soft);
+}
+
+.banner-state > .icon {
+  color: var(--warning);
+}
+
+.banner-info {
+  background: var(--blue-soft);
+}
+
+.banner-info > .icon {
+  color: var(--blue);
+}
+
+.banner-blocking {
+  background: var(--danger-soft);
+}
+
+.banner-blocking > .icon {
+  color: var(--danger);
+}
+
+/* Technical detail behind "Details" (25 §3). */
+.details {
+  grid-column: 2;
+  font: var(--t-small) var(--font-ui);
+  color: var(--ink-2);
+}
+
+.details > summary {
+  width: max-content;
+  cursor: pointer;
+  border-radius: var(--r-xs);
+}
+
+.details > pre {
+  margin: var(--s-3) 0 0;
+  font: var(--t-small) var(--font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+/* --- List row (06 §10) ---------------------------------------------------------------- */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  min-height: 44px;
+  padding: var(--s-3) var(--s-5);
+  border-radius: var(--r-md);
+}
+
+.row-new {
+  animation: kotiko-wash 2s var(--ease-standard) both;
+}
+
+@keyframes kotiko-wash {
+  from {
+    background-color: var(--orange-soft);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+/* --- Toast (06 §10) ------------------------------------------------------------------- */
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  max-width: 420px;
+  padding: var(--s-5) var(--s-6);
+  border-radius: var(--r-lg);
+  background: var(--inverse-bg);
+  color: var(--inverse-ink);
+  box-shadow: var(--e-3);
+  font: var(--t-body) var(--font-ui);
+}
+
+.toast .link {
+  color: var(--inverse-ink);
+}
+
+/* --- Empty state (06 §10) --------------------------------------------------------------- */
+.empty {
+  display: flex;
+  align-items: center;
+  gap: var(--s-6);
+  font: var(--t-lead) var(--font-ui);
+  color: var(--ink-2);
+}
+
+.empty-art {
+  flex: none;
+}
+
+/* --- Card ----------------------------------------------------------------------------- */
+.card {
+  padding: var(--s-6);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--e-1);
+}
+
+/* --- Skeleton (loading placeholders, 20 state L) --------------------------------------- */
+.skeleton {
+  display: inline-block;
+  height: 28px;
+  border-radius: var(--r-sm);
+  background: var(--sunken);
+}
+
+/* --- Artwork that follows the theme ----------------------------------------------------- */
+.art-dark {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .art-light {
+    display: none;
+  }
+
+  :root:not([data-theme="light"]) .art-dark {
+    display: block;
+  }
+}
+
+:root[data-theme="dark"] .art-light {
+  display: none;
+}
+
+:root[data-theme="dark"] .art-dark {
+  display: block;
+}
+
+/* --- Forced colors (06 §4.3) ------------------------------------------------------------- */
+@media (forced-colors: active) {
+  .btn,
+  .chip,
+  .chip-aux,
+  .field,
+  .switch,
+  .banner,
+  .pill,
+  .card {
+    border: 1px solid ButtonText;
+  }
+
+  .chip[aria-pressed="false"] {
+    border-style: dashed;
+  }
+
+  .switch::before {
+    background: ButtonText;
+  }
+
+  [aria-checked="true"] > .switch,
+  .switch[aria-checked="true"] {
+    background: Highlight;
+  }
+
+  [aria-checked="true"] > .switch::before {
+    background: HighlightText;
+  }
+
+  .link {
+    color: LinkText;
+  }
+
+  .dots::after,
+  .rule {
+    background-image: radial-gradient(circle, CanvasText 1px, transparent 1.2px);
+  }
+}

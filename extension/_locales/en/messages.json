@@ -1,0 +1,493 @@
+{
+  "extName": {
+    "message": "Kotiko",
+    "description": "The extension's name in the browser and stores. Don't translate."
+  },
+  "extDescription": {
+    "message": "Learn words as you browse: swaps words on web pages for the ones you're learning, in any language.",
+    "description": "The extension's one-line description on the browser's extensions page."
+  },
+  "ui_locale": {
+    "message": "en",
+    "description": "The code of this translation, the same as its folder name (en, es, pt_BR). Not shown; used to format numbers, plurals and language names."
+  },
+  "action_title": {
+    "message": "Kotiko",
+    "description": "Toolbar button tooltip when Kotiko is on."
+  },
+  "action_title_off": {
+    "message": "Kotiko · off",
+    "description": "Toolbar button tooltip when Kotiko is off everywhere."
+  },
+  "action_title_paused": {
+    "message": "Kotiko · paused on $HOST$",
+    "description": "Toolbar button tooltip on a paused site. $HOST$ is the site, like example.com.",
+    "placeholders": {
+      "host": {
+        "content": "{host}"
+      }
+    }
+  },
+  "badge_off": {
+    "message": "off",
+    "description": "Tiny badge text on the toolbar icon when Kotiko is off or paused. Keep it to 3 characters or fewer."
+  },
+  "popup_add_placeholder": {
+    "message": "Add a word, any language",
+    "description": "Placeholder in the popup's add box."
+  },
+  "popup_add_label": {
+    "message": "Add a word",
+    "description": "Accessible name of the popup's add box."
+  },
+  "popup_add_submit": {
+    "message": "Add",
+    "description": "Accessible name of the small button at the end of the add box (Enter does the same)."
+  },
+  "popup_switch_label": {
+    "message": "Swap words on pages",
+    "description": "Accessible name of the master switch in the popup header."
+  },
+  "popup_switch_on": {
+    "message": "On",
+    "description": "Visible state of the master switch when Kotiko is on."
+  },
+  "popup_switch_off": {
+    "message": "Off",
+    "description": "Visible state of the master switch when Kotiko is off."
+  },
+  "popup_settings": {
+    "message": "Settings",
+    "description": "Settings button in the popup header, and the settings view's title."
+  },
+  "popup_offline": {
+    "message": "Offline",
+    "description": "Small label in the popup header when the computer is offline."
+  },
+  "popup_loading": {
+    "message": "Loading your words",
+    "description": "Accessible label while the popup reads its data (normally under 100 ms)."
+  },
+  "popup_first_run_title": {
+    "message": "Finish setting up Kotiko",
+    "description": "Title of the first-run card in the popup."
+  },
+  "popup_first_run_body": {
+    "message": "Connect your Kotiko server, then add your first word, in any language. It takes under a minute.",
+    "description": "Body of the first-run card while Kotiko needs a server (until the welcome tab ships)."
+  },
+  "popup_get_started": {
+    "message": "Get started",
+    "description": "Button on the first-run card."
+  },
+  "popup_empty": {
+    "message": "No words yet. Type one above, in any language.",
+    "description": "Shown in the popup when the word list is empty."
+  },
+  "popup_languages_title": {
+    "message": "Languages",
+    "description": "Section title above the language chips."
+  },
+  "popup_chip_name_shown_one": {
+    "message": "$LANG$, $ENDONYM$, $COUNT$ word, shown",
+    "description": "As popup_chip_name_shown, for one word.",
+    "placeholders": {
+      "lang": {
+        "content": "{lang}"
+      },
+      "endonym": {
+        "content": "{endonym}"
+      },
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "popup_chip_name_shown_other": {
+    "message": "$LANG$, $ENDONYM$, $COUNT$ words, shown",
+    "description": "As popup_chip_name_shown, for several words.",
+    "placeholders": {
+      "lang": {
+        "content": "{lang}"
+      },
+      "endonym": {
+        "content": "{endonym}"
+      },
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "popup_chip_name_hidden_one": {
+    "message": "$LANG$, $ENDONYM$, $COUNT$ word, hidden",
+    "description": "Accessible name of a language chip that is off, for one word.",
+    "placeholders": {
+      "lang": {
+        "content": "{lang}"
+      },
+      "endonym": {
+        "content": "{endonym}"
+      },
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "popup_chip_name_hidden_other": {
+    "message": "$LANG$, $ENDONYM$, $COUNT$ words, hidden",
+    "description": "Accessible name of a language chip that is off, for several words.",
+    "placeholders": {
+      "lang": {
+        "content": "{lang}"
+      },
+      "endonym": {
+        "content": "{endonym}"
+      },
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "popup_only_button": {
+    "message": "Show only $LANG$",
+    "description": "The small button at the end of a language chip that hides every other language.",
+    "placeholders": {
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "popup_only_strip": {
+    "message": "Showing only $ENDONYM$",
+    "description": "Line above the chips when only one of several languages is shown.",
+    "placeholders": {
+      "endonym": {
+        "content": "{endonym}"
+      }
+    }
+  },
+  "popup_show_all": {
+    "message": "Show all",
+    "description": "Link that shows every language again."
+  },
+  "popup_more_languages": {
+    "message": "+$COUNT$ more",
+    "description": "Button after the first chips when there are many languages.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "popup_fewer_languages": {
+    "message": "Show fewer",
+    "description": "Button that collapses the long language list again."
+  },
+  "popup_lang_keys_hint": {
+    "message": "Arrow keys move, Space shows or hides, F shows only this language",
+    "description": "Keyboard help read by screen readers on the language chips."
+  },
+  "popup_this_page": {
+    "message": "This page · $HOST$",
+    "description": "Title of the section about the current site. $HOST$ is the site, like example.com.",
+    "placeholders": {
+      "host": {
+        "content": "{host}"
+      }
+    }
+  },
+  "popup_pause_site": {
+    "message": "Pause on this site",
+    "description": "Switch label in the This page section."
+  },
+  "popup_paused_on": {
+    "message": "Paused on $HOST$",
+    "description": "Shown instead of the pause switch on a paused site.",
+    "placeholders": {
+      "host": {
+        "content": "{host}"
+      }
+    }
+  },
+  "popup_resume": {
+    "message": "Resume",
+    "description": "Button that resumes Kotiko on a paused site."
+  },
+  "popup_off_banner": {
+    "message": "Kotiko is off on all sites.",
+    "description": "Banner when the master switch is off."
+  },
+  "popup_turn_on": {
+    "message": "Turn on",
+    "description": "Button in the off banner."
+  },
+  "popup_word_count_one": {
+    "message": "$COUNT$ word",
+    "description": "Popup footer: how many words you have, one.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "popup_word_count_other": {
+    "message": "$COUNT$ words",
+    "description": "Popup footer: how many words you have, several.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "popup_not_connected_one": {
+    "message": "Kotiko isn't connected to a server, so new words can't be looked up. Your word still works on pages.",
+    "description": "Banner when no server is set up but some words are cached, one word."
+  },
+  "popup_not_connected_other": {
+    "message": "Kotiko isn't connected to a server, so new words can't be looked up. Your $COUNT$ words still work on pages.",
+    "description": "Banner when no server is set up but some words are cached, several words.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "add_looking_up": {
+    "message": "Looking up $TEXT$…",
+    "description": "Line under the add box while a word is being looked up. $TEXT$ is what you typed.",
+    "placeholders": {
+      "text": {
+        "content": "{text}"
+      }
+    }
+  },
+  "add_created": {
+    "message": "Added $NATIVE$ ($PRONUNCIATION$) = $GLOSS$ · $LANG$",
+    "description": "A word was added. $NATIVE$ is the word, $PRONUNCIATION$ how to say it, $GLOSS$ its meaning, $LANG$ its language. \"Agregada\" agrees with \"palabra\".",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      },
+      "pronunciation": {
+        "content": "{pronunciation}"
+      },
+      "gloss": {
+        "content": "{gloss}"
+      },
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "add_created_plain": {
+    "message": "Added $NATIVE$ = $GLOSS$ · $LANG$",
+    "description": "As add_created, when there is no pronunciation.",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      },
+      "gloss": {
+        "content": "{gloss}"
+      },
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "add_undo": {
+    "message": "Undo",
+    "description": "Button on an added word."
+  },
+  "add_undo_label": {
+    "message": "Undo adding $NATIVE$",
+    "description": "Accessible name of the Undo button.",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      }
+    }
+  },
+  "add_dismiss": {
+    "message": "Dismiss",
+    "description": "Accessible name of the button that clears a failed line."
+  },
+  "undo_done_created": {
+    "message": "Removed $NATIVE$.",
+    "description": "After Undo removed a word.",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      }
+    }
+  },
+  "undo_failed": {
+    "message": "Couldn't undo: $MESSAGE$",
+    "description": "After Undo failed. $MESSAGE$ is one of the error messages.",
+    "placeholders": {
+      "message": {
+        "content": "{message}"
+      }
+    }
+  },
+  "settings_back": {
+    "message": "Back",
+    "description": "Button that leaves the settings view."
+  },
+  "settings_connection": {
+    "message": "Connection",
+    "description": "Section title in settings."
+  },
+  "settings_connection_help": {
+    "message": "Kotiko gets your words from your own Kotiko server.",
+    "description": "Help under the Connection title."
+  },
+  "settings_server_address": {
+    "message": "Server address",
+    "description": "Label of the server address field."
+  },
+  "settings_access_key": {
+    "message": "Access key",
+    "description": "Label of the field for the server's access key."
+  },
+  "settings_access_key_help": {
+    "message": "The key your Kotiko server was set up with.",
+    "description": "Help under the access key field."
+  },
+  "settings_show_key": {
+    "message": "Show",
+    "description": "Button that shows the access key as text."
+  },
+  "settings_hide_key": {
+    "message": "Hide",
+    "description": "Button that hides the access key again."
+  },
+  "settings_save": {
+    "message": "Save and connect",
+    "description": "Primary button in Connection settings."
+  },
+  "settings_check_now": {
+    "message": "Check now",
+    "description": "Button that checks the server right away."
+  },
+  "settings_checking": {
+    "message": "Checking…",
+    "description": "Status while Kotiko contacts the server."
+  },
+  "settings_connected_one": {
+    "message": "Connected. Your server has $COUNT$ word.",
+    "description": "Status after a good connection, one word.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "settings_connected_other": {
+    "message": "Connected. Your server has $COUNT$ words.",
+    "description": "Status after a good connection, several words.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "settings_last_checked": {
+    "message": "Last checked $TIME$",
+    "description": "When the server was last reached. $TIME$ is like \"3 minutes ago\" / \"hace 3 minutos\".",
+    "placeholders": {
+      "time": {
+        "content": "{time}"
+      }
+    }
+  },
+  "settings_not_connected": {
+    "message": "Not connected yet.",
+    "description": "Status before any connection."
+  },
+  "error_details": {
+    "message": "Details",
+    "description": "Expander with technical details under an error."
+  },
+  "error_try_again_action": {
+    "message": "Try again",
+    "description": "Button that retries."
+  },
+  "error_connection_settings_action": {
+    "message": "Connection settings",
+    "description": "Button that opens Connection settings."
+  },
+  "error_permission_missing_action": {
+    "message": "Allow",
+    "description": "Button that asks the browser for permission to read pages."
+  },
+  "error_permission_missing": {
+    "message": "Kotiko needs permission to read pages to swap words.",
+    "description": "Banner when the browser hasn't given Kotiko access to pages."
+  },
+  "error_server_unreachable_one": {
+    "message": "Can't reach your Kotiko server. Your word still works on pages; adding new ones will work once it's back.",
+    "description": "The server doesn't answer; one word is cached."
+  },
+  "error_server_unreachable_other": {
+    "message": "Can't reach your Kotiko server. Your $COUNT$ words still work on pages; adding new ones will work once it's back.",
+    "description": "The server doesn't answer; several words are cached.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "error_server_unreachable_empty": {
+    "message": "Can't reach your Kotiko server. Adding words will work once it's back.",
+    "description": "The server doesn't answer and no words are cached."
+  },
+  "error_server_key_rejected": {
+    "message": "Your Kotiko server didn't accept the access key. Paste it again in Connection settings.",
+    "description": "The server answered that the access key is wrong."
+  },
+  "error_server_address_invalid": {
+    "message": "That server address doesn't look right. Try one like http://localhost:4747.",
+    "description": "The server address can't be used as typed. Keep the example address as it is."
+  },
+  "error_not_kotiko_server": {
+    "message": "Something answered at that address, but it isn't a Kotiko server. Check the address.",
+    "description": "The address answered with something other than Kotiko's word list."
+  },
+  "error_internal": {
+    "message": "Something went wrong in Kotiko. Try again; if it keeps happening, please report it.",
+    "description": "Any failure without a more specific message."
+  },
+  "error_unsupported_page": {
+    "message": "Kotiko can't run on browser pages like this one.",
+    "description": "In the This page section on browser pages (settings, new tab, stores)."
+  },
+  "error_add_not_connected": {
+    "message": "Connect your Kotiko server to add words.",
+    "description": "An add failed because no server is set up."
+  },
+  "error_add_offline": {
+    "message": "You're offline. Add it again when you're back.",
+    "description": "An add failed while the computer is offline."
+  },
+  "error_lookup_failed": {
+    "message": "Word lookup didn't answer. Try again in a moment.",
+    "description": "The server couldn't look the word up."
+  },
+  "error_save_failed": {
+    "message": "Your Kotiko server couldn't save that word. Try again.",
+    "description": "The server looked the word up but couldn't save it."
+  },
+  "error_no_word_found": {
+    "message": "Couldn't find a word in “$TEXT$”. Try the word on its own.",
+    "description": "The lookup found no word. $TEXT$ is what you typed.",
+    "placeholders": {
+      "text": {
+        "content": "{text}"
+      }
+    }
+  },
+  "error_input_too_long": {
+    "message": "That's a lot of text for one word. Try a word or a short phrase.",
+    "description": "The add box text is over 200 characters."
+  }
+}
