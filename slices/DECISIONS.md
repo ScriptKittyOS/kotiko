@@ -4,6 +4,24 @@ Decisions already made, so slices don't reopen them. Newest first. Each says who
 and why. Open questions live in each slice's own "Open questions" section and in the
 [index](README.md#open-questions-for-the-maintainers).
 
+## 2026-10-02
+
+**Pronunciation is its own field, written for the learner, and audio ships before release.**
+*Maintainer.* Reported: the hover showed "pazhaluysta" for пожалуйста, which is said
+"pa-ZHAL-sta" (and спасибо is "spa-SEE-ba"). Cause: one `romanization` field asked the
+model for "Latin pronunciation" with no rules, so it returned a spelling transliteration,
+inconsistently. Decided: split it into `romanization` (the standard Latin-letter spelling,
+for typing and search) and `pronunciation` (a learner respelling with syllables and the
+stressed one in capitals, written in the conventions of the learner's base language, so a
+Spanish speaker gets a Spanish-style respelling). The hover shows the word with its stress
+mark, then the pronunciation, then the romanization. The prompt gets exact rules and
+examples and the golden set checks stress and vowel reduction; dictionary data (slice 49)
+checks the model where available, and the hover marks unchecked pronunciations as
+AI-generated. Browser audio (slice 34) moves from P1 to P0. Saved words get their
+pronunciation refreshed once. See [07](07-word-model-v2/SPEC.md), [09](09-shared-word-spec-and-prompt/SPEC.md),
+[19](19-word-popover/SPEC.md), [34](34-pronunciation-audio/SPEC.md), [36](36-grammar-and-senses/SPEC.md)
+and [49](49-dictionary-verification/SPEC.md).
+
 ## 2026-10-01
 
 **The mascot is a black kitten named Mira, and the name story is the maintainer's.**
