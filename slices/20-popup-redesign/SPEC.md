@@ -413,3 +413,106 @@ users find their connection in Settings → Connection (the changelog says where
   [18](../18-language-precedence-and-mixing/SPEC.md) weights prove too hidden.
 - A "words on this page" list in This page, to reveal a swap on touch devices
   ([45](../45-firefox-android/SPEC.md)).
+
+## Implementation notes
+
+*2026-10-02, first build, on [06](../06-design-system/SPEC.md)'s tokens and against
+today's background (`add`, `remove` and `sync` messages; `storage.local`). Requirements
+above are unchanged; this records what exists now and what waits for other slices.*
+
+**Built.**
+
+- Layout per §1 at 360 px, middle region scrolling past 600 px. Header: the tile mark,
+  "Kotiko" in the display face, the master switch (visible On/Off, `role="switch"`,
+  named "Swap words on pages"), Settings. Add box: `--t-lead`, `dir="auto"`, focused on
+  open, Enter submits, never disabled; its small primary button appears only once there
+  is text, so a long placeholder (Spanish) has the full width. Recent lines: the three
+  newest adds, newest first, one line per word with its own Undo, the native word in the
+  display role with its `lang`, the dotted orange underline and the swap motion; failed
+  lines have an icon, plain words, "Try again" where it helps, Details and dismiss.
+  Languages: chips with endonym, count, a check (on) or hollow circle (off),
+  `aria-pressed`, a toolbar with roving `tabindex` (←/→ mirrored in RTL, Home/End,
+  Space/Enter, F); more than three rows collapse into "+n more". This page: host, the
+  pause switch row, "Paused on {host}" with Resume, the unsupported-page note. Footer:
+  the word count.
+- **Show only stands in for Focus.** The ◎ button and F set today's "only" (every other
+  language hidden through `hiddenLangs`), with the strip "Showing only {endonym} · Show
+  all" and the chip filled in `--primary`, as Focus will look. [18](../18-language-precedence-and-mixing/SPEC.md)
+  replaces the behavior (new languages hidden while focusing, `popup_focus_*` copy).
+- States: A (no access key and no words), B, C, D, E, F, G, I (header pill; the outage
+  banner is suppressed while offline), J (25's codes from slice 26: `server_unreachable`
+  as a state, `server_key_rejected`, `server_address_invalid` and `not_kotiko_server` as
+  blocking, `internal` and legacy strings as a state with Try again; Details hold the
+  technical text), K (`permissions.contains`, Allow calls `permissions.request`), L (three
+  `--sunken` placeholders after 100 ms; the switch stays hidden until storage answers).
+  H and H2 need page-language detection and base languages ([16](../16-what-not-to-swap/SPEC.md),
+  [50](../50-ui-localization-and-base-language/SPEC.md)); not shown yet.
+- **State A today.** "Get started" opens Connection settings, because setup today means
+  connecting a server; its body is `popup_first_run_body` ("Connect your Kotiko server,
+  then add your first word…") until [11](../11-local-first-mode/SPEC.md) and
+  [22](../22-first-run-onboarding/SPEC.md) make the spec's copy true.
+- **Connection settings live in the popup** behind the Settings button (address, access
+  key with Show/Hide, "Save and connect", "Check now", the status in plain words) until
+  [21](../21-dashboard/SPEC.md)'s settings exist. Nothing opens them automatically.
+- **Toolbar badge** (§5) per tab from `lib/badge.js`: "off" (`badge_off`, `#6B6379`) when
+  off everywhere or paused on the tab's site, tooltips from `action_title*`. The "•" for a
+  running add waits for [24](../24-add-flow-safety/SPEC.md)'s background jobs; coverage
+  for [32](../32-page-coverage-and-celebrations/SPEC.md).
+- **Correctness.** Chip, switch and pause writes go through one queue and read storage
+  inside it; storage echoes for a key are ignored while its writes are in flight, so ten
+  rapid toggles end as clicked (06 F37). Connection fields are never overwritten while
+  focused or edited (06 F16). `storage.onChanged` re-renders only the sections for the
+  changed keys. Words are counted per (`lang`, native spelling) until
+  [07](../07-word-model-v2/SPEC.md) adds `native_key` and `base_lang`.
+- **Interface language.** `extension/lib/i18n.js` (`KotikoI18n.t`, `parts` for sentences
+  with styled words inside, `apply` for `data-i18n*` attributes, `languageName`,
+  `endonym`); placeholders are declared as `$NAME$` with content `{name}` and filled by
+  name; plurals use `_one`/`_other` keys and `Intl.PluralRules`; the `ui_locale` key
+  tells the helper which translation the browser picked. The manifest has
+  `default_locale: "en"` and takes its name, description and toolbar title from
+  `__MSG_…__` (web-ext lint and Chrome load it). `en` and `es` are complete with the same
+  keys. **Every `es` string is pending native review** (50 §9); choices to review: the
+  switch's "Activo"/"Inactivo"; `error_no_word_found` uses "No se encontró" (05 §3 rule 9:
+  the product speaks, not a first person) where 25 drafted "No encontré"; `popup_empty`
+  follows this spec's "Aún no hay palabras" where 05 has "Todavía no hay".
+- **Copy that today's backend can't keep yet** got honest variants: no "Add it yourself"
+  ([24](../24-add-flow-safety/SPEC.md) §7), no "will be looked up when you're back" (no
+  queue): `error_add_offline`, `error_lookup_failed` (502), `error_save_failed` (422),
+  `error_add_not_connected`, `popup_not_connected_*`, and `error_input_too_long` without
+  bulk add. The background now passes a coded error's `details` (the HTTP status) to the
+  popup so it can choose these.
+- **Size (§8).** `popup.js` and `popup.css` are 44 KB; with the shared design system
+  (`ui/*.css`, `icons.js`, `theme.js`) and `lib/i18n.js` the popup loads 82 KB of JS and
+  CSS. If §8's 60 KB includes the shared files, it is over; a test holds the popup's own
+  files under 60 KB and everything loaded under 100 KB.
+
+**Steps today** (§3's counting):
+
+| Task | Steps | Waits on network? |
+|---|---|---|
+| Add a word | 3 (open, type, Enter) | No: the box clears and keeps focus at once |
+| Add three words in a row | 7 | No |
+| Undo one of several added words | 1 (while the popup is open) | No |
+| Hide a language | 2 | No |
+| Show only one language (Focus later) | 2 (open, ◎ or F) | No |
+| Show all again (Stop later) | 2 (open, Show all) | No |
+| Pause on this site | 2 | No |
+| Turn Kotiko off everywhere | 2 | No |
+| First run: connect a server | 5 (open, Get started, address, key, Save) | Only for the check |
+
+**Waiting for other slices:** the language hint chip and "For pages in" (24), the add
+queue and results that survive closing the popup, "Add it back", "Add it yourself",
+`word = meaning` and drafts (24); pronunciation in add results (07, 09; the romanization
+stands in today); free lookups left (10); "Paste as a list" (13); Focus (18); "Open your
+words", the dashboard footer link and Settings opening the dashboard (21); the welcome tab
+(22); Amount (31); coverage meter and badge (32); per-site languages (38); states H and
+H2 (16, 50); the interface-language override (50).
+
+**Tests.** `test/dom/popup.test.mjs` (jsdom: states A-L that apply, banners per code, the
+add and undo flow, failures, chips and keyboard, rapid toggles, settings, Spanish
+strings, no "sync"/"token"/"known"), `test/unit/i18n.test.mjs` (locale parity,
+placeholders, plurals, every key the popup uses exists, `t()`), `test/unit/badge.test.mjs`
+and a background badge test, and `test/e2e/popup.spec.mjs` (badge in Chromium, Show only
+in two steps, the popup with `--lang=es`) beside the updated smoke and sync specs.
+Screenshots of every state in light and dark, English and Spanish:
+`node test/visual/popup-screenshots.mjs <dir>` (for review; not in CI).

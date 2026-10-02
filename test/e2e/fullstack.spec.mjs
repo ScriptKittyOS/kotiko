@@ -119,11 +119,11 @@ test.describe("full stack", () => {
 
   test("adds a word through the popup on the real server and sees it on basic.html", async ({ context, server, popup }) => {
     const p = await popup.connect(serverUrl, TOKEN);
-    await expect(p.locator("#status")).toHaveText(/^0 words known, synced/);
+    await expect(p.locator("#emptyWords")).toBeVisible();
 
     const added = await popup.add("shukran");
-    await expect(added).toHaveText(/^Added شكرا \(shukran\) = thanks · Arabic undo$/);
-    await expect(p.locator("#status")).toHaveText(/^1 word known, synced/);
+    await expect(added).toHaveText(/^Added شكرا \(shukran\) = thanks · Arabic\s*Undo$/);
+    await expect(p.locator("#count")).toHaveText("1 word");
 
     const modelCalls = (await server.state()).log.filter((r) => r.path === "/llm/v1/chat/completions");
     expect(modelCalls).toHaveLength(1);
@@ -134,19 +134,19 @@ test.describe("full stack", () => {
     await expect(page.locator("#p1")).toHaveText("شكرا for visiting. This house has three rooms and a garden.");
     await expect(page.locator("#p1 span.kotiko-w")).toHaveAttribute("lang", "ar");
 
-    // Slice 07: adding it again merges instead of overwriting, and the 0.2 popup shows
-    // the reply with no Undo that could delete the original.
+    // Slice 07: adding it again merges instead of overwriting, and the popup names the
+    // word with no Undo that could delete the original.
     const again = await popup.add("shukran");
     await expect(again).toHaveText("Already in your list: شكرا");
     await expect(again.locator("button")).toHaveCount(0);
-    await expect(p.locator("#status")).toHaveText(/^1 word known, synced/);
+    await expect(p.locator("#count")).toHaveText("1 word");
 
     // Undo of a new word tombstones it on the server; the next sync drops it.
     const dog = await popup.add("sobaka");
-    await expect(dog).toHaveText(/^Added собака \(sobaka\) = dog · Russian undo$/);
-    await expect(p.locator("#status")).toHaveText(/^2 words known, synced/);
-    await dog.locator("button", { hasText: "undo" }).click();
-    await expect(dog).toHaveText("Removed.");
-    await expect(p.locator("#status")).toHaveText(/^1 word known, synced/);
+    await expect(dog).toHaveText(/^Added собака \(sobaka\) = dog · Russian\s*Undo$/);
+    await expect(p.locator("#count")).toHaveText("2 words");
+    await dog.getByRole("button", { name: "Undo adding собака" }).click();
+    await expect(p.locator("#jobs li").first()).toHaveText("Removed собака.");
+    await expect(p.locator("#count")).toHaveText("1 word");
   });
 });

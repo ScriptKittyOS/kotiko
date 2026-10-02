@@ -1,0 +1,244 @@
+/* SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/*
+ * Kotiko design tokens (slice 06). Every extension page links this file first.
+ *
+ * Light is the default. Dark applies under prefers-color-scheme: dark, unless the page
+ * sets <html data-theme="light">; <html data-theme="dark"> forces dark. Components use
+ * these names only, never raw hex.
+ *
+ * The color blocks between the "generated" markers are written by
+ * `node extension/ui/tools/derive-palette.mjs` from the brand purple (the logo tile) and
+ * checked by `node extension/ui/tools/contrast.mjs`. Edit the fixed values in
+ * derive-palette.mjs, not here.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* Type (06 §5). --font-ui is redefined per script in base.css; --font-ui-stack is the
+     shared tail every per-language stack ends with. */
+  --font-ui-stack: system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", Roboto,
+    "Noto Sans", Ubuntu, Cantarell, "Helvetica Neue", Arial,
+    "Noto Sans Arabic", "Geeza Pro", "Noto Sans Hebrew", "Noto Sans Devanagari",
+    "Kohinoor Devanagari", "Nirmala UI", "Noto Sans Bengali", "Noto Sans Tamil",
+    "Noto Sans Thai", "Thonburi", "Leelawadee UI", "Noto Sans Georgian",
+    "Noto Sans Armenian", "Noto Sans Ethiopic", sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
+  --font-ui: var(--font-ui-stack);
+  --font-display: ui-serif, "New York", "Iowan Old Style", Charter, "Source Serif 4",
+    "Noto Serif", Georgia, serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", "Noto Sans Mono",
+    Menlo, Consolas, monospace;
+
+  /* Scale: weight size/line. Use as `font: var(--t-body) var(--font-ui)`. Sizes are rem so
+     the browser's font size setting scales everything. */
+  --t-caption: 400 0.75rem/1rem;
+  --t-small: 400 0.8125rem/1.125rem;
+  --t-body: 400 0.875rem/1.25rem;
+  --t-body-strong: 600 0.875rem/1.25rem;
+  --t-lead: 400 1rem/1.5rem;
+  --t-word: 500 1.125rem/1.5rem;
+  --t-title: 600 1.25rem/1.75rem;
+  --t-word-lg: 500 1.5rem/1.875rem;
+  --t-headline: 600 2rem/2.5rem;
+  --t-specimen: 500 2.75rem/3.25rem;
+
+  /* Space (06 §6): a 4 px base. */
+  --s-0: 0;
+  --s-1: 2px;
+  --s-2: 4px;
+  --s-3: 6px;
+  --s-4: 8px;
+  --s-5: 12px;
+  --s-6: 16px;
+  --s-7: 20px;
+  --s-8: 24px;
+  --s-9: 32px;
+  --s-10: 40px;
+  --s-11: 56px;
+
+  /* Radius (06 §7). */
+  --r-xs: 4px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+  --r-full: 999px;
+
+  /* Motion (06 §9). Reduced motion shortens these below and in base.css. */
+  --d-fast: 120ms;
+  --d-base: 180ms;
+  --d-slow: 280ms;
+  --d-swap: 420ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+
+  /* Target sizes (06 §10, WCAG 2.5.8). */
+  --target-min: 24px;
+
+  /* Language palette (06 §4.5), for 37. Theme-independent: each keeps 3:1 on white and
+     on #121212. */
+  --lang-1: #C8641E; /* Ember */
+  --lang-2: #0E66C8; /* Lapis */
+  --lang-3: #AF71F2; /* Lilac */
+  --lang-4: #904E81; /* Plum */
+  --lang-5: #ED5790; /* Rose */
+  --lang-6: #009EAF; /* Lagoon */
+
+  /* <generated:light> */
+  --brand: #8E5EFA;
+  --on-brand: #FFFFFF;
+  --canvas: #FAF6F0;
+  --surface: #FFFFFF;
+  --surface-e2: #FFFFFF;
+  --surface-e3: #FFFFFF;
+  --sunken: #F3EDE4;
+  --selected: #EBE8FE;
+  --ink: #1F1A2B;
+  --ink-2: #544C63;
+  --ink-3: #6B6379;
+  --border: #8A8299;
+  --divider: #E4DCD0;
+  --primary: #8351EC;
+  --primary-hover: #723CD7;
+  --on-primary: #FFFFFF;
+  --purple-text: #7A46E1;
+  --purple-soft: #EFECFE;
+  --focus: #7A46E1;
+  --orange: #B4501A;
+  --on-orange: #FFFFFF;
+  --orange-text: #A3440F;
+  --orange-soft: #FBE6D6;
+  --blue: #1F5FC0;
+  --blue-soft: #E2ECFA;
+  --success: #0B6E7A;
+  --success-soft: #DDF1F3;
+  --warning: #875800;
+  --warning-soft: #FBEFD3;
+  --danger: #A8243A;
+  --danger-soft: #FBE3E6;
+  --inverse-bg: #1F1A2B;
+  --inverse-ink: #FAF6F0;
+  --e-1: 0 1px 2px rgb(31 26 43 / 0.06), 0 1px 1px rgb(31 26 43 / 0.04);
+  --e-2: 0 8px 24px rgb(31 26 43 / 0.12), 0 2px 6px rgb(31 26 43 / 0.08);
+  --e-3: 0 24px 48px rgb(31 26 43 / 0.18);
+  /* </generated:light> */
+}
+
+@media (pointer: coarse) {
+  :root {
+    --target-min: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --d-base: 120ms;
+    --d-slow: 120ms;
+    --d-swap: 120ms;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    /* <generated:dark-media> */
+    --brand: #8E5EFA;
+    --on-brand: #FFFFFF;
+    --canvas: #14121C;
+    --surface: #1C1928;
+    --surface-e2: #252135;
+    --surface-e3: #2C2642;
+    --sunken: #110F18;
+    --selected: #2D2546;
+    --ink: #F2EEF8;
+    --ink-2: #C4BCD4;
+    --ink-3: #A39BB5;
+    --border: #7E7693;
+    --divider: #2E2940;
+    --primary: #A08AEB;
+    --primary-hover: #B2A0F5;
+    --on-primary: #16102A;
+    --purple-text: #A08AEB;
+    --purple-soft: #2B2148;
+    --focus: #A08AEB;
+    --orange: #F08A4B;
+    --on-orange: #1C0F06;
+    --orange-text: #F6A672;
+    --orange-soft: #3A2418;
+    --blue: #8DBBFF;
+    --blue-soft: #1C2740;
+    --success: #56C7D9;
+    --success-soft: #122F36;
+    --warning: #F2C14E;
+    --warning-soft: #33280F;
+    --danger: #FF6F8A;
+    --danger-soft: #3A1A22;
+    --inverse-bg: #F2EEF8;
+    --inverse-ink: #14121C;
+    --e-1: inset 0 1px 0 rgb(255 255 255 / 0.04);
+    --e-2: 0 8px 24px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.08);
+    --e-3: 0 24px 48px rgb(0 0 0 / 0.6);
+    /* </generated:dark-media> */
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  /* <generated:dark> */
+  --brand: #8E5EFA;
+  --on-brand: #FFFFFF;
+  --canvas: #14121C;
+  --surface: #1C1928;
+  --surface-e2: #252135;
+  --surface-e3: #2C2642;
+  --sunken: #110F18;
+  --selected: #2D2546;
+  --ink: #F2EEF8;
+  --ink-2: #C4BCD4;
+  --ink-3: #A39BB5;
+  --border: #7E7693;
+  --divider: #2E2940;
+  --primary: #A08AEB;
+  --primary-hover: #B2A0F5;
+  --on-primary: #16102A;
+  --purple-text: #A08AEB;
+  --purple-soft: #2B2148;
+  --focus: #A08AEB;
+  --orange: #F08A4B;
+  --on-orange: #1C0F06;
+  --orange-text: #F6A672;
+  --orange-soft: #3A2418;
+  --blue: #8DBBFF;
+  --blue-soft: #1C2740;
+  --success: #56C7D9;
+  --success-soft: #122F36;
+  --warning: #F2C14E;
+  --warning-soft: #33280F;
+  --danger: #FF6F8A;
+  --danger-soft: #3A1A22;
+  --inverse-bg: #F2EEF8;
+  --inverse-ink: #14121C;
+  --e-1: inset 0 1px 0 rgb(255 255 255 / 0.04);
+  --e-2: 0 8px 24px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.08);
+  --e-3: 0 24px 48px rgb(0 0 0 / 0.6);
+  /* </generated:dark> */
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* 06 §4.3: more contrast. */
+@media (prefers-contrast: more) {
+  /* Same specificity as the dark blocks and later, so it wins in both themes. */
+  :root:not([data-theme]),
+  :root[data-theme] {
+    --ink-3: var(--ink-2);
+    --border: var(--ink-2);
+    --divider: var(--border);
+  }
+}

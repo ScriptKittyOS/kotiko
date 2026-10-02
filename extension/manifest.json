@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "Kotiko",
-  "short_name": "Kotiko",
+  "name": "__MSG_extName__",
+  "short_name": "__MSG_extName__",
   "version": "0.2.0",
-  "description": "Learn words as you browse: swaps words on web pages for the ones you're learning, in any language.",
+  "description": "__MSG_extDescription__",
+  "default_locale": "en",
   "permissions": ["storage", "alarms"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js",
-    "scripts": ["lib/url.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js", "background.js"]
+    "scripts": ["lib/url.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js", "lib/i18n.js", "lib/badge.js", "background.js"]
   },
   "content_scripts": [
     {
@@ -20,7 +21,7 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Kotiko",
+    "default_title": "__MSG_extName__",
     "default_icon": { "16": "icon16.png", "32": "icon32.png", "48": "icon48.png" }
   },
   "icons": { "16": "icon16.png", "32": "icon32.png", "48": "icon48.png", "128": "icon128.png" },

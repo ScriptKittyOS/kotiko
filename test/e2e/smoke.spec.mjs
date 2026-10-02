@@ -13,21 +13,24 @@ const WORDS = [
 const P1 = "Thanks for visiting. This house has three rooms and a garden.";
 const P1_SWAPPED = "Спасибо for visiting. This дом has three rooms and a garden.";
 
-test("installs: the background worker runs and the popup opens", async ({ extensionId, popup }) => {
+test("installs: the background worker runs and the popup opens on its first-run card", async ({ extensionId, popup }) => {
   expect(extensionId).toMatch(/^[a-p]{32}$/);
   const page = await popup.page();
-  await expect(page.locator("h1")).toBeVisible();
-  // The install-time sync has no token yet, so the popup asks for one.
-  await expect(page.locator("#status")).toHaveText(/^(Not synced yet\.|Paste your API token to connect\.)$/);
-  await expect(page.locator("#conn")).toHaveAttribute("open", "");
+  await expect(page.locator(".wordmark")).toHaveText("Kotiko");
+  // No server yet: a friendly setup card, never a red error or an open settings panel.
+  await expect(page.locator("#firstRun")).toBeVisible();
+  await expect(page.locator("#banners .banner")).toHaveCount(0);
+  await expect(page.locator("#settings")).toBeHidden();
+  await expect(page.locator("#addText")).toBeFocused();
 });
 
 test("connects to the server, syncs, swaps words on a page and restores them when off", async ({ context, server, popup }) => {
   await server.control({ words: WORDS });
   const p = await popup.connect(server.kotikoUrl, server.token);
-  await expect(p.locator("#status")).toHaveText(/^2 words known, synced/);
-  await expect(p.locator("#langs li")).toHaveCount(1);
-  await expect(p.locator("#langs li label")).toHaveText("Russian");
+  await expect(p.locator("#count")).toHaveText("2 words");
+  await expect(p.locator("#chips .chip")).toHaveCount(1);
+  await expect(p.locator("#chips .chip .chip-label")).toHaveText("Русский");
+  await expect(p.locator("#chips .chip")).toHaveAccessibleName("Russian, Русский, 2 words, shown");
 
   const page = await context.newPage();
   await page.goto(server.page("basic.html"));
@@ -37,11 +40,15 @@ test("connects to the server, syncs, swaps words on a page and restores them whe
   await expect(swapped).toHaveAttribute("title", "Thanks = спасибо (spasibo) · Russian");
   await expect(page.locator("#code")).toHaveText("thanks in a pre block stays English");
 
-  await p.locator("#enabled").uncheck();
+  const master = p.getByRole("switch", { name: "Swap words on pages" });
+  await master.click();
+  await expect(master).toHaveAttribute("aria-checked", "false");
+  await expect(p.locator("#bannerOff")).toContainText("Kotiko is off on all sites.");
   await expect(page.locator("#p1")).toHaveText(P1);
   await expect(page.locator("span.kotiko-w")).toHaveCount(0);
 
-  await p.locator("#enabled").check();
+  await p.locator('#bannerOff [data-action="turn-on"]').click();
+  await expect(master).toHaveAttribute("aria-checked", "true");
   await expect(page.locator("#p1")).toHaveText(P1_SWAPPED);
 
   const requests = (await server.state()).log.filter((r) => r.path === "/kotiko/api/words");
@@ -56,9 +63,12 @@ test("hiding a language restores its words on the page", async ({ context, serve
   await page.goto(server.page("basic.html"));
   await expect(page.locator("#p1")).toHaveText(P1_SWAPPED);
 
-  await p.locator("#lang-ru").uncheck();
+  const chip = p.locator('#chips .chip[data-lang="ru"]');
+  await chip.click();
+  await expect(chip).toHaveAttribute("aria-pressed", "false");
   await expect(page.locator("#p1")).toHaveText(P1);
   await p.locator("#showAll").click();
+  await expect(chip).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("#p1")).toHaveText(P1_SWAPPED);
 });
 
@@ -67,8 +77,8 @@ test("adds a word from the popup through the server", async ({ context, server, 
   const p = await popup.connect(server.kotikoUrl, server.token);
 
   const added = await popup.add("sobaka");
-  await expect(added).toHaveText(/^Added собака \(sobaka\) = dog · Russian undo$/);
-  await expect(p.locator("#status")).toHaveText(/^3 words known, synced/);
+  await expect(added).toHaveText(/^Added собака \(sobaka\) = dog · Russian\s*Undo$/);
+  await expect(p.locator("#count")).toHaveText("3 words");
   expect((await server.state()).words.map((w) => w.native)).toContain("собака");
 
   const page = await context.newPage();
@@ -84,18 +94,40 @@ test("adds a word from the popup through the server", async ({ context, server, 
   await expect(page.locator("#late")).toHaveText("A собака arrives later.");
 
   // Undo removes it on the server and from the page.
-  await added.locator("button", { hasText: "undo" }).click();
-  await expect(added).toHaveText("Removed.");
+  await added.getByRole("button", { name: "Undo adding собака" }).click();
+  await expect(p.locator("#jobs li").first()).toHaveText("Removed собака.");
   await expect(page.locator("#late")).toHaveText("A dog arrives later.");
   expect((await server.state()).words.map((w) => w.native)).not.toContain("собака");
 });
 
-test("shows the server's errors in the popup", async ({ server, popup }) => {
+test("the add box clears at once, even when the server is slow", async ({ server, popup }) => {
+  await server.control({ words: WORDS });
+  const p = await popup.connect(server.kotikoUrl, server.token);
+  await server.control({ kotiko: "slow", delayMs: 5000 });
+  const input = p.locator("#addText");
+  await input.fill("sobaka");
+  const t0 = Date.now();
+  await input.press("Enter");
+  await expect(input).toHaveValue("");
+  await expect(input).toBeFocused();
+  expect(Date.now() - t0).toBeLessThan(1000);
+  await expect(p.locator("#jobs li").first()).toHaveText("Looking up sobaka…");
+});
+
+test("shows the server's errors in the popup, in plain words", async ({ server, popup }) => {
   await server.control({ words: WORDS });
   const p = await popup.connect(server.kotikoUrl, server.token);
   await server.control({ kotiko: "401" });
-  await p.locator("#syncNow").click();
-  await expect(p.locator("#status")).toHaveText("The server rejected that API token.");
+  await p.locator("#openSettings").click();
+  await p.locator("#checkNow").click();
+  await expect(p.locator("#connStatus .banner-body")).toHaveText(
+    "Your Kotiko server didn't accept the access key. Paste it again in Connection settings.",
+  );
+  await p.locator("#closeSettings").click();
+  await expect(p.locator("#bannerSync")).toHaveAttribute("data-severity", "blocking");
+  await expect(p.locator("#bannerSync .banner-body")).toHaveText(
+    "Your Kotiko server didn't accept the access key. Paste it again in Connection settings.",
+  );
 });
 
 test("nothing outside localhost is requested, and the guard catches it when it is", async ({ context, server, popup, blocked }) => {

@@ -142,8 +142,14 @@ defmodule Kotiko.Router do
     body = %{words: Enum.map(new, &Word.to_legacy_json(&1.word))}
 
     case known |> Enum.map(& &1.word.native) |> Enum.uniq() do
-      [] -> body
-      natives -> Map.put(body, :reply, "Already in your list: " <> Enum.join(natives, ", "))
+      [] ->
+        body
+
+      # `reply` is for the 0.2 popup; newer clients read the structured `known` list.
+      natives ->
+        body
+        |> Map.put(:reply, "Already in your list: " <> Enum.join(natives, ", "))
+        |> Map.put(:known, natives)
     end
   end
 

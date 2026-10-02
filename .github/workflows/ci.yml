@@ -73,6 +73,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: node scripts/check-versions.mjs
       - run: node scripts/check-old-name.mjs
+      # Slice 06: every text and control color pair meets WCAG 2.2 AA in both themes, and
+      # tokens.css matches the palette derived from the brand purple.
+      - run: node extension/ui/tools/contrast.mjs
+      - run: node extension/ui/tools/derive-palette.mjs --check
       - run: pipx run reuse lint
 
   shell:

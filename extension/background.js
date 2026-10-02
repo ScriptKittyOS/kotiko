@@ -7,7 +7,7 @@
 // The libraries load through importScripts in Chrome's service worker, and through the
 // manifest's background.scripts list (before this file) in Firefox's event page.
 if (!globalThis.SyncController && typeof importScripts === "function") {
-  importScripts("lib/url.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js");
+  importScripts("lib/url.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js", "lib/i18n.js", "lib/badge.js");
 }
 
 const ext = globalThis.browser ?? globalThis.chrome;
@@ -15,6 +15,8 @@ const { normalizeServerUrl } = globalThis.ServerUrl;
 const { validateWordsResponse, filterWords } = globalThis.WordValidator;
 const { createSyncController } = globalThis.SyncController;
 const { createMessageRouter, checks } = globalThis.MessageRouter;
+const { badgeFor, OFF_COLOR } = globalThis.KotikoBadge;
+const { t } = globalThis.KotikoI18n;
 
 const DEFAULTS = { serverUrl: "http://localhost:4747", token: "" };
 const ALARM = "kotiko-sync";
@@ -183,3 +185,42 @@ ext.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
   if (changes.token || changes.serverUrl) sync.credentialsChanged();
 });
+
+// The toolbar badge and tooltip per tab (slice 20 §5): "off" when Kotiko is off everywhere
+// or paused on the tab's site. Set per tab, never globally, and recomputed when the tab
+// changes or the settings do.
+async function updateBadge(tab) {
+  const action = ext.action;
+  if (!action?.setBadgeText || !tab?.id) return;
+  try {
+    const s = await ext.storage.local.get({ enabled: true, pausedHosts: [] });
+    const b = badgeFor({ enabled: s.enabled, pausedHosts: s.pausedHosts, url: tab.url ?? "" });
+    await action.setBadgeText({ tabId: tab.id, text: b.text ? t("badge_off") : "" });
+    if (b.text) {
+      await action.setBadgeBackgroundColor?.({ tabId: tab.id, color: OFF_COLOR });
+      await action.setBadgeTextColor?.({ tabId: tab.id, color: "#FFFFFF" });
+    }
+    await action.setTitle?.({ tabId: tab.id, title: t(b.titleKey, { host: b.host ?? "" }) });
+  } catch {
+    // The tab closed meanwhile.
+  }
+}
+
+async function updateAllBadges() {
+  try {
+    for (const tab of await ext.tabs.query({})) updateBadge(tab);
+  } catch {
+    // no tabs API here (tests)
+  }
+}
+
+ext.tabs?.onActivated?.addListener(({ tabId }) => {
+  Promise.resolve(ext.tabs.get(tabId)).then(updateBadge, () => {});
+});
+ext.tabs?.onUpdated?.addListener((_id, change, tab) => {
+  if (change.url || change.status === "loading") updateBadge(tab);
+});
+ext.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && (changes.enabled || changes.pausedHosts)) updateAllBadges();
+});
+updateAllBadges();

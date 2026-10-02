@@ -655,7 +655,8 @@ defmodule Kotiko.RouterV1Test do
         )
       ])
 
-      assert {200, %{"words" => [], "reply" => "Already in your list: спасибо"}} =
+      assert {200,
+              %{"words" => [], "reply" => "Already in your list: спасибо", "known" => ["спасибо"]}} =
                quiet(fn -> call("POST", "/api/words", %{text: "spasibo"}) end)
 
       [saved] = Words.legacy_active()

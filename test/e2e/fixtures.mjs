@@ -56,9 +56,16 @@ export const test = base.extend({
     await use([]);
   },
 
-  context: async ({ blocked }, use, testInfo) => {
+  // The browser's interface language, e.g. "es" with test.use({ browserLang: "es" }).
+  browserLang: [null, { option: true }],
+
+  context: async ({ blocked, browserLang }, use, testInfo) => {
     const userDataDir = await fs.mkdtemp(path.join(os.tmpdir(), "kotiko-e2e-"));
+    const lang = browserLang
+      ? { args: [`--lang=${browserLang}`], env: { ...process.env, LANGUAGE: browserLang }, locale: browserLang }
+      : { args: [], env: undefined, locale: undefined };
     const context = await chromium.launchPersistentContext(userDataDir, {
+      ...(lang.env ? { env: lang.env, locale: lang.locale } : {}),
       // Bundled Chromium: branded Chrome ignores --load-extension since Chrome 137.
       channel: "chromium",
       // Optional: another Chromium build (for example an already-downloaded one offline).
@@ -72,6 +79,7 @@ export const test = base.extend({
         "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1",
         "--disable-component-update",
         "--no-first-run",
+        ...lang.args,
       ],
     });
     const record = (url) => {
@@ -125,22 +133,28 @@ export const test = base.extend({
     await use({
       url: popupUrl,
       page: get,
-      // Fills in the Connection section and waits for the first good sync.
+      // Opens Connection settings, fills them in, waits for the first good check, and goes
+      // back to the main view.
       async connect(serverUrl, token) {
         const p = await get();
-        if (!(await p.locator("#conn").evaluate((d) => d.open))) await p.locator("#conn summary").click();
+        await p.locator("#openSettings").click();
         await p.locator("#serverUrl").fill(serverUrl);
-        await p.locator("#token").fill(token);
-        await p.locator("#save").click();
-        await expect(p.locator("#status")).toHaveText(/words? known, synced/, { timeout: 10_000 });
+        await p.locator("#accessKey").fill(token);
+        await p.locator("#saveConn").click();
+        // The success line (a check icon and "Connected…" in the interface language).
+        await expect(p.locator("#connStatus .conn-ok")).toBeVisible({ timeout: 10_000 });
+        await p.locator("#closeSettings").click();
         return p;
       },
+      // Types a word and presses Enter; resolves with the newest line under the add box once
+      // it has an answer.
       async add(text) {
         const p = await get();
         await p.locator("#addText").fill(text);
-        await p.locator("#addBtn").click();
-        await expect(p.locator("#addBtn")).toHaveText("Add", { timeout: 15_000 });
-        return p.locator("#added");
+        await p.locator("#addText").press("Enter");
+        const line = p.locator("#jobs li").first();
+        await expect(line).not.toHaveAttribute("data-kind", "looking", { timeout: 15_000 });
+        return line;
       },
     });
   },

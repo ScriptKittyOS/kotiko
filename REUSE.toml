@@ -7,7 +7,7 @@ SPDX-FileCopyrightText = "2026 ScriptKittyOS and the Kotiko contributors"
 SPDX-License-Identifier = "Apache-2.0"
 
 [[annotations]]
-path = ["brand/**", "extension/*.png"]
+path = ["brand/**", "extension/*.png", "extension/ui/art/**"]
 precedence = "override"
 SPDX-FileCopyrightText = "2026 ScriptKittyOS"
 SPDX-License-Identifier = "LicenseRef-KotikoBrand"

@@ -4,154 +4,139 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width" />
   <title>Kotiko</title>
-  <style>
-    :root {
-      --paper: #f4f6f9;
-      --grid: #dfe6ef;
-      --ink: #1f3a68;
-      --ink-soft: #5a6b85;
-      --margin: #c2363b;
-      --field: #ffffff;
-      --ok: #2f6b4f;
-      color-scheme: light dark;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --paper: #131b2b;
-        --grid: #1d283d;
-        --ink: #cfdcf2;
-        --ink-soft: #8a9ab5;
-        --margin: #e06469;
-        --field: #0e1522;
-        --ok: #7cc39f;
-      }
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      width: 300px;
-      font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      color: var(--ink);
-      background-color: var(--paper);
-      /* squared exercise-book paper with a red margin rule */
-      background-image:
-        linear-gradient(90deg, transparent 26px, var(--margin) 26px, var(--margin) 28px, transparent 28px),
-        linear-gradient(var(--grid) 1px, transparent 1px),
-        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-      background-size: 100% 100%, 12px 12px, 12px 12px;
-    }
-    main { padding: 14px 16px 16px 40px; }
-    h1 {
-      margin: 0;
-      font: 600 30px/1 Georgia, "PT Serif", "Times New Roman", serif;
-      letter-spacing: -0.01em;
-    }
-    .status { margin: 6px 0 14px; color: var(--ink-soft); min-height: 1.45em; }
-    .status.ok { color: var(--ok); }
-    .status.err { color: var(--margin); }
-    label { display: block; margin: 0 0 10px; }
-    label > span { display: block; margin-bottom: 3px; color: var(--ink-soft); }
-    input[type="text"], input[type="password"], select {
-      width: 100%;
-      padding: 6px 8px;
-      font: inherit;
-      color: var(--ink);
-      background: var(--field);
-      border: 1px solid var(--grid);
-      border-radius: 4px;
-    }
-    .row { display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; }
-    .row input { margin: 0; accent-color: var(--margin); }
-    .actions { display: flex; gap: 8px; margin-top: 12px; }
-    button {
-      flex: 1;
-      padding: 7px 10px;
-      font: inherit;
-      font-weight: 600;
-      color: var(--paper);
-      background: var(--ink);
-      border: 0;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    button.secondary { color: var(--ink); background: transparent; border: 1px solid var(--ink); }
-    button:disabled { opacity: 0.5; cursor: default; }
-    :focus-visible { outline: 2px solid var(--margin); outline-offset: 2px; }
-    form.add { display: flex; gap: 6px; margin: 0 0 4px; }
-    form.add input { flex: 1; min-width: 0; }
-    form.add button { flex: 0 0 auto; }
-    .added { margin: 0 0 12px; min-height: 1.45em; color: var(--ink-soft); }
-    .added.err { color: var(--margin); }
-    .added .w { color: var(--ink); font-weight: 600; }
-    .link {
-      flex: 0 0 auto;
-      padding: 0;
-      font-weight: 400;
-      color: var(--ink-soft);
-      background: none;
-      text-decoration: underline;
-    }
-    .link:hover { color: var(--ink); }
-    .langs-head { display: flex; justify-content: space-between; align-items: baseline; color: var(--ink-soft); }
-    ul.langs { list-style: none; margin: 4px 0 12px; padding: 0; }
-    ul.langs li { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
-    ul.langs label { flex: 1; margin: 0; }
-    ul.langs .n { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
-    ul.langs .link { visibility: hidden; }
-    ul.langs li:hover .link, ul.langs .link:focus-visible { visibility: visible; }
-    .empty { color: var(--ink-soft); }
-    details { margin-top: 14px; }
-    summary { cursor: pointer; color: var(--ink-soft); }
-    details[open] summary { margin-bottom: 8px; }
-  </style>
+  <script src="ui/theme.js"></script>
+  <link rel="stylesheet" href="ui/tokens.css" />
+  <link rel="stylesheet" href="ui/base.css" />
+  <link rel="stylesheet" href="ui/components.css" />
+  <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
-  <main>
-    <h1>Kotiko</h1>
-    <p class="status" id="status">Loading…</p>
+  <!--
+    Slice 20. The DOM order is the keyboard order (20 §4): the add box first, the header
+    last; CSS puts the header and banner on top. Every string comes from _locales through
+    KotikoI18n (data-i18n* attributes here, t() in popup.js).
+  -->
+  <div class="popup" id="main" data-ready="false">
+    <section class="add" aria-labelledby="addLabel">
+      <form class="add-form" id="addForm" autocomplete="off">
+        <label class="sr-only" id="addLabel" for="addText" data-i18n="popup_add_label"></label>
+        <input class="field add-field" id="addText" type="text" dir="auto" spellcheck="false" maxlength="200"
+               enterkeyhint="done" data-i18n-placeholder="popup_add_placeholder" />
+        <!-- 24 §8: the language hint chip ("Auto ▾") goes here when slice 24 ships. -->
+        <button class="add-submit" id="addBtn" type="submit" data-i18n-aria-label="popup_add_submit" data-i18n-title="popup_add_submit">
+          <span data-icon="enter" data-icon-size="18"></span>
+        </button>
+      </form>
+      <ul class="jobs" id="jobs" aria-live="polite"></ul>
+    </section>
 
-    <form class="add" id="addForm">
-      <input type="text" id="addText" spellcheck="false" autocomplete="off"
-             placeholder="shukran, xie xie, dog in japanese…" aria-label="Add a word" />
-      <button type="submit" id="addBtn">Add</button>
-    </form>
-    <p class="added" id="added" aria-live="polite"></p>
+    <div class="banners" id="banners"></div>
 
-    <div class="langs-head">
-      <span>Show on pages</span>
-      <button class="link" id="showAll" hidden>show all</button>
+    <div class="middle" id="middle">
+      <section class="first-run card" id="firstRun" hidden aria-labelledby="firstRunTitle">
+        <img class="first-run-art art-light" src="ui/art/kitten-curious.png" alt="" width="64" height="57" />
+        <img class="first-run-art art-dark" src="ui/art/kitten-curious-on-purple.png" alt="" width="64" height="55" />
+        <div class="first-run-text">
+          <h2 class="first-run-title" id="firstRunTitle" data-i18n="popup_first_run_title"></h2>
+          <p class="first-run-body" data-i18n="popup_first_run_body"></p>
+          <button class="btn btn-primary" id="getStarted" type="button" data-i18n="popup_get_started"></button>
+        </div>
+      </section>
+
+      <section class="section" id="langSection" aria-labelledby="langTitle">
+        <div class="section-head">
+          <h2 class="section-title" id="langTitle" data-i18n="popup_languages_title"></h2>
+          <button class="link section-action" id="showAll" type="button" hidden data-i18n="popup_show_all"></button>
+        </div>
+        <p class="only-strip" id="onlyStrip" hidden></p>
+        <div class="chips" id="chips" role="toolbar" aria-labelledby="langTitle" aria-describedby="chipsHint"></div>
+        <p class="sr-only" id="chipsHint" data-i18n="popup_lang_keys_hint"></p>
+        <div class="empty" id="emptyWords" hidden>
+          <img class="empty-art art-light" src="ui/art/kitten-curious.png" alt="" width="48" height="43" />
+          <img class="empty-art art-dark" src="ui/art/kitten-curious-on-purple.png" alt="" width="48" height="41" />
+          <p data-i18n="popup_empty"></p>
+        </div>
+      </section>
+
+      <section class="section" id="pageSection" hidden aria-labelledby="pageTitle">
+        <h2 class="section-title" id="pageTitle"></h2>
+        <button class="switch-row" id="pauseRow" type="button" role="switch" aria-checked="false">
+          <span data-i18n="popup_pause_site"></span>
+          <span class="switch" aria-hidden="true"></span>
+        </button>
+        <div class="paused-row" id="pausedRow" hidden>
+          <span class="paused-text" id="pausedText"></span>
+          <button class="btn btn-secondary btn-sm" id="resume" type="button" data-i18n="popup_resume"></button>
+        </div>
+        <p class="page-note" id="unsupported" hidden>
+          <span data-icon="info" data-icon-size="16"></span>
+          <span data-i18n="error_unsupported_page"></span>
+        </p>
+        <!-- 31: Amount; 32: coverage meter; 38: per-site languages; 16/50: state H and H2. -->
+      </section>
     </div>
-    <ul class="langs" id="langs"></ul>
 
-    <div class="row">
-      <input type="checkbox" id="enabled" />
-      <label for="enabled" style="margin:0">Swap words on pages</label>
-    </div>
-    <div class="row">
-      <input type="checkbox" id="paused" />
-      <label for="paused" style="margin:0" id="pausedLabel">Pause on this site</label>
-    </div>
+    <footer class="foot" id="foot">
+      <span class="foot-count num" id="count"></span>
+      <!-- 21: "All {n} words →" opens the dashboard when it ships. -->
+    </footer>
 
-    <div class="actions">
-      <button id="syncNow">Sync now</button>
-    </div>
+    <header class="bar">
+      <img class="mark" src="icon32.png" alt="" width="20" height="20" />
+      <h1 class="wordmark" data-i18n="extName"></h1>
+      <span class="pill pill-info" id="offline" hidden>
+        <span data-icon="info" data-icon-size="14"></span>
+        <span data-i18n="popup_offline"></span>
+      </span>
+      <span class="bar-space"></span>
+      <button class="master" id="enabled" type="button" role="switch" aria-checked="true" data-i18n-aria-label="popup_switch_label" data-i18n-title="popup_switch_label">
+        <span class="master-text" id="enabledText" aria-hidden="true"></span>
+        <span class="switch" aria-hidden="true"></span>
+      </button>
+      <button class="btn btn-icon" id="openSettings" type="button" data-i18n-aria-label="popup_settings" data-i18n-title="popup_settings">
+        <span data-icon="sliders"></span>
+      </button>
+    </header>
+  </div>
 
-    <details id="conn">
-      <summary>Connection</summary>
-      <label>
-        <span>Server address</span>
-        <input type="text" id="serverUrl" spellcheck="false" placeholder="http://localhost:4747" />
-      </label>
-      <label>
-        <span>API token</span>
-        <input type="password" id="token" spellcheck="false" placeholder="API_TOKEN from your .env" />
-      </label>
-      <div class="actions">
-        <button class="secondary" id="save">Save connection</button>
+  <!--
+    Connection settings, inside the popup until the dashboard's settings (slice 21) exist;
+    then the settings button opens dashboard.html#settings instead.
+  -->
+  <div class="popup settings" id="settings" hidden>
+    <header class="bar">
+      <button class="btn btn-icon" id="closeSettings" type="button" data-i18n-aria-label="settings_back" data-i18n-title="settings_back">
+        <span data-icon="back"></span>
+      </button>
+      <h1 class="bar-title" id="settingsTitle" data-i18n="popup_settings"></h1>
+    </header>
+    <form class="conn" id="connForm" autocomplete="off" aria-labelledby="connTitle">
+      <h2 class="section-title" id="connTitle" data-i18n="settings_connection"></h2>
+      <p class="conn-help" data-i18n="settings_connection_help"></p>
+      <div class="conn-field">
+        <label class="field-label" for="serverUrl" data-i18n="settings_server_address"></label>
+        <input class="field" id="serverUrl" type="text" inputmode="url" spellcheck="false" placeholder="http://localhost:4747" />
       </div>
-    </details>
-  </main>
+      <div class="conn-field">
+        <label class="field-label" for="accessKey" data-i18n="settings_access_key"></label>
+        <div class="key-wrap">
+          <input class="field" id="accessKey" type="password" spellcheck="false" autocomplete="off" aria-describedby="accessKeyHelp" />
+          <button class="btn btn-quiet btn-sm key-toggle" id="toggleKey" type="button" aria-controls="accessKey" aria-pressed="false" data-i18n="settings_show_key"></button>
+        </div>
+        <p class="field-help" id="accessKeyHelp" data-i18n="settings_access_key_help"></p>
+      </div>
+      <div class="conn-actions">
+        <button class="btn btn-primary" id="saveConn" type="submit" data-i18n="settings_save"></button>
+        <button class="btn btn-quiet" id="checkNow" type="button" data-i18n="settings_check_now"></button>
+      </div>
+      <div class="conn-status" id="connStatus" role="status" aria-live="polite"></div>
+    </form>
+  </div>
+
+  <script src="lib/i18n.js"></script>
+  <script src="ui/icons.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
