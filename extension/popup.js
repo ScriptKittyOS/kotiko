@@ -26,6 +26,36 @@ function ago(ts) {
   return `${Math.round(s / 3600)} h ago`;
 }
 
+// The line shown for a sync error. `syncError` is {code, message, details} since slice 26;
+// an older string value is shown as it is. (Slice 25 replaces this wording.)
+function syncErrorText(err, serverUrl) {
+  if (typeof err === "string") return err;
+  const d = err.details ?? {};
+  switch (err.code) {
+    case "server_key_rejected":
+      return d.reason === "no_token" ? "Paste your API token to connect." : "The server rejected that API token.";
+    case "server_address_invalid":
+      return d.hint ? `Check the server address. ${d.hint}` : "The server didn't accept this address. Check the server address.";
+    case "server_unreachable":
+      return d.reason === "timeout"
+        ? `${serverUrl} didn't answer in time. Is the server running?`
+        : `Can't reach ${serverUrl}. Is the server running?`;
+    case "not_mira_server":
+      return `${serverUrl} answered, but not with a word list. Check the server address.`;
+    case "internal":
+      return d.error || `The server answered ${d.status ?? "with an error"}.`;
+    default:
+      return err.message || "Sync failed.";
+  }
+}
+
+// The line shown when adding or removing fails.
+function messageErrorText(error) {
+  if (typeof error === "string") return error;
+  if (error?.code === "invalid_message") return "That's too long. Add a word or a short phrase.";
+  return "The extension refused that request.";
+}
+
 function languageName(code, fallback) {
   if (fallback) return fallback;
   try {
@@ -124,7 +154,7 @@ async function render() {
   const status = $("status");
   status.className = "status";
   if (s.syncError) {
-    status.textContent = s.syncError;
+    status.textContent = syncErrorText(s.syncError, s.serverUrl);
     status.classList.add("err");
     if (!s.token) $("conn").open = true;
   } else if (s.lastSync) {
@@ -145,7 +175,7 @@ function showAdded(res) {
 
   if (res.error) {
     out.classList.add("err");
-    out.textContent = res.error;
+    out.textContent = messageErrorText(res.error);
     return;
   }
   if (!res.words?.length) {

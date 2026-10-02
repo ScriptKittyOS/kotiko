@@ -76,12 +76,17 @@ defmodule Slovo.LLM do
   defp try_models([model | rest], system, text, add?, failures) do
     case ask(model, system, text) do
       {:ok, %{words: []}} when add? and rest != [] ->
-        Logger.info("LLM #{model}: found no word in #{inspect(text)}, trying the next model")
+        log_lookup(
+          "LLM #{model}: found no word, trying the next model",
+          " (#{inspect(text)})"
+        )
+
         try_models(rest, system, text, add?, [{model, "found no word"} | failures])
 
       {:ok, result} ->
-        Logger.info(
-          "LLM #{model}: #{inspect(text)} -> #{Enum.map_join(result.words, ", ", & &1.native)}"
+        log_lookup(
+          "LLM #{model}: found #{length(result.words)} word(s)",
+          ": #{inspect(text)} -> #{Enum.map_join(result.words, ", ", & &1.native)}"
         )
 
         {:ok, result}
@@ -92,6 +97,16 @@ defmodule Slovo.LLM do
       {:error, reason} ->
         Logger.warning("LLM #{model}: #{reason}")
         try_models(rest, system, text, add?, [{model, reason} | failures])
+    end
+  end
+
+  # What the learner typed stays out of the logs unless LOG_LOOKUPS=true (or at debug).
+  defp log_lookup(line, details) do
+    if Application.get_env(:slovo, :log_lookups, false) do
+      Logger.info(line <> details)
+    else
+      Logger.info(line)
+      Logger.debug(line <> details)
     end
   end
 
@@ -134,7 +149,8 @@ defmodule Slovo.LLM do
       result = normalize(parsed)
 
       if result.words == [] and parsed["words"] not in [nil, []] do
-        Logger.warning("LLM #{model}: dropped words it returned: #{inspect(parsed["words"])}")
+        Logger.warning("LLM #{model}: dropped the words it returned (fields missing)")
+        Logger.debug("LLM #{model}: dropped #{inspect(parsed["words"])}")
       end
 
       {:ok, result}

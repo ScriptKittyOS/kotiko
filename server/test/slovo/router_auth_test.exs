@@ -63,9 +63,9 @@ defmodule Slovo.RouterAuthTest do
     end
 
     test "only GET and HEAD /health are open" do
-      assert %{status: 200, resp_body: "ok"} = request("GET", "/health")
-      # HEAD passes auth; there is no HEAD route, so it ends in the router's 404.
-      assert request("HEAD", "/health").status == 404
+      assert %{status: 200} = conn = request("GET", "/health")
+      assert %{"ok" => true} = json_body(conn)
+      assert %{status: 200, resp_body: ""} = request("HEAD", "/health")
 
       for method <- ~w(POST PUT DELETE PATCH OPTIONS) do
         assert request(method, "/health").status == 401, "#{method} /health"

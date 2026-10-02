@@ -65,9 +65,9 @@ defmodule Mix.Tasks.Slovo.Token do
     bind = env["BIND"] || "127.0.0.1"
     port = env["PORT"] || "4747"
 
-    case :inet.parse_address(to_charlist(bind)) do
+    case Slovo.Config.parse_bind(bind) do
       {:ok, ip} -> Exposure.server_url(env["PUBLIC_URL"], ip, port)
-      {:error, _} -> Mix.raise("BIND=#{bind} isn't an IP address.")
+      {:error, _} -> Mix.raise("Couldn't find an address for BIND=#{bind}.")
     end
   end
 

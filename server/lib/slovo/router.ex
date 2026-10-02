@@ -15,8 +15,16 @@ defmodule Slovo.Router do
   plug Plug.Parsers, parsers: [:json], json_decoder: Jason, pass: ["*/*"], length: 64_000
   plug :dispatch
 
+  # Open (no token): which server this is, its version and whether the database works.
+  # Clients that only check for a 200 keep working.
   get "/health" do
-    send_resp(conn, 200, "ok")
+    {status, body} = Slovo.Health.report()
+    conn |> put_resp_header("cache-control", "no-store") |> json(status, body)
+  end
+
+  match "/health", via: :head do
+    {status, _body} = Slovo.Health.report()
+    conn |> put_resp_header("cache-control", "no-store") |> send_resp(status, "")
   end
 
   # The browser extension polls this. Returns active words in every language, or only
@@ -48,7 +56,9 @@ defmodule Slovo.Router do
             case {for({:ok, w} <- results, do: Word.to_json(w)),
                   for({:error, cs} <- results, do: cs)} do
               {[], [cs | _]} ->
-                Logger.warning("Couldn't save #{inspect(cs.changes)}: #{inspect(cs.errors)}")
+                # The changes hold the learner's words: only at debug.
+                Logger.debug("Couldn't save #{inspect(cs.changes)}")
+                Logger.warning("Couldn't save a word: #{inspect(cs.errors)}")
                 json(conn, 422, %{error: "Couldn't save that word: #{changeset_errors(cs)}"})
 
               {saved, _} ->

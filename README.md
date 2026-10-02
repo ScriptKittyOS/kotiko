@@ -36,7 +36,7 @@ You need Elixir 1.15+.
 
 ```bash
 cd server
-cp .env.example .env
+cp .env.example .env && chmod 600 .env
 ```
 
 Edit `.env` and fill in your OpenRouter key:
@@ -51,8 +51,11 @@ Then:
 ./run.sh
 ```
 
-First run fetches dependencies and compiles, then you should see `Slovo API on http://127.0.0.1:4747`.
-Check it with `curl localhost:4747/health` (prints `ok`). The first start also makes an API
+First run fetches dependencies and compiles (in `MIX_ENV=prod` unless you set `MIX_ENV`), then
+prints a short summary: version, data folder, who can reach the server, model and Telegram.
+Check it with `curl localhost:4747/health` (prints `{"ok":true,...}` with the version). A
+mistake in `.env` stops the server with a message naming each setting to fix. After a
+`git pull`, `./run.sh` fetches changed dependencies itself. The first start also makes an API
 token, saves it in the data folder and prints it. `mix slovo.token` (in `server/`) prints it
 again, with a pairing string. To pick your own instead, set `API_TOKEN` in `.env` (at least
 24 characters, e.g. `openssl rand -hex 24`).
@@ -159,9 +162,11 @@ and restart. Any OpenAI-compatible `/v1/audio/transcriptions` URL also works; se
 server/install-service.sh
 ```
 
-That installs a systemd user service that starts at boot and restarts on failure. Run it from
-the shell where `mix` works; it copies that shell's PATH, so asdf and mise installs are fine.
-Logs: `journalctl --user -u slovo -f`. After editing `.env`: `systemctl --user restart slovo`.
+That compiles, installs a systemd user service that starts at boot and restarts on failure,
+and waits until `/health` answers. Run it from the shell where `mix` works; it copies that
+shell's PATH, so asdf and mise installs are fine. Re-run it after updating to get the newest
+unit file. Logs: `journalctl --user -u slovo -f`. After editing `.env`:
+`systemctl --user restart slovo` (a mistake in `.env` stops the service until you do).
 
 ### A different model
 
@@ -226,7 +231,7 @@ Every route except `GET /health` needs `Authorization: Bearer <API token>`.
 | `GET /api/words` | Active words in every language; `?lang=ru,ar` for some |
 | `POST /api/words` `{"text": "shukran"}` | Works out the word(s) and saves them |
 | `DELETE /api/words/:id` | Removes a word |
-| `GET /health` | `ok`, no token needed |
+| `GET /health` | `{"ok", "name", "version", "api", "db"}`, no token needed; 503 when the database fails |
 
 ## Layout
 
