@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
 // Checks a word-list response before anything is cached or inserted into pages (slice 26,
@@ -7,7 +7,7 @@
 //
 //   validateWordsResponse({ status: 200, contentType: "application/json", body: "{...}" })
 //     -> { ok: true, words, dropped: 0, reasons: {} }
-//     -> { ok: false, code: "not_mira_server", message, details }
+//     -> { ok: false, code: "not_kotiko_server", message, details }
 (() => {
   // Until slice 09's shared rules land, these constants are the client checks.
   const LIMITS = {
@@ -101,15 +101,15 @@
     if (status >= 500) {
       return error("internal", `The server answered ${status}.`, serverError ? { status, error: serverError } : { status });
     }
-    if (status !== 200) return error("not_mira_server", `The address answered ${status}, not a word list.`, { status });
+    if (status !== 200) return error("not_kotiko_server", `The address answered ${status}, not a word list.`, { status });
     if (!/application\/json/i.test(contentType)) {
-      return error("not_mira_server", `The address answered with ${contentType || "no content type"}, not JSON.`, {
+      return error("not_kotiko_server", `The address answered with ${contentType || "no content type"}, not JSON.`, {
         status,
         contentType,
       });
     }
     if (!body || typeof body !== "object" || !Array.isArray(body.words)) {
-      return error("not_mira_server", "The answer isn't a word list.", { status });
+      return error("not_kotiko_server", "The answer isn't a word list.", { status });
     }
     return { ok: true, ...filterWords(body.words) };
   }

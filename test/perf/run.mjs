@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
 // Runs named benchmarks and compares each median with test/perf/budgets.json. With CI set,
@@ -17,7 +17,7 @@ const budgets = JSON.parse(fs.readFileSync(path.join(HERE, "budgets.json"), "utf
 const CI = !!process.env.CI;
 const filter = process.argv[2] ?? "";
 
-const { buildMatcher, matchCase, norm } = requireExt("lib/matcher.js");
+const { buildMatcher, matchCase, norm, skipLetter } = requireExt("lib/matcher.js");
 
 // Deterministic pseudo-random numbers, so every run measures the same input.
 function rng(seed) {
@@ -88,8 +88,8 @@ function generateWords(count) {
   return words;
 }
 
-// The matching half of content.js's processText, without the DOM: find each match,
-// pick the language whose turn it is and case the native word.
+// The matching half of content.js's swapText, without the DOM: find each match, skip a
+// lone capital that is a code, pick the language whose turn it is and case the native word.
 function scan(matcher, nodes) {
   const { re, map, turns } = matcher;
   let swaps = 0;
@@ -102,6 +102,7 @@ function scan(matcher, nodes) {
     while ((m = re.exec(text))) {
       const all = map.get(norm(m[0]));
       if (!all) continue;
+      if (m[0].length === 1 && skipLetter(text, m.index)) continue;
       const turn = turns.get(all) ?? 0;
       turns.set(all, turn + 1);
       matchCase(m[0], all[turn % all.length].native);

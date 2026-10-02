@@ -1,5 +1,5 @@
-name: A website breaks with Mira
-description: A site looks or works wrong while Mira is on.
+name: A website breaks with Kotiko
+description: A site looks or works wrong while Kotiko is on.
 labels: [compat]
 body:
   - type: input

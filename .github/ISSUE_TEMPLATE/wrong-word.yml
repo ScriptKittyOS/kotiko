@@ -1,5 +1,5 @@
 name: Wrong word or translation
-description: Mira saved the wrong word, meaning, language or pronunciation.
+description: Kotiko saved the wrong word, meaning, language or pronunciation.
 labels: [word-quality]
 body:
   - type: input
@@ -16,7 +16,7 @@ body:
   - type: textarea
     id: saved
     attributes:
-      label: What Mira saved
+      label: What Kotiko saved
       description: The word, pronunciation, meaning and note it showed.
     validations: { required: true }
   - type: textarea

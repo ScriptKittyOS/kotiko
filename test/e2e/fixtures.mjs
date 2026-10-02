@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
 // Playwright fixtures: Chromium with the unpacked extension, the fixture server, a network
@@ -42,7 +42,7 @@ export const test = base.extend({
     await use({
       url,
       token: process.env.FIXTURE_TOKEN,
-      miraUrl: `${url}/mira`,
+      kotikoUrl: `${url}/kotiko`,
       llmUrl: `${url}/llm/v1`,
       page: (name) => `${url}/pages/${name}`,
       control,
@@ -57,12 +57,13 @@ export const test = base.extend({
   },
 
   context: async ({ blocked }, use, testInfo) => {
-    const userDataDir = await fs.mkdtemp(path.join(os.tmpdir(), "mira-e2e-"));
+    const userDataDir = await fs.mkdtemp(path.join(os.tmpdir(), "kotiko-e2e-"));
     const context = await chromium.launchPersistentContext(userDataDir, {
       // Bundled Chromium: branded Chrome ignores --load-extension since Chrome 137.
       channel: "chromium",
       // Optional: another Chromium build (for example an already-downloaded one offline).
-      executablePath: process.env.MIRA_E2E_CHROMIUM || undefined,
+      // MIRA_E2E_CHROMIUM is the old name, accepted for this release. legacy-name-ok
+      executablePath: process.env.KOTIKO_E2E_CHROMIUM || process.env.MIRA_E2E_CHROMIUM || undefined, // legacy-name-ok
       headless: true,
       args: [
         `--disable-extensions-except=${EXT_DIR}`,

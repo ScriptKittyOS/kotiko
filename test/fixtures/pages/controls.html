@@ -3,6 +3,11 @@
 <head>
   <meta charset="utf-8">
   <title>Controls fixture</title>
+  <style>
+    .toggles { display: flex; gap: 8px; }
+    .toggle { cursor: pointer; border: 1px solid #888; border-radius: 4px; padding: 2px 8px; }
+    .card { cursor: pointer; border: 1px solid #ccc; padding: 8px; max-width: 30em; }
+  </style>
 </head>
 <body>
   <!-- Slice 16: UI chrome where swapped words confuse people more than they teach. -->
@@ -13,7 +18,27 @@
     <input id="f1" type="text" placeholder="house" aria-label="house">
     <select id="select"><option>house</option><option>flat</option></select>
     <input id="submit" type="submit" value="Thanks">
+    <p id="form-help">Thanks for telling us about your house.</p>
   </form>
-  <p id="prose">Prose about a house still swaps. Thanks!</p>
+
+  <!-- The maintainer's report: clickable toggles "AOI I" / "AOI II" showed "AOI Я". -->
+  <div class="toggles" id="toggles-styled">
+    <div class="toggle" id="toggle-1">AOI I</div>
+    <div class="toggle" id="toggle-2">AOI II</div>
+    <div class="toggle" id="toggle-3">My house</div>
+  </div>
+  <div class="toggles" role="radiogroup" id="toggles-aria">
+    <div role="radio" aria-checked="true" id="radio-1">House I</div>
+    <div role="radio" aria-checked="false" id="radio-2">House II</div>
+  </div>
+  <div role="tablist"><div role="tab" id="tab">Thanks</div></div>
+  <span id="chip" tabindex="0">house</span>
+
+  <main tabindex="-1">
+    <p id="prose">Prose about a house still swaps. Thanks!</p>
+    <p id="link-para">Read about <a id="link" href="#house">the house</a> here.</p>
+    <div class="card" id="card"><p id="card-text">A house by the sea sold for a record price today.</p></div>
+    <p id="numerals">World War I, Type I, I-95 and AOI I stay. I think this one swaps.</p>
+  </main>
 </body>
 </html>

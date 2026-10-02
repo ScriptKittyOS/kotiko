@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
 // End-to-end tests: the unpacked extension in Playwright's bundled Chromium, against the

@@ -1,7 +1,7 @@
-# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule Slovo.DataCase do
+defmodule Kotiko.DataCase do
   @moduledoc """
   Tests that touch the database. Each test runs in a sandbox transaction that is rolled
   back afterwards. SQLite allows one writer at a time, so these tests run with
@@ -12,8 +12,8 @@ defmodule Slovo.DataCase do
 
   using do
     quote do
-      alias Slovo.{Repo, Word, Words}
-      import Slovo.DataCase
+      alias Kotiko.{Repo, Word, Words}
+      import Kotiko.DataCase
     end
   end
 
@@ -23,7 +23,7 @@ defmodule Slovo.DataCase do
   end
 
   def setup_sandbox(tags) do
-    pid = Sandbox.start_owner!(Slovo.Repo, shared: not tags[:async])
+    pid = Sandbox.start_owner!(Kotiko.Repo, shared: not tags[:async])
     on_exit(fn -> Sandbox.stop_owner(pid) end)
   end
 
@@ -44,19 +44,19 @@ defmodule Slovo.DataCase do
   end
 
   def word_fixture(attrs \\ %{}, status \\ "active") do
-    {:ok, word} = Slovo.Words.upsert(word_attrs(attrs), status)
+    {:ok, word} = Kotiko.Words.upsert(word_attrs(attrs), status)
     word
   end
 
   @doc "Sets an app env value for one test and restores it afterwards."
   def put_app_env(key, value) do
-    old = Application.fetch_env(:slovo, key)
-    Application.put_env(:slovo, key, value)
+    old = Application.fetch_env(:kotiko, key)
+    Application.put_env(:kotiko, key, value)
 
     on_exit(fn ->
       case old do
-        {:ok, v} -> Application.put_env(:slovo, key, v)
-        :error -> Application.delete_env(:slovo, key)
+        {:ok, v} -> Application.put_env(:kotiko, key, v)
+        :error -> Application.delete_env(:kotiko, key)
       end
     end)
   end

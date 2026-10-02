@@ -1,5 +1,5 @@
 {
-  "name": "slovo-dev",
+  "name": "kotiko-dev",
   "private": true,
   "description": "Development tooling only (tests, lint, e2e). The extension ships no npm code.",
   "type": "module",

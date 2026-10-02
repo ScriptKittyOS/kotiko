@@ -1,5 +1,5 @@
 name: Idea or feature request
-description: Suggest something Mira could do.
+description: Suggest something Kotiko could do.
 labels: [enhancement]
 body:
   - type: textarea

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
 // The pure modules behind background sync: server address normalisation
@@ -16,7 +16,7 @@ describe("normalizeServerUrl", () => {
   const good = [
     ["localhost:4747", "http://localhost:4747"],
     ["192.168.1.5:4747", "http://192.168.1.5:4747"],
-    ["slovo.tail1234.ts.net", "https://slovo.tail1234.ts.net"],
+    ["kotiko.tail1234.ts.net", "https://kotiko.tail1234.ts.net"],
     ["  http://localhost:4747//  ", "http://localhost:4747"],
     ["HTTP://LocalHost:4747/", "http://localhost:4747"],
     ["100.64.0.1", "http://100.64.0.1"],
@@ -83,8 +83,8 @@ describe("validateWordsResponse", () => {
     ["a 403", { status: 403, contentType: "application/json", body: "{}" }],
   ];
   for (const [name, raw] of notLists) {
-    test(`${name} is not_mira_server`, () => {
-      assert.equal(validateWordsResponse(raw).code, "not_mira_server");
+    test(`${name} is not_kotiko_server`, () => {
+      assert.equal(validateWordsResponse(raw).code, "not_kotiko_server");
     });
   }
 

@@ -1,21 +1,21 @@
-// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
 // One local HTTP server for tests, on 127.0.0.1 and a random port:
 //
 //   /pages/*      static fixture pages (test/fixtures/pages)
 //   /vendor/*     vendored libraries (test/fixtures/vendor)
-//   /mira/*       a fake Mira server: GET /health, GET/POST /api/words, DELETE /api/words/:id
+//   /kotiko/*       a fake Kotiko server: GET /health, GET/POST /api/words, DELETE /api/words/:id
 //   /llm/v1/*     a fake OpenAI-compatible model: /models, /key, /chat/completions
 //   /__control    POST to switch behaviours, GET to read state and the request log
 //
 // Control body (every field optional):
 //   { "reset": true,                       back to seed words and normal behaviour
-//     "mira": "slow" | "401" | "html" | "500" | null,
+//     "kotiko": "slow" | "401" | "html" | "500" | null,
 //     "delayMs": 1500,                     how slow "slow" is
 //     "llm": "429" | "429-headers" | "stall" | "prose" | null,
 //     "words": [...],                      replace the fake server's word list
-//     "token": "..." }                     the bearer token /mira/api expects
+//     "token": "..." }                     the bearer token /kotiko/api expects
 //
 // Run it by hand with `node test/helpers/fixture-server.mjs [port]`.
 import fs from "node:fs";
@@ -83,7 +83,7 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
 
   const state = {
     token,
-    mira: null,
+    kotiko: null,
     llm: null,
     delayMs: 1500,
     words: seed(),
@@ -91,19 +91,19 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
     log: [],
   };
   const reset = () => {
-    Object.assign(state, { token, mira: null, llm: null, delayMs: 1500, words: seed(), nextId: 1000 });
+    Object.assign(state, { token, kotiko: null, llm: null, delayMs: 1500, words: seed(), nextId: 1000 });
     state.log.length = 0;
   };
 
   // Finds the canned model answer for a user's text.
   const answerFor = (text) => answers[norm(text)] ?? { intent: "add", words: [] };
 
-  async function mira(req, res, route) {
-    if (state.mira === "slow") await sleep(state.delayMs);
+  async function kotiko(req, res, route) {
+    if (state.kotiko === "slow") await sleep(state.delayMs);
     if (route === "/health" && req.method === "GET") return send(res, 200, "ok");
-    if (state.mira === "401") return send(res, 401, "unauthorized");
-    if (state.mira === "500") return send(res, 500, { error: "Something broke on the fake server." });
-    if (state.mira === "html") {
+    if (state.kotiko === "401") return send(res, 401, "unauthorized");
+    if (state.kotiko === "500") return send(res, 500, { error: "Something broke on the fake server." });
+    if (state.kotiko === "html") {
       return send(res, 200, "<!doctype html><title>Sign in to the Wi-Fi</title><p>Captive portal</p>", {
         "content-type": "text/html; charset=utf-8",
       });
@@ -172,7 +172,7 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
     if (req.method === "GET") return send(res, 200, state);
     const body = await readBody(req);
     if (body.reset) reset();
-    for (const k of ["mira", "llm", "delayMs", "token"]) if (k in body) state[k] = body[k];
+    for (const k of ["kotiko", "llm", "delayMs", "token"]) if (k in body) state[k] = body[k];
     if (Array.isArray(body.words)) state.words = body.words;
     return send(res, 200, { ok: true });
   }
@@ -183,9 +183,9 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
       if (pathname === "/__control") return await control(req, res);
       if (pathname.startsWith("/pages/")) return serveStatic(res, path.join(FIXTURES, "pages"), pathname.slice(7));
       if (pathname.startsWith("/vendor/")) return serveStatic(res, path.join(FIXTURES, "vendor"), pathname.slice(8));
-      if (pathname.startsWith("/mira/")) {
+      if (pathname.startsWith("/kotiko/")) {
         state.log.push({ method: req.method, path: pathname, auth: req.headers.authorization ?? null });
-        return await mira(req, res, pathname.slice(5));
+        return await kotiko(req, res, pathname.slice("/kotiko".length));
       }
       if (pathname.startsWith("/llm/v1/")) {
         state.log.push({ method: req.method, path: pathname, auth: req.headers.authorization ?? null });
@@ -210,7 +210,7 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
     token,
     state,
     reset,
-    miraUrl: `${url}/mira`,
+    kotikoUrl: `${url}/kotiko`,
     llmUrl: `${url}/llm/v1`,
     pageUrl: (name) => `${url}/pages/${name}`,
     async close() {
@@ -223,5 +223,5 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const srv = await startFixtureServer({ port: Number(process.argv[2] ?? 0) });
   console.log(`Fixture server on ${srv.url}  (token ${srv.token})`);
-  console.log(`  pages ${srv.url}/pages/basic.html\n  mira  ${srv.miraUrl}\n  llm   ${srv.llmUrl}`);
+  console.log(`  pages ${srv.url}/pages/basic.html\n  kotiko  ${srv.kotikoUrl}\n  llm   ${srv.llmUrl}`);
 }

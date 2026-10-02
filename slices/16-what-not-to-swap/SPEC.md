@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Proposed; the control rules and the lone-capital rule are implemented early (see "Implemented early") |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
 | **Depends on** | [14-matcher-engine](../14-matcher-engine/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages, `spec/lang/<base>/detect.json` and `casing.json`) |
@@ -75,6 +75,28 @@ Kotiko swaps nearly everything it can see. Read from the code, and reproduced wh
   never swapped.
 - As a developer reading code on GitHub, the code is untouched.
 - As someone paying a bill online, the payment form says exactly what the bank wrote.
+
+## Implemented early
+
+A maintainer report: on a real site, clickable toggles labelled "AOI I" and "AOI II" (styled
+`div`s and `label`s, not `<button>`s) showed "AOI Я" for a learner who had saved я ("I").
+Two parts of this slice were built ahead of the rest to fix it, in today's content script:
+
+- **Controls** (section 2, "Controls" row and the notes under the table), in
+  `extension/lib/controls.js` (`globalThis.KotikoControls`, unit-tested in
+  `test/unit/controls.test.mjs`). Always on: the setting "Swap words in buttons and menus"
+  (off by default) is **not built yet** and remains future work for this slice.
+- **The lone-capital rule** (section 3, "Lone capitals next to codes"), as `skipLetter()` in
+  `extension/lib/matcher.js`, unit-tested in `test/unit/matcher.test.mjs`. The full token
+  rules (`rules.js`) replace it.
+
+`content.js` checks a text node's ancestors only when the node has a match, reads all
+decisions for a batch before changing the DOM (so reading computed styles never forces a
+style recalculation between our own writes), and caches the decision per element in a
+`WeakMap` that `apply()` clears. Elements that change role or style later keep their cached
+decision until the next `apply()`. Covered by `test/dom/content.test.mjs` ("controls stay as
+the site wrote them", "a lone capital that is a numeral or code") and the Playwright
+assertion for `controls.html` in `test/e2e/corpus.spec.mjs`.
 
 ## Specification
 
@@ -157,13 +179,45 @@ is cached in a `WeakMap<Element, boolean>` so the check is O(1) after the first 
 | Code editors and code views | `.monaco-editor, .cm-editor, .CodeMirror, .ace_editor, .react-code-lines, .blob-code, .highlight, [class*="language-"], [role=code]`, plus per-host extras in `extension/data/skip-selectors.json` | Code and editors that measure text (03 B1) |
 | Explicit opt-out | `[translate=no]`, `.notranslate`, `[data-kotiko-skip]`, `[data-slovo-skip]` (legacy) on any element **below** `body` | The site says this text isn't to be translated. Ignored on `html` and `body`, because many React sites set `translate="no"` there only to stop Google Translate crashing them; `<meta name="google" content="notranslate">` is ignored for the same reason |
 | Not one of the learner's languages | `baseFor(el)` is null: the nearest `[lang]` or `[xml:lang]` ancestor declares a language that isn't a base (empty `lang=""` inherits the page decision). A subtree declared in a *different* base is not skipped; it is scanned with that base's index | Quotes, names and IPA in other languages (03 B5); bilingual pages |
-| Controls (setting "Swap words in buttons and menus", **off** by default) | `button, summary, label, legend, select, nav, menu, [role=button], [role=link][aria-haspopup], [role=menu], [role=menubar], [role=menuitem], [role=menuitemcheckbox], [role=menuitemradio], [role=tab], [role=tablist], [role=option], [role=listbox], [role=switch], [role=checkbox], [role=radio], [role=toolbar], [role=navigation]` | Misclicks, voice control and WCAG 2.5.3 Label in Name (03 D5) |
+| Controls (setting "Swap words in buttons and menus", **off** by default; the setting isn't built yet, so today controls are always skipped) | `button, summary, label, legend, select, option, optgroup, datalist, nav, menu, [role=button], [role=link][aria-haspopup], a[href][aria-haspopup], [role=menu], [role=menubar], [role=menuitem], [role=menuitemcheckbox], [role=menuitemradio], [role=tab], [role=tablist], [role=option], [role=listbox], [role=combobox], [role=switch], [role=checkbox], [role=radio], [role=toolbar], [role=slider], [role=spinbutton], [role=textbox], [role=searchbox], [role=tree], [role=treeitem], [role=navigation]`, plus the three signals below: forms, focusable chips and clickable elements | Misclicks, voice control and WCAG 2.5.3 Label in Name (03 D5) |
 | Sensitive forms | `form` elements containing `input[type=password]` or `[autocomplete^="cc-"]`, `[autocomplete=one-time-code]` | Logins and payments anywhere |
 | Kotiko's own UI | the popover host (19), celebration overlay (32), `kotiko-w` | Never process ourselves |
 | Volatile | elements slice 15 marked volatile | Rewrite budget exceeded |
 
 Links in running text (`a` without a control role) are swapped; links inside `nav` are not,
 because `nav` is a control region.
+
+**Control signals beyond tags and roles** (implemented early, `extension/lib/controls.js`).
+Many sites build toggles, chips and segmented buttons from styled `div`s, so tags and roles
+alone miss them. Any ancestor of the text, up to but not including `<body>`, counts:
+
+- **Inside a `<form>`** (the maintainer's suggestion): everything in it, except a form that
+  wraps the page's content, meaning it contains `main`, `article`, `[role=main]`,
+  `[role=article]` or `h1` (ASP.NET WebForms and some CMSs wrap the whole body in one form).
+  The form's own buttons, labels and legends are still skipped by their tags.
+- **Focusable**: `tabindex` is an integer >= 0, the element isn't a link (`a[href]`,
+  `area[href]`), isn't a landmark or big container (`html, body, main, article, section,
+  aside, dialog`, or `role` `main`, `region`, `document`, `dialog`, `alertdialog`, `article`,
+  `application`), and its text is control-like (below). Many sites put `tabindex="-1"` or
+  `"0"` on `<main>` for skip links, and `tabindex="0"` on scrollable tables and code blocks for
+  keyboard scrolling; neither may skip content. `tabindex="-1"` never counts.
+- **Clickable**: computed `cursor` is `pointer` on the element **and not on its parent** (the
+  property is inherited, so only the element that sets it counts; everything inside a
+  clickable card inherits it), the element isn't a link or a container as above, and its text
+  is control-like. A long clickable news card is content and is swapped; an `<a href>` in a
+  paragraph is swapped.
+- **Control-like text**: the element's `textContent`, whitespace collapsed, is at most
+  **40 characters and at most 4 words** (`MAX_CHARS`, `MAX_WORDS`). "AOI II", "My house",
+  "Show more", "Sort by date" are controls; a card's headline plus summary is not.
+
+`[role=gridcell]` is deliberately **not** a control: data grids, calendars and some tables use
+it for content. `[contenteditable]` stays in the editable row above.
+
+**Cost.** The ancestor chain is evaluated only for a text node that has a match. Signals that
+need no style (tags, roles, `aria-haspopup`, forms, `tabindex`) are checked for the whole chain
+first, nearest element first; `getComputedStyle` is read only when none is found, top down,
+and once per element. Decisions are cached in a `WeakMap<Element, boolean>` until the next
+full re-apply. `getComputedStyle` is never called for text nodes without a match.
 
 **Editables that appear later.** A capture-phase `focusin` listener on `document` checks the
 target: if it is editable or matches the editable row above, call
@@ -218,6 +272,8 @@ singleLetter(m):
   in C.single_letter_words (en: a; es: a, e, o, u, y; fr: a, à, y; it: a, e, è, o; pt: a, e, o):
        keep only if the surface is lowercase, prevToken isn't a mid-sentence title-shaped
        token, nextGap isn't "." or ")" and the match isn't inside "(a)"
+  lone capital next to a code (implemented early as skipLetter(), any uppercase letter):
+       drop, see "Lone capitals next to codes" below
   in C.capitalized_pronouns (en: I):
        keep only if the surface is exactly that letter, next gap is a space followed by a
        lowercase letter, and prevToken isn't a mid-sentence title-shaped token (World War I,
@@ -227,6 +283,31 @@ singleLetter(m):
 
   "mid-sentence title-shaped" = prevToken.shape is title and prevToken.sentenceStart is false
 ```
+
+**Lone capitals next to codes** (implemented early, `skipLetter()` in
+`extension/lib/matcher.js`, before the rest of the token rules). A one-letter match that is
+an uppercase letter is dropped when:
+
+- it is joined to a letter or digit by a hyphen (`-`, U+2010, U+2011) or a slash: "I-95",
+  "95-I", "A-1", "I/O" (dashes are prose punctuation and don't count);
+- the next token (after whitespace only) is all-caps with 2+ letters, an uppercase Roman
+  numeral, or contains a digit: "I AM", "I II III", "I 95";
+- the previous token (whitespace only) is all-caps with 2+ letters or an uppercase Roman
+  numeral: "AOI I", "Henry VIII I", "World War II I", and accepted as a loss, "OK I think";
+- the previous token contains a digit, unless a lowercase word follows: "Model 3 I" is
+  dropped, "In 2020 I moved" keeps its pronoun;
+- the previous token is title-shaped ("War", "Type", "Vitamin") and either is mid-sentence
+  (the character before it is a letter, digit, comma or semicolon) or no lowercase word
+  follows the letter: "World War I began", "Type I", "Vitamin A.", "Plan B". "Can I go" and
+  "Then I said" keep the pronoun, because the title-shaped word starts the sentence and a
+  lowercase word follows.
+
+Lowercase letters are never dropped by this rule ("a NASA report", "a 2020 study"). Context
+is the text node plus up to 40 characters of the neighbouring text in the same line: a
+sibling, or the parent's sibling when the parent is an inline element (two levels at most),
+never across a block element, with element boundaries read as a space (`<b>AOI</b> I`,
+`<span>AOI</span><span>I</span>`). Contractions ("I'm") are left to slice 14. Known gaps that
+the full rules close: "Type I diabetes" at a sentence start, "Can I?".
 
 **Shouting context**: the text node (plus `ctx`) has at least four letter tokens and at least
 70 % of its cased letters are uppercase ("THANK YOU FOR READING").
@@ -393,8 +474,24 @@ present in the index, so they stay small.
   `["ja"]`; `baseFor` over nested `lang` attributes; every launch `casing.json` and
   `detect.json` against its schema.
 - **jsdom:** element rules over a fixture with each selector; `focusin` restore; legacy
-  `data-slovo-skip`.
-- **Playwright, slice 02's corpus:** `other-lang.html`, `editors.html`, `controls.html`,
+  `data-slovo-skip`. Done early for controls: "AOI I / AOI II" toggles as `role=radio`
+  divs, as `<label>`s and as `cursor: pointer` divs (inline style and a `<style>` rule); a
+  `<button>`; `role=option` lists; menus, tabs, `nav`, `summary` and `aria-haspopup` links;
+  a `<form>`, and a form that wraps `<main>` (swapped); a `tabindex=0` chip; `<main
+  tabindex="-1">` and `<article tabindex="0">` around paragraphs and a long `tabindex=0`
+  scroll area (swapped); an `<a href>` in a paragraph and a long clickable card (swapped);
+  text added later inside a control; `getComputedStyle` read only for elements around
+  matches, once each. Lone capitals: "World War I", "Type I", "I-95", "AOI I" (in one text
+  node, in a sibling element and in the parent's sibling) stay; "I think" swaps; a block
+  boundary doesn't carry context over.
+- **Unit (done early):** `controls.js` (`isControlElement`, `isPointerControl`,
+  `createControlCheck` caching and style-read order) and `skipLetter()` (the cases in "Lone
+  capitals next to codes", lowercase letters, and two F13 rows: "Vitamin A.", "Plan B and
+  Plan A").
+- **Playwright, slice 02's corpus:** `other-lang.html`, `editors.html`, `controls.html` (done
+  early: nav, button, label, form, styled and ARIA toggles, a tab, a `tabindex` chip stay
+  English; prose in `<main tabindex="-1">`, a link, a long clickable card and "I think" swap;
+  "World War I", "Type I", "I-95" and "AOI I" stay),
   `boundaries.html`. Added by this slice: `other-lang-undeclared-fr.html`,
   `mislabelled-lang.html`, `es-news.html`, `es-quoting-en.html`, `es-undeclared.html`,
   `ja-news.html`, `wikipedia-like.html`, `code-editors-real.html` (vendored Monaco and
@@ -427,6 +524,11 @@ last two in settings."
 
 ## Future work
 
+- The setting "Swap words in buttons and menus" (off by default, slice 39's `s:display`
+  group). The control rules shipped early without it, always on.
+- Re-checking a cached control decision when an element's `role`, `tabindex` or class
+  changes (today it waits for the next full re-apply); slice 15's attribute observer is the
+  place for it.
 - A part-of-speech context check for homographs: [36](../36-grammar-and-senses/SPEC.md).
 - Learning per-site skip selectors from user "Don't swap here" actions.
 - "Reverse mode" for target-language pages, glossing instead of skipping (02 open question 6).

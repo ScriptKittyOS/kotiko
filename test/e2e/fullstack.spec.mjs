@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
 // Full-stack smoke: the real Elixir server (with the fake model from the fixture server
@@ -62,7 +62,7 @@ test.describe("full stack", () => {
   test.beforeAll(async () => {
     const fixtureUrl = process.env.FIXTURE_URL;
     if (!fixtureUrl) throw new Error("FIXTURE_URL isn't set; run the tests through `npm run e2e`.");
-    dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "mira-fullstack-"));
+    dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "kotiko-fullstack-"));
     const port = await freePort();
     serverUrl = `http://127.0.0.1:${port}`;
 
@@ -76,8 +76,7 @@ test.describe("full stack", () => {
         PORT: String(port),
         BIND: "127.0.0.1",
         API_TOKEN: TOKEN,
-        SLOVO_DATA_DIR: dataDir,
-        MIRA_DATA_DIR: dataDir,
+        KOTIKO_DATA_DIR: dataDir,
         LLM_URL: `${fixtureUrl}/llm/v1`,
         LLM_MODEL: "fake/model-a:free,fake/model-b:free",
         LLM_API_KEY: "fake-llm-key",
@@ -133,6 +132,6 @@ test.describe("full stack", () => {
     const page = await context.newPage();
     await page.goto(server.page("basic.html"));
     await expect(page.locator("#p1")).toHaveText("شكرا for visiting. This house has three rooms and a garden.");
-    await expect(page.locator("#p1 span.slovo-w")).toHaveAttribute("lang", "ar");
+    await expect(page.locator("#p1 span.kotiko-w")).toHaveAttribute("lang", "ar");
   });
 });

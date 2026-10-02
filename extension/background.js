@@ -1,7 +1,7 @@
-// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
-// Pulls your active words (every language) from the Slovo server and caches them for
+// Pulls your active words (every language) from the Kotiko server and caches them for
 // content scripts. Which languages show is decided locally, so switching is instant.
 //
 // The libraries load through importScripts in Chrome's service worker, and through the
@@ -17,7 +17,9 @@ const { createSyncController } = globalThis.SyncController;
 const { createMessageRouter, checks } = globalThis.MessageRouter;
 
 const DEFAULTS = { serverUrl: "http://localhost:4747", token: "" };
-const ALARM = "slovo-sync";
+const ALARM = "kotiko-sync";
+// The sync alarm's name before the rename; cleared on update. Remove in the next release.
+const OLD_ALARM = "slovo-sync"; // legacy-name-ok
 // Inside Chrome's 30 s limit for a fetch in a service worker.
 const ADD_TIMEOUT_MS = 28_000;
 
@@ -104,7 +106,8 @@ function ensureAlarm() {
 }
 ensureAlarm();
 
-ext.runtime.onInstalled.addListener(() => {
+ext.runtime.onInstalled.addListener((details) => {
+  if (details?.reason === "update") Promise.resolve(ext.alarms.clear(OLD_ALARM)).catch(() => {});
   ensureAlarm();
   sync.request({ reason: "installed" });
 });

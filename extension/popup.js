@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
 const ext = globalThis.browser ?? globalThis.chrome;
@@ -40,7 +40,7 @@ function syncErrorText(err, serverUrl) {
       return d.reason === "timeout"
         ? `${serverUrl} didn't answer in time. Is the server running?`
         : `Can't reach ${serverUrl}. Is the server running?`;
-    case "not_mira_server":
+    case "not_kotiko_server":
       return `${serverUrl} answered, but not with a word list. Check the server address.`;
     case "internal":
       return d.error || `The server answered ${d.status ?? "with an error"}.`;

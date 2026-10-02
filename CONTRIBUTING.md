@@ -4,10 +4,6 @@ Kotiko swaps words on web pages, in your own language, for the words you're lear
 other language. It's
 a free, open-source project from ScriptKittyOS, and contributions are welcome.
 
-> The code still uses the project's old name, Slovo, in places (module names, paths), and
-> the source headers still say Kotiko. The rename to Kotiko is
-> [slice 04](slices/04-rename-to-kotiko/SPEC.md).
-
 ## Where decisions live
 
 The roadmap is in [`slices/`](slices/README.md): one folder per piece of work, each with a
@@ -45,6 +41,9 @@ the server.
   is what ships, so store reviewers can read it as is.
 - **No user text in logs** above debug level: no words, no page content, no keys.
 - **No external network in tests.** Tests serve their own pages and fake servers.
+- **One name.** `node scripts/check-old-name.mjs` (run in CI) fails on the project's names
+  from before Kotiko outside history, research and the code that moves old data; mark a
+  line that must name them with a `legacy-name-ok` comment.
 
 ## Commits and pull requests
 

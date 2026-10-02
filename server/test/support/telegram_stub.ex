@@ -1,7 +1,7 @@
-# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule Slovo.TelegramStub do
+defmodule Kotiko.TelegramStub do
   @moduledoc """
   Req.Test stand-in for the Telegram Bot API. Each call is reported to the test process
   as `{:telegram, method, params}` and answered with `ok: true`.
@@ -10,7 +10,7 @@ defmodule Slovo.TelegramStub do
   def stub(results \\ %{}) do
     test = self()
 
-    Req.Test.stub(Slovo.Telegram, fn conn ->
+    Req.Test.stub(Kotiko.Telegram, fn conn ->
       method = List.last(conn.path_info)
       {:ok, raw, conn} = Plug.Conn.read_body(conn)
       send(test, {:telegram, method, Jason.decode!(raw)})

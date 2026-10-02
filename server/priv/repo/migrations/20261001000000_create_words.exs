@@ -1,7 +1,7 @@
-# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 # SPDX-License-Identifier: Apache-2.0
 
-defmodule Slovo.Repo.Migrations.CreateWords do
+defmodule Kotiko.Repo.Migrations.CreateWords do
   use Ecto.Migration
 
   def change do

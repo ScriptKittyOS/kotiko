@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Mira contributors
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 # SPDX-License-Identifier: Apache-2.0
-# Loads .env and starts the server (API + Telegram bot).
+# Loads .env and starts the Kotiko server (API + Telegram bot).
 #
 #   ./run.sh            fetch dependencies if mix.lock changed, compile, run
 #   ./run.sh --compile  the same without running (install-service.sh uses it)
