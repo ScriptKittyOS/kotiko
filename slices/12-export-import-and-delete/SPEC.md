@@ -101,14 +101,17 @@ so it diffs well.
 
 - `words` holds every word that is not deleted, in every status, with every field
   slice 07 defines (ids, timestamps, status, origin, source text, `base_lang`, `gloss`,
-  forms). Tombstones are left out. A bilingual learner's two records for 犬 (glossed
+  forms, `romanization`, `native_vocalized`, and the base-side `pronunciation`,
+  `pronunciation_careful` and `pronunciation_source`, null when empty). Tombstones are left out. A bilingual learner's two records for 犬 (glossed
   "perro" for `es` and "dog" for `en`) are two entries, exactly as stored. Words whose
   `base_lang` is no longer one of the learner's bases are exported too.
 - `settings` and `stats` are included by default with a checkbox each ("Include
   settings", "Include learning stats"). Secrets (API keys, server token) are never
   included; slice 11 keeps them out of reach of this code entirely.
 - `schemaVersion` follows `spec/export.schema.json`, which this slice adds to slice 09's
-  `spec/` folder so the extension and the server validate the same document. A newer
+  `spec/` folder so the extension and the server validate the same document. Its `words`
+  items are `spec/word.schema.json` (07), so version 2 includes the pronunciation fields;
+  they are optional there, and a version 2 file without them reads them as null. A newer
   Kotiko reads every older version; an older Kotiko refuses a newer file with
   "This backup was made by a newer version of Kotiko. Update Kotiko, then try again."
 - **Version 1** is the shape before base languages (slice 50): words with `english` and
@@ -118,7 +121,9 @@ so it diffs well.
   If the learner's bases don't include `en`, the preview says "These words are for pages
   in English, which isn't one of your languages. Add English to your languages?" with
   [Add English] [Import anyway] (imported words are kept and don't swap until `en` is a
-  base; slice 50 section 2).
+  base; slice 50 section 2). Version 1 words keep their `romanization` as it was (often a
+  respelling such as "pazhaluysta", 07 open question 6) and get null pronunciation
+  fields.
 
 ### 3. Spreadsheet (CSV)
 
@@ -130,14 +135,18 @@ comma, quote or newline.
 Columns, in this order. One row per word record, so a bilingual learner gets one row
 per base for the same target word. The header row is localized: each column's header
 is the `export_csv_col_<id>` message in the interface language (slice 50), so a Spanish
-learner sees `palabra, romanización, significado, formas, idioma, código_idioma,
-idioma_base, código_base, nota, estado, agregada, id`. Slice 13's CSV import recognises
+learner sees `palabra, palabra_con_marcas, pronunciación, pronunciación_lenta,
+romanización, significado, formas, idioma, código_idioma, idioma_base, código_base, nota,
+estado, agregada, origen_pronunciación, id`. Slice 13's CSV import recognises
 the headers of every shipped locale and the stable ids below.
 
 | Column (stable id) | Content |
 |---|---|
 | `native` | The word |
-| `romanization` | Empty when none |
+| `native_vocalized` | The word with its stress or vowel marks (пожа́луйста); empty when none |
+| `pronunciation` | How to say it, written for this record's base language (07 section 7: pa-ZHAL-sta); empty when none |
+| `pronunciation_careful` | The slow, careful form (pa-ZHA-lu-sta); empty when none |
+| `romanization` | The standard Latin spelling (pozhaluysta); empty when none |
 | `gloss` | Main meaning, in the base language |
 | `forms` | Base-language forms joined with ` | ` (perro \| perros; dog \| dogs) |
 | `language` | Target language's display name in the interface language |
@@ -147,6 +156,7 @@ the headers of every shipped locale and the stable ids below.
 | `note` | In the base language |
 | `status` | Slice 07's values (`active`, `paused`, and any slice 35 adds) |
 | `added` | `YYYY-MM-DD` in local time (ISO, not the locale's date format, so spreadsheets sort it) |
+| `pronunciation_source` | `model` or `user` (07), empty with no pronunciation; kept on re-import so a model pronunciation keeps its "AI-generated" label |
 | `id` | UUID, last so it stays out of the way |
 
 **Formula injection.** A cell that starts with `=`, `+`, `-`, `@`, a tab or a carriage
@@ -173,15 +183,22 @@ verify against the current Anki manual):
 
 | Field | Content |
 |---|---|
-| Front | `native`, then ` (romanization)` when present |
+| Front | `native_vocalized` (else `native`), then ` (romanization)` when present, then ` · pronunciation` and ` · Slowly: careful` (19's `popover_careful` in the interface language) when present: "пожа́луйста (pozhaluysta) · pa-ZHAL-sta · Slowly: pa-ZHA-lu-sta" |
 | Back | `gloss` (in the record's base language), then ` - note` when present |
 | Language | Target language's display name in the interface language |
 | Deck | `Kotiko::<Language>`, so each language gets a subdeck; when the export holds more than one base, `Kotiko::<Base language>::<Language>` (`Kotiko::español::japonés`, `Kotiko::English::Japanese`), so a bilingual learner drills each base separately |
 | Tags | `kotiko lang::<code> base::<base tag>` |
 | GUID | `kotiko-<word id>`, so re-importing an updated export updates the same notes instead of duplicating them |
 
-One note per word record: 犬 for a Spanish reader is Front "犬 (inu)", Back "perro";
-for an English reader, Back "dog". The stock note type's name is localized by Anki's own
+One note per word record: 犬 for a Spanish reader is Front "犬 (inu) · i-nu", Back
+"perro"; for an English reader, Front "犬 (inu) · ee-noo", Back "dog".
+
+**Pronunciation on the Front, not the Back.** The note type makes a reversed card too,
+whose question is the Back. A pronunciation on the Back would read the answer aloud on
+that card ("perro · pa-ZHAL-sta" asking for пожалуйста). On the Front it is part of the
+answer on the reversed card, and on the forward card it says how to say the word without
+giving away its meaning, as in the popover's Reveal mode (35), where pronunciation stays
+visible before revealing. The stock note type's name is localized by Anki's own
 interface language ("Basic (and reversed card)" in English Anki), so the dialog has
 "My Anki is in: [English ▾]", defaulting to the interface language, and writes that
 locale's name of the stock note type in `#notetype`, from a table in
@@ -199,7 +216,9 @@ interface language, "In Anki: File, Import, choose this file." A link to the doc
 20,000 words (the vocabulary cap from slice 09).
 
 1. **Parse and check** in the extension page: `format`, `schemaVersion`, then each word
-   through slice 09's validator. Invalid words are listed, not fatal.
+   through slice 09's validator. Invalid words are listed, not fatal; an invalid
+   pronunciation is dropped from its word (09's `dropped_fields`) and counted in the
+   preview, and the word is kept. `pronunciation_source` is restored as saved.
 2. **Preview**, computed against the local store without writing:
 
    ```
@@ -228,6 +247,11 @@ target):
   "Also restore words you deleted" is ticked (default on for a full restore into an empty
   store, off otherwise).
 - Otherwise: insert with the file's id.
+
+Words restored without a pronunciation, in a base with a respelling key (a version 1
+backup), get one through slice 13's pronunciation follow-up (09's `respell` request), shown
+in the preview as a ticked option: "[x] Add pronunciations to 290 words (about 15
+lookups)".
 
 **Undo.** The result line says "Restored 305 words. Undo" for 24 hours. Undo deletes the
 words this import created and puts back the previous versions of merged words, kept in
@@ -323,7 +347,14 @@ up", defaults on. No system notifications.
       犬 / dog / en), and the Anki file puts them in `Kotiko::español::japonés` and
       `Kotiko::English::Japanese`.
 - [ ] With the interface in Spanish, the CSV header row is Spanish, and slice 13's
-      importer reads that CSV back with no column mapping.
+      importer reads that CSV back with no column mapping, keeping `pronunciation`,
+      `pronunciation_careful`, `native_vocalized`, `romanization` and
+      `pronunciation_source` as exported.
+- [ ] JSON export and import round-trip every pronunciation field and
+      `pronunciation_source` byte for byte; a backup word with "PA-ZHAL-STA" is restored
+      with `pronunciation: null` and counted in the preview.
+- [ ] The Anki Front for a base-`en` пожалуйста reads "пожа́луйста (pozhaluysta) ·
+      pa-ZHAL-sta · Slowly: pa-ZHA-lu-sta", and the Back holds no pronunciation.
 - [ ] Importing the same backup twice reports everything as "already identical" the
       second time and creates nothing.
 - [ ] A word edited locally after the backup keeps the edit after importing the backup
@@ -352,7 +383,8 @@ Uses slice [02](../02-test-harness-and-ci/SPEC.md)'s harness.
 - **ExUnit**: export streaming and content; a backup restored through the batch route
   (shared fixtures with the JS tests); delete-all with and without confirm; `reset_epoch`; body limit and auth
   order; the `reset` release command in a temp data directory.
-- **Shared fixtures** in `spec/fixtures/export/`: a multi-script backup, a version 1
+- **Shared fixtures** in `spec/fixtures/export/`: a multi-script backup with
+  pronunciations from both sources, a version 1
   backup with `english` fields, a bilingual (es and en bases) backup, a newer-version
   backup, a backup with invalid words; CSV and Anki golden files with English and
   Spanish headers.

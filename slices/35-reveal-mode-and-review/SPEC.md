@@ -5,7 +5,7 @@
 | **Status** | Proposed |
 | **Priority** | P1 (soon after release) |
 | **Size** | M (about a week) |
-| **Depends on** | [19-word-popover](../19-word-popover/SPEC.md); uses stable word IDs, `gloss`, `base_lang` and the reserved `well_known` status from [07](../07-word-model-v2/SPEC.md), and record groups from [50](../50-ui-localization-and-base-language/SPEC.md) |
+| **Depends on** | [19-word-popover](../19-word-popover/SPEC.md); uses stable word IDs, `gloss`, `base_lang`, the pronunciation fields and `romanization` (section 7) and the reserved `well_known` status from [07](../07-word-model-v2/SPEC.md); the speak button from [34](../34-pronunciation-audio/SPEC.md); and record groups from [50](../50-ui-localization-and-base-language/SPEC.md) |
 | **Unblocks** | [46-local-stats-and-recap](../46-local-stats-and-recap/SPEC.md) (shares the local signal store) |
 | **Sources** | [05 S26, S28, S29, open questions 2 and 5, wireframe 3.2](../../docs/research/05-learner-ux.md), [01 S20, open question 5](../../docs/research/01-language-mixing.md) |
 
@@ -50,6 +50,8 @@ already provides the spacing for free by showing words across pages and days.
   until I get it.
 - As a learner who has known "gracias" for months, it stops drawing my eye but stays in the page.
 - As a learner who prefers known words gone, I set well-known words to stop swapping.
+- As a learner practising reading Cyrillic, I hide the pronunciation and romanization until
+  I reveal, so I have to sound out "колесо" myself first.
 
 ## Specification
 
@@ -57,12 +59,17 @@ already provides the spacing for free by showing words across pages and days.
 
 The meaning shown is the `gloss` of the record that was swapped, so it is always in the
 language of the text the word replaced; the language name and buttons are in the interface
-language (`KotikoI18n.t()`, 50). Normal mode (Reveal off), English page and interface, then
-Spanish page and interface:
+language (`KotikoI18n.t()`, 50). The top lines are 19's pronunciation block (section 1a): the
+word with its stress mark and the speak button (34), the `pronunciation` of the shown
+record (written for its base language, tone digits raised), the careful form when there is
+one, then the `romanization` with the source label. Normal mode (Reveal off), English page
+and interface, then Spanish page and interface:
 
 ```
 +----------------------------------------+   +----------------------------------------+
-| 谢谢   xièxie                [speaker] |   | 谢谢   xièxie                [altavoz] |
+| 谢谢                         [speaker] |   | 谢谢                         [altavoz] |
+| shyeh⁴-shyeh                           |   | shie⁴-shie                             |
+| xièxie · AI-generated                  |   | xièxie · Generado por IA               |
 | Mandarin                               |   | chino mandarín                         |
 | thanks                                 |   | gracias                                |
 | Also: gracias · спасибо                |   | También: thank you · спасибо           |
@@ -71,20 +78,38 @@ Spanish page and interface:
 +----------------------------------------+   +----------------------------------------+
 ```
 
-Reveal mode, before revealing:
+Reveal mode, before revealing, with the default settings:
 
 ```
 +----------------------------------------+   +----------------------------------------+
-| 谢谢   xièxie                [speaker] |   | 谢谢   xièxie                [altavoz] |
+| 谢谢                         [speaker] |   | 谢谢                         [altavoz] |
+| shyeh⁴-shyeh                           |   | shie⁴-shie                             |
+| xièxie · AI-generated                  |   | xièxie · Generado por IA               |
 | Mandarin                               |   | chino mandarín                         |
 | [ Show meaning ]                       |   | [ Ver significado ]                    |
 +----------------------------------------+   +----------------------------------------+
 ```
 
 After "Show meaning": the gloss and "Also" lines appear, focus moves to "Knew it", and the
-answer buttons get primary emphasis. Romanization stays visible in both states; it is
-pronunciation, not meaning. A setting "Hide pronunciation until I reveal" covers learners who
-want a harder test. Keyboard: Space or Enter on "Show meaning"; then K for "Knew it" and D for
+answer buttons get primary emphasis.
+
+**What stays visible before revealing.** Pronunciation and romanization say how a word is
+said and written, not what it means, so by default both stay visible in both states. Two
+separate settings make the test harder, because learners hide different things: someone
+practising reading a script hides both; a Mandarin learner who reads pinyin fluently but
+wants to recall tones hides the pronunciation and keeps the pinyin.
+
+| Before revealing | "Hide pronunciation until I reveal" (`revealHidesPronunciation`) | "Hide romanization until I reveal" (`revealHidesRomanization`) |
+|---|---|---|
+| Line 1 | `native` without its stress mark (the mark gives the stress away) | unchanged |
+| `pronunciation`, `pronunciation_careful` and the source label | hidden | unchanged; the label moves to its own line when the romanization is hidden |
+| `romanization` | unchanged | hidden |
+| Speak button | stays; the learner chooses to press it ("Speak words when I open them", 34, does not fire before revealing) | stays |
+
+"Show meaning" reveals everything at once: the hidden lines come back in 19's order, with
+the gloss. Hidden lines are not rendered (not just visually hidden), so they are not in the
+accessibility tree either. A word with no pronunciation (a base without a respelling key,
+or one 07's refresh hasn't reached) shows the same states without those lines. Keyboard: Space or Enter on "Show meaning"; then K for "Knew it" and D for
 "Didn't know" (19 owns key handling; 33 adds a global "reveal the word under the cursor"
 shortcut). Answer keys are not localized letters: K and D work in every interface language,
 and the buttons show them as hints. Screen readers: the gloss is not in the accessibility
@@ -159,7 +184,8 @@ user's own.
 
 ```ts
 revealMode: boolean;               // default false
-revealHidesPronunciation: boolean; // default false
+revealHidesPronunciation: boolean; // default false: hides pronunciation, careful form, stress mark, source label
+revealHidesRomanization: boolean;  // default false
 wellKnown: "keep" | "stop";        // default "keep"
 ```
 
@@ -172,6 +198,12 @@ Stored in slice 39's `s:display` group. The popup (20) shows Reveal mode as one 
       technology) until "Show meaning" is activated; on a Spanish page with base `es` the
       revealed gloss is the Spanish one ("perro" for "dog") and the buttons read "Ver
       significado", "Lo sabía", "No lo sabía" when the interface is Spanish.
+- [ ] Before revealing, with default settings, the stress-marked word, `pronunciation`,
+      careful form, `romanization` and source label are shown; with
+      `revealHidesPronunciation` on, line 1 is plain `native` and the pronunciation lines and
+      label are absent from the DOM while the romanization stays; with
+      `revealHidesRomanization` on, only the romanization is absent; "Show meaning" restores
+      every hidden line in 19's order.
 - [ ] With bases `en` and `es`, "Knew it" on 犬 on an English page updates both 犬 records'
       entries; marking it well known patches both records; with two Spanish senses of замок,
       an answer on the English record leaves both Spanish records alone.
@@ -187,8 +219,9 @@ Stored in slice 39's `s:display` group. The popup (20) shows Reveal mode as one 
 
 - **Unit (slice 02):** state transitions for the signal store with fake dates; weight mapping;
   debounce and per-view de-duplication.
-- **Playwright:** reveal flow with keyboard only; answer persistence across reload; class changes
-  on swapped words after answers.
+- **Playwright:** reveal flow with keyboard only; the four combinations of the two hide
+  settings on a Russian word (пожа́луйста) and a Mandarin word; answer persistence across
+  reload; class changes on swapped words after answers.
 - **Manual:** screen reader pass (NVDA, VoiceOver) of the hidden and revealed states with
   slice 27's checklist.
 

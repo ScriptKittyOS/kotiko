@@ -149,7 +149,11 @@ as UTF-8 and try again." Line endings `\r\n`, `\r`, `\n`. Text is NFC-normalized
 
 1. `.json`: if it has Kotiko's `schemaVersion`, hand to [12](../12-export-import-and-delete/SPEC.md);
    if it is an array of objects, map keys case-insensitively (`native|word|front|term`,
-   `gloss|meaning|back|translation|definition|english`, `romanization|reading|pronunciation`,
+   `gloss|meaning|back|translation|definition|english`,
+   `romanization|transliteration|translit|pinyin|romaji|jyutping` (to `romanization`),
+   `pronunciation|respelling` (to `pronunciation`), `pronunciation_careful|careful` (to
+   `pronunciation_careful`), `native_vocalized`, `pronunciation_source`, `reading` (to `romanization` when its values are in Latin
+   script; otherwise ignored until [36](../36-grammar-and-senses/SPEC.md) adds Reading),
    `lang|language`, `base_lang|base_language`, `note|notes`, plus the localized column
    names below); a key that is a language tag or name (`"es"`, `"en"`, `"Japanese"`) is
    that language's column (see Columns); otherwise `import_unreadable`.
@@ -158,6 +162,10 @@ as UTF-8 and try again." Line endings `\r\n`, `\r`, `\n`. Text is NFC-normalized
    `#tags column:`) are read and removed. With `#html:true`, field HTML is reduced to text
    (parsed in an inert `DOMParser` document, `textContent` only; `<br>` becomes "; ");
    `[sound:…]` and `{{c1::…}}` cloze markup are stripped (cloze keeps the answer text).
+   A Kotiko Anki export (tags start with `kotiko`, GUIDs are `kotiko-<uuid>`) is read with
+   [12](../12-export-import-and-delete/SPEC.md) section 4's layout: the Front's parts after
+   the word are the romanization in parentheses, then, each after ` · `, the pronunciation
+   and the careful form (after its "Slowly:" label in any shipped locale).
 3. **CSV / TSV:** by extension, or when more than half the non-empty lines contain the same
    count (≥ 2) of tabs, or of commas outside quotes, or of `；` (full-width semicolons, common
    in CJK spreadsheets). RFC 4180 quoting. A first row whose cells match known header names
@@ -168,9 +176,24 @@ as UTF-8 and try again." Line endings `\r\n`, `\r`, `\n`. Text is NFC-normalized
 4. **Line list:** everything else, one item per line.
 
 **Columns.** For tables, the review shows a mapping row above the table ("Column 1: Word ·
-Column 2: Meaning · Column 3: Ignore") with menus: Word, Meaning, Romanization, Note,
-Language, Ignore. A "Swap" button exchanges Word and Meaning in one click. Defaults come
-from the orientation rules below, applied to whole columns.
+Column 2: Meaning · Column 3: Ignore") with menus: Word, Meaning, Romanization,
+Pronunciation, Note, Language, Ignore. A "Swap" button exchanges Word and Meaning in one
+click. Defaults come from the orientation rules below, applied to whole columns.
+
+**Romanization or pronunciation.** The two are different fields
+([07](../07-word-model-v2/SPEC.md) section 7): a column headed "Pronunciation" (or
+`pronunciación`, the shipped locales' `export_csv_col_pronunciation`) maps to Pronunciation;
+"Romanization", "Transliteration", "Pinyin", "Romaji" and "Jyutping" (and their localized
+names) map to Romanization. An unheaded column of Latin text beside a non-Latin word
+defaults to Romanization, unless most of its values look like respellings (hyphenated
+syllables with one all-capital syllable, such as "spa-SEE-ba"), in which case it defaults
+to Pronunciation. A pronunciation from the learner's file is saved with
+`pronunciation_source: "user"` (07) after 09's pronunciation checks for the list's base
+(a Kotiko CSV's own `pronunciation_source` column, slice 12, is kept as exported instead);
+one that fails them (IPA, accent marks for stress, two capital syllables) is dropped with a
+row note, "Pronunciation not used: not in Kotiko's format. Kotiko will write one." ("No se
+usó la pronunciación: no está en el formato de Kotiko. Kotiko escribirá una."), and the row
+is treated as having none.
 
 **Orientation: which side is the word being learned.** Decided once per list (or per
 table), never per row and never by assuming the meaning is English. With `B` = the list's
@@ -203,7 +226,7 @@ A side detected as `B` is never saved as a word to learn in `B` (slice 09's
 | Pattern | Result |
 |---|---|
 | `native = gloss` (also `→`, ` — `, ` – `, ` - ` with spaces, `:` followed by a space, a tab, and the full-width `＝` and `：` with or without spaces) | split at the first separator; sides oriented by the rules above |
-| `native (romanization) = gloss` | romanization from the parentheses (`()` or full-width `（）`) after the native |
+| `native (romanization) = gloss` | romanization from the parentheses (`()` or full-width `（）`) after the native; when the text in parentheses has hyphenated syllables with one all-capital syllable and passes 09's pronunciation checks for the base ("спасибо (spa-SEE-ba) = thanks"), it is the pronunciation instead |
 | `gloss = native` | the same line reversed; the list's orientation decides, so "dog = perro" and "perro = dog" both work for a Spanish reader learning English once the list is oriented |
 | `gloss, gloss` on the meaning side (also `;`, `/`, `、`, `，`, `／`) | several forms of the meaning in the base language |
 | `… # note` or `… // note` | note, in the base language |
@@ -280,8 +303,8 @@ to the base, and so on).
 ```
 
 - Columns: checkbox, Word (native, `dir="auto"`), Meaning (gloss and forms in the list's
-  base, `dir="auto"`), Romanization (shown when any row has one), Language (only when rows
-  differ), Status. Column titles and statuses are in the interface language.
+  base, `dir="auto"`), Romanization (shown when any row has one), Pronunciation (shown when
+  any row has one), Language (only when rows differ), Status. Column titles and statuses are in the interface language.
 - Every cell is editable in place (Enter or blur commits). Editing a "Needs a meaning" row's
   meaning makes it Ready.
 - **Statuses** (icon plus words, [06 §4.2](../06-design-system/SPEC.md)):
@@ -334,6 +357,14 @@ to the base, and so on).
   “spaseeba” as спасибо. Add it?" so the learner sees the word Kotiko will add before it
   is added.
 - Results failing validation become "Problem: the lookup came back unclear" with the row kept.
+- **Pronunciations for rows that skip the lookup.** Looked-up rows get their pronunciation
+  from the lookup (09's output schema). Rows that already have a meaning but no
+  pronunciation, in a base with a respelling key, get one after saving through 09's
+  `respell` request, 20 words per request, under the same quota rules and as a background
+  job like 07 section 8's refresh. The footer shows it as a ticked option with its cost:
+  "Add pronunciations (about {k} lookups)" ("Agregar la pronunciación (unas {k}
+  consultas)"). Unticked, or when quota runs out, those words stay without a pronunciation
+  until the learner edits one in or re-adds the word; nothing else is held back.
 
 ### 6. Saving and the summary
 
@@ -416,6 +447,12 @@ lives in `storage.session` and is cleared after saving or cancelling.
 - [ ] Dropping an Anki "Notes in Plain Text" export with `#separator:tab`, `#html:true` and
       `#columns:` headers produces a correctly mapped table with HTML and `[sound:]` removed.
 - [ ] A CSV with a BOM, quoted commas and a header row maps columns from the header.
+- [ ] A CSV with headers `Word, Pinyin, Pronunciation, Meaning` maps Pinyin to
+      `romanization` and Pronunciation to `pronunciation`; the saved words have
+      `pronunciation_source: "user"`; a row whose pronunciation is IPA is saved with
+      `pronunciation: null` and the row note.
+- [ ] 45 rows with meanings and no pronunciation, with "Add pronunciations" ticked, make
+      exactly 3 `respell` requests after saving and fill only the pronunciation fields.
 - [ ] `well-known = conocido` and `bien-estar = wellbeing` are not split at the hyphen;
       `gato - cat` is; `10:30 = once` is not split at the colon.
 - [ ] Existing words show "Already in your list" (unticked) or "Adds {k} meanings" correctly
@@ -439,7 +476,11 @@ lives in `storage.session` and is cleared after saving or cancelling.
 - **Orientation:** a table of lists with expected orientation for each rule (headers,
   script, detected language with a stubbed `i18n.detectLanguage`, undecided).
 - **Integration:** batch lookup with a mock model returning good, partial, corrected and
-  invalid entries; quota exhaustion mid-run; idempotent retries.
+  invalid entries; quota exhaustion mid-run; idempotent retries; the `respell` follow-up
+  for rows with meanings.
+- **Unit:** column mapping for `pronunciation`, `romanization`, `pinyin`, `transliteration`
+  and Latin or kana `reading` headers; the respelling-shape test for unheaded columns and
+  for parentheses in one-line entries.
 - **End-to-end:** paste, drop and choose-file paths; popup handoff; review edits; summary and
   Undo; dashboard close mid-lookup.
 - **Manual:** real exports from Anki, Quizlet and a spreadsheet app.

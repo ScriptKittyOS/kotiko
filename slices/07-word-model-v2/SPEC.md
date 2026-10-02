@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
-| **Size** | M (about a week) |
+| **Size** | L (several weeks) |
 | **Depends on** | [02-test-harness-and-ci](../02-test-harness-and-ci/SPEC.md) |
 | **Unblocks** | [08](../08-language-tags/SPEC.md), [09](../09-shared-word-spec-and-prompt/SPEC.md), [11](../11-local-first-mode/SPEC.md), [12](../12-export-import-and-delete/SPEC.md), [13](../13-bulk-add/SPEC.md), [19](../19-word-popover/SPEC.md) (pronunciation fields), [21](../21-dashboard/SPEC.md), [24](../24-add-flow-safety/SPEC.md), [34](../34-pronunciation-audio/SPEC.md), [36](../36-grammar-and-senses/SPEC.md), [39](../39-multi-device-sync/SPEC.md), [41](../41-telegram-improvements/SPEC.md), [46](../46-local-stats-and-recap/SPEC.md), [48](../48-multi-user-and-classroom/SPEC.md), [49](../49-dictionary-verification/SPEC.md), [50](../50-ui-localization-and-base-language/SPEC.md) |
 | **Sources** | [DECISIONS 2026-10-02, pronunciation](../DECISIONS.md); [DECISIONS 2026-10-01, base language](../DECISIONS.md) and the record shape in [50 section 3](../50-ui-localization-and-base-language/SPEC.md#3-the-word-record-for-base-languages-decided-here-built-in-07); [06 F05, F06, F27, F29](../../docs/research/06-adversarial-qa.md); [02 C1, C6, D3, D6, G4, section 3](../../docs/research/02-linguistics.md); [04 S2, S4, S8, S15, S22](../../docs/research/04-architecture-release.md); [05 S7, S12, S21](../../docs/research/05-learner-ux.md) |
@@ -88,8 +88,8 @@ All of this is read from the code; F05, F06, F27 and F29 were reproduced by rese
   owns its rules.
 - The prompt text for pronunciation and the validator code: slice
   [09](../09-shared-word-spec-and-prompt/SPEC.md). This slice defines the fields, the
-  romanization schemes and the respelling conventions (section 7), and proposes golden-set
-  cases (section 9).
+  romanization schemes and the respelling conventions (section 7); the golden-set cases it
+  first proposed now live in 09 section 6.
 - Showing pronunciation: [19](../19-word-popover/SPEC.md); audio:
   [34](../34-pronunciation-audio/SPEC.md); checking it against dictionaries:
   [49](../49-dictionary-verification/SPEC.md).
@@ -341,7 +341,8 @@ Every route that returns a `Word` returns all of section 1's fields, including
 `native_vocalized` and the three pronunciation fields (null when empty). `POST` (structured
 form), `POST /batch` and `PATCH` accept them, with section 7's limits; an invalid
 pronunciation in a structured add is dropped (the word is saved without it) and listed in
-the response's `rejected` with `reason: "bad_pronunciation"`.
+the response's `dropped_fields` with `reason: "bad_pronunciation"` (09 section 4; `rejected`
+is only for words that were not saved).
 
 **Ids in paths** must match `^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`;
 anything else is 404 before touching the database (fixes F27 for v1).
@@ -602,48 +603,9 @@ Words saved before this change have a `romanization`, often a spelling translite
 
 ### 9. Cases for slice 09's golden set
 
-Proposed here for 09 to adopt (09 owns `spec/eval/golden.jsonl`). Each case is a bare
-word or a short request in add mode, with `recent` set to the target language. The
-expected strings are reference answers; the notes list what else to accept and what the
-case exists to catch.
-
-| Id | Input | Base | `romanization` | `pronunciation` | `pronunciation_careful` | Notes |
-|---|---|---|---|---|---|---|
-| `en-ru-pozhaluysta` | пожалуйста | en | pozhaluysta | pa-ZHAL-sta | pa-ZHA-lu-sta | `native_vocalized` пожа́луйста; careful may be pa-ZHA-luy-sta; catches "pazhaluysta" |
-| `es-ru-pozhaluysta` | пожалуйста | es | pozhaluysta | pa-ZHAL-sta | pa-ZHA-lu-sta | same letters in both keys |
-| `en-ru-spasibo` | спасибо | en | spasibo | spa-SEE-ba | null | спаси́бо; final о as a |
-| `es-ru-spasibo` | спасибо | es | spasibo | spa-SI-ba | null | |
-| `en-ru-khorosho` | хорошо | en | khorosho | kha-ra-SHO | null | хорошо́; no o in an unstressed syllable |
-| `es-ru-khorosho` | хорошо | es | khorosho | ja-ra-SHO | null | Spanish j for х |
-| `en-ru-moloko` | молоко | en | moloko | ma-la-KO | null | молоко́; romanization never "malako" |
-| `es-ru-moloko` | молоко | es | moloko | ma-la-KO | null | |
-| `en-ru-zdravstvuyte` | здравствуйте | en | zdravstvuyte | ZDRAST-vuy-tyeh | null | здра́вствуйте; first в silent; accept -tye; reject ZDRAS-tye (casual) |
-| `es-ru-zdravstvuyte` | здравствуйте | es | zdravstvuyte | ZDRAST-vui-tie | null | |
-| `en-zh-xiexie` | 谢谢 | en | xièxie | shyeh4-shyeh | null | no capitals; neutral second syllable has no digit |
-| `es-zh-xiexie` | 谢谢 | es | xièxie | shie4-shie | null | |
-| `en-zh-nihao` | 你好 | en | nǐ hǎo | nee2-how3 | null | sandhi in the respelling only; accept nǐhǎo |
-| `es-zh-nihao` | 你好 | es | nǐ hǎo | ni2-jao3 | null | Spanish j for pinyin h |
-| `en-ja-arigato` | ありがとう | en | arigatō | a-ree-ga-toh | null | no capitals; accept arigatou |
-| `es-ja-arigato` | ありがとう | es | arigatō | a-ri-ga-too | null | |
-| `en-ja-suki` | 好き | en | suki | skee | soo-kee | `reading` すき; devoiced u |
-| `en-ar-shukran` | شكرا | en | shukran | SHUK-ran | null | `native_vocalized` شُكْرًا; accept SHOO-kran |
-| `es-ar-shukran` | شكرا | es | shukran | SHUK-ran | null | |
-| `en-ar-marhaban` | مرحبا | en | marhaban | MAR-ha-ban | null | |
-| `es-ar-marhaban` | مرحبا | es | marhaban | MAR-ja-ban | null | never h for ح in the Spanish key |
-| `en-es-gracias` | gracias | en | null | GRA-syas | null | accept GRA-thyas (`es-ES`) |
-| `en-es-zapato` | shoe in spanish | en | null | sa-PA-to | null | with variant `es-ES`: tha-PA-to |
-| `en-es-telefono` | telephone in spanish | en | null | te-LE-fo-no | null | stress from the written accent |
-| `es-en-hello` | hello | es | null | je-LOU | null | Spanish j for English h |
-| `es-en-house` | house | es | null | jaus | null | one syllable, lowercase |
-| `es-en-teacher` | teacher | es | null | TI-cher | null | |
-
-Assertions these cases need, which 09's runner would add: `romanization_any` (null
-allowed), `pronunciation_any` and `careful_any` (with null meaning "must be null"),
-`stress_syllable` (the 1-based position of the capitalised syllable per word in the careful
-form, or the everyday one when there is none), `no_capitals`, `tones` (the digit
-sequence, "4," for 谢谢), `native_vocalized_any` and `reading_any`. Stress and vowel
-reduction are reported as their own scores per target and base, so a model that gets the
-letters right but the stress wrong is visible.
+Moved to [09](../09-shared-word-spec-and-prompt/SPEC.md) section 6 ("Pronunciation cases"
+and "Respell cases"), which owns `spec/eval/golden.jsonl`, the runner's pronunciation
+assertions and the separate stress and vowel-reduction scores.
 
 ## Acceptance criteria
 
@@ -714,8 +676,8 @@ letters right but the stress wrong is visible.
 - **Refresh job** (ExUnit with `Req.Test` and a controllable clock; Node with the mock
   provider of slice 11): batching, grouping by word, stale writes, quota stop and resume,
   pause and resume through the API, two failed attempts, `done` persisted across restarts.
-- **Golden evaluation** (09): section 9's cases, scored per target and base for letters,
-  stress and vowel reduction.
+- **Golden evaluation** (09 section 6): the pronunciation and respell cases, scored per
+  target and base for letters, stress and vowel reduction.
 
 ## Rollout and migration
 

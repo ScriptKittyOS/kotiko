@@ -5,7 +5,7 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
-| **Depends on** | [02-test-harness-and-ci](../02-test-harness-and-ci/SPEC.md), [03-oss-foundations](../03-oss-foundations/SPEC.md); the release checklist checks [50](../50-ui-localization-and-base-language/SPEC.md)'s launch locales |
+| **Depends on** | [02-test-harness-and-ci](../02-test-harness-and-ci/SPEC.md), [03-oss-foundations](../03-oss-foundations/SPEC.md); the release checklist checks [50](../50-ui-localization-and-base-language/SPEC.md)'s launch locales and [34](../34-pronunciation-audio/SPEC.md)'s manual voice check |
 | **Unblocks** | The public release; [40](../40-server-packaging-docker/SPEC.md) (image publishing hooks in here), [44](../44-docs-site/SPEC.md) |
 | **Sources** | [04 section 3 "Release plan", S30, S32](../../docs/research/04-architecture-release.md); [03 E6, E7](../../docs/research/03-browser-extension.md); [DECISIONS: store publisher and contact](../DECISIONS.md) |
 
@@ -227,6 +227,20 @@ language from the same two files ([50](../50-ui-localization-and-base-language/S
 **Release checklist** (`docs/stores.md`), ticked in the release PR: the `i18n` CI job is
 green (both launch locales complete); new strings since the last release were reviewed in
 Spanish by a native speaker; the store listings in English and Spanish match the release.
+Two more boxes for the first public release, and again for any release that changes the
+popover (19), audio (34), the respelling keys or the pronunciation prompt (07, 09):
+
+- **Voice check** ([34](../34-pronunciation-audio/SPEC.md)'s manual test): the speak button
+  tried on Chrome and Firefox on Windows, macOS and Linux with French, Mandarin, Japanese,
+  Arabic, Russian, Thai and (with a Spanish base) English words; for the Russian
+  pronunciation cases in [09](../09-shared-word-spec-and-prompt/SPEC.md) section 6, whether
+  the voice's stress agrees with the popover's respelling. The results table (platform,
+  browser, voice, word, agrees or not) goes in the release PR, and each disagreement is
+  filed against the respelling or the engine before the box is ticked.
+- **Spanish respelling key**: `spec/lang/es/respelling.json` signed off by readers from
+  Spain, Mexico, the Caribbean and the Southern Cone
+  ([50](../50-ui-localization-and-base-language/SPEC.md) open question 5); until then the
+  docs (44) mark the key "beta" and the box says so.
 
 ### 9. Compatibility policy
 
@@ -320,6 +334,8 @@ question 3 confirms the tag-signing method.
 - [ ] `manifest.json`, `mix.exs` and the release-please manifest show the same version
       after a release PR merges.
 - [ ] A `dry_run` dispatch on a branch builds artifacts and publishes nothing.
+- [ ] `docs/stores.md`'s checklist has the voice-check and Spanish-key boxes, and the first
+      public release PR carries the voice-check results table.
 
 ## Test plan
 

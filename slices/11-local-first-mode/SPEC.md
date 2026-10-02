@@ -155,7 +155,7 @@ which sits below the `<all_urls>` warning Kotiko already carries.
 | `words` | `id` (UUIDv7, slice 07) | `natural` = `[lang, native_key, sense, base_lang]` unique where `deleted_at` is null (enforced in code, see below); `group` = `[lang, native_key]` (a target word's records across bases, for slices 21 and 19); `updated_at`; `lang`; `base_lang` | The slice 07 word record exactly as `spec/word.schema.json` defines it, plus `serverId` (legacy integer alias, optional) |
 | `outbox` | auto-increment | none | Edits and deletes waiting for a server (section 5) |
 | `secrets` | `id` | none | `{id: "provider:openrouter", key}`, `{id: "server", token}` |
-| `meta` | `key` | none | `schema`, `migratedFrom`, `lastExportAt`, `projectionVersion` |
+| `meta` | `key` | none | `schema`, `migratedFrom`, `lastExportAt`, `projectionVersion`, `jobs.pronunciationRefresh` (slice 07 section 8's one-time job state) |
 
 IndexedDB unique indexes can't be partial, so tombstoned rows would collide with a word
 re-added later. The store therefore keeps the unique constraint in code: every write of
@@ -180,7 +180,9 @@ change to `s:ui.baseLangs` also triggers it:
   (slice 35 keeps swapping well-known words, without the underline), in the compact shape
   the matcher needs (slices 14, 18 and 19 define the fields; at minimum `id`, `lang`,
   `native`, `base_lang`, `gloss`, `sense`, `status`, `romanization`, `forms` with their
-  flags, `note`, `created_at`). Words whose `base_lang` is not one of the learner's
+  flags, `note`, `created_at`, and for the popover (19), reveal mode (35) and reading aids
+  (37) slice 07's `native_vocalized`, `pronunciation`, `pronunciation_careful` and
+  `pronunciation_source`, each omitted when null to keep the key small). Words whose `base_lang` is not one of the learner's
   current bases are left out (they are kept in the store; slice 50 section 2, "Removing
   a base"), so content scripts only build indexes they can use. `language` is not
   projected: content scripts name languages with `Intl.DisplayNames` in the interface
@@ -329,6 +331,13 @@ What this slice adds to that flow:
 - **One store transaction per job.** Slice 24 describes the local save as one
   `storage.local.set`; with this slice it is one IndexedDB transaction keyed by the job id,
   which ignores a second application of the same job.
+- **Pronunciation refresh.** When `lookup.kind` is `provider`, the background also runs
+  slice 07 section 8's one-time job (and the `respell` follow-ups of slices 12, 13 and 24)
+  through the same slice 10 client, one request at a time and only while no add job is
+  waiting or running, so the learner's adds always go first. Its writes go through the
+  store's `update` with `if_updated_at` and cause one projection write per batch. With
+  `lookup.kind` `server`, the server runs it and the results arrive by sync; with `none`,
+  the job waits until a provider is set up.
 
 **Prompt and validation from `spec/`.** Slice 09's `spec/tools/sync-extension.mjs` copies
 the runtime files into `extension/spec/` and generates `extension/spec/spec.js`

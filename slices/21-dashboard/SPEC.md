@@ -7,7 +7,7 @@
 | **Size** | L (several weeks) |
 | **Depends on** | [06-design-system](../06-design-system/SPEC.md), [07-word-model-v2](../07-word-model-v2/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base-language settings, `t()`); uses [11](../11-local-first-mode/SPEC.md), [24](../24-add-flow-safety/SPEC.md), [25](../25-plain-language-errors/SPEC.md) |
 | **Unblocks** | [13-bulk-add](../13-bulk-add/SPEC.md), settings for [11](../11-local-first-mode/SPEC.md), [12](../12-export-import-and-delete/SPEC.md), [31](../31-density-and-amount/SPEC.md), [32](../32-page-coverage-and-celebrations/SPEC.md), [33](../33-context-menu-and-shortcuts/SPEC.md), [35](../35-reveal-mode-and-review/SPEC.md), [37](../37-language-colors-and-reading-aids/SPEC.md) |
-| **Sources** | [DECISIONS 2026-10-01, base language](../DECISIONS.md); Maintainer ("a full dashboard with a live view of all words"; "not like the other dashboards"; fewest steps); [DECISIONS](../DECISIONS.md); [05 S20, S21, S12, §3.3, §3.5](../../docs/research/05-learner-ux.md); [02 G4](../../docs/research/02-linguistics.md); [01 S23](../../docs/research/01-language-mixing.md) |
+| **Sources** | [DECISIONS 2026-10-02, pronunciation](../DECISIONS.md); [DECISIONS 2026-10-01, base language](../DECISIONS.md); Maintainer ("a full dashboard with a live view of all words"; "not like the other dashboards"; fewest steps); [DECISIONS](../DECISIONS.md); [05 S20, S21, S12, §3.3, §3.5](../../docs/research/05-learner-ux.md); [02 G4](../../docs/research/02-linguistics.md); [01 S23](../../docs/research/01-language-mixing.md) |
 
 ## Problem
 
@@ -16,7 +16,8 @@ count (`extension/popup.js:128-129`) and per-language totals (`popup.js:37-47`);
 delete is the add result's Undo (`popup.js:166-173`); there is no edit at all, and the server
 has no update route (`server/lib/slovo/router.ex`, GET, POST and DELETE only;
 [02 G4](../../docs/research/02-linguistics.md)). Telegram's `/list` shows the 15 newest.
-Fixing a wrong romanization means deleting and re-adding, which may repeat the mistake. The
+Fixing a wrong romanization or pronunciation means deleting and re-adding, which may repeat
+the mistake. The
 maintainer asked for a full dashboard with a live view of every word, and for it to feel
 original rather than like another admin template.
 
@@ -57,6 +58,9 @@ and there is no place to change Kotiko's interface language. The base-language d
   I use (with or without tone marks).
 - As a learner who sees a wrong romanization on a page, I want to click Edit, fix it, and
   have pages update.
+- As a learner whose teacher says the stress in "pa-ZHAL-sta" is right but Kotiko's careful
+  form isn't, I want to fix the pronunciation, see that it is now my own, and never have a
+  refresh undo it.
 - As a learner who imported 300 words, I want to pause the 40 I don't want yet in a few
   clicks.
 - As a learner who added a word on my phone via Telegram, I want to see it appear without
@@ -157,6 +161,26 @@ What makes it Kotiko rather than an admin template ([06 §1](../06-design-system
   hasn't reached the server).
 - **Pending adds** from `addJobs` ([24](../24-add-flow-safety/SPEC.md)) sit at the top as rows
   with their job line and actions.
+- **Pronunciations stay in the inspector.** They are base side (one per record), so the list
+  shows the romanization beside the native and leaves pronunciations to the inspector and
+  the popover.
+- **The pronunciation refresh line.** While [07](../07-word-model-v2/SPEC.md) section 8's
+  one-time job is not `done`, one quiet line sits above the list (below pending adds), read
+  from the job's state (the extension's `meta` store, or `GET
+  /api/v1/jobs/pronunciation-refresh` in server mode) and updated live:
+
+| Job state | Line (en / es) | Action |
+|---|---|---|
+| `running` | "Adding pronunciations to your saved words: {done} of {total}." / "Agregando la pronunciación a tus palabras guardadas: {done} de {total}." | "Pause" / "Pausar" |
+| `waiting` (quota) | "Waiting for free lookups; continues at {time}." / "Esperando consultas gratuitas; sigue a las {time}." | "Pause" |
+| `waiting` (no provider) | "Pronunciations will be added once a lookup service is set up." / "La pronunciación se agregará cuando configures un servicio de consultas." | "Set up" / "Configurar" |
+| `paused` | "Adding pronunciations is paused: {done} of {total}." / "Agregar la pronunciación está en pausa: {done} de {total}." | "Resume" / "Reanudar" |
+| `done` | nothing; the line goes away | |
+
+  Pause and Resume call the job's `pause` and `resume` (`POST
+  /api/v1/jobs/pronunciation-refresh` in server mode). The numbers are a `role="status"`
+  region announced at most once a minute. `{time}` is formatted with
+  `Intl.DateTimeFormat(uiLocale, {timeStyle: "short"})`.
 - **Sort:** Newest (default), Oldest, Native A-Z (collated with `Intl.Collator(lang)`),
   Meaning A-Z (the primary base's gloss, collated with `Intl.Collator(primaryBase)`),
   Language (by name in the interface language, `Intl.Collator(uiLocale)`).
@@ -179,7 +203,8 @@ What makes it Kotiko rather than an admin template ([06 §1](../06-design-system
 
 - One field, focused with `/` (or by clicking), placeholder "Search {n} words".
 - Matches, as you type, against native, romanization, every gloss and form in every base,
-  and the note. Matching folds case (`toLocaleLowerCase` with the word's language for
+  each record's pronunciation (with hyphens and spaces removed, so "spaseeba" finds
+  spa-SEE-ba), and the note. Matching folds case (`toLocaleLowerCase` with the word's language for
   native and romanization, and with the record's `base_lang` for glosses and forms), strips diacritics and
   tone marks (NFKD, then remove combining marks), so "xiexie" finds "xièxie" and "cafe"
   finds "café" (and "nino" finds "niño"); it also matches Japanese kana against romanization
@@ -196,7 +221,7 @@ What makes it Kotiko rather than an admin template ([06 §1](../06-design-system
 ```
 ┌──────────────────────────────────────┐
 │                                   ×  │
-│  شكرا                                │  --t-specimen, editable in place
+│  شكرا                       (speak)  │  --t-specimen, editable in place; speak (34)
 │  shukran                             │  romanization, editable
 │  Arabic · العربية            Move ▾  │
 │  Kotiko shows شكرا where pages say     │
@@ -205,11 +230,15 @@ What makes it Kotiko rather than an admin template ([06 §1](../06-design-system
 │  On pages in English                 │  one block per base record (heading: base name)
 │  Meaning  [ thanks ]                 │  gloss
 │  [thanks ×] [thank you ×] [+ Add]    │  forms chip editor (forms in this base)
+│  Pronunciation  [ SHUK-ran       ]   │  pronunciation for this base (07 §7), editable
+│  Slowly         [                ]   │  pronunciation_careful, optional
+│  AI-generated · How to read this     │  source label (19 §1a) · this base's key (44)
 │  Note                                │
 │  [ Formal; “shukran jazeelan” = …  ] │  note (in this base)
 │  On pages in Spanish                 │  second base, if the learner has one
 │  Meaning  [ gracias ]                │
 │  [gracias ×] [+ Add]                 │
+│  Pronunciation  [ SHUK-ran       ]   │  the Spanish record's own respelling (es key)
 │  + Add a meaning in French           │  for a base with no record yet
 │  Swap on pages              [◉  ]    │  active / paused
 │ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄  │
@@ -228,8 +257,8 @@ What makes it Kotiko rather than an admin template ([06 §1](../06-design-system
   last change made on this page.
 - **Per-base blocks.** Each record in the group gets a block headed "On pages in {base}"
   ("En páginas en {base}") with its gloss, forms and note, edited independently: fixing
-  "dog" never changes "perro". Native, romanization, language and "Swap on pages" are the
-  group's and save to every record in it ([50 §3](../50-ui-localization-and-base-language/SPEC.md)).
+  "dog" never changes "perro". Native, romanization, the stress-marked form, language and
+  "Swap on pages" are the group's and save to every record in it ([50 §3](../50-ui-localization-and-base-language/SPEC.md)).
   Each block has "Remove this meaning" (tombstones that record only; refused for the last
   record, which is "Delete word"). "+ Add a meaning in {base}" appears for each base with
   no record: with a lookup available it runs [24](../24-add-flow-safety/SPEC.md)'s preview
@@ -241,6 +270,25 @@ What makes it Kotiko rather than an admin template ([06 §1](../06-design-system
   significado en {base}." Forms already owned by another word in the same language and base
   show a note: "“can” is also lata (Spanish)." / "“banco” también es 銀行 (japonés)."
   ([01 S9](../../docs/research/01-language-mixing.md)).
+- **Pronunciation** ([07](../07-word-model-v2/SPEC.md) sections 1 and 7). Each per-base
+  block has "Pronunciation" and "Slowly" fields for that record's `pronunciation` and
+  `pronunciation_careful` (hidden when the base has no respelling key), with the stressed
+  syllable shown in semibold outside the field as in the popover. Below them, the source
+  label in 19's states ("AI-generated", "Checked in Wiktionary", "AI-generated. Wiktionary
+  stresses it differently.", nothing for the learner's own) and "How to read this", which
+  opens the base's key from `respelling.json` in a sheet (the docs page, 44, shows the same
+  content). Editing either field sets `pronunciation_source: "user"` (07's `update`), so the
+  label disappears and no refresh, re-add or dictionary check (49) replaces it; clearing
+  "Pronunciation" clears all three fields. Input is checked with 09's pronunciation rules
+  for the base, with errors under the field: "Write the stressed syllable in capitals, and
+  only that one: pa-ZHAL-sta." ("Escribe en mayúsculas la sílaba acentuada, y solo esa:
+  pa-ZHAL-sta."), "Use only the letters in the key." ("Usa solo las letras de la guía.").
+  The pronunciation is base side: editing it in the English block never touches the
+  Spanish one. For Russian, Ukrainian and Belarusian words, a group field "With stress
+  mark" under the romanization edits `native_vocalized` (пожа́луйста); it must agree with
+  the pronunciation's capitals (09's stress check) or shows "The stress mark and the
+  pronunciation point at different syllables." ("La marca de acento y la pronunciación
+  señalan sílabas distintas.").
 - **Native:** changing it is allowed; if another word in that language already has the new
   native, the inspector offers "Merge with the existing {native}" (07 merge) instead of
   failing.
@@ -306,7 +354,7 @@ Sections and their owners:
 |---|---|---|
 | Languages you read in | Base languages: chips in order (primary first), drag or ↑/↓ to reorder, "Add a language" from a searchable list of names in the interface language, remove (×), each with its support level (Full, Good, Basic) and "Add meanings in {base} for your {n} words" when words lack one; the detected list as a hint ("From your browser: español, English") | [50 §2](../50-ui-localization-and-base-language/SPEC.md), this slice |
 | Kotiko's language | Interface language: "Same as my browser ({name})" (default) or any shipped locale, by its endonym; "Help translate Kotiko" link to Weblate | [50 §8](../50-ui-localization-and-base-language/SPEC.md) |
-| Reading | Amount; skip buttons and menus; language colors; romanization above words; vowel marks; copy the original text (`copyOriginal`) | [31](../31-density-and-amount/SPEC.md), [16](../16-what-not-to-swap/SPEC.md), [37](../37-language-colors-and-reading-aids/SPEC.md), [43](../43-copy-print-translate-coexistence/SPEC.md) |
+| Reading | Amount; skip buttons and menus; language colors; readings above words (pronunciation, romanization or kana); vowel marks; copy the original text (`copyOriginal`) | [31](../31-density-and-amount/SPEC.md), [16](../16-what-not-to-swap/SPEC.md), [37](../37-language-colors-and-reading-aids/SPEC.md), [43](../43-copy-print-translate-coexistence/SPEC.md) |
 | Learning | Celebrations; reveal mode; weekly recap | [32](../32-page-coverage-and-celebrations/SPEC.md), [35](../35-reveal-mode-and-review/SPEC.md), [46](../46-local-stats-and-recap/SPEC.md) |
 | Word lookup and connection | Mode, provider, key, server address and access key, "Test" | [11](../11-local-first-mode/SPEC.md) |
 | Shortcuts | Current keys; link to the browser's shortcut page | [33](../33-context-menu-and-shortcuts/SPEC.md) |
@@ -413,6 +461,7 @@ popover open.
 | Add a language you read | 3 (Settings, Add a language, pick) |
 | Fix one base's meaning of a word | 3 (select, edit the meaning field, Enter) |
 | Fix a romanization from a page | 3 (Edit in popover, edit field, Enter) |
+| Fix a pronunciation from a page | 3 (Edit in popover, edit the Pronunciation field, Enter) |
 | Pause one word (dashboard open) | 2 (select, P) |
 | Pause 40 contiguous words | 3 (click first, Shift+click last, P) |
 | Delete a word | 2 (select, Delete) |
@@ -456,6 +505,13 @@ toasts are `role="status"`; every icon button is labelled; the page works at 200
       string is Spanish (slice 50's literal-string check passes).
 - [ ] Editing a field saves without a Save button, updates swaps on an open page, and can be
       undone with Ctrl/Cmd+Z.
+- [ ] Editing the English block's pronunciation of a two-base word saves only that record,
+      with `pronunciation_source: "user"`; the "AI-generated" label disappears there and in
+      the popover; "PA-ZHAL-STA" is refused inline with the capitals message.
+- [ ] With the refresh job mocked at `running` 40 of 120, the line reads "Adding
+      pronunciations to your saved words: 40 of 120." with Pause; Pause sets `paused` and
+      shows Resume; at `done` the line is gone; in Spanish every state's copy is Spanish.
+- [ ] Typing "spaseeba" finds спасибо through its pronunciation spa-SEE-ba.
 - [ ] Deleting 500 selected words takes one key press and is fully undone by Undo.
 - [ ] With 20,000 words, scrolling produces no long task over 50 ms and search stays under
       50 ms per keystroke (CI performance test with a generated fixture).
@@ -466,7 +522,8 @@ toasts are `role="status"`; every icon button is labelled; the page works at 200
 
 ## Test plan
 
-- **Unit:** search folding and ranking (including glosses in each base); grouping records by
+- **Unit:** search folding and ranking (including glosses in each base and pronunciations);
+  the refresh line for each job state; grouping records by
   `(lang, native_key)`; group actions; base-language settings writes (order, cap, remove,
   undo); diffing and scroll anchoring; hash route parsing; undo stack.
 - **End-to-end (Playwright):** fixtures with 0, 10, 5,000 and 20,000 words across 12 scripts;

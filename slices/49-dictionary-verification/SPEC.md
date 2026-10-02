@@ -209,9 +209,9 @@ Results, stored as `verification.pronunciation: {status, source, version, checke
 | `no_data` | The word is in no installed dictionary, the entry has no pronunciation data, or the syllable counts can't be compared | "AI-generated", as with no dictionary |
 
 **Regenerating the respelling.** On disagreement, when `pronunciation_source` is `model`,
-Kotiko queues one `respell` request (07 section 8's prompt) for this word and base, with the
-dictionary's stressed form (or pinyin, or reading) given as a fixed fact the answer must
-follow. It runs in the same low-priority, quota-aware queue as 07's refresh job. An answer
+Kotiko queues one `respell` request (09's prompt, the one 07 section 8 uses) for this word
+and base, with the dictionary's stressed form (or pinyin, or reading) in the item's `known`
+field, a fixed fact the answer must follow. It runs in the same low-priority, quota-aware queue as 07's refresh job. An answer
 that passes 09's validation and agrees with the dictionary is written with
 `pronunciation_source: "model"`, and `native_vocalized` is set to the dictionary's stressed
 form for every record of the group; the result becomes `corrected`. An answer that still
@@ -295,7 +295,7 @@ link. Words filled from a dictionary carry `source: "dictionary:<source>"`, and 
   dictionary.
 - **Golden set**: slice 09's evaluation set gains expected verification results per
   entry, run against the fixture dictionaries, including the pronunciation results for
-  07 section 9's Russian, Mandarin and Japanese cases.
+  09 section 6's Russian, Mandarin and Japanese pronunciation cases.
 - **End-to-end** (Playwright): download from a local server, add with the mock provider in
   normal and quota-exhausted modes.
 

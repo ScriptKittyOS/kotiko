@@ -5,9 +5,9 @@
 | **Status** | Proposed |
 | **Priority** | P1 (soon after release) |
 | **Size** | M (about a week) |
-| **Depends on** | [06-design-system](../06-design-system/SPEC.md), [19-word-popover](../19-word-popover/SPEC.md); uses [15](../15-framework-safe-swapping/SPEC.md)'s element and classes, [17](../17-casing-and-script-display/SPEC.md)'s display function, [36](../36-grammar-and-senses/SPEC.md)'s `reading`, `native_vocalized` and `gender` |
+| **Depends on** | [06-design-system](../06-design-system/SPEC.md), [19-word-popover](../19-word-popover/SPEC.md); uses [07](../07-word-model-v2/SPEC.md)'s `romanization` and `pronunciation` (section 7), [15](../15-framework-safe-swapping/SPEC.md)'s element and classes, [17](../17-casing-and-script-display/SPEC.md)'s display function, [36](../36-grammar-and-senses/SPEC.md)'s `reading`, `native_vocalized` and `gender` |
 | **Unblocks** | None |
-| **Sources** | [05 S31, S37, §3.5](../../docs/research/05-learner-ux.md); [02 F1, F3, F4](../../docs/research/02-linguistics.md); [01 S1, S5](../../docs/research/01-language-mixing.md) |
+| **Sources** | [DECISIONS 2026-10-02, pronunciation](../DECISIONS.md); [05 S31, S37, §3.5](../../docs/research/05-learner-ux.md); [02 F1, F3, F4](../../docs/research/02-linguistics.md); [01 S1, S5](../../docs/research/01-language-mixing.md) |
 
 ## Problem
 
@@ -25,8 +25,9 @@ no kana option ([02 F1, F4](../../docs/research/02-linguistics.md)).
 
 - Optional per-language colors on pages, from [06 §4.5](../06-design-system/SPEC.md)'s
   validated palette, readable on light and dark sites and never the only cue.
-- Optional readings above words with `<ruby>`: romanization, or kana for Japanese, per
-  language; never for right-to-left scripts.
+- Optional readings above words with `<ruby>`, per language: the pronunciation written for
+  the reader, the romanization (pinyin for Mandarin), or kana for Japanese, with a sensible
+  default for each; never for right-to-left scripts.
 - Optional vowel-mark and stress display (Arabic, Hebrew, Persian, Urdu, Russian, Ukrainian)
   and a kana-only mode for Japanese, per language.
 - An optional grammatical-gender cue, as an alternative color mode.
@@ -35,8 +36,9 @@ no kana option ([02 F1, F4](../../docs/research/02-linguistics.md)).
 
 ## Non-goals
 
-- The data: `reading`, `native_vocalized`, `gender` and romanization come from
-  [36](../36-grammar-and-senses/SPEC.md) and [09](../09-shared-word-spec-and-prompt/SPEC.md).
+- The data: `reading`, `native_vocalized` and `gender` come from
+  [36](../36-grammar-and-senses/SPEC.md); `romanization` and `pronunciation` from
+  [07](../07-word-model-v2/SPEC.md) and [09](../09-shared-word-spec-and-prompt/SPEC.md).
 - Missing-glyph detection and fonts: [17](../17-casing-and-script-display/SPEC.md).
 - Underline changes for learning state (`kotiko-missed`, `kotiko-known`):
   [35](../35-reveal-mode-and-review/SPEC.md); this slice composes with them.
@@ -47,6 +49,8 @@ no kana option ([02 F1, F4](../../docs/research/02-linguistics.md)).
   own color and style, so that I notice which one I'm reading.
 - As a Mandarin beginner, I want pinyin above 谢谢 on the page, so that I can read it without
   hovering.
+- As a Russian beginner, I want "pa-ZHAL-sta" above пожалуйста, with the stress, rather than
+  "pozhaluysta", which taught me to say it wrong.
 - As a Japanese learner, I want kana instead of kanji I haven't learned yet.
 - As an Arabic learner, I want words with their short vowels.
 - As a learner with deuteranopia, I want languages told apart by more than color.
@@ -64,12 +68,12 @@ Reading aids
   Color languages on pages                        [ ○ ]   (off)
   Also vary the underline style (recommended)     [◉  ]
 
-  Language        Color        Above the word      Spelling
-  Español         ● Ember ▾    —                   —
-  中文            ● Lapis ▾    [ Pinyin ▾ ]         —
-  日本語          ● Lilac ▾    [ Kana ▾ ]           [ Kanji ▾ ]   (Kanji · Kana)
-  العربية         ● Plum ▾     not available (RTL) [ Vowel marks ◉ ]
-  Русский         ● Rose ▾     [ None ▾ ]           [ Stress marks ○ ]
+  Language        Color        Above the word        Spelling
+  Español         ● Ember ▾    [ None ▾ ]            —
+  中文            ● Lapis ▾    [ Pinyin ▾ ]          —
+  日本語          ● Lilac ▾    [ Kana ▾ ]            [ Kanji ▾ ]   (Kanji · Kana)
+  العربية         ● Plum ▾     not available (RTL)   [ Vowel marks ◉ ]
+  Русский         ● Rose ▾     [ Pronunciation ▾ ]   [ Stress marks ○ ]
 ```
 
 Stored in `prefs.readingAids` (synced settings, [39](../39-multi-device-sync/SPEC.md)):
@@ -78,12 +82,28 @@ Stored in `prefs.readingAids` (synced settings, [39](../39-multi-device-sync/SPE
 { colors: false, varyStyle: true, colorBy: "language",      // or "gender"
   langs: { es: { color: 1 }, zh: { color: 2, above: "romanization" },
            ja: { color: 3, above: "reading", spelling: "native" },
-           ar: { color: 4, spelling: "vocalized" }, ru: { color: 5, spelling: "native" } } }
+           ar: { color: 4, spelling: "vocalized" },
+           ru: { color: 5, above: "pronunciation", spelling: "native" } } }
 ```
 
-Rows appear only for languages the learner has. "Above the word" offers None, Romanization
-(any language with romanizations), and Reading (where 36 provides one: kana for Japanese,
-Jyutping for Cantonese). "Spelling" appears only for languages where some saved word has
+Rows appear only for languages the learner has. "Above the word" offers None,
+Pronunciation (any language whose words have one: 07's respelling, written for the base
+language of the record that was swapped in), Romanization (any language with a romanization
+scheme: pinyin for Mandarin, Jyutping for Cantonese, Hepburn for Japanese, 07 section 7),
+and Reading (where 36 provides one: kana for Japanese). Each row's menu is None until the
+learner opens it; the option it then preselects is the default below.
+
+**Which reading goes above by default, and why:**
+
+| Target | Default | Why |
+|---|---|---|
+| Mandarin, Cantonese (`zh`, `zh-Hant`, `yue`) | Romanization (pinyin, Jyutping) | Pinyin is the reading system every Mandarin learner is taught and textbooks print above characters; it carries the tones as marks and is short. The respelling (shie⁴-shie) is a second system on top, and longer; it stays one hover away in the popover. |
+| Japanese | Reading (kana) | Furigana is how Japanese itself shows readings, and kana is what a learner needs to learn anyway. Hepburn and the respelling are offered. |
+| Every other target, Latin script included | Pronunciation | The romanization of Russian, Greek, Korean or Hindi is a spelling, with no stress and no reduced vowels: "pozhaluysta" above пожалуйста teaches the wrong word, which is the mistake the 2026-10-02 decision fixed. The respelling is written for the reader's own language and marks the stress (pa-ZHAL-sta). Romanization stays available for learners who want to practise the spelling. |
+
+When the chosen reading is missing for a word (no pronunciation because its base has no
+respelling key, or 07's refresh hasn't reached it), Pronunciation falls back to the
+romanization and then to no ruby; Romanization and Reading show no ruby. "Spelling" appears only for languages where some saved word has
 `native_vocalized` (Vowel marks or Stress marks) or `reading` for Japanese (Kanji or Kana).
 
 ### 2. Language colors
@@ -135,8 +155,12 @@ kotiko-w.kotiko-known { text-decoration-line: none; }          /* 35 */
 <kotiko-w lang="zh-Hans" dir="auto" translate="no" class="notranslate kotiko-c2 kotiko-ruby"><ruby>谢谢<rt>xièxie</rt></ruby></kotiko-w>
 ```
 
-- `rt` gets `lang` of the romanization (`zh-Latn-pinyin`, `ja-Latn`, or `ja` for kana) so
-  screen readers don't read pinyin with a Chinese voice; `rt` is `aria-hidden="true"` unless
+- `rt` gets the `lang` of what it holds: the romanization's (`zh-Latn-pinyin`, `ja-Latn`),
+  `ja` for kana, or the record's `base_lang` for a pronunciation (as in 19), so screen
+  readers don't read pinyin with a Chinese voice or "pa-ZHAL-sta" with a Russian one. A
+  pronunciation in `rt` keeps its capitals (`text-transform: none`), which carry the stress
+  at half size without semibold, and Mandarin tone digits are raised as in the popover.
+  `rt` is `aria-hidden="true"` unless
   [27](../27-accessibility-baseline/SPEC.md)'s screen-reader mode asks for "Both".
 - **Never for right-to-left scripts** (Arabic, Hebrew, Persian, Urdu, Syriac, Thaana): ruby
   over RTL text renders unevenly across browsers and fights bidi isolation
@@ -166,7 +190,7 @@ kotiko-w.kotiko-known { text-decoration-line: none; }          /* 35 */
 
 ### 5. Privacy
 
-Colors and classes carry no word data. Ruby puts the romanization or reading into the page's
+Colors and classes carry no word data. Ruby puts the pronunciation, romanization or reading into the page's
 DOM, next to the native word that is already visible; the privacy policy
 ([28](../28-privacy-and-store-readiness/SPEC.md)) mentions that reading aids add this text to
 pages.
@@ -185,6 +209,11 @@ per-node budget in 15 rises by under 10 % on a page of 2,000 swaps (measured in 
 - [ ] A `kotiko-missed` word in a colored language shows a solid underline in its language
       color; a `kotiko-known` word shows none.
 - [ ] With pinyin on, 谢谢 renders with "xièxie" above it; an Arabic word never gets ruby.
+- [ ] Opening "Above the word" preselects Pinyin for Mandarin, Kana for Japanese and
+      Pronunciation for Russian; with Pronunciation on, пожалуйста on an English page
+      renders "pa-ZHAL-sta" above it with `rt lang="en"`, the same word on a Spanish page
+      shows its Spanish-key respelling, and a word with no pronunciation shows its
+      romanization.
 - [ ] A Japanese word shows ねこ with "Spelling: Kana" and 猫 with furigana ねこ with
       "Reading above / Kanji".
 - [ ] An Arabic word with `native_vocalized` shows the vocalized form when vowel marks are on;
@@ -221,8 +250,8 @@ above words, vowel marks and kana."
 
 - Per-site reading-aid overrides with [38](../38-per-site-rules/SPEC.md).
 - Tone colors for Mandarin pinyin (a common learner aid), once tones are reliable in 36's data.
-- Readings in the learner's base script: romanization is Latin today, which suits readers
-  of Latin-script bases; a Japanese-base reader learning Russian might prefer katakana
-  above собака, and a Russian-base reader Cyrillic transcription of Japanese (Polivanov).
-  This needs a per-base reading field from 36's prompt, keyed by base like the gloss
-  ([50](../50-ui-localization-and-base-language/SPEC.md)).
+- Readings in the learner's base script: the pronunciation is already per base, but only
+  `en` and `es` have respelling keys at launch, both in Latin letters. A `ja` key in
+  katakana ([07](../07-word-model-v2/SPEC.md) open question 7) would give a Japanese-base
+  reader katakana above собака through the Pronunciation option, and a `ru` key a
+  Russian-base reader a Cyrillic transcription of Japanese (Polivanov), with no new field.

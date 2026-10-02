@@ -130,9 +130,16 @@ tests (and logs once in production) if `ctx.base` is not the same base as `index
 projection must contain every word whose status is `active` or `well_known` (35), with these
 fields: `id`, `lang`, `native`, `romanization`, `base_lang`, `gloss`, `forms`, `status`,
 `created_at`, `note`, and, once slice 36 ships, `sense`, `pos`, `article`,
-`article_indefinite`, `gender`, `plural`, `reading`, `native_vocalized`, `ipa`. The matcher
-itself reads `id`, `lang`, `native`, `base_lang`, `gloss`, `forms`, `status` and `created_at`;
-the rest is carried for slices 18, 19 and 36. A form is 07's object
+`article_indefinite`, `gender`, `plural`, `reading`, `ipa`; slice 07's `native_vocalized`,
+`pronunciation`, `pronunciation_careful` and `pronunciation_source` are in the projection from
+the start. The matcher itself reads `id`, `lang`, `native`, `base_lang`, `gloss`, `forms`,
+`status` and `created_at`; the rest is carried for slices 18, 19, 35, 36 and 37. **The
+pronunciation fields and `romanization` play no part in matching**: matching runs on the
+page's base-language text against `forms`, never on how the target word is said or
+romanized, so they are not tokenized or indexed. An index built from a projection that
+differs only in these fields is identical, so an edit to a pronunciation, or slice 07's
+refresh filling one in, may skip the rebuild; the popover reads the new value from the
+projection. A form is 07's object
 `{ text, enabled, case, ambiguous }` (slice 36 adds an optional `pos`), and its `text` is a
 surface form in the word's `base_lang`; a bare string is accepted during migration and means
 `{ text, enabled: true, case: "any", ambiguous: false }`. Display names come from slice 08 and

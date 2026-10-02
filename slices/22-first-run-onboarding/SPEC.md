@@ -5,7 +5,7 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
-| **Depends on** | [11-local-first-mode](../11-local-first-mode/SPEC.md), [20-popup-redesign](../20-popup-redesign/SPEC.md), [24-add-flow-safety](../24-add-flow-safety/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base-language detection, `t()`, `spec/lang/`); uses [06](../06-design-system/SPEC.md), [08](../08-language-tags/SPEC.md), [09](../09-shared-word-spec-and-prompt/SPEC.md), [13](../13-bulk-add/SPEC.md) (its line parser and, from the done state, its sheet), [14](../14-matcher-engine/SPEC.md), [18](../18-language-precedence-and-mixing/SPEC.md), [19](../19-word-popover/SPEC.md), [25](../25-plain-language-errors/SPEC.md), [32](../32-page-coverage-and-celebrations/SPEC.md) (confetti) |
+| **Depends on** | [11-local-first-mode](../11-local-first-mode/SPEC.md), [20-popup-redesign](../20-popup-redesign/SPEC.md), [24-add-flow-safety](../24-add-flow-safety/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base-language detection, `t()`, `spec/lang/`); uses [06](../06-design-system/SPEC.md), [07](../07-word-model-v2/SPEC.md) (pronunciation fields), [08](../08-language-tags/SPEC.md), [09](../09-shared-word-spec-and-prompt/SPEC.md), [13](../13-bulk-add/SPEC.md) (its line parser and, from the done state, its sheet), [14](../14-matcher-engine/SPEC.md), [18](../18-language-precedence-and-mixing/SPEC.md), [19](../19-word-popover/SPEC.md), [34](../34-pronunciation-audio/SPEC.md) (speak button), [25](../25-plain-language-errors/SPEC.md), [32](../32-page-coverage-and-celebrations/SPEC.md) (confetti) |
 | **Unblocks** | [28-privacy-and-store-readiness](../28-privacy-and-store-readiness/SPEC.md) (store screenshots of the first run) |
 | **Sources** | Maintainer: "prompt the user to talk to the LLM and ask how to teach the word hello in whatever language, and then it can say congrats you got your first word with confetti, or some other word, let the user choose. It will be their favorite, they will get a reward and remember it even if it is the only one they see."; [DECISIONS: every word is one the learner chose; own key on a full page; English is not the base language](../DECISIONS.md); [05 S1, S2, S3, §3.1](../../docs/research/05-learner-ux.md); [04 §3 local-first](../../docs/research/04-architecture-release.md); [03 C4, C8, D6](../../docs/research/03-browser-extension.md) |
 
@@ -321,8 +321,9 @@ are [10](../10-llm-client-resilience/SPEC.md)'s add-box values.
 ```
 │ (=^.^=) Here it is:                                              │
 │ ┌──────────────────────────────────────────────────────────────┐ │
-│ │  こんにちは                                                   │ │
-│ │  konnichiwa                                                  │ │
+│ │  こんにちは                                         (speak)  │ │
+│ │  kon-nee-chee-wa                                             │ │
+│ │  konnichiwa · AI-generated                                   │ │
 │ │  hello  ·  Japanese                                          │ │
 │ │                                                              │ │
 │ │  [ Make it my first word ]      Try another                  │ │
@@ -334,8 +335,9 @@ The same card in Spanish, for "¿cómo se dice hola en japonés?" (base `es`):
 ```
 │ (=^.^=) Aquí está:                                               │
 │ ┌──────────────────────────────────────────────────────────────┐ │
-│ │  こんにちは                                                   │ │
-│ │  konnichiwa                                                  │ │
+│ │  こんにちは                                         (altavoz)│ │
+│ │  kon-ni-chi-ua                                               │ │
+│ │  konnichiwa · Generado por IA                                │ │
 │ │  hola  ·  japonés                                            │ │
 │ │                                                              │ │
 │ │  [ Que sea mi primera palabra ]   Probar otra                │ │
@@ -346,9 +348,21 @@ With two bases ticked (español and English), the meaning line becomes two lines
 "hola · en páginas en español" and "hello · en páginas en inglés", and confirming saves
 both records ([50 §3](../50-ui-localization-and-base-language/SPEC.md)).
 
-Native in `--t-specimen` (the display role, [06 §5](../06-design-system/SPEC.md)) with `lang` and `dir="auto"` ([17](../17-casing-and-script-display/SPEC.md)
-fonts), romanization when present, then the gloss in each base (each in `<bdi lang>`) and
-the language name from `Intl.DisplayNames` in the interface language. **Try another**
+The card's top lines are the popover's pronunciation block ([19](../19-word-popover/SPEC.md)
+section 1a), so the first word is learned the way every later one is shown: the native in
+`--t-specimen` (the display role, [06 §5](../06-design-system/SPEC.md)) with `lang` and
+`dir="auto"` ([17](../17-casing-and-script-display/SPEC.md) fonts), written with its stress
+mark where the target has one (a Russian first word shows приве́т, not привет), and the
+speak button ([34](../34-pronunciation-audio/SPEC.md)) on that line, shown only when a voice
+exists; then the `pronunciation` for the primary base (07 section 7: "kon-nee-chee-wa" for
+`en`, "kon-ni-chi-ua" for `es`; for приве́т, "pree-VYET" and "pri-VIET", with the stressed
+syllable also in semibold); the careful form when there is one ("Slowly: …"); the
+romanization with the source label ("AI-generated" / "Generado por IA"; no label for a
+"native = meaning" word the learner typed, which has no pronunciation unless they gave
+one); then the gloss in each base (each in `<bdi lang>`) and the language name from
+`Intl.DisplayNames` in the interface language. With two bases, the pronunciation shown is
+the primary base's. A card with no pronunciation (a base without a respelling key) keeps
+the stress-marked word, the romanization and the speak button. **Try another**
 discards the card and returns focus to the box with the learner's text restored.
 
 **C2. Several results** (the model returned 2 to 5 words, [09](../09-shared-word-spec-and-prompt/SPEC.md)'s
@@ -364,8 +378,10 @@ cap):
 │ └──────────────────────────────────────────────────────────────┘ │
 ```
 
-A radio group, first option selected. Only the chosen word is saved; the others are
-discarded. One first word, chosen by the learner.
+A radio group, first option selected. Options show the romanization to stay on one line;
+the selected option's pronunciation, source label and speak button appear under the
+group, as on card C. Only the chosen word is saved; the others are discarded. One first
+word, chosen by the learner.
 
 **D. Which language?** (a "native = meaning" line whose script doesn't name the language):
 
@@ -435,15 +451,16 @@ Pressing **Make it my first word** (one step):
 │        .  *    ▪        ·   ▪      •    ▪   ·       *  .         │  confetti (motion allowed)
 │ (=^.^=) Congrats, you got your first word!                       │
 │ ┌──────────────────────────────────────────────────────────────┐ │
-│ │  こんにちは  konnichiwa                                       │ │
+│ │  こんにちは  kon-nee-chee-wa                        (speak)  │ │
 │ │  hello · Japanese                                            │ │
 │ └──────────────────────────────────────────────────────────────┘ │
 │         Turn off celebrations                                    │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-In Spanish: "¡Felicidades, ya tienes tu primera palabra!", the card "こんにちは konnichiwa /
-hola · japonés", and "Desactivar celebraciones".
+In Spanish: "¡Felicidades, ya tienes tu primera palabra!", the card "こんにちは kon-ni-chi-ua /
+hola · japonés", and "Desactivar celebraciones". The speak button stays on the
+celebration card, so the learner can hear the word they just chose.
 
 - Confetti is [32 §5](../32-page-coverage-and-celebrations/SPEC.md)'s renderer, full viewport
   on the welcome page: same particles, palette, 1.6 s duration, no sound, nothing loops, Esc
@@ -669,7 +686,8 @@ allows for milestones.
 - Kotiko's lines are in a `role="log"` container (polite), so each new line is announced once;
   the word card and controls are outside it.
 - When a card appears, focus moves to the card (`tabindex="-1"`, accessible name
-  "こんにちは, konnichiwa, hello, Japanese"); Tab reaches "Make it my first word". The several-
+  "こんにちは, pronunciation: kon-nee-chee-wa, hello, Japanese", built like 19's
+  `popover_pron_a11y`, so a stressed syllable is announced as "stress on …"); Tab reaches "Make it my first word". The several-
   results card is a `fieldset` with a legend and a radio group.
 - The celebration message is announced through the log; confetti is `aria-hidden`; focus
   moves to "Try it on a page".
@@ -715,6 +733,10 @@ same as in the store listing ([28](../28-privacy-and-store-readiness/SPEC.md)).
       and projection unchanged; checked in the test).
 - [ ] With the mock provider returning three words, the card shows three options and only the
       chosen one is saved.
+- [ ] The card for a mock answer пожалуйста (base `en`) shows пожа́луйста with a speak
+      button (stubbed Russian voice), "pa-ZHAL-sta", "Slowly: pa-ZHA-lu-sta" and
+      "pozhaluysta · AI-generated"; with no Russian voice the speak button is absent; with
+      base `es` the Spanish-key respelling and "Generado por IA" show.
 - [ ] Try another and closing the tab before confirming leave the vocabulary empty.
 - [ ] Try “hello” only fills the ask box; the vocabulary stays empty.
 - [ ] Confirming the first word fires confetti once with motion allowed, and only the faded

@@ -213,7 +213,7 @@ English and Spanish are complete at launch:
 | Key | en | es | Actions |
 |---|---|---|---|
 | `add_looking_up` | Looking up {text}… | Buscando {text}… | "Cancel" / "Cancelar" |
-| `add_created` | Added {native} ({romanization}) = {gloss} · {lang} | Agregada {native} ({romanization}) = {gloss} · {lang} | "Undo" / "Deshacer", language chip |
+| `add_created` | Added {native} ({pronunciation}) = {gloss} · {lang} | Agregada {native} ({pronunciation}) = {gloss} · {lang} | "Undo" / "Deshacer", language chip, speak button ([34](../34-pronunciation-audio/SPEC.md)) |
 | `add_updated` | Updated {native} = {gloss} · {lang}: {what changed} | Actualizada {native} = {gloss} · {lang}: {what changed} | "Undo" |
 | `add_updated_forms` (what changed) | new forms: {forms} | formas nuevas: {forms} | |
 | `add_unchanged` | Already in your list: {native} = {gloss} · {lang} | Ya está en tu lista: {native} = {gloss} · {lang} | "Open" / "Abrir" |
@@ -225,7 +225,15 @@ English and Spanish are complete at launch:
 | `undo_done_updated` | Put {native} back as it was. | {native} volvió a como estaba. | none |
 | `undo_failed` | Couldn't undo: {message from 25} | No se pudo deshacer: {mensaje de 25} | "Try again" |
 
-Romanization in parentheses is omitted when null. `{lang}` and `{base}` are names from
+`{pronunciation}` is how to say the word, so the learner can say it the moment it is
+saved: the `pronunciation` of the primary base's record ([07](../07-word-model-v2/SPEC.md)
+section 7, written for that base: "Added спасибо (spa-SEE-ba) = thanks", "Agregada спасибо
+(spa-SI-ba) = gracias"), with the stressed syllable also in semibold and tone digits raised,
+as in the popover ([19](../19-word-popover/SPEC.md) section 1a); its accessible text is 19's
+`popover_pron_a11y`. When the record has no pronunciation (a base without a respelling key),
+the romanization takes its place; the parentheses are omitted when both are null. The
+source label ("AI-generated") is not repeated on this one-line confirmation; the popover
+and the dashboard's inspector (21) show it. `{lang}` and `{base}` are names from
 `Intl.DisplayNames([uiLocale], {type: "language"})` on [08](../08-language-tags/SPEC.md)'s
 canonical tag, never the model's `language` field. `{n}`, `{k}` use plural keys
 (`_one`/`_other`, 50 §8). "Agregada" agrees with "palabra", not with the learner.
@@ -243,7 +251,7 @@ Popup, three jobs in different states (360 px wide):
   │ [ Add a word, any language        ] [Auto▾]│
   │                                            │
   │  Looking up xie xie…               Cancel  │
-  │  Added شكرا (shukran) = thanks             │
+  │  Added شكرا (SHUK-ran) = thanks            │
   │        [Arabic ▾]                   Undo   │
   │  Already in your list: gracias = thanks    │
   │        Spanish                      Open   │
@@ -256,7 +264,7 @@ The same popup for a reader of Spanish and English (interface in Spanish):
   │  Para páginas en: [✓ español] [✓ inglés]   │  §8
   │                                            │
   │  Buscando こんにちは…              Cancelar  │
-  │  Agregada 犬 (inu) = perro · dog           │
+  │  Agregada 犬 (i-nu) = perro · dog          │
   │        [japonés ▾]               Deshacer  │
   │  Ya está en tu lista: dog = perro          │
   │        inglés                       Abrir  │
@@ -308,7 +316,8 @@ with Undo that restores the previous pair. Two clicks, no retyping.
 **Inline syntax.** The add box recognizes `native = meaning` (also `—`, `–`, ` - ` with
 spaces, and a tab), the same rules [13](../13-bulk-add/SPEC.md) uses for one line, in any
 base language. Optional romanization in parentheses after the native word: `спасибо
-(spasibo) = thanks` or `спасибо (spasibo) = gracias`. The meaning is the gloss in the
+(spasibo) = thanks` or `спасибо (spasibo) = gracias`; text in parentheses shaped like a
+respelling (`спасибо (spa-SEE-ba) = thanks`) is the pronunciation instead, by 13's rule. The meaning is the gloss in the
 **primary base** (the first ticked "For pages in" chip, §8), so a Spanish reader types
 "thanks = gracias" or "犬 = perro"; one record is saved. The word's language comes from
 the language hint; if the hint is Auto, from Focus
@@ -323,8 +332,15 @@ model and work offline.
 from the dashboard) opens a small form: native (required, `dir="auto"`), **Meaning in
 {base}** (required; more forms separated by commas, or `、`/`，` for Japanese and Chinese
 bases; one field per ticked base, only the first required), language (required, picker),
-romanization (optional), note (optional). Labels in Spanish: "Palabra", "Significado en
-español", "Idioma", "Romanización", "Nota". Enter saves one record per filled meaning.
+romanization (optional), pronunciation for readers of the primary base (optional,
+checked with 09's rules for that base's respelling key; hidden when the base has none),
+note (optional). Labels in Spanish: "Palabra", "Significado en español", "Idioma",
+"Romanización", "Pronunciación", "Nota". Enter saves one record per filled meaning; a typed
+pronunciation is saved on the primary base's record with `pronunciation_source: "user"`.
+Records saved without a pronunciation get one later through 09's `respell` request, as a
+background job when a provider is reachable (the same follow-up as
+[13](../13-bulk-add/SPEC.md) section 5), so the manual add itself still never waits on the
+model.
 Prefilled from the job's text: the text goes into native, and the learner fills the
 meaning.
 
@@ -363,7 +379,7 @@ Background message types (sender checks per [26](../26-background-sync-correctne
 | Type | Payload | Reply (immediate) |
 |---|---|---|
 | `add` | `{id, text, hintLang, pageLang?, baseLangs, surface}` | `{ok: true}` once persisted |
-| `addManual` | `{id, native, lang, meanings: [{base_lang, gloss, forms?}], romanization?, note?, surface}` | `{ok: true}`; one 07 record per meaning, `origin: "manual"`, via the structured add `{word, client_request_id}` (batch route for several) |
+| `addManual` | `{id, native, lang, meanings: [{base_lang, gloss, forms?, pronunciation?}], romanization?, note?, surface}` | `{ok: true}`; one 07 record per meaning, `origin: "manual"`, via the structured add `{word, client_request_id}` (batch route for several) |
 | `chooseWords` | `{id, keep: [index]}` | `{ok: true}` |
 | `undo` | `{id, wordId}` | `{ok: true}` |
 | `relang` | `{id, lang}` | `{ok: true, newId}` |
@@ -384,6 +400,10 @@ what makes the popup closing harmless.
       romanization and forms are unchanged (regression test for 06 F05).
 - [ ] Re-adding with new forms shows "Updated … new forms: …"; Undo restores the exact
       previous forms.
+- [ ] Adding спасибо with base `en` shows "Added спасибо (spa-SEE-ba) = thanks" with a speak
+      button when a Russian voice exists; with base `es`, "Agregada спасибо (spa-SI-ba) =
+      gracias"; a word whose record has no pronunciation shows its romanization in the
+      parentheses, and a Latin-script word with neither shows none.
 - [ ] A job returning two words shows two lines with independent Undo buttons.
 - [ ] After pressing Enter, the input is empty and focusable within 50 ms, before any network
       response.

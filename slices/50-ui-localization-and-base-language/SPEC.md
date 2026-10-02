@@ -196,6 +196,7 @@ the detected languages with a link to settings.
 | `gloss` | The meaning in `base_lang`, replacing `english`. Lowercase unless that base language capitalises it (German nouns: `Hund`; English proper nouns: `Monday`). |
 | `forms` | Form objects whose `text` is a surface form **in `base_lang`** that gets swapped (perro, perros; dog, dogs; 犬). Replaces the English-forms meaning. |
 | `sense`, `note` | Written in `base_lang`. |
+| `pronunciation`, `pronunciation_careful` | How to say `native`, respelled with `base_lang`'s respelling key (07 section 7; null for a base without a key). Base side, like the gloss: a bilingual reader's records each carry their own. |
 
 The natural key becomes `(lang, native_key, sense, base_lang)`. A bilingual es+en reader
 who adds 犬 gets two records, `(ja, 犬, "", es)` with gloss "perro" and `(ja, 犬, "", en)`
@@ -204,8 +205,9 @@ with gloss "dog", from one model call (section 4).
 **Why this shape and not `glosses: {es: {…}, en: {…}}` on one record:**
 
 - **Almost every field on the base side is in the base language.** Gloss, forms, sense and
-  note are all written for a reader of one language; only `lang`, `native`,
-  `romanization` and target-side grammar (36) aren't. A nested map would nest four
+  note, and the pronunciation respelling, are all written for a reader of one language;
+  only `lang`, `native`, `romanization`, `native_vocalized` and target-side grammar (36)
+  aren't. A nested map would nest six
   fields, and `sense` (part of the key) would have no single language.
 - **It changes nothing structural for the common case.** Most learners have one base. With
   one record per base, slice 07's merge rules, PATCH, tombstones, `seq`, slice 39's sync
@@ -216,8 +218,8 @@ with gloss "dog", from one model call (section 4).
   more entries in `words`, each validated by the same pipeline with that base's rules.
 - **Matching wants it.** The content script builds one index per base from the records
   with that `base_lang`, without reaching into maps.
-- **The cost is small and contained.** Target-side fields (`romanization`, slice 36's
-  target grammar) are duplicated across a bilingual learner's records, and actions the
+- **The cost is small and contained.** Target-side fields (`romanization`,
+  `native_vocalized`, slice 36's target grammar) are duplicated across a bilingual learner's records, and actions the
   learner thinks of as "on 犬" (pause, delete, review in 35) must apply to the group. The
   dashboard (21) and popover (19) group records by `(lang, native_key)` and act on the
   group by default; the target-side fields are copied on save so the group stays
@@ -269,6 +271,9 @@ spec/lang/
     no-standalone.json   {always, by_target}: words that never stand alone, for coverage (32, 36)
     detect.json          the 40 most common words, for undeclared-page detection (16)
     grammar.json         articles, form slots, gendered nouns: base-side forms to request (36)
+    respelling.json      the pronunciation respelling key: alphabet, how each sound is
+                         written with an example word, notes per target language (07 §7;
+                         09 validation and prompt, 19 popover, 44 "How to read pronunciations")
     welcome.json         the welcome tab's suggested word ("hola") and example (22)
     sentences.json       preview sentences for the welcome tab and dashboard (22)
     common.txt           about 3,000 common words the preview sentences must cover (22)
@@ -277,11 +282,19 @@ spec/lang/
 Each file has a JSON Schema in `spec/lang/schema/`, and `langData(base)` (09) resolves a
 file by the full tag, then the primary language, then `_generic`.
 
+`respelling.json` is the one file with no `_generic` fallback: a respelling key only works
+in the conventions of one language, so a base without its own key gets no `pronunciation`
+(the word still shows its stress mark, romanization and audio; [07](../07-word-model-v2/SPEC.md)
+section 7). `en` and `es` have keys at launch, written in 07 section 7; the `es` key is
+reviewed by native speakers before release (open question 5). Other bases get keys later,
+one at a time, each reviewed by native speakers of that base (`pt`, `fr` and `de` first,
+07 open question 7).
+
 **Support levels**, shown in settings next to each base so nobody is surprised:
 
 | Level | Has | Launch bases |
 |---|---|---|
-| **Full** | every file above, at least 15 golden cases (09), a reviewed fixture page (02) | `en`, `es` |
+| **Full** | every file above (including `respelling.json`), at least 15 golden cases (09), a reviewed fixture page (02) | `en`, `es` |
 | **Good** | `stopwords.txt`, `boundaries.json`, `casing.json`, `detect.json`; `_generic` stem rules | `fr`, `de`, `it`, `pt`, `ja`, `zh-Hans`, `zh-Hant`, `ko`, `th` |
 | **Basic** | `stopwords.txt` from [stopwords-iso](https://github.com/stopwords-iso/stopwords-iso) (MIT) and `_generic` everything else | every other language `Intl.Segmenter` supports |
 
@@ -468,6 +481,9 @@ codes and lets the client choose words.
 - [ ] `check-base-neutral.mjs` passes: no `english` identifiers outside the allow-list.
 - [ ] Settings shows each base's support level, and a Basic-level base (`pl`) swaps a
       Polish fixture page.
+- [ ] `spec/lang/en/respelling.json` and `spec/lang/es/respelling.json` validate against
+      their schema, the `es` key's review is signed off on the release checklist (30), and
+      a base without a key (`fr`) resolves no respelling file from `_generic`.
 
 ## Test plan
 
@@ -482,7 +498,9 @@ codes and lets the client choose words.
   with slice 02's fake model; pseudo-locales.
 - **Golden set** (09): cases per Full and Good base, including Spanish-language questions.
 - **Manual**: a native Spanish speaker reviews the `es` locale, store listing and the
-  welcome flow in context before release.
+  welcome flow in context before release. Native speakers from Spain, Mexico, the
+  Caribbean and the Southern Cone review `spec/lang/es/respelling.json` by reading ten
+  respellings aloud against the audio (07 open question 5).
 
 ## Rollout and migration
 
@@ -512,7 +530,10 @@ codes and lets the client choose words.
    `tú`, gender-neutral where possible; welcome an `es_ES` from the community.
 5. **Who reviews Spanish before release?** Recommendation: a named native speaker
    (maintainer or contributor) signs off the locale, store listing and welcome flow; the
-   release checklist (30) has a box for it.
+   release checklist (30) has a box for it. The Spanish respelling key needs more: readers
+   from Spain, Mexico, the Caribbean and the Southern Cone, because its letters are read
+   differently across them (z, th; [07](../07-word-model-v2/SPEC.md) open question 5);
+   until they sign off, the docs (44) mark the key "beta".
 6. **Translation platform.** Recommendation: Hosted Weblate (open-source plan), owned by
    the ScriptKittyOS organization.
 
@@ -520,5 +541,7 @@ codes and lets the client choose words.
 
 - Reverse mode: gloss target-language words on target-language pages.
 - More Full-level bases as speakers contribute `spec/lang/` data and golden cases.
+- Respelling keys for more bases (`pt`, `fr`, `de`, then `ja` in katakana), each reviewed
+  by native speakers (07 open question 7).
 - A fully localized system prompt per base, if the golden set shows it helps.
 - Region-aware base varieties beyond Portuguese (es-ES vs es-419 everyday words).

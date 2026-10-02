@@ -50,7 +50,7 @@ Right-to-left isolation already works through `dir="auto"` (`content.js:95`) and
 - Deciding whether a capitalized match is swapped at all (names, acronyms):
   [16](../16-what-not-to-swap/SPEC.md).
 - Lowercasing page text into match keys with the base's locale (Turkish I/ı): [14](../14-matcher-engine/SPEC.md).
-- Ruby, romanization above words, vowel marks and per-language colors:
+- Ruby readings above words (pronunciation, romanization or kana), vowel marks and per-language colors:
   [37](../37-language-colors-and-reading-aids/SPEC.md).
 - Bundling fonts or detecting missing glyphs: Future work.
 - Unicode normalization and Romanian comma-below fixes at save time:

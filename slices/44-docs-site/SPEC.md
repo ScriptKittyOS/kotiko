@@ -5,9 +5,9 @@
 | **Status** | Proposed |
 | **Priority** | P1 (soon after release) |
 | **Size** | M (about a week) |
-| **Depends on** | [28-privacy-and-store-readiness](../28-privacy-and-store-readiness/SPEC.md); uses [05-brand-identity](../05-brand-identity/SPEC.md), [06-design-system](../06-design-system/SPEC.md) and [50](../50-ui-localization-and-base-language/SPEC.md)'s locales, glossary and translation workflow |
+| **Depends on** | [28-privacy-and-store-readiness](../28-privacy-and-store-readiness/SPEC.md); uses [07](../07-word-model-v2/SPEC.md)'s respelling keys (`spec/lang/<base>/respelling.json`), [05-brand-identity](../05-brand-identity/SPEC.md), [06-design-system](../06-design-system/SPEC.md) and [50](../50-ui-localization-and-base-language/SPEC.md)'s locales, glossary and translation workflow |
 | **Unblocks** | The `/connect/` callback for [11](../11-local-first-mode/SPEC.md)'s "Connect OpenRouter"; "Learn more" links from [25](../25-plain-language-errors/SPEC.md) |
-| **Sources** | [04 summary, S29, S31, section 3 release plan, docs-site slice](../../docs/research/04-architecture-release.md); [03 B9, D6, D8](../../docs/research/03-browser-extension.md); [05 S34, S39](../../docs/research/05-learner-ux.md) |
+| **Sources** | [DECISIONS 2026-10-02, pronunciation](../DECISIONS.md); [04 summary, S29, S31, section 3 release plan, docs-site slice](../../docs/research/04-architecture-release.md); [03 B9, D6, D8](../../docs/research/03-browser-extension.md); [05 S34, S39](../../docs/research/05-learner-ux.md) |
 
 ## Problem
 
@@ -64,6 +64,8 @@ The org can host static content safely and for free ([04 S31](../../docs/researc
 - As a contributor, I want to know how the extension and server share `spec/`.
 - As a learner in Puerto Rico with Kotiko in Spanish, I want "Más información" to open a
   Spanish page.
+- As a Spanish reader who sees "ja-ra-SHO" under хорошо, I want one page that tells me why
+  there is a j, what the capitals mean and what "Generado por IA" means.
 
 ## Specification
 
@@ -86,8 +88,9 @@ The org can host static content safely and for free ([04 S31](../../docs/researc
 /install/              Chrome, Edge, Brave · Firefox · Firefox for Android · Safari (later) · from source
 /start/                Your first word, no key needed · Free OpenRouter key · Your own server
 /providers/<id>/       One page per slice 11 preset: get a key, paste it, notes (Ollama origins, LM Studio)
-/use/                  Adding words · Bulk add · Dashboard · The word popover · Languages and Focus ·
-                       Amount · Per-site rules · Shortcuts and right-click · Back up, restore, delete
+/use/                  Adding words · Bulk add · Dashboard · The word popover · How to read pronunciations ·
+                       Languages and Focus · Amount · Per-site rules · Shortcuts and right-click ·
+                       Back up, restore, delete
 /server/               Why run one · Docker (slice 40) · Linux service · macOS and Windows ·
                        Telegram (slice 41) · Remote access over HTTPS (Tailscale) · Upgrades and backups ·
                        API reference (v1)
@@ -101,7 +104,7 @@ The org can host static content safely and for free ([04 S31](../../docs/researc
 ```
 
 **Stable URLs.** Paths the extension links to (`/privacy/`, `/help/errors/#…`,
-`/connect/`, `/providers/<id>/`) are listed in `site/stable-urls.txt`. CI
+`/connect/`, `/providers/<id>/`, `/use/pronunciations/`) are listed in `site/stable-urls.txt`. CI
 fails if a build no longer produces one of them. Renamed pages get a redirect entry in the
 Starlight config.
 
@@ -109,6 +112,49 @@ Starlight config.
 entry here with: what happened, what still works, what to do, and a "For self-hosters"
 detail block. The extension's link is `<site>/help/errors/#<code>`; a CI check compares
 the codes in slice 25's `extension/errors.js` with the anchors on the page.
+
+**How to read pronunciations** (`/use/pronunciations/`, and `/es/use/pronunciations/`).
+One page per base language that has a respelling key, written for readers of that
+language: the English page explains the English key, the Spanish page the Spanish key
+(each is a different key, [07](../07-word-model-v2/SPEC.md) section 7, not a translation of
+the other). It is the page the dashboard's "How to read this" sheet links to
+([21](../21-dashboard/SPEC.md)) and the popover's help. Sections, in this order:
+
+1. **Three lines, three jobs.** The popover's pronunciation block with пожалуйста as the
+   example: the word with its stress mark (пожа́луйста), the pronunciation ("pa-ZHAL-sta" /
+   the Spanish key's spelling), the romanization ("pozhaluysta") and why they differ: the
+   romanization is how the word is spelled in Latin letters, for typing and search; the
+   pronunciation is how it is said, written in the reader's own spelling.
+2. **The key.** A table of every sound: how it is written, an example word in the reader's
+   language, and examples from target languages (Spanish page: "j, como en jamón: хорошо
+   ja-ra-SHO, house jaus"; English page: "kh, as in Scottish loch: хорошо kha-ra-SHO"). The
+   table is generated at build time from `spec/lang/<base>/respelling.json` (`sounds` and
+   `targets`), so the page can't drift from what the validator and the prompt use.
+3. **Capitals mark the stress.** The syllable in capitals is said louder and longer; one per
+   word; short words have none; languages without word stress (Japanese, Korean, French,
+   Mandarin, Cantonese, Vietnamese) are all lowercase. Kotiko never uses accent marks for
+   stress, so a Spanish reader is told not to read "SI" as the Spanish word.
+4. **Tone digits.** For Mandarin and Cantonese, a small raised number after a syllable is its
+   tone, as said in the sentence (你好 nee²-how³ / ni²-jao³), with a short line per tone and
+   the reason it can differ from the pinyin's marks (tone sandhi). No digit means a neutral
+   tone.
+5. **The careful form.** "Slowly: pa-ZHA-lu-sta" ("Despacio: …") is the word said slowly
+   and clearly, as a teacher would; the first line is how people say it every day. Most
+   words have only one.
+6. **Where it comes from.** "AI-generated" ("Generado por IA") means the AI wrote the
+   pronunciation and no dictionary has checked it; "Checked in Wiktionary" means a
+   dictionary agreed on the stress (or tones); "Wiktionary stresses it differently" means
+   they disagree and the stress mark shows the dictionary's version; no label means the
+   learner wrote it. How to fix one (the dashboard's Pronunciation field) and that the
+   speak button ([34](../34-pronunciation-audio/SPEC.md)) is the best check for the sounds.
+7. **Other languages you read.** Bases without a key get no written pronunciation yet: the
+   stress mark, the romanization and audio still work, and how to help write a key
+   (`spec/lang/README.md`).
+
+The Spanish page carries a "beta" note until the Spanish key's review by readers from
+Spain, Mexico, the Caribbean and the Southern Cone is signed off
+([50](../50-ui-localization-and-base-language/SPEC.md) open question 5), and asks readers
+to report a respelling that reads wrong in their variety.
 
 ### 3. Languages (i18n plan)
 
@@ -118,8 +164,8 @@ the codes in slice 25's `extension/errors.js` with the anchors on the page.
   visitor's locale) come built in. English is the root only because it is the source the
   pages are written in (as with slice 50's `default_locale`).
 - **Launch set in Spanish**: `/es/` home, `/es/install/`, `/es/start/`, `/es/privacy/`,
-  `/es/help/` and `/es/help/errors/` (every slice 25 code), `/es/help/faq/`, and the
-  OpenRouter provider page. Other pages fall back to English with Starlight's notice.
+  `/es/help/` and `/es/help/errors/` (every slice 25 code), `/es/help/faq/`,
+  `/es/use/pronunciations/`, and the OpenRouter provider page. Other pages fall back to English with Starlight's notice.
 - **Extension links** use the interface locale: with Kotiko in Spanish they point to
   `<site>/es/help/errors/#<code>`, else the root. Anchors (error codes) are identical in
   every locale, so one CI check covers both. `stable-urls.txt` lists the Spanish URLs too.
@@ -175,7 +221,8 @@ script at 1280x800.
 ### 7. Build, checks and deploy
 
 - GitHub Actions workflow `site.yml`: on pushes to `main` that touch `site/**`,
-  `CHANGELOG.md` or `extension/errors.js`, and on every release tag.
+  `CHANGELOG.md`, `extension/errors.js` or `spec/lang/*/respelling.json`, and on every
+  release tag.
 - Steps: install, build, then checks: internal and external links (lychee, external
   failures as warnings), `stable-urls.txt`, error anchors, axe accessibility scan of every
   page with Playwright (no serious or critical issues). Then deploy with
@@ -233,6 +280,10 @@ Added by [53](../53-openssf-best-practices/SPEC.md).
       extension in Spanish every "Learn more" link opens a Spanish page.
 - [ ] A Spanish speaker outside the project installs and adds a first word using only
       `/es/install/` and `/es/start/`.
+- [ ] `/use/pronunciations/` and `/es/use/pronunciations/` exist, each with all seven
+      sections; their key tables are generated from `spec/lang/en/respelling.json` and
+      `spec/lang/es/respelling.json` and change when a key file changes; the Spanish page shows the "beta" note until the review box in 30's
+      checklist is ticked.
 - [ ] (53) `/start/` is in `stable-urls.txt`; the build fails if any `docs/` source it
       imports is missing; the footer badge is served from the site itself.
 

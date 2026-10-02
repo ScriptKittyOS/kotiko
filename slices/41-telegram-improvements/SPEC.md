@@ -5,9 +5,9 @@
 | **Status** | Proposed |
 | **Priority** | P1 (soon after release), except section 9 (the bot speaks the learner's language), which is P0 and ships with [50](../50-ui-localization-and-base-language/SPEC.md) |
 | **Size** | M (about a week) |
-| **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md); section 9 on [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md), [08](../08-language-tags/SPEC.md) (names per locale) and [09](../09-shared-word-spec-and-prompt/SPEC.md) (`base_langs` in the request) |
+| **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md) (including the pronunciation fields of its section 7); section 9 on [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md), [08](../08-language-tags/SPEC.md) (names per locale) and [09](../09-shared-word-spec-and-prompt/SPEC.md) (`base_langs` in the request) |
 | **Unblocks** | [48-multi-user-and-classroom](../48-multi-user-and-classroom/SPEC.md) (Telegram identities) |
-| **Sources** | [DECISIONS 2026-10-01, "English is not the base language"](../DECISIONS.md); [06 F17, F18, F33, F38](../../docs/research/06-adversarial-qa.md); [04 S27, S28](../../docs/research/04-architecture-release.md); [05 S18, S22](../../docs/research/05-learner-ux.md) |
+| **Sources** | [DECISIONS 2026-10-02, pronunciation](../DECISIONS.md); [DECISIONS 2026-10-01, "English is not the base language"](../DECISIONS.md); [06 F17, F18, F33, F38](../../docs/research/06-adversarial-qa.md); [04 S27, S28](../../docs/research/04-architecture-release.md); [05 S18, S22](../../docs/research/05-learner-ux.md) |
 
 ## Problem
 
@@ -69,8 +69,10 @@ mobile story Kotiko has ([05 S18](../../docs/research/05-learner-ux.md)). Its ed
 - As a learner who tapped Remove by mistake, I want Undo to bring the word back.
 - As a learner adding by voice, I want a long transcript not to swallow my word card.
 - As a learner in Puerto Rico whose Telegram is in Spanish, I want to write "¿cómo se dice
-  perro en japonés?" and get a Spanish card ("犬 (inu) = perro · japonés") with Spanish
-  buttons.
+  perro en japonés?" and get a Spanish card (犬 · japonés, said "i-nu", = perro) with
+  Spanish buttons.
+- As a Spanish speaker learning Russian on my phone, I want the bot's card to tell me how
+  to say спасибо the way Spanish is read ("spa-SI-ba"), like the extension does.
 - As a bilingual reader of Spanish and English, I want one message to add a word for both
   my Spanish and my English pages.
 
@@ -214,15 +216,44 @@ the profile from Telegram.
 
 **Lookups.** Each lookup sends the learner's text verbatim plus `base_langs` from the
 profile (09's request contract). The model's reply language follows the language the
-learner wrote in (09); cards show one line per base record:
+learner wrote in (09); cards show the word the way the popover does
+([19](../19-word-popover/SPEC.md) section 1a), then one meaning line per base record:
 
 ```
-犬 (inu) · japonés
+犬 · japonés
+i-nu
+inu · Generado por IA
 = perro
 = dog
 [Agregar] [Omitir]
 ```
 
+```
+пожа́луйста · ruso
+pa-ZHAL-sta
+Despacio: pa-ZHA-lu-sta
+pozhaluysta · Generado por IA
+= por favor
+[Agregar] [Omitir]
+```
+
+- **Line 1** is `native_vocalized` for Russian, Ukrainian and Belarusian when present (the
+  stress mark), else `native`, then the language name in the bot's locale.
+- **Pronunciation in the learner's base language.** Line 2 is the `pronunciation` of one
+  record: the one whose `base_lang` is the bot's locale when the learner reads that
+  language, else the primary base's (the first in the profile). A Spanish-speaking learner
+  reads the Spanish-key respelling (07 section 7), never the English one; other records'
+  pronunciations are not shown, as in the popover. The capitals carry the stress (plain
+  text, no formatting needed); Mandarin and Cantonese tone digits stay plain digits
+  ("shie4-shie"), since Telegram has no raised text. The careful form follows as
+  `bot_card_careful` ("Slowly: {pronunciation}" / "Despacio: {pronunciation}") when present.
+- **Romanization and label.** Line 3 is the romanization, when present, followed by the
+  source label in the bot's locale (`bot_pron_ai`: "AI-generated" / "Generado por IA",
+  the same wording as 19; the "Checked" and "Differs" states once 49 runs on the server;
+  none for the learner's own). With no romanization the label follows the pronunciation.
+- With no pronunciation (a base without a respelling key), lines 2 and 3 shrink to the
+  romanization alone, as in the popover. The bot has no audio.
+- `/list` and `/remove` keep the compact `native (romanization)` form.
 Tapping Add saves every base record of the card (slice 07's one record per base); pending
 rows are per record and cleaned up together (section 6).
 
@@ -250,8 +281,13 @@ descriptions ("quitar — quitar una palabra de tu lista").
 - [ ] A Telegram user whose updates carry `language_code: "es"` gets every reply, card,
       button and command description in Spanish; `/language en` switches to English.
 - [ ] With profile `base_langs: ["es"]`, "¿cómo se dice perro en japonés?" yields a card
-      "犬 (inu) · japonés = perro", and Add saves `{lang: "ja", base_lang: "es",
-      gloss: "perro"}`.
+      "犬 · japonés / i-nu / inu · Generado por IA / = perro", and Add saves `{lang: "ja",
+      base_lang: "es", gloss: "perro", pronunciation: "i-nu", pronunciation_source:
+      "model"}`.
+- [ ] With profile `["es", "en"]` and a Spanish Telegram app, a card for пожалуйста shows
+      пожа́луйста, the Spanish-key pronunciation, "Despacio: …" and "pozhaluysta · Generado
+      por IA", and no English-key respelling; with an English Telegram app it shows the
+      `en` record's respelling.
 - [ ] With profile `["es", "en"]`, one message yields one card with both glosses and Add
       saves two records; `/remove perro` finds the group and Undo restores both.
 - [ ] No string literal in `server/lib/kotiko/bot.ex` reaches the chat outside
@@ -261,7 +297,8 @@ descriptions ("quitar — quitar una palabra de tu lista").
 
 - ExUnit with slice 02's `Req.Test` Telegram stub recording outgoing calls: locale
   resolution (each of the four steps), Spanish and English replies, `setMyCommands` per
-  locale, profile routes, bilingual cards; pairing
+  locale, profile routes, bilingual cards (including which record's pronunciation is
+  shown for each locale and the careful and label lines); pairing
   (valid, expired, wrong, rate limit, deep-link payload), stranger silence, `/invite`,
   `/members`; `/remove` with 0, 1, 3 and 12 matches; callbacks with UUID and legacy
   integer data; per-word error handling; message splitting; polling backoff with a fake clock.

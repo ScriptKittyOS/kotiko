@@ -212,7 +212,8 @@ voice service." Slice 28 lists this in the privacy policy.
   [30](../30-release-pipeline/SPEC.md)):** Chrome and Firefox on Windows, macOS and Linux with
   French, Mandarin, Japanese, Arabic, Russian, Thai and (for a Spanish base) English words;
   for each, note whether the voice's stress agrees with the popover's respelling for the
-  Russian cases in 07 section 9, and file disagreements against the respelling or the engine.
+  Russian pronunciation cases in [09](../09-shared-word-spec-and-prompt/SPEC.md) section 6,
+  and file disagreements against the respelling or the engine.
 
 ## Rollout and migration
 
