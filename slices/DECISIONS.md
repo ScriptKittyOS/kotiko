@@ -6,6 +6,12 @@ and why. Open questions live in each slice's own "Open questions" section and in
 
 ## 2026-10-02
 
+**The project's domain is kotiko.org, on Cloudflare.** *Maintainer.* The docs site lives at
+`https://kotiko.org/` (Spanish at `/es/`); the extension's docs links and the OpenRouter
+sign-in callback use it. Cloudflare's proxy adds the security headers GitHub Pages can't,
+which gold's `hardened_site` needs. See [44](44-docs-site/SPEC.md) and
+[53](53-openssf-best-practices/SPEC.md).
+
 **Kotiko passed the first name screen.** *Maintainer.* No registered or pending KOTIKO
 trademark in the US, and no KOTIKO product in language learning, browser extensions or
 Telegram bots; risk looks low. The EUIPO search and a same-day store check remain before

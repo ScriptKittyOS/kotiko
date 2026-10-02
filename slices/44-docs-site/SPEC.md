@@ -78,8 +78,11 @@ The org can host static content safely and for free ([04 S31](../../docs/researc
 - Alternatives considered: VitePress (similar, fine); MkDocs Material (Python; the project
   announced a move to maintenance in favour of a successor, medium confidence). Either
   would do; Starlight is recommended for i18n and search without a service.
-- **URL**: `https://scriptkittyos.github.io/kotiko/` at launch. A custom domain is an open
-  question; if one is added later, GitHub Pages redirects the old host.
+- **URL**: `https://kotiko.org/` (decided: the maintainer owns `kotiko.org`, registered and
+  served through Cloudflare). Spanish pages under `https://kotiko.org/es/`. GitHub Pages
+  serves the files with `kotiko.org` as its custom domain, so
+  `scriptkittyos.github.io/kotiko` redirects to it. The extension hard-codes only
+  `https://kotiko.org/...` URLs (docs links, the OpenRouter sign-in callback of slice 11).
 
 ### 2. Information architecture
 
@@ -255,11 +258,13 @@ Added by [53](../53-openssf-best-practices/SPEC.md).
   project's bestpractices.dev entry. To keep section 8's promise of no third-party
   requests, the build downloads the badge image and serves it from the site; if the
   download fails, the footer shows a text link.
-- **Hardening headers (gold's `hardened_site`)**: GitHub Pages can't send
-  Content-Security-Policy, X-Frame-Options or X-Content-Type-Options headers. Until the
-  site is served from somewhere that can (a host with header control, or a proxy in front
-  of a custom domain, Open question 1), the badge entry's homepage stays the GitHub
-  repository, which sends them. A `<meta http-equiv="Content-Security-Policy">` in the
+- **Hardening headers (gold's `hardened_site`)**: GitHub Pages alone can't send
+  Content-Security-Policy, X-Frame-Options or X-Content-Type-Options headers, but
+  `kotiko.org` is proxied through Cloudflare, which adds them with a response-header
+  Transform Rule (CSP matching section 8's no-third-party policy, `X-Content-Type-Options:
+  nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, HSTS). Once a header
+  check confirms them, the badge entry's homepage becomes `https://kotiko.org/`; until
+  then it stays the GitHub repository, which sends them. A `<meta http-equiv="Content-Security-Policy">` in the
   site's pages is still added as defence in depth, though it doesn't satisfy the
   criterion.
 
@@ -305,12 +310,8 @@ Added by [53](../53-openssf-best-practices/SPEC.md).
 
 ## Open questions
 
-1. **Custom domain.** Keep `scriptkittyos.github.io/kotiko` or use something like
-   `kotiko.scriptkittyos.com`? Recommendation: a custom subdomain before launch if the org
-   controls DNS, because the extension hard-codes these links and the OAuth callback;
-   moving later needs a redirect and an extension update.
-   A host that can send hardening headers also matters for gold's `hardened_site`
-   ([53](../53-openssf-best-practices/SPEC.md) §8).
+1. **Custom domain.** Decided: `kotiko.org`, on Cloudflare (DNS proxied, so it can send the
+   hardening headers gold's `hardened_site` needs, [53](../53-openssf-best-practices/SPEC.md) §8).
 2. **Tool.** Starlight as recommended, or VitePress if a maintainer prefers it?
    Recommendation: Starlight.
 

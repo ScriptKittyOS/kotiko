@@ -419,7 +419,8 @@ For `access_continuity` (MUST) and `bus_factor` (SHOULD).
    | Google Cloud project for the store API (slice 30 §4) | `CWS_*` credentials |
    | addons.mozilla.org add-on (owner and developers) | Listing, signing, `AMO_JWT_*` keys |
    | `ghcr.io/scriptkittyos` packages | Docker images (slice 40) |
-   | `scriptkittyos.com` registrar, DNS and mailboxes | `security@`, `hello@`, docs custom domain if any |
+   | `scriptkittyos.com` registrar, DNS and mailboxes | `security@`, `hello@` |
+   | `kotiko.org` on Cloudflare (registrar, DNS, proxy, Transform Rules) | Docs site domain and its hardening headers (slice 44) |
    | Weblate project (slice 50) | Translations |
    | bestpractices.dev entry | This badge's answers |
    | Tag-signing keys | Each maintainer's own key; never shared; listed in MAINTAINERS.md |

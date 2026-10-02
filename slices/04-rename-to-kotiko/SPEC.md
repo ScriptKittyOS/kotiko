@@ -221,7 +221,7 @@ case where they forget.
   (works without this thanks to the redirect, but avoids surprises).
 - The local working folder (today `language-reducer-ext`) can stay as is; see section 5
   before renaming it.
-- Image name `ghcr.io/scriptkittyos/kotiko`, docs at `scriptkittyos.github.io/kotiko`,
+- Image name `ghcr.io/scriptkittyos/kotiko`, docs at `https://kotiko.org` (slice 44),
   OpenRouter referer `https://github.com/ScriptKittyOS/kotiko`.
 
 ### 7. Copy
