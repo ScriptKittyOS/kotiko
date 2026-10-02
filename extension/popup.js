@@ -24,6 +24,9 @@
     words: [],
     lastSync: null,
     syncError: null,
+    // Voices for the speak button (slice 34); the dashboard's voice settings (21) add the
+    // rest. Online voices send the word to the browser's voice service, so they're off.
+    speech: { allowOnline: false, rate: 0.9, voices: {} },
   };
   const MAX_JOBS = 3;
   const CHIP_ROWS = 3;
@@ -695,6 +698,7 @@
     $("settings").hidden = false;
     renderSettingsFields();
     renderSettingsStatus();
+    renderVoices();
     $("serverUrl").focus();
   }
 
@@ -703,6 +707,19 @@
     $("main").hidden = false;
     renderLangs();
     $("openSettings").focus();
+  }
+
+  function renderVoices() {
+    $("onlineVoices").setAttribute("aria-checked", String(state.s?.speech?.allowOnline === true));
+  }
+
+  function setOnlineVoices(on) {
+    state.s.speech = { ...DEFAULTS.speech, ...state.s.speech, allowOnline: on };
+    renderVoices();
+    return write(["speech"], async () => {
+      const { speech } = await ext.storage.local.get({ speech: DEFAULTS.speech });
+      await ext.storage.local.set({ speech: { ...DEFAULTS.speech, ...speech, allowOnline: on } });
+    });
   }
 
   function renderSettingsFields() {
@@ -766,6 +783,7 @@
     pausedHosts: [renderPage],
     token: [renderSections, renderBanners, renderSettingsFields, renderSettingsStatus],
     serverUrl: [renderSettingsFields],
+    speech: [renderVoices],
   };
 
   function renderFor(keys) {
@@ -840,6 +858,7 @@
     $("closeSettings").addEventListener("click", closeSettings);
     $("connForm").addEventListener("submit", saveConnection);
     $("checkNow").addEventListener("click", () => syncNow());
+    $("onlineVoices").addEventListener("click", () => setOnlineVoices(state.s?.speech?.allowOnline !== true));
     $("toggleKey").addEventListener("click", () => {
       const input = $("accessKey");
       const show = input.type === "password";

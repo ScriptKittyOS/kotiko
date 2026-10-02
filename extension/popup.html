@@ -133,6 +133,15 @@
       </div>
       <div class="conn-status" id="connStatus" role="status" aria-live="polite"></div>
     </form>
+    <!-- Voices for the speak button (slice 34): local voices only unless allowed here. -->
+    <section class="voices" aria-labelledby="voicesTitle">
+      <h2 class="section-title" id="voicesTitle" data-i18n="settings_voices"></h2>
+      <button class="switch-row" id="onlineVoices" type="button" role="switch" aria-checked="false" aria-describedby="onlineVoicesHelp">
+        <span data-i18n="settings_online_voices"></span>
+        <span class="switch" aria-hidden="true"></span>
+      </button>
+      <p class="field-help" id="onlineVoicesHelp" data-i18n="settings_online_voices_help"></p>
+    </section>
   </div>
 
   <script src="lib/i18n.js"></script>

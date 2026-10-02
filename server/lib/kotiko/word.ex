@@ -79,6 +79,9 @@ defmodule Kotiko.Word do
   The 0.2 shape for the legacy `GET /api/words`: integer id, `english` (the gloss), the
   enabled forms as strings and `language` as the English name derived from the tag (what
   a 0.2 extension shows). The one place on the server that maps a field to English.
+
+  Also carries the base language and the pronunciation fields (slice 07 section 7) for the
+  word card (slice 19); 0.2 extensions ignore fields they don't know.
   """
   def to_legacy_json(%__MODULE__{} = w) do
     %{
@@ -89,7 +92,12 @@ defmodule Kotiko.Word do
       romanization: w.romanization,
       english: w.gloss,
       forms: enabled_forms(w),
-      note: w.note
+      note: w.note,
+      base_lang: w.base_lang,
+      native_vocalized: w.native_vocalized,
+      pronunciation: w.pronunciation,
+      pronunciation_careful: w.pronunciation_careful,
+      pronunciation_source: w.pronunciation_source
     }
   end
 

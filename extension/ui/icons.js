@@ -40,6 +40,12 @@
       ["path", { d: "M14 11.5v3.25a1.5 1.5 0 0 1-1.5 1.5h-7.25a1.5 1.5 0 0 1-1.5-1.5V7.5A1.5 1.5 0 0 1 5.25 6H8.5" }],
     ],
     more: [dot(5, 10, 1.25), dot(10, 10, 1.25), dot(15, 10, 1.25)],
+    // Pronunciation audio (slice 34): a speaker with two sound waves.
+    speaker: [
+      ["path", { d: "M3.75 7.75v4.5h2.9L10.5 15.4V4.6L6.65 7.75z" }],
+      ["path", { d: "M13.25 7.6a3.4 3.4 0 0 1 0 4.8" }],
+      ["path", { d: "M15.4 5.4a6.5 6.5 0 0 1 0 9.2" }],
+    ],
   };
 
   function icon(name, size = 20) {

@@ -16,5 +16,15 @@
     "ci_factor": 3,
     "target_ms": 50,
     "note": "Today's single alternation regex takes about 7.5 s here (research 06 F24). Slice 14 brings it under target_ms and tightens budget_ms to match."
+  },
+  "wordcard.cardFor.x1000": {
+    "budget_ms": 40,
+    "ci_factor": 3,
+    "note": "1,000 word cards; one card's model is a thousandth of this, well inside 19 \u00a711's 4 ms per open (DOM included)."
+  },
+  "speak.pickVoice.x1000": {
+    "budget_ms": 60,
+    "ci_factor": 3,
+    "note": "1,000 voice choices over every recorded voice list (60 voices)."
   }
 }

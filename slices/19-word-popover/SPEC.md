@@ -451,3 +451,108 @@ any swapped word to see its meaning, how to say it, hear it, and fix it."
 - "Words on this page" list in the popup for touch users who can't long-press in links.
 - Show the sentence the word came from ([07](../07-word-model-v2/SPEC.md) `source_text`) in
   the popover.
+
+## Implementation notes
+
+*2026-10-02, first build, together with [34](../34-pronunciation-audio/SPEC.md)'s speak
+button and the part of [15](../15-framework-safe-swapping/SPEC.md) this slice needs, against
+today's backend (the legacy `GET /api/words`, one base language, `en`). Requirements above
+are unchanged; this records what exists now and what waits for other slices.*
+
+**Built.**
+
+- Files: `extension/content/popover.js` (host, events, placement, theme, toast),
+  `extension/lib/word-card.js` (what the card shows, as data: headword, syllables with
+  stress and tones, label, Also, other bases), `extension/ui/popover-style.js` (the
+  stylesheet as a string) with `extension/ui/tools/popover-tokens.mjs`, which copies the
+  tokens from `tokens.css` and the `:lang()` font rules from `base.css` into it (`--check`
+  runs in the unit tests; this is 06 §2's token-equality check). Tokens are in px there:
+  in a shadow root rem follows the web page's root font size. A `speaker` icon joined
+  `icons.js`. Content scripts load `lib/i18n.js`, `lib/speak.js`, `lib/word-card.js`,
+  `ui/icons.js`, `ui/popover-style.js` and `content/popover.js` before `content.js`.
+- §6: one `<kotiko-popover>` on `<html>`, created on first use, inline `all: initial
+  !important` style (a fixture page's `kotiko-popover { display: none !important }` loses),
+  `translate="no"`, `popover="manual"` where supported (hidden while neither the card nor
+  a toast shows, re-shown on each open so it sits above the page's own top-layer
+  elements), a closed shadow root, `adoptedStyleSheets` with a `<style>` fallback.
+  Delegated `pointerover`, `pointerout`, `pointerdown`, `click`, `keydown` and
+  `contextmenu` listeners on `document`, capture phase. `click` is not passive, only so
+  the click a long press inside a link leaves behind can be cancelled.
+- §1 and §1a: the order, `native_vocalized` for ru/uk/be, Japanese `reading` after the
+  word, the respelling with the stressed syllable semibold and tone digits as `<sup>`, the
+  careful form, the romanization (`ru-Latn`, `zh-Latn-pinyin`) and every row of the
+  source-label table (a `differs` word shows the dictionary's stressed form on the first
+  line), the language line from `Intl.DisplayNames`, the gloss, the note (clamped to three
+  lines with "More" when it is over 120 characters; a length heuristic, not a measurement),
+  the other bases' line (same `lang` and `native`, other `base_lang`, at most two; nobody
+  sees it yet because the legacy route returns base `en` only) and "Also", merged by
+  identical native. Accessible text per §7: the visible respelling and romanization are
+  `aria-hidden` with lowercase visually hidden text, tones read as "tone 4", and the dialog
+  is named by the plain `native`. The orange dotted underline under the word in the card
+  repeats the page's mark (06 §1 rule 2).
+- §3: hover intent (300 ms, under 4 px in the last 100 ms), 200 ms grace plus a 12 px
+  invisible bridge, click pins, a second click or a click outside closes, tap, long press
+  (500 ms) inside links with its context menu and click suppressed, Esc, Enter on a focused
+  word, selections that start on a word don't open it, editable and outside-fullscreen
+  words don't open. Keyboard: 33's `reveal-word` command is registered now (Alt+Shift+R,
+  `cmd_reveal_word`); the background sends `{type: "reveal-word"}` to the tab and the card
+  opens on the selected or focused word with focus on its first action (the speak button,
+  or the card when there is none), Tab cycles inside, Esc returns focus and the selection.
+  Nothing selected: the toast "Select a swapped word first." **S** speaks while the card
+  is open (not while typing in a page field).
+- §4 placement (below, centered, flipped above, clamped 8 px, the arrow follows the word;
+  first line box; rAF on scroll and resize; closes when the word leaves the viewport).
+  The word-to-card gap is 10 px (the 6 px arrow plus air).
+- §5 theme from the nearest ancestor background (alpha under 0.5 counts as transparent);
+  all transparent: dark only when the page's `color-scheme` allows dark and the system
+  prefers it. Memoized per element, reset when the system preference changes.
+- §8 toast: `{type: "toast", message}` from the background only (a sender of this
+  extension with no tab), bottom center, `role="status"`, 6 s, paused while hovered or
+  focused, Esc dismisses, one at a time. "That word was removed." when the open word is
+  deleted; an edited word re-renders in place (§10).
+- Data: the server's legacy JSON now carries `base_lang`, `native_vocalized`,
+  `pronunciation`, `pronunciation_careful` and `pronunciation_source`;
+  `lib/validate-words.js` accepts and caps them (and `reading` and
+  `verification.pronunciation` for later), dropping a bad field, never the word. A
+  `native_vocalized` that isn't `native` with marks is dropped.
+- Copy: the §9 keys the card uses, plus `popover_more`, `popover_dialog_label`,
+  `speak_label`, `toast_select_word_first` and `cmd_reveal_word`, in `en` and `es`. **The
+  Spanish strings are pending native review** (50 §9).
+- Tests: `test/unit/word-card.test.mjs`, `test/unit/popover-style.test.mjs`,
+  `test/unit/validate-pronunciation.test.mjs`, `test/dom/popover.test.mjs` (content,
+  label states, accessible text, hover, leave, click, links, selection, tap, long press,
+  Esc, keyboard and the command, toast and its sender check, speech, theme, placement,
+  words changing, the actions slot), `test/e2e/popover.spec.mjs` (hover in the top layer
+  over hostile CSS, privacy from page scripts, click and links, touch tap and long press,
+  the command with focus and Esc, the dark page, speech, Spanish interface). Screenshots
+  for review: `node test/visual/popover-screenshots.mjs [outDir]`. Fixture pages
+  `popover-light.html` and `popover-dark.html`; fixture words in
+  `test/helpers/popover-words.mjs`. The e2e reads the closed root through the DevTools
+  protocol (`test/helpers/closed-shadow.mjs`).
+
+**Not built yet.**
+
+- **Actions (§2).** Edit, Pause word and Wrong meaning here have no backend in the
+  extension yet (it talks to the legacy routes only: no `PATCH` client for 07's status and
+  forms, no dashboard for Edit). The slot exists (`createPopover({ actions })`, tested
+  with a stand-in action) and is hidden while empty; their copy keys wait for them.
+  "Skip it just on this page" needs no backend and can be wired when the two-choice panel
+  lands.
+- The `{type: "toast", jobId}` form and its Undo ([24](../24-add-flow-safety/SPEC.md)'s
+  `addJobs`), and 33's context-menu toasts.
+- 27's keyboard-mode setting that puts `tabindex` on swaps (Enter already opens a focused
+  word), and the screen-reader variants of 27 §2.
+- [37](../37-language-colors-and-reading-aids/SPEC.md)'s color dot and vowel-mark mode,
+  [35](../35-reveal-mode-and-review/SPEC.md)'s review buttons,
+  [36](../36-grammar-and-senses/SPEC.md)'s grammar fields; `reading` shows when a record
+  has it, but the server doesn't store it until 36.
+- The gloss per page base and the other-bases line in practice: one base (`en`) until
+  [50](../50-ui-localization-and-base-language/SPEC.md) and the v1 sync; the interface
+  follows the browser's language (no override yet).
+- axe-core in Playwright (not a dependency yet), the RTL and Arabic-in-a-Spanish-sentence
+  visual tests, the React and `transform`/`overflow` fixtures beyond `popover-light.html`'s
+  clipped card, 50's `es-news.html`/`en-news.html` two-base fixtures, and the manual
+  NVDA, VoiceOver and TalkBack passes.
+- Frames: the content script runs in the top frame only (no `all_frames`), so there is no
+  card inside iframes until [42](../42-frames-and-shadow-dom/SPEC.md).
+- The privacy policy line about `<kotiko-popover>` ([28](../28-privacy-and-store-readiness/SPEC.md)).

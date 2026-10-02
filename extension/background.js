@@ -191,6 +191,17 @@ ext.runtime.onMessage.addListener(
   }),
 );
 
+// "Show details for the selected word" (Alt+Shift+R; slice 33's reveal-word, the keyboard
+// path to slice 19's word card). The content script finds the word in the selection or
+// focus, or shows "Select a swapped word first." The rest of 33 (other commands, the
+// shortcuts settings, the fallback for tabs without a content script) comes with 33.
+ext.commands?.onCommand?.addListener((command, tab) => {
+  if (command !== "reveal-word") return;
+  const send = (id) => Promise.resolve(ext.tabs.sendMessage(id, { type: "reveal-word" })).catch(() => {});
+  if (tab?.id) send(tab.id);
+  else Promise.resolve(ext.tabs.query({ active: true, currentWindow: true })).then(([t]) => t?.id && send(t.id), () => {});
+});
+
 // New connection settings cancel the request made with the old ones and start over, so a
 // slow answer for the old token can't overwrite the new result (research 06 F11).
 ext.storage.onChanged.addListener((changes, area) => {

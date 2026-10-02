@@ -463,6 +463,21 @@ body {
   inset-inline-end: 6px;
 }
 
+.voices {
+  display: grid;
+  gap: var(--s-3);
+  padding: 0 var(--s-6) var(--s-6);
+}
+
+.voices .switch-row {
+  margin-inline: calc(-1 * var(--s-5));
+  width: calc(100% + 2 * var(--s-5));
+}
+
+.voices .field-help {
+  margin-block-start: 0;
+}
+
 .conn-actions {
   display: flex;
   flex-wrap: wrap;

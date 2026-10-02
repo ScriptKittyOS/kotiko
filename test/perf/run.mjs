@@ -18,6 +18,8 @@ const CI = !!process.env.CI;
 const filter = process.argv[2] ?? "";
 
 const { buildMatcher, matchCase, norm, skipLetter } = requireExt("lib/matcher.js");
+const { cardFor } = requireExt("lib/word-card.js");
+const { pickVoice } = requireExt("lib/speak.js");
 
 // Deterministic pseudo-random numbers, so every run measures the same input.
 function rng(seed) {
@@ -124,6 +126,27 @@ for (const [label, words] of Object.entries(wordSets)) {
     run: (matcher) => scan(matcher, page),
   };
 }
+
+// The word card (slice 19 §11: opening costs at most ~4 ms) and the voice choice behind its
+// speak button (34): 1,000 cards and 1,000 voice choices, so one open is a thousandth.
+const { POPOVER_WORDS } = await import("../helpers/popover-words.mjs");
+const voices = JSON.parse(fs.readFileSync(path.join(HERE, "../fixtures/speech/voices.json"), "utf8"));
+const allVoices = Object.values(voices).filter(Array.isArray).flat();
+benchmarks["wordcard.cardFor.x1000"] = () => {
+  let n = 0;
+  for (let i = 0; i < 1000; i++) {
+    const w = POPOVER_WORDS[i % POPOVER_WORDS.length];
+    n += cardFor(w, { all: POPOVER_WORDS, others: [] }).also.length;
+  }
+  return `${n}`; // not a swap count
+
+};
+benchmarks["speak.pickVoice.x1000"] = () => {
+  const langs = ["ru", "zh", "zh-Hant", "yue", "ja", "ar", "en", "es", "sr-Latn", "th"];
+  let n = 0;
+  for (let i = 0; i < 1000; i++) n += pickVoice(allVoices, langs[i % langs.length], { allowOnline: i % 2 === 0 }) ? 1 : 0;
+  return `${n}`; // not a swap count
+};
 
 // Median of several runs after warm-up. A benchmark that takes over a second (today's
 // matcher with 10k forms) gets three runs and no warm-up, so the job stays short.

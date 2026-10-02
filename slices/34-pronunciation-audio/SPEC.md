@@ -236,3 +236,59 @@ card, next to how the word is written for you. Kotiko uses the voices on your de
 - A clear "no voice" hint with the exact system setting to install one, per operating system.
 - Per-word recorded audio from open sources (for example Wikimedia Commons recordings) once
   licensing is settled.
+
+## Implementation notes
+
+*2026-10-02, first build, with [19](../19-word-popover/SPEC.md)'s word card. Requirements
+above are unchanged; this records what exists now and what waits for other slices.*
+
+**Built.**
+
+- `extension/lib/speak.js`: `KotikoSpeak.voiceFor`, `canSpeak`, `say`, `stop`, plus
+  `configure(settings)`, the pure `pickVoice(voices, lang, opts)` and `textFor(word)`,
+  and `createSpeaker({ synth, Utterance })` for tests. Voices: the first non-empty
+  `getVoices()` or 1 s, cached per document, refreshed on `voiceschanged`.
+- Voice choice follows the tiers, with these readings of the spec: tags are normalized
+  (`_` to `-`, case, `cmn` to `zh`, `zh-yue` to `yue`); a voice with no script gets one
+  from its region (`zh-TW`, `zh-HK`, `zh-MO`: Hant; `zh-CN`, `zh-SG`: Hans) or its
+  language's usual one (`sr`: Cyrillic, `zh`: Hans). Cantonese and Mandarin never stand in
+  for each other: `yue`, `zh-HK` and `zh-MO` voices (and names saying Cantonese) are used
+  for `yue` only, so `zh-Hant` takes a `zh-TW` voice and never a Hong Kong one; `sr-Latn`
+  takes only a Latin Serbian voice and Cyrillic `sr` never does. Within a tier: local,
+  then default, then name. The learner's chosen voice (`voices[lang]`) wins when it is in
+  the allowed pool.
+- What is spoken: `reading` for Japanese when present, else `native`; U+0301 removed for
+  ru, uk and be (ё keeps its dots); never `pronunciation` or `romanization`. A gloss is
+  spoken with `say({ native: gloss, lang: base_lang })`, which picks a base-language voice
+  by the same tiers (tested; no surface offers it yet).
+- The speak button in the word card: on the word's line, hidden until `canSpeak` says
+  yes, named by `speak_label` with the word in its own `lang`; **S** speaks; pressing again
+  restarts; an engine error (other than our own cancel) hides it for that language for the
+  page session. Rate 0.9.
+- Settings: one `speech` key in `storage.local` (`{ allowOnline: false, rate: 0.9,
+  voices: {} }`), read by the content script and applied at once when it changes. 39's
+  `s:display` group doesn't exist yet, so `allowOnline` and `rate` live there too. The
+  popup's settings view has a "Voices" section with the switch "Allow online voices" and
+  its privacy line (`settings_voices`, `settings_online_voices`,
+  `settings_online_voices_help`; Spanish pending native review).
+- Tests: `test/unit/speak.test.mjs` against voice lists recorded per system in
+  `test/fixtures/speech/voices.json` (Windows with Chrome's online voices, macOS, ChromeOS,
+  Linux speech-dispatcher): every tier, zh-Hant, yue, sr-Latn, Thai missing on Linux,
+  online voices off, a chosen voice, English for a Spanish reader, late-loading voices,
+  restart, errors, the base-language voice for a gloss. `test/dom/popover.test.mjs` and
+  `test/e2e/popover.spec.mjs` speak Russian (no U+0301), Mandarin, Japanese (from いぬ),
+  Arabic and English (base `es`) through a stubbed engine; in Chromium the stub is put
+  into the content script's isolated world over the DevTools protocol
+  (`test/helpers/speech-stub.mjs`), which page scripts can't reach either.
+- The manual check for the release checklist: [`docs/release/voice-check.md`](../../docs/release/voice-check.md).
+
+**Not built yet.**
+
+- The speaker in the dashboard's rows ([21](../21-dashboard/SPEC.md)) and in the popup's
+  add result ([20](../20-popup-redesign/SPEC.md)); the dashboard's per-language voice list
+  with "Try", the alternatives dropdown and the "No Thai voice on this device" line; the
+  "Slower" rate choice; the "Speak words when I open them" setting.
+- `reading` from the server: the field arrives with [36](../36-grammar-and-senses/SPEC.md),
+  so a Japanese word synced today is spoken from its kanji.
+- The privacy policy and store listing lines about online voices ([28](../28-privacy-and-store-readiness/SPEC.md)).
+- Firefox and the release build in the Playwright run (Chromium only today).
