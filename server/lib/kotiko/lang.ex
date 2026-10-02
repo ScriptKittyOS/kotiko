@@ -130,7 +130,11 @@ defmodule Kotiko.Lang do
   # unicode_scripts, as a keyword-like list of {iso, count}.
   defp script_counts(native, current) do
     Enum.reduce(@scripts, [], fn {name, isos}, acc ->
-      n = length(Regex.scan(script_regex(name), native))
+      n =
+        case script_regex(name) do
+          :unsupported -> 0
+          re -> length(Regex.scan(re, native))
+        end
 
       if n == 0 do
         acc
@@ -145,12 +149,20 @@ defmodule Kotiko.Lang do
     end)
   end
 
+  # Older Erlang/OTP releases (26, with Elixir 1.15) bundle a PCRE that doesn't know
+  # every Unicode script name in the CLDR data. Those scripts are skipped there rather
+  # than crashing every add; only detection of that script is lost on that OTP.
   defp script_regex(name) do
     key = {__MODULE__, :script, name}
 
     case :persistent_term.get(key, nil) do
       nil ->
-        re = Regex.compile!("\\p{#{name}}", "u")
+        re =
+          case Regex.compile("\\p{#{name}}", "u") do
+            {:ok, re} -> re
+            {:error, _} -> :unsupported
+          end
+
         :persistent_term.put(key, re)
         re
 
