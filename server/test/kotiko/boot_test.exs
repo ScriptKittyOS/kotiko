@@ -119,6 +119,9 @@ defmodule Kotiko.BootTest do
     refute output =~ ~r/locked/i
     refute output =~ "failed to connect"
     assert output =~ "== Migrated"
+    # Nothing to back up on a new install.
+    refute output =~ "Backed up"
+    refute File.exists?(Path.join(data, "backups"))
     assert output =~ "Starting the Kotiko server, version #{Application.spec(:kotiko, :vsn)}"
     assert output =~ "Data:      #{data} (kotiko.db, 0 active words)"
     assert output =~ "Listening on this computer only (http://127.0.0.1:#{port})"
@@ -152,28 +155,14 @@ defmodule Kotiko.BootTest do
   # ── words from before the rename ──────────────────────────────────
   # legacy-name-ok-start: these tests name the old data folder and server.
 
-  # A database made by this server with two words, saved as the old name's file at `path`.
-  defp old_database(ctx, path) do
-    seed = Path.join(ctx.tmp, "seed-#{System.unique_integer([:positive])}")
-    vars = %{"KOTIKO_DATA_DIR" => seed, "PORT" => to_string(free_port())}
-
-    script = """
-    {:ok, _} = Application.ensure_all_started(:kotiko, :permanent)
-    Kotiko.Repo.query!("INSERT INTO words (lang, native, english, status, inserted_at, updated_at)
+  # A 0.2 database (the schema before slice 07) with two words, saved as the old name's
+  # file at `path`.
+  defp old_database(_ctx, path) do
+    Kotiko.LegacyDb.create!(path, """
+    INSERT INTO words (lang, native, english, status, inserted_at, updated_at)
       VALUES ('ru', 'да', 'yes', 'active', datetime(), datetime()),
-             ('ru', 'дом', 'house', 'active', datetime(), datetime())")
-    :ok = Application.stop(:kotiko)
-    """
-
-    {output, 0} = boot(vars, script, ctx)
-    assert output =~ "== Migrated"
-    File.mkdir_p!(Path.dirname(path))
-
-    for suffix <- ["", "-wal", "-shm"], File.exists?(Path.join(seed, "kotiko.db" <> suffix)) do
-      File.rename!(Path.join(seed, "kotiko.db" <> suffix), path <> suffix)
-    end
-
-    path
+             ('ru', 'дом', 'house', 'active', datetime(), datetime())
+    """)
   end
 
   @start_and_stop """
@@ -198,15 +187,23 @@ defmodule Kotiko.BootTest do
     assert output =~ "Copied your API token from #{old_dir}/api-token"
     assert output =~ "Data:      #{new_dir} (kotiko.db, 2 active words)"
     assert output =~ "API token: saved in #{new_dir}/api-token"
-    refute output =~ "== Migrated"
+    # The copy is a 0.2 database: it is backed up, then upgraded to the v2 word model.
+    assert output =~ "Backed up the database to #{new_dir}/backups/kotiko-pre-"
+    assert output =~ "== Migrated 20261015000000"
+    assert output =~ "Upgraded your words to the new word model: 2 words"
+    assert [_backup] = Path.wildcard(Path.join(new_dir, "backups/kotiko-pre-*.db"))
     assert File.exists?(Path.join(old_dir, "MOVED-TO-KOTIKO.txt"))
     assert File.read!(Path.join(new_dir, "api-token")) =~ "token-the-old-server-made"
 
+    # The second start: nothing to move, migrate or back up.
     {output, 0} = boot(vars, @start_and_stop, ctx)
     refute output =~ "Moved your words"
     refute output =~ "Copied your API token"
     refute output =~ "not touched"
+    refute output =~ "== Migrated"
+    refute output =~ "Backed up"
     assert output =~ "Data:      #{new_dir} (kotiko.db, 2 active words)"
+    assert [_backup] = Path.wildcard(Path.join(new_dir, "backups/kotiko-pre-*.db"))
   end
 
   test "the old data folder variable still works, with a warning, and is migrated in place",

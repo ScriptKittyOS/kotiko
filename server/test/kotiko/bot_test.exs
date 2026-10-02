@@ -80,7 +80,7 @@ defmodule Kotiko.BotTest do
 
     calls = handle(callback_update("add:#{word.id}"))
 
-    assert Words.get(word.id).status == "active"
+    assert Repo.get(Word, word.id).status == "active"
 
     assert {"editMessageText", %{"chat_id" => @user, "message_id" => 11, "text" => text}} =
              List.keyfind(calls, "editMessageText", 0)
@@ -89,10 +89,54 @@ defmodule Kotiko.BotTest do
     assert {"answerCallbackQuery", %{"callback_query_id" => "cb1", "text" => "Added"}} in calls
   end
 
-  test "the Skip button deletes a pending word" do
+  test "the Skip button deletes a pending word (a tombstone)" do
     word = word_fixture(%{}, "pending")
     handle(callback_update("skip:#{word.id}"))
-    assert Words.get(word.id) == nil
+    assert Words.get_row(word.id) == nil
+    assert %Word{deleted_at: %DateTime{}} = Repo.get(Word, word.id)
+  end
+
+  test "a word already in the list says so, with a Remove button" do
+    word = word_fixture()
+    LLMStub.stub(fn _, conn -> LLMStub.answer(conn, LLMStub.words([LLMStub.word()], "add")) end)
+
+    calls = handle(text_update("add da"))
+
+    assert [{"sendMessage", %{"text" => text, "reply_markup" => markup}}] =
+             Enum.filter(calls, &match?({"sendMessage", _}, &1))
+
+    assert text =~ "Already in your list"
+    assert %{"inline_keyboard" => [[%{"callback_data" => "del:" <> id}]]} = markup
+    assert id == to_string(word.id)
+    assert Repo.aggregate(Word, :count) == 1
+  end
+
+  test "a lookup of a word saved by the extension keeps it as it is" do
+    word = word_fixture(%{note: "Mine."}, "active")
+    {:ok, paused} = Words.update(word.uuid, %{status: "paused"})
+
+    LLMStub.stub(fn _, conn ->
+      LLMStub.answer(conn, LLMStub.words([LLMStub.word(note: "Model.")]))
+    end)
+
+    handle(text_update("what's da"))
+
+    assert %Word{status: "paused", note: "Mine."} = Repo.get(Word, paused.id)
+  end
+
+  test "/remove tombstones the matching words" do
+    word = word_fixture()
+    calls = handle(text_update("/remove да"))
+
+    assert Enum.any?(TelegramStub.texts(calls), &(&1 =~ "Removed да (yes)"))
+    assert Words.get_row(word.id) == nil
+    assert Words.get(word.uuid).deleted_at
+  end
+
+  test "/list shows the meanings" do
+    word_fixture()
+    calls = handle(text_update("/list"))
+    assert Enum.any?(TelegramStub.texts(calls), &(&1 =~ "да  =  yes  · Russian"))
   end
 
   test "a button for a word that's gone says so" do

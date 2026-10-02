@@ -188,6 +188,12 @@ moved or renamed, it starts with empty settings, so you'd paste the server addre
 again (your words come back on the next sync; hidden languages and paused sites would need
 setting again).
 
+When an update changes the database, the server first copies it to
+`~/.local/share/kotiko/backups/kotiko-pre-<version>-<time>.db` and names the file in the
+log ("Backed up the database to ..."); the newest five copies are kept. To go back, stop the
+server, delete `kotiko.db-wal` and `kotiko.db-shm` if they're there, copy that file over
+`kotiko.db`, and start the version you had before.
+
 <!-- legacy-name-ok-start -->
 #### Updating from Slovo
 
@@ -273,17 +279,24 @@ Every route except `GET /health` needs `Authorization: Bearer <API token>`.
 
 | Route | Does |
 |---|---|
-| `GET /api/words` | Active words in every language; `?lang=ru,ar` for some |
-| `POST /api/words` `{"text": "shukran"}` | Works out the word(s) and saves them |
-| `DELETE /api/words/:id` | Removes a word |
+| `GET /api/v1/words` | Your words with every field; `?lang=ru,ar`, `?base=es`, `?status=active,paused`, `?limit=` |
+| `GET /api/v1/words/:id` | One word by its id (a UUID), deleted ones included |
+| `POST /api/v1/words` `{"text": "shukran", "base_langs": ["en"]}` | Works out the word(s) and saves them, merging into words you have; `"preview": true` saves nothing and returns candidates; `{"word": {...}}` saves a word without the model |
+| `POST /api/v1/words/batch` `{"words": [...]}` | Saves up to 500 words at once, without the model |
+| `PATCH /api/v1/words/:id` | Edits the fields you send; `if_updated_at` (or `If-Match`) refuses a stale edit |
+| `DELETE /api/v1/words/:id`, `POST /api/v1/words/:id/restore` | Deletes a word, and undoes that for 30 days |
+| `GET`/`POST /api/v1/jobs/pronunciation-refresh` | The one-time job adding pronunciations to saved words; `{"action": "pause"}` or `"resume"` |
+| `GET /api/words`, `POST /api/words`, `DELETE /api/words/:id` | The routes the 0.2 extension uses (words for English pages only); removed one minor version after `/api/v1` ships |
 | `GET /health` | `{"ok", "name", "version", "api", "db"}`, no token needed; 503 when the database fails |
+
+Errors from `/api/v1` look like `{"error": {"code": "word_conflict", "message": "...", "details": {...}}}`.
 
 ## Layout
 
 ```
 server/
   lib/kotiko/llm.ex          prompt that turns a message into word entries (any language)
-  lib/kotiko/router.ex       the API above
+  lib/kotiko/router.ex       the API above (router_v1.ex: the /api/v1 routes)
   lib/kotiko/bot.ex          Telegram long polling, commands, Add/Skip buttons
   lib/kotiko/transcriber.ex  voice note → text
   lib/kotiko/words.ex        database functions

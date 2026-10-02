@@ -696,6 +696,76 @@ assertions and the separate stress and vowel-reduction scores.
   already saved, a few at a time. Your database is backed up automatically before the
   upgrade."
 
+## Implementation notes
+
+Recorded when the server side was built (branch `slice/07-word-model`). Requirements above
+are unchanged; these are the choices and stand-ins.
+
+**Stand-ins for slices not built yet** (each says so in its moduledoc):
+
+- Slice 09: `Kotiko.WordInput` checks a word's shape, lengths, forms (cleaned, gloss
+  first, at most 10, one enabled) and `target_is_base`/`unrequested_base`, but not
+  forms against the gloss, stopwords or scripts. `Kotiko.Pronunciation` implements section
+  7's validation table with the target facts and the `en`/`es` key alphabets in code
+  instead of `spec/pronunciation.json` and `spec/lang/<base>/respelling.json`.
+  `spec/fixtures/native-key.json` (28 cases) is created here; Elixir and a reference
+  JavaScript function in `test/unit/native-key.test.mjs` both pass it.
+- Slice 09's prompt: `Kotiko.LLM` keeps today's prompt and adds clearly marked placeholder
+  sections: the romanization line now asks for the standard scheme, the entry gains
+  `pronunciation`, `pronunciation_careful` and `native_vocalized` with a short key per
+  base, a multi-base addendum (only when `base_langs` isn't `["en"]`), a `hint_lang` line,
+  and a short `respell` prompt. With one base, `english`/`english_forms` are read as
+  `gloss`/`forms`.
+- Slices 08 and 50: `Word.normalize_base/1` and `Word.same_language?/2` (primary subtag).
+- Slice 10: `LLM.respell/1` tries at most two models with a 45 s timeout. Quota is unknown
+  unless the `:llm_quota` app env holds a function (used by the tests); a 429 whose message
+  says `per-day` counts as `quota_exhausted` (wait until 00:00 UTC), other 429s wait a
+  minute, other failures five minutes without counting attempts. With no OpenRouter key the
+  job waits (`retry_at` null) and checks again hourly. Lookup error codes come from the
+  model client's message: `rate_limited` and `lookup_not_set_up` (503), `key_rejected`
+  and `model_unavailable` (502).
+- Slice 41: the bot looks words up with `base_langs: ["en"]`; `/api/v1/profile` is not
+  built (41 owns its table).
+- Slice 11: the v1 word has no `serverId`; the legacy integer id stays internal, so the
+  local store matches seeded words by natural key.
+
+**Choices:**
+
+- The migration rebuilds the table (read, convert, write a new table, drop, rename),
+  because SQLite can't change constraints in place. Integer ids are kept, and
+  `sqlite_sequence` keeps 0.2's highest id, so an id 0.2 deleted is never handed out to a
+  new word (old Telegram buttons and popup Undo hold such ids). It also creates
+  `sync_state`, `add_requests` and `maintenance_jobs` and seeds the refresh job (`running`,
+  or `done` when there is no live saved word).
+- The backup runs only when a migration is pending and a `words` table exists (no backup on
+  a new install). It is named with the server version from `mix.exs`. A failed backup stops
+  the boot before anything is migrated. The `backups` folder is 0700 and each copy 0600;
+  pruning only touches `kotiko-pre-*` files.
+- `Kotiko.WriteLock` queues this server's write transactions first come first served before
+  SQLite sees them. Immediate transactions alone were correct, but 20 writers polling
+  SQLite's busy handler took up to 2 s and could pass the 5 s busy timeout.
+- `updated_at` is stored to the millisecond and always moves forward by at least 1 ms, so
+  `if_updated_at` sees every change. Restore is refused (410) once a tombstone is 30 days
+  old even before the janitor scrubs it, and clears `merged_into`.
+- Merge: the forms cap never drops existing forms (a migrated word may have more than 10);
+  the deprecated `language` is filled when blank, as today.
+- Only 200 responses are kept for a `client_request_id` (a failed lookup can be retried
+  with the same id); previews are never kept. Repeats wait on a per-id lock on this node.
+- Responses: one word is `{"word": Word}` (GET, PATCH, DELETE, restore); text adds also
+  carry `dropped_fields`; batch results and rejections carry `index`; preview candidates
+  have `status` and `origin` but no id or timestamps. `GET /api/v1/words` is newest first.
+- `PATCH` refuses an invalid pronunciation (400 `invalid_word`) instead of dropping it,
+  because the learner typed it; it ignores unknown fields and can't change `base_lang`.
+  Codes outside slice 25's catalog: `invalid_request` and `invalid_word` (400),
+  `empty_input` (400), `not_found` (unknown route), `request_too_large` (413), `internal`
+  (500).
+- Pending words (Telegram lookups) are invisible on every v1 route; the bot's Skip
+  tombstones them like any delete.
+- Legacy `POST /api/words`: a pending Telegram lookup that the add activates counts as new
+  (it wasn't in the list). Legacy `GET /api/words` leaves out words with no enabled form.
+- The janitor and the refresh job start with the server (first runs after 5 minutes and 1
+  minute); tests turn them off (`background_jobs: false`) and call them directly.
+
 ## Open questions
 
 1. **Should a re-add of a paused word un-pause it?** Recommendation: yes for explicit adds

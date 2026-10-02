@@ -13,7 +13,7 @@ defmodule Kotiko.Bot do
   """
   use GenServer
   require Logger
-  alias Kotiko.{LLM, Telegram, Transcriber, Word, Words}
+  alias Kotiko.{Lookup, Telegram, Transcriber, Word, Words}
 
   @help """
   Kotiko: send me a word and it starts appearing on your web pages in place of the word you'd normally read there.
@@ -144,7 +144,7 @@ defmodule Kotiko.Bot do
             Telegram.send_message(chat, "No words yet. Send me one.")
 
           {_, words} ->
-            lines = Enum.map(words, &"#{&1.native}  =  #{&1.english}  · #{language_name(&1)}")
+            lines = Enum.map(words, &"#{&1.native}  =  #{&1.gloss}  · #{language_name(&1)}")
             header = "#{Words.count_active()} words. Newest:\n\n"
             Telegram.send_message(chat, header <> Enum.join(lines, "\n"))
         end
@@ -169,7 +169,7 @@ defmodule Kotiko.Bot do
 
           matches ->
             Enum.each(matches, &Words.delete/1)
-            removed = Enum.map_join(matches, ", ", &"#{&1.native} (#{&1.english})")
+            removed = Enum.map_join(matches, ", ", &"#{&1.native} (#{&1.gloss})")
             Telegram.send_message(chat, "Removed #{removed}. Pages show the English again.")
         end
 
@@ -209,7 +209,8 @@ defmodule Kotiko.Bot do
     chat = msg["chat"]["id"]
     Telegram.typing(chat)
 
-    case LLM.interpret(text, Words.recent_languages()) do
+    # Meanings in English until slice 41 stores the learner's base languages.
+    case Lookup.interpret(text, base_langs: ["en"], origin: "telegram") do
       {:ok, %{words: [], reply: reply}} ->
         Telegram.send_message(
           chat,
@@ -228,21 +229,22 @@ defmodule Kotiko.Bot do
   defp present_word(chat, attrs, intent, source) do
     attrs = Map.put(attrs, :source_text, source)
 
-    case Words.get_by(attrs.lang, attrs.native) do
+    case Words.get_by_key(attrs.lang, attrs.native, attrs.sense, attrs.base_lang) do
       %Word{status: "active"} = w ->
         Telegram.send_message(chat, card(w) <> "\n\n✓ Already in your list.", [
           [btn("Remove", "del:#{w.id}")]
         ])
 
       _ when intent == "add" ->
-        {:ok, w} = Words.upsert(attrs, "active")
+        {:ok, %{word: w}} = Words.add(%{attrs | status: "active"}, explicit: true)
 
         Telegram.send_message(chat, card(w) <> "\n\n✅ Added. It shows up on pages now.", [
           [btn("Undo", "del:#{w.id}")]
         ])
 
       _ ->
-        {:ok, w} = Words.upsert(attrs, "pending")
+        # A lookup is kept as pending (server-local, never listed) until Add.
+        {:ok, %{word: w}} = Words.add(%{attrs | status: "pending"})
 
         Telegram.send_message(chat, card(w), [
           [btn("✅ Add", "add:#{w.id}"), btn("Skip", "skip:#{w.id}")]
@@ -258,7 +260,7 @@ defmodule Kotiko.Bot do
 
     with [action, sid] <- String.split(data, ":", parts: 2),
          {wid, ""} <- Integer.parse(sid),
-         %Word{} = w <- Words.get(wid) do
+         %Word{} = w <- Words.get_row(wid) do
       case action do
         "add" ->
           {:ok, w} = Words.activate(w)
@@ -290,7 +292,7 @@ defmodule Kotiko.Bot do
   defp card(%Word{} = w) do
     head = if w.romanization, do: "#{w.native}  (#{w.romanization})", else: w.native
 
-    [language_name(w), head, "= #{w.english}", w.note]
+    [language_name(w), head, "= #{w.gloss}", w.note]
     |> Enum.reject(&(&1 in [nil, ""]))
     |> Enum.join("\n")
   end
