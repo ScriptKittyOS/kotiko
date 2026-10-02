@@ -1,0 +1,221 @@
+<!doctype html>
+<!-- SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kotiko</title>
+  <link rel="icon" href="icon32.png" />
+  <script src="ui/theme.js"></script>
+  <link rel="stylesheet" href="ui/tokens.css" />
+  <link rel="stylesheet" href="ui/base.css" />
+  <link rel="stylesheet" href="ui/components.css" />
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <!--
+    Slice 21: every word, live. Hash routes: #words, #words/{id}, #words?lang=…&status=…&q=…,
+    #add, #settings, #settings/{section}. Every string comes from _locales through
+    KotikoI18n (data-i18n* attributes here, t() in dashboard.js); word data is only ever
+    set as text.
+  -->
+  <a class="skip btn btn-primary btn-sm" href="#search" id="skipLink" data-i18n="dash_skip_to_search"></a>
+
+  <div class="app" id="app" data-view="words" data-ready="false">
+    <header class="top">
+      <a class="brand" href="#words" id="brandLink">
+        <img class="mark" src="icon32.png" alt="" width="24" height="24" />
+        <span class="wordmark" data-i18n="extName"></span>
+      </a>
+      <span class="top-space"></span>
+      <button class="btn btn-primary" id="addWords" type="button" aria-keyshortcuts="N">
+        <span data-icon="add" data-icon-size="18"></span>
+        <span data-i18n="dash_add_words"></span>
+      </button>
+      <button class="btn btn-icon" id="moreMenu" type="button" aria-haspopup="menu" aria-expanded="false" data-i18n-aria-label="dash_more" data-i18n-title="dash_more">
+        <span data-icon="more"></span>
+      </button>
+      <a class="btn btn-quiet top-settings" id="openSettings" href="#settings">
+        <span data-icon="sliders" data-icon-size="18"></span>
+        <span data-i18n="dash_settings"></span>
+      </a>
+    </header>
+
+    <div class="banners" id="banners"></div>
+
+    <!-- The word list (§2-§8). -->
+    <main class="words-view" id="wordsView" aria-labelledby="wordsTitle">
+      <div class="intro">
+        <h1 class="title" id="wordsTitle" data-i18n="dash_title"></h1>
+        <p class="summary num" id="summary" aria-live="polite"></p>
+      </div>
+
+      <nav class="shelf" id="shelfWrap" data-i18n-aria-label="dash_shelf_label">
+        <ul class="shelf-list" id="shelf"></ul>
+      </nav>
+
+      <div class="toolbar" id="toolbar">
+        <div class="search" role="search">
+          <span data-icon="search" data-icon-size="18"></span>
+          <label class="sr-only" for="search" id="searchLabel" data-i18n="dash_search_label"></label>
+          <input class="field search-field" id="search" type="search" dir="auto" spellcheck="false" autocomplete="off" enterkeyhint="search" aria-keyshortcuts="/" />
+          <kbd class="search-key" aria-hidden="true">/</kbd>
+        </div>
+        <div class="filters" id="filters"></div>
+      </div>
+
+      <div class="lines" id="lines">
+        <p class="refresh" id="refreshLine" hidden>
+          <span class="refresh-text" id="refreshText" aria-hidden="true"></span>
+          <span class="sr-only" id="refreshStatus" role="status"></span>
+          <button class="link link-quiet" id="refreshAction" type="button"></button>
+        </p>
+        <p class="new-strip" id="newStrip" hidden></p>
+      </div>
+
+      <div class="workspace" id="workspace">
+        <section class="list-card" id="listCard" aria-labelledby="wordsTitle">
+          <div class="grid" id="grid" role="grid" aria-multiselectable="true" aria-labelledby="wordsTitle" aria-describedby="gridHint" tabindex="0" aria-rowcount="1" aria-colcount="6">
+            <div class="grid-head" role="rowgroup">
+              <div class="grid-row grid-head-row" role="row" aria-rowindex="1">
+                <span class="c-check" role="columnheader"><span class="sr-only" data-i18n="dash_col_select"></span></span>
+                <span class="c-native" role="columnheader" data-i18n="dash_col_word"></span>
+                <span class="c-meaning" role="columnheader" data-i18n="dash_col_meaning"></span>
+                <span class="c-lang" role="columnheader" data-i18n="dash_col_language"></span>
+                <span class="c-added" role="columnheader" id="addedHead" data-i18n="dash_col_added"></span>
+                <span class="c-status" role="columnheader"><span class="sr-only" data-i18n="dash_col_status"></span></span>
+              </div>
+            </div>
+            <div class="grid-body" id="gridBody" role="rowgroup">
+              <div class="grid-spacer" id="gridSpacer"></div>
+            </div>
+          </div>
+          <div class="list-empty" id="listEmpty" hidden></div>
+          <p class="sr-only" id="gridHint" data-i18n="dash_grid_hint"></p>
+        </section>
+
+        <div class="scrim" id="scrim" hidden></div>
+        <aside class="inspector" id="inspector" hidden tabindex="-1"></aside>
+      </div>
+    </main>
+
+    <!-- Settings (§9): one scrolling page; sections whose slice hasn't shipped are absent. -->
+    <main class="settings-view" id="settingsView" hidden aria-labelledby="settingsTitle">
+      <div class="settings-layout">
+        <nav class="settings-index" data-i18n-aria-label="dash_settings_index">
+          <a class="back-link" href="#words" id="backToWords">
+            <span data-icon="back" data-icon-size="16"></span>
+            <span data-i18n="dash_back_to_words"></span>
+          </a>
+          <ul id="settingsIndex"></ul>
+        </nav>
+        <div class="settings-body">
+          <h1 class="title" id="settingsTitle" tabindex="-1" data-i18n="dash_settings"></h1>
+          <!-- 50: "Languages you read in" (base languages) goes first when slice 50 ships. -->
+
+          <section class="set-section" id="set-language" data-section="language" aria-labelledby="setLangTitle">
+            <h2 class="set-title" id="setLangTitle" data-i18n="dash_set_ui_lang"></h2>
+            <p class="set-help" data-i18n="dash_set_ui_lang_help"></p>
+            <div class="radio-list" id="uiLangOptions" role="radiogroup" aria-labelledby="setLangTitle"></div>
+          </section>
+
+          <section class="set-section" id="set-connection" data-section="connection" aria-labelledby="setConnTitle">
+            <h2 class="set-title" id="setConnTitle" data-i18n="dash_set_connection"></h2>
+            <p class="set-help" data-i18n="settings_connection_help"></p>
+            <div class="set-field">
+              <label class="field-label" for="serverUrl" data-i18n="settings_server_address"></label>
+              <input class="field" id="serverUrl" type="text" inputmode="url" spellcheck="false" autocomplete="off" placeholder="http://localhost:4747" aria-describedby="serverUrlError" />
+              <p class="field-error" id="serverUrlError" hidden></p>
+            </div>
+            <div class="set-field">
+              <label class="field-label" for="accessKey" data-i18n="settings_access_key"></label>
+              <div class="key-wrap">
+                <input class="field" id="accessKey" type="password" spellcheck="false" autocomplete="off" aria-describedby="accessKeyHelp" />
+                <button class="btn btn-quiet btn-sm key-toggle" id="toggleKey" type="button" aria-controls="accessKey" aria-pressed="false" data-i18n="settings_show_key"></button>
+              </div>
+              <p class="field-help" id="accessKeyHelp" data-i18n="dash_set_access_key_help"></p>
+            </div>
+            <div class="set-actions">
+              <button class="btn btn-secondary" id="testConn" type="button" data-i18n="dash_set_test"></button>
+            </div>
+            <div class="conn-status" id="connStatus" role="status" aria-live="polite"></div>
+            <!-- 11: lookup mode, provider and the AI key (typed only on full pages) go here. -->
+          </section>
+
+          <section class="set-section" id="set-voices" data-section="voices" aria-labelledby="setVoicesTitle">
+            <h2 class="set-title" id="setVoicesTitle" data-i18n="settings_voices"></h2>
+            <button class="switch-row" id="onlineVoices" type="button" role="switch" aria-checked="false" aria-describedby="onlineVoicesHelp">
+              <span data-i18n="settings_online_voices"></span>
+              <span class="switch" aria-hidden="true"></span>
+            </button>
+            <p class="field-help" id="onlineVoicesHelp" data-i18n="settings_online_voices_help"></p>
+          </section>
+
+          <!-- 31, 16, 37, 43: "Reading"; 32, 35, 46: "Learning"; 33: "Shortcuts". -->
+
+          <section class="set-section" id="set-appearance" data-section="appearance" aria-labelledby="setLookTitle">
+            <h2 class="set-title" id="setLookTitle" data-i18n="dash_set_appearance"></h2>
+            <div class="set-field">
+              <p class="field-label" id="themeLabel" data-i18n="dash_set_theme"></p>
+              <div class="segmented" id="themeOptions" role="radiogroup" aria-labelledby="themeLabel"></div>
+            </div>
+            <div class="set-field">
+              <p class="field-label" id="motionLabel" data-i18n="dash_set_motion"></p>
+              <div class="segmented" id="motionOptions" role="radiogroup" aria-labelledby="motionLabel"></div>
+            </div>
+          </section>
+
+          <!-- 12: "Your data" (export, import, delete everything). -->
+
+          <section class="set-section" id="set-about" data-section="about" aria-labelledby="setAboutTitle">
+            <h2 class="set-title" id="setAboutTitle" data-i18n="dash_set_about"></h2>
+            <p class="about-version" id="aboutVersion"></p>
+            <p class="about-links">
+              <a class="link" href="https://github.com/ScriptKittyOS/kotiko" target="_blank" rel="noopener noreferrer" data-i18n="dash_set_source"></a>
+              <a class="link" href="https://github.com/ScriptKittyOS/kotiko/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" data-i18n="dash_set_license"></a>
+            </p>
+            <!-- 28: privacy policy; 22: "Show welcome again". -->
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <!-- Add words (§8; #add). The single add box today; 13's paste and drop area below it. -->
+    <div class="sheet-backdrop" id="addBackdrop" hidden></div>
+    <section class="add-sheet" id="addSheet" role="dialog" aria-modal="true" aria-labelledby="addTitle" hidden>
+      <div class="sheet-head">
+        <h2 class="sheet-title" id="addTitle" data-i18n="dash_add_title"></h2>
+        <button class="btn btn-icon" id="closeAdd" type="button" data-i18n-aria-label="dash_close" data-i18n-title="dash_close">
+          <span data-icon="close"></span>
+        </button>
+      </div>
+      <form class="add-form" id="addForm" autocomplete="off">
+        <label class="sr-only" for="addText" data-i18n="popup_add_label"></label>
+        <input class="field add-field" id="addText" type="text" dir="auto" spellcheck="false" maxlength="200" enterkeyhint="done" data-i18n-placeholder="popup_add_placeholder" />
+        <button class="add-submit" id="addSubmit" type="submit" data-i18n-aria-label="popup_add_submit" data-i18n-title="popup_add_submit">
+          <span data-icon="enter" data-icon-size="18"></span>
+        </button>
+      </form>
+      <p class="add-hint" id="addHint" hidden></p>
+      <ul class="add-jobs" id="addJobs" aria-live="polite"></ul>
+      <!-- 13: "Paste a list or drop a file" and "Import a list or file" open here. -->
+    </section>
+
+    <!-- Bulk actions (§6). -->
+    <div class="selbar" id="selbar" role="toolbar" hidden data-i18n-aria-label="dash_selection_label"></div>
+
+    <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+    <div class="layer" id="layer"></div>
+  </div>
+
+  <script src="lib/i18n.js"></script>
+  <script src="ui/icons.js"></script>
+  <script src="lib/speak.js"></script>
+  <script src="lib/word-card.js"></script>
+  <script src="lib/word-search.js"></script>
+  <script src="lib/dashboard-model.js"></script>
+  <script src="lib/word-source.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>

@@ -148,23 +148,90 @@ benchmarks["speak.pickVoice.x1000"] = () => {
   return `${n}`; // not a swap count
 };
 
+// The dashboard (slice 21 §4, §14) with 5,000 and 20,000 words: grouping and indexing on
+// load, sorting, one search keystroke, and scrolling the virtualized list in jsdom (100
+// steps of three rows; each step is one animation frame's work).
+const M = requireExt("lib/dashboard-model.js");
+const Search = requireExt("lib/word-search.js");
+const { manyWords } = await import("../helpers/dashboard-words.mjs");
+for (const [label, count] of [["5k", 5000], ["20k", 20000]]) {
+  const records = manyWords(count);
+  const prepared = () => {
+    const groups = M.groupRecords(records, { bases: ["en"] });
+    const index = Search.createIndex();
+    for (const g of groups) index.set(g.id, Search.entryFor(g));
+    return { groups, index, ids: M.sortGroups(groups, "newest").map((g) => g.id) };
+  };
+  benchmarks[`dashboard.groupAndIndex.${label}`] = () => `${prepared().index.size}`;
+  benchmarks[`dashboard.sort.native.${label}`] = { setup: () => M.groupRecords(records), run: (groups) => `${M.sortGroups(groups, "native").length}` };
+  benchmarks[`dashboard.search.keystroke.${label}`] = { setup: prepared, run: ({ index, ids }) => `${index.search("kot12", ids).length}` };
+}
+
+const { JSDOM } = await import("jsdom");
+const { createFakeChrome } = await import("../helpers/fake-chrome.mjs");
+const { createI18n } = await import("../helpers/fake-i18n.mjs");
+const { readExt } = await import("../helpers/load-script.mjs");
+const vm = await import("node:vm");
+async function dashboardWith(words) {
+  const fake = createFakeChrome({
+    local: { serverUrl: "http://127.0.0.1:1", token: "t" },
+    onSendMessage: (msg) => (msg.type === "words.list" ? { words } : msg.type === "words.deleted" ? { entries: [] } : msg.type === "job.refresh" ? { state: "done" } : { ok: true }),
+  });
+  fake.chrome.i18n = createI18n("en");
+  const dom = new JSDOM(readExt("dashboard.html"), { url: "chrome-extension://perf/dashboard.html", runScripts: "outside-only", pretendToBeVisual: true });
+  dom.window.chrome = fake.chrome;
+  dom.window.matchMedia = () => ({ matches: true, addEventListener() {}, removeEventListener() {} });
+  for (const rel of ["lib/i18n.js", "ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/word-search.js", "lib/dashboard-model.js", "lib/word-source.js", "dashboard.js"]) {
+    vm.runInContext(readExt(rel), dom.getInternalVMContext());
+  }
+  await dom.window.KotikoDashboard.ready;
+  const body = dom.window.document.getElementById("gridBody");
+  let top = 0;
+  Object.defineProperty(body, "scrollTop", {
+    get: () => top,
+    set(v) {
+      top = v;
+    },
+  });
+  return { dom, body, setTop: (v) => void (top = v) };
+}
+const big = await dashboardWith(manyWords(20000));
+benchmarks["dashboard.scroll.20k.x100"] = {
+  setup: () => big.setTop(0),
+  run: () => {
+    for (let i = 1; i <= 100; i++) {
+      big.setTop(i * 3 * 52);
+      big.dom.window.KotikoDashboard._renderWindow();
+    }
+    return `${big.dom.window.document.querySelectorAll(".wrow").length}`;
+  },
+};
+benchmarks["dashboard.open.20k"] = {
+  run: async () => {
+    const d = await dashboardWith(manyWords(20000));
+    const n = d.dom.window.document.querySelectorAll(".wrow").length;
+    d.dom.window.close();
+    return `${n}`;
+  },
+};
+
 // Median of several runs after warm-up. A benchmark that takes over a second (today's
 // matcher with 10k forms) gets three runs and no warm-up, so the job stays short.
-function measure(bench) {
+async function measure(bench) {
   const { setup = () => undefined, run } = typeof bench === "function" ? { run: bench } : bench;
-  const once = () => {
+  const once = async () => {
     const input = setup();
     const t = performance.now();
-    const result = run(input);
+    const result = await run(input);
     return { ms: performance.now() - t, result };
   };
-  const first = once();
+  const first = await once();
   const slow = first.ms > 1000;
   const times = slow ? [first.ms] : [];
   let result = first.result;
-  if (!slow) once();
+  if (!slow) await once();
   for (let i = times.length; i < (slow ? 3 : 9); i++) {
-    const r = once();
+    const r = await once();
     times.push(r.ms);
     result = r.result;
   }
@@ -177,7 +244,7 @@ const rows = [];
 let failed = false;
 for (const [name, bench] of Object.entries(benchmarks)) {
   if (!name.includes(filter)) continue;
-  const { median, min, max, result } = measure(bench);
+  const { median, min, max, result } = await measure(bench);
   const b = budgets[name];
   const limit = b ? b.budget_ms * (CI ? b.ci_factor ?? 1 : 1) : null;
   const ok = limit !== null && median <= limit;
@@ -203,3 +270,5 @@ if (failed) {
   console.error("\nA benchmark is over budget or has none in test/perf/budgets.json.");
   process.exit(1);
 }
+// jsdom windows keep timers alive.
+process.exit(0);

@@ -771,6 +771,17 @@
     await syncNow();
   }
 
+  // The dashboard (slice 21) is the extension's options page, so the browser focuses an
+  // open one instead of opening a second.
+  async function openDashboard() {
+    try {
+      await ext.runtime.openOptionsPage();
+    } catch {
+      await Promise.resolve(ext.tabs.create({ url: ext.runtime.getURL("dashboard.html") })).catch(() => {});
+    }
+    window.close();
+  }
+
   // ---------------------------------------------------------------------------------
   // Wiring.
 
@@ -854,6 +865,7 @@
     $("showAll").addEventListener("click", showAll);
     $("chips").addEventListener("keydown", onChipKeys);
     $("openSettings").addEventListener("click", openSettings);
+    $("openDashboard").addEventListener("click", openDashboard);
     $("getStarted").addEventListener("click", openSettings);
     $("closeSettings").addEventListener("click", closeSettings);
     $("connForm").addEventListener("submit", saveConnection);

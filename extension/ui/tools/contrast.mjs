@@ -90,6 +90,20 @@ export const PAIRS = [
   ["success", "surface-e2", "Checked label's check mark", NON_TEXT],
   ["orange", "surface-e2", "The word's dotted underline", NON_TEXT],
   ["focus", "surface-e2", "Focus ring in the card", NON_TEXT],
+  // Added with the dashboard (slice 21): menus on --surface-e2 (danger item), the selection
+  // bar, add sheet and dialogs on --surface-e3, the selected row's bar and focus ring, the
+  // confirm button, and the checkbox and form chips.
+  ["danger", "surface-e2", "Menu: Delete all", TEXT],
+  ["ink", "surface-e3", "Selection bar, add sheet, dialogs", TEXT],
+  ["ink-2", "surface-e3", "Selection bar buttons, add lines", TEXT],
+  ["ink-3", "surface-e3", "Add sheet: romanization, language", TEXT],
+  ["purple-text", "surface-e3", "Selection bar: Select all", TEXT],
+  ["danger", "surface-e3", "Selection bar: Delete; failed add", TEXT],
+  ["surface", "danger", "Confirm button: delete a language", TEXT],
+  ["primary", "selected", "Open row's bar, selected shelf card ring", NON_TEXT],
+  ["focus", "selected", "Focus ring on a selected row", NON_TEXT],
+  ["border", "selected", "Checkbox on a selected row", NON_TEXT],
+  ["orange-text", "sunken", "Shelf: this week's adds on hover", TEXT],
 ];
 
 // 06 §4.2 pairs, plus the brand's distance from danger (re-checked for every brand input).

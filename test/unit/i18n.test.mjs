@@ -94,6 +94,17 @@ describe("locale files", () => {
     }
   });
 
+  test("every key the dashboard uses exists", () => {
+    const en = readMessages("en");
+    const src = readExt("dashboard.html") + readExt("dashboard.js") + readExt("lib/dashboard-model.js");
+    const used = new Set([
+      ...[...src.matchAll(/data-i18n(?:-[a-z-]+)?="([a-z_A-Z]+)"/g)].map((m) => m[1]),
+      ...[...src.matchAll(/\b(?:t|parts)\("([a-zA-Z_]+)"/g)].map((m) => m[1]),
+      ...[...src.matchAll(/"(dash_[a-z_]+)"/g)].map((m) => m[1]),
+    ]);
+    assert.deepEqual([...used].filter((k) => !(k in en) && !(`${k}_other` in en)), []);
+  });
+
   test("every key the popup uses exists", () => {
     const en = readMessages("en");
     const html = readExt("popup.html");
@@ -133,6 +144,32 @@ describe("KotikoI18n.t", () => {
     assert.equal(es.locale(), "es");
     assert.equal(es.t("popup_languages_title"), "Idiomas");
     assert.equal(es.t("popup_this_page", { host: "elnuevodia.com" }), "Esta página · elnuevodia.com");
+  });
+
+  test("Kotiko's language (50 §8): a shipped locale overrides the browser's, missing keys fall back to English", async () => {
+    const ctx = vm.createContext({
+      chrome: { i18n: createI18n("en"), storage: { sync: { get: async () => ({ ui: { uiLang: "es" } }) } } },
+      Intl,
+      console,
+    });
+    vm.runInContext(readExt("lib/i18n.js"), ctx);
+    const i = ctx.KotikoI18n;
+    const es = readMessages("es");
+    delete es.popup_languages_title;
+    i._setLoader(async (l) => (l === "es" ? es : readMessages(l)));
+    assert.equal(await i.preference(), "es");
+    assert.equal(await i.loadPreference(), true);
+    assert.equal(i.locale(), "es");
+    assert.equal(i.dir(), "ltr");
+    assert.equal(i.t("dash_title"), "Tus palabras");
+    assert.equal(i.t("popup_word_count", { count: 1234 }), "1234 palabras");
+    assert.equal(i.languageName("ja"), "japonés");
+    assert.equal(i.t("popup_languages_title"), "Languages", "a missing key falls back to English");
+    assert.equal(i.t("popup_this_page", { host: "a.com" }), "Esta página · a.com", "placeholders render like the browser's");
+    assert.equal(await i.useLocale("auto"), true);
+    assert.equal(i.t("dash_title"), "Your words");
+    assert.equal(await i.useLocale("xx"), false, "an unshipped locale is the browser's");
+    assert.deepEqual([...i.shipped()], ["en", "es"]);
   });
 
   test("a missing key shows the key, so gaps are visible", () => {

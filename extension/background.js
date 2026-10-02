@@ -7,7 +7,7 @@
 // The libraries load through importScripts in Chrome's service worker, and through the
 // manifest's background.scripts list (before this file) in Firefox's event page.
 if (!globalThis.SyncController && typeof importScripts === "function") {
-  importScripts("lib/url.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js", "lib/i18n.js", "lib/badge.js");
+  importScripts("lib/url.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js", "lib/i18n.js", "lib/badge.js", "lib/words-v1.js");
 }
 
 const ext = globalThis.browser ?? globalThis.chrome;
@@ -17,6 +17,7 @@ const { createSyncController } = globalThis.SyncController;
 const { createMessageRouter, checks } = globalThis.MessageRouter;
 const { badgeFor, OFF_COLOR } = globalThis.KotikoBadge;
 const { t } = globalThis.KotikoI18n;
+const { createWordHandlers } = globalThis.KotikoWordsV1;
 
 const DEFAULTS = { serverUrl: "http://localhost:4747", token: "" };
 const ALARM = "kotiko-sync";
@@ -63,6 +64,31 @@ async function api(path, init = {}) {
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw codedError("http_error", body.error || `The server answered ${res.status}.`, { status: res.status });
   return body;
+}
+
+// For the `/api/v1` routes (slice 07 §5), whose errors are {error: {code, message, details}}
+// with slice 25's codes: the parsed body, or an error carrying the server's code and the
+// HTTP status in its details.
+async function apiV1(path, { method = "GET", body } = {}) {
+  const init = { method, signal: AbortSignal.timeout(ADD_TIMEOUT_MS) };
+  if (body !== undefined) {
+    init.headers = { "Content-Type": "application/json" };
+    init.body = JSON.stringify(body);
+  }
+  const res = await request(await connection(), path, init);
+  if (res.status === 401) throw codedError("server_key_rejected", "The server rejected that API token.", { status: 401 });
+  const data = await res.json().catch(() => null);
+  const e = data?.error;
+  if (!res.ok) {
+    if (e && typeof e === "object" && typeof e.code === "string" && e.code !== "not_found") {
+      throw codedError(e.code, String(e.message ?? e.code), { ...(e.details ?? {}), status: res.status });
+    }
+    // An older server without /api/v1 (or without this route).
+    if (res.status === 404 || res.status === 405) throw codedError("server_outdated", `The server answered ${res.status} for ${path}.`, { status: res.status });
+    throw codedError("http_error", typeof e === "string" ? e : `The server answered ${res.status}.`, { status: res.status });
+  }
+  if (!data || typeof data !== "object") throw codedError("not_kotiko_server", `${path} didn't answer with JSON.`, { status: res.status });
+  return data;
 }
 
 const sameId = (a, b) => String(a) === String(b);
@@ -129,6 +155,12 @@ ext.runtime.onMessage.addListener(
   createMessageRouter({
     runtime: ext.runtime,
     handlers: {
+      // The dashboard's reads and edits (slice 21): extension pages only.
+      ...createWordHandlers({
+        call: apiV1,
+        storage: ext.storage.local,
+        afterWrite: () => sync.request({ reason: "edit", force: true }),
+      }),
       sync: {
         from: ["page", "content"],
         async run(msg) {

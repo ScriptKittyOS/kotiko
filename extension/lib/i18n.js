@@ -17,12 +17,40 @@
 // interface locale (`_one`, `_other`, plus `_zero`, `_few`, `_many` where a locale needs
 // them), falling back to `<key>_other`.
 //
-// The interface-language override in settings (50 §8, `s:ui.uiLang`) is not built yet; it
-// will load `_locales/<chosen>/messages.json` here and look keys up itself.
+// The interface-language override (50 §8, "Kotiko's language" in the dashboard's settings,
+// stored as `ui.uiLang` in storage.sync): `await KotikoI18n.loadPreference()` reads it and,
+// when it names a shipped locale, fetches `_locales/<locale>/messages.json` once and looks
+// keys up itself (the browser's getMessage can't switch at runtime); missing keys fall
+// back to English. Pages that await it before rendering follow the setting; the rest
+// follow the browser.
 (() => {
   const ext = globalThis.browser ?? globalThis.chrome;
+  // Locales with a folder in _locales.
+  const SHIPPED = ["en", "es"];
+  const RTL = new Set(["ar", "he", "fa", "ur", "ps", "yi", "dv", "ckb", "sd", "ug"]);
+
+  // { locale, messages, fallback } while an override is active.
+  let override = null;
+  let loader = async (locale) => {
+    const res = await fetch(ext.runtime.getURL(`_locales/${locale}/messages.json`));
+    if (!res.ok) throw new Error(`No messages for ${locale}`);
+    return res.json();
+  };
+
+  // A messages.json entry as the browser renders it: $NAME$ becomes its placeholder's
+  // content, "$$" a dollar sign.
+  function render(entry) {
+    return String(entry.message ?? "")
+      .replace(/\$([A-Za-z0-9_@]+)\$/g, (m, name) => entry.placeholders?.[name.toLowerCase()]?.content ?? m)
+      .replace(/\$\$/g, "$");
+  }
 
   function raw(key) {
+    if (override) {
+      if (key === "@@bidi_dir") return RTL.has(override.locale.split("-")[0]) ? "rtl" : "ltr";
+      const entry = override.messages[key] ?? override.fallback[key];
+      return entry ? render(entry) : "";
+    }
     try {
       return ext?.i18n?.getMessage(key) || "";
     } catch {
@@ -146,7 +174,66 @@
     return upper + rest.join("");
   }
 
-  const api = { t, parts, apply, locale, dir, formatNumber, languageName, endonym, _reset: () => { cachedLocale = numberFormat = null; nameCache.clear(); } };
+  const resetCaches = () => {
+    cachedLocale = numberFormat = null;
+    nameCache.clear();
+  };
+
+  // Switches the interface to a shipped locale, or back to the browser's ("auto" or
+  // anything not shipped). Resolves true when the language changed.
+  async function useLocale(tag) {
+    const want = SHIPPED.includes(tag) ? tag : null;
+    if ((override?.locale ?? null) === want) return false;
+    if (!want) {
+      override = null;
+      resetCaches();
+      return true;
+    }
+    const [messages, fallback] = await Promise.all([loader(want), want === "en" ? null : loader("en")]);
+    override = { locale: want, messages: messages ?? {}, fallback: fallback ?? messages ?? {} };
+    resetCaches();
+    return true;
+  }
+
+  // The stored preference (storage.sync `ui.uiLang`): "auto" or a shipped locale.
+  async function preference() {
+    try {
+      const { ui } = await ext.storage.sync.get({ ui: {} });
+      return typeof ui?.uiLang === "string" ? ui.uiLang : "auto";
+    } catch {
+      return "auto";
+    }
+  }
+
+  // Applies the stored preference; never rejects (a failed load keeps the browser's).
+  async function loadPreference() {
+    try {
+      return await useLocale(await preference());
+    } catch {
+      return false;
+    }
+  }
+
+  const api = {
+    t,
+    parts,
+    apply,
+    locale,
+    dir,
+    formatNumber,
+    languageName,
+    endonym,
+    useLocale,
+    preference,
+    loadPreference,
+    shipped: () => SHIPPED.slice(),
+    overridden: () => override?.locale ?? null,
+    _setLoader: (fn) => void (loader = fn),
+    _reset: () => {
+      override = null;
+      resetCaches();
+    },
+  };
   globalThis.KotikoI18n = api;
   if (typeof module === "object" && module.exports) module.exports = api;
 })();
