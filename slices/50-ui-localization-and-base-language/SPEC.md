@@ -375,7 +375,9 @@ starred ones.
    prompt and on the server, the base-language name is its endonym.
 4. **Never assume spaces between words.** Splitting text into words anywhere (bulk add,
    coverage, density, captions, search) uses slice 14's tokenizer for the text's language.
-5. **Per-language rules are data in `spec/lang/<base>/`**, never inline lists in code.
+5. **Per-language rules are data in `spec/lang/`**, never inline lists in code: an entry
+   in a shared `_generic` file first, a base's own folder only for what can't be shared
+   (section 5).
 6. **Base-side behavior keys off the text's language and the word's `base_lang`**: which
    pages are swapped, which index applies, which stopwords, casing and grammar rules run.
 7. **Counts are per base.** Coverage, density, stats and celebrations count tokens and
