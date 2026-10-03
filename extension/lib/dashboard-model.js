@@ -213,13 +213,12 @@
     if (params.sort && !SORTS.includes(params.sort)) delete params.sort;
     if (params.added && !ADDED.includes(params.added)) delete params.added;
     if (params.source && !SOURCES.includes(params.source)) delete params.source;
-    if (view === "settings") return { view, section: rest[0] || null, params: {} };
-    // The popup's link to the languages you read in (slice 20), with an optional language
-    // to add: "#settings-languages?add=pt-BR".
-    if (view === "settings-languages") {
-      const add = new URLSearchParams(query).get("add");
-      return { view: "settings", section: "bases", params: {}, add: add && /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$/.test(add) ? add : null };
+    // "#settings/languages/add/pt-BR" (the popup's "I read … too", slice 20): the languages
+    // you read in, with the picker ready to add one.
+    if (view === "settings" && rest[1] === "add" && /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$/.test(rest[2] ?? "")) {
+      return { view, section: rest[0] || null, params: {}, add: rest[2] };
     }
+    if (view === "settings") return { view, section: rest[0] || null, params: {} };
     if (view === "add") return { view, params: {} };
     return { view: "words", id: view === "words" && rest[0] ? rest[0] : null, params };
   }

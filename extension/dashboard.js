@@ -2261,7 +2261,7 @@
   // Settings (§9).
 
   const SETTINGS_SECTIONS = [
-    ["bases", "dash_set_bases"],
+    ["languages", "dash_set_bases"],
     ["language", "dash_set_ui_lang"],
     ["lookups", "dash_set_lookups"],
     ["connection", "dash_set_connection"],
@@ -2912,9 +2912,9 @@
       state.route = { ...state.route, view: route.view, section: route.section };
     }
     showView(prevView);
-    // "#settings-languages?add=pt-BR" (the popup): the picker opens ready to add it, once.
-    if (route.add) {
-      history.replaceState(null, "", "#settings/bases");
+    // "#settings/languages/add/pt-BR" (the popup): the picker opens ready to add it, once.
+    if (route.add && route.section === "languages") {
+      history.replaceState(null, "", "#settings/languages");
       addBase({ preselect: route.add });
     }
     if (route.view === "words") {
@@ -2953,7 +2953,7 @@
       if (section) {
         section.scrollIntoView?.({ block: "start" });
         // Languages you read in is reached from the popup's "I read … too": its heading.
-        (state.route.section === "bases" ? $("setBasesTitle") : section.querySelector("input, button"))?.focus({ preventScroll: true });
+        (state.route.section === "languages" ? $("setBasesTitle") : section.querySelector("input, button"))?.focus({ preventScroll: true });
       } else if (prevView !== "settings") $("settingsTitle").focus();
       document.title = `${t("dash_settings")} · ${t("extName")}`;
     } else {

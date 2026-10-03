@@ -808,7 +808,7 @@ describe("settings (§9)", () => {
 
 describe("Languages you read in (slice 50 §2)", () => {
   const UI = { uiLang: "auto", baseLangs: ["en", "es"], baseLangsDetected: ["en"], baseLangsConfirmed: true };
-  const open = (ui = UI, opts = {}) => openDashboard({ hash: "#settings/bases", sync: { ui: { ...ui } }, ...opts });
+  const open = (ui = UI, opts = {}) => openDashboard({ hash: "#settings/languages", sync: { ui: { ...ui } }, ...opts });
   const baseRows = (d) => d.$$("#baseList .base-row");
   const langs = (d) => baseRows(d).map((r) => r.dataset.lang);
   const button = (d, lang, action) => d.$(`#baseList .base-row[data-lang="${lang}"] button[data-action="${action}"]`);
@@ -916,24 +916,24 @@ describe("Languages you read in (slice 50 §2)", () => {
     assert.deepEqual(langs(d), ["es"]);
   });
 
-  test("#settings-languages (the popup's link) shows the section with its heading focused", async () => {
-    const d = await openDashboard({ hash: "#settings-languages", sync: { ui: { ...UI } } });
+  test("#settings/languages (the popup's link) shows the section with its heading focused", async () => {
+    const d = await openDashboard({ hash: "#settings/languages", sync: { ui: { ...UI } } });
     assert.equal(d.$("#settingsView").hidden, false);
     assert.equal(d.doc.activeElement, d.$("#setBasesTitle"));
     assert.equal(d.$(".dialog-card"), null);
   });
 
-  test("#settings-languages?add=pt-BR opens the picker ready to add it; Enter adds it", async () => {
-    const d = await openDashboard({ hash: "#settings-languages?add=pt-BR", sync: { ui: { ...UI } } });
+  test("#settings/languages/add/pt-BR opens the picker ready to add it; Enter adds it", async () => {
+    const d = await openDashboard({ hash: "#settings/languages/add/pt-BR", sync: { ui: { ...UI } } });
     await d.settle();
     const input = d.$(".dialog-card input");
     assert.ok(input.value);
-    assert.equal(d.w.location.hash, "#settings/bases", "a reload doesn't open it again");
+    assert.equal(d.w.location.hash, "#settings/languages", "a reload doesn't open it again");
     d.key("Enter", {}, input);
     await d.settle();
     assert.deepEqual(d.fake.store.sync.ui.baseLangs, ["en", "es", "pt-BR"]);
     // A language already read opens nothing.
-    const again = await openDashboard({ hash: "#settings-languages?add=es-PR", sync: { ui: { ...UI } } });
+    const again = await openDashboard({ hash: "#settings/languages/add/es-PR", sync: { ui: { ...UI } } });
     await again.settle();
     assert.equal(again.$(".dialog-card"), null);
   });

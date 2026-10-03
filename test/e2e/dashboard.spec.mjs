@@ -110,7 +110,7 @@ test("Languages you read in: add one, drag it first, and the pages' copy follows
   await server.control({ words: WORDS });
   const p = await popup.connect(server.kotikoUrl, server.token);
   const dash = await openFromPopup(context, p);
-  await dash.evaluate(() => (location.hash = "#settings/bases"));
+  await dash.evaluate(() => (location.hash = "#settings/languages"));
   const rows = dash.locator("#baseList .base-row");
   await expect(rows).toHaveCount(1);
   await expect(rows.first()).toHaveAttribute("data-lang", "en");

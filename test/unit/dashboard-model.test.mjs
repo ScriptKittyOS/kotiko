@@ -149,9 +149,9 @@ describe("routes (§1)", () => {
     assert.deepEqual(M.parseRoute("#words?missing=fr"), { view: "words", id: null, params: { missing: "fr" } });
     assert.equal(M.formatRoute({ view: "words", params: { missing: "fr" } }), "#words?missing=fr");
     // The popup's link to the languages you read in (slice 20), with a language to add.
-    assert.deepEqual(M.parseRoute("#settings-languages"), { view: "settings", section: "bases", params: {}, add: null });
-    assert.deepEqual(M.parseRoute("#settings-languages?add=pt-BR"), { view: "settings", section: "bases", params: {}, add: "pt-BR" });
-    assert.equal(M.parseRoute("#settings-languages?add=<x>").add, null);
+    assert.deepEqual(M.parseRoute("#settings/languages"), { view: "settings", section: "languages", params: {} });
+    assert.deepEqual(M.parseRoute("#settings/languages/add/pt-BR"), { view: "settings", section: "languages", params: {}, add: "pt-BR" });
+    assert.equal(M.parseRoute("#settings/languages/add/%3Cx%3E").add, undefined);
     assert.deepEqual(M.parseRoute("#words?lang=es&status=paused&q=thank"), { view: "words", id: null, params: { lang: "es", status: "paused", q: "thank" } });
     assert.deepEqual(M.parseRoute("#add"), { view: "add", params: {} });
     assert.deepEqual(M.parseRoute("#settings"), { view: "settings", section: null, params: {} });
