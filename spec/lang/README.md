@@ -1,8 +1,11 @@
 # Base-language data
 
-One folder per base tag (slice 50 section 5): the languages learners read in. The word
-checks of slice 09 read a word's base from here; the other files slice 50 lists
-(`boundaries.json`, `casing.json`, `detect.json`, `common.txt`, …) arrive with slices 14, 16, 17 and 22.
+The languages learners read in (slice 50 section 5). Kotiko works in every language the
+browser can split into words, without a folder per language: `_generic/` holds shared data
+for all of them, keyed by language where a rule varies, and only the two Full bases (`en`,
+`es`) have folders of their own. The word checks of slice 09 read a word's base from here;
+the shared `stopwords.json` (imported from stopwords-iso), `boundaries.json` and
+`casing.json`, and `en`/`es` `common.txt`, arrive with slices 50, 14, 16, 17 and 22.
 
 | File | Used for | Fallback |
 |---|---|---|
@@ -17,9 +20,18 @@ A base tag resolves to its own folder (`pt-BR`), then its language (`pt`), then 
 file by file (`spec/fixtures/lang-data.json`). Schemas for each file are in `schema/`.
 
 At launch `en` and `es` are Full bases (every file, a respelling key, at least 15 golden
-cases each). Every other base works with the `_generic` rules, which check less.
+cases each). Every other base is Basic: it works with the shared `_generic` data, which
+checks less and has no respelling key. There is no third level, and no language needs a
+folder for the release.
 
-## Adding or improving a base
+## Improving a language
+
+Most improvements are a few lines in a shared file, not a new folder: an entry in
+`_generic/boundaries.json` or `_generic/casing.json` when the default gets a language
+wrong, with a test row in slice 14's or 16's tables. Open a folder only for what can't be
+shared (a respelling key, welcome words, preview sentences).
+
+## Adding a Full base
 
 1. Create `spec/lang/<base>/` with any of the files above. A native speaker writes or
    reviews every list; say who reviewed it in the pull request.

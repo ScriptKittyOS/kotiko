@@ -97,7 +97,7 @@ they are too loose.
   "perro", not rejected as "already English".
 - As a reader of both Spanish and English, I want one add to give me meanings for both.
 - As a contributor changing the prompt, I want one command that tells me whether it got
-  better across 20 target languages and every Full and Good base, without spending my
+  better across 20 target languages and every base in the golden set, without spending my
   daily quota.
 - As a maintainer, I want the extension and the server to save the same word for the
   same model answer.
@@ -121,12 +121,14 @@ spec/
   rules.json                 every number the validator uses (section 4)
   pronunciation.json         per target language: romanization scheme, stress kind, tone
                              range, vocalization marks (slice 07 section 7)
-  lang/                      base-language data, one folder per base tag (slice 50 section 5)
-    _generic/                fallback rules for any base lacking a file (never a respelling key)
-    en/ es/ fr/ de/ ja/ …    stopwords.txt, stem.json, variants.json, boundaries.json,
-                             casing.json, no-standalone.json, detect.json, grammar.json
-    en/ es/                  respelling.json: the pronunciation respelling key (07 section 7);
-                             only bases with a reviewed key have one
+  lang/                      base-language data (slice 50 section 5)
+    _generic/                shared data for every base, keyed by language where it varies:
+                             stopwords.json (imported), boundaries.json, casing.json,
+                             stem.json, variants.json (never a respelling key)
+    en/ es/                  the Full bases: stopwords.txt, stem.json, variants.json,
+                             respelling.json (the pronunciation key, 07 section 7),
+                             welcome.json, sentences.json, common.txt, and (36)
+                             no-standalone.json, grammar.json
     schema/                  JSON Schemas for each file type
   languages.json, lang-aliases.json   slice 08 (languages.json also lists base_regions, slice 50)
   models.json                curated preferences and fallbacks (slice 10)
@@ -595,7 +597,7 @@ reported per base.
 
 At launch, at least 120 cases, of which about 30 are tagged `core`. Bases: `en` and `es`
 (Full level) get at least 15 cases each, mirrored where it makes sense; `ja` and `fr`
-(Good level) at least 6 each; the rest below are written for one base and tagged with it:
+(Basic level, kept as a check on the shared rules) at least 6 each; the rest below are written for one base and tagged with it:
 
 - **Lessons**: как bare (add and auto); как forms; "shukran" in the add box must add, never chat.
 - **Bare native words in many scripts**: спасибо, شكرا, 谢谢, ありがとう, 감사합니다,
@@ -825,11 +827,11 @@ Recorded when the slice was built (branch `slice/08-09-lookups`, with slice 08).
 Requirements above are unchanged; these are the choices, the deviations and what is left.
 
 **The folder.** Everything in section 1 exists except the files of other slices
-(`models.json` 10, `providers.json` 11, `export.schema.json` 12, `boundaries.json` and the
-other per-base files of 14, 16, 17, 22, 36) and slice 07's `fixtures/merge.json`, left for
+(`models.json` 10, `providers.json` 11, `export.schema.json` 12, the shared
+`boundaries.json` and `casing.json` of 14, 16 and 17, and the Full-base files of 22 and 36) and slice 07's `fixtures/merge.json`, left for
 slice 11's store, which is the second runtime it needs. `spec/lang/` has `en`, `es` and
-`_generic`; Good-level bases (fr, de, ja, …) use `_generic` until their stopword lists are
-reviewed. Additions: `spec/tools/lang-curation.json` (slice 08), `spec/tools/fixture-results.mjs`
+`_generic`; every other base uses `_generic`, whose keyed `stopwords.json`, `boundaries.json`
+and `casing.json` (50 §5) cover all languages from one file each. Additions: `spec/tools/lang-curation.json` (slice 08), `spec/tools/fixture-results.mjs`
 and `spec/fixtures/normalize-results.json` (below), `spec/fixtures/{input,lang-data,prompt}.json`
 and `spec/fixtures/stem/`. `spec/VERSION` is 2.0.0.
 

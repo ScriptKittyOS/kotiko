@@ -252,25 +252,45 @@ Kotiko then swaps "dog" into Spanish pages wherever they say "perro".
   `base_lang` data (section 5). The old "reject English translations" rule becomes "reject
   a word whose `native` equals its gloss or one of its forms in that base".
 
-### 5. Base-language data (`spec/lang/<base>/`)
+### 5. Base-language data (`spec/lang/`)
 
-Every base-side rule that depends on a language is data, one folder per base tag, read by
-both runtimes through slice 09's `sync-extension.mjs`:
+Kotiko works in every base language `Intl.Segmenter` supports from the first release,
+without a hand-written data pack for each one ([DECISIONS 2026-10-02, "Every language works
+without its own pack"](../DECISIONS.md)). What makes that possible is shared, not per
+language:
+
+- **The browser**: `Intl.Segmenter` splits words in every language, including Japanese,
+  Chinese and Thai, which have no spaces; `toLocaleLowerCase(base)` handles casing such as
+  Turkish İ/ı; `Intl.DisplayNames` names languages; `i18n.detectLanguage` detects pages.
+- **The model** answers in the learner's base language and writes the forms (09).
+- **Shared tables, keyed by language**, for the few rules a generic default gets wrong:
+  word boundaries (French l'eau, Spanish ¿perro?, English don't; `_generic/boundaries.json`,
+  section 6) and what a capital on the page means (German nouns, English title-case
+  headlines; `_generic/casing.json`, 16 and 17). A language needs a line in a shared
+  table only when the default visibly fails for it, and a few lines are enough.
+- **Bulk open data**: stopword lists for about 60 languages imported in one step from
+  [stopwords-iso](https://github.com/stopwords-iso/stopwords-iso) (MIT; recorded in
+  `REUSE.toml` and `LICENSES/`) by `spec/tools/import-stopwords.mjs` into one file,
+  `_generic/stopwords.json` (`{ "<lang>": [...] }`). Nobody writes these lists by hand.
+
+Read by both runtimes through slice 09's `sync-extension.mjs`:
 
 ```
 spec/lang/
-  README.md            how to add a base language; what each file does; review rules
-  _generic/            used when a base has no folder or lacks a file
-  en/  es/  fr/  de/  it/  pt/  ja/  zh-Hans/  zh-Hant/  ko/  th/  …
-    stopwords.txt        function words, one per line (09 validation, 16 detection, 32 coverage)
+  README.md            how the data works; how to improve a language; review rules
+  _generic/            used for every base, and as the fallback for a missing file
+    stopwords.json       stopwords-iso, one list per language (09 validation, 13 and 16
+                         detection, 32 coverage)
+    boundaries.json      {"default": {...}, "<lang>": {...}}: tokenizer adjustments for
+                         every language, en and es included (14)
+    casing.json          {"default": {...}, "<lang>": {...}}: capital conventions for
+                         every language, en and es included (16, 17)
+    stem.json            "shares its first 3 graphemes with the gloss, or equals it" (09)
+    variants.json        none
+  en/  es/             the two Full bases, written for launch (and already built)
+    stopwords.txt        function words, one per line (overrides the imported list)
     stem.json            suffix rules and irregulars for the related-form check (09)
-    variants.json        spelling variants (en: colour/color; pt-BR/pt-PT: facto/fato)
-    boundaries.json      contractions, elisions, clitics, compound rules (14)
-    casing.json          nouns_capitalized, title_case_headlines, capitalized_pronouns,
-                         lowercase_classes, honorifics, single_letter_words (16, 17)
-    no-standalone.json   {always, by_target}: words that never stand alone, for coverage (32, 36)
-    detect.json          the 40 most common words, for undeclared-page detection (16)
-    grammar.json         articles, form slots, gendered nouns: base-side forms to request (36)
+    variants.json        spelling variants (en: colour/color)
     respelling.json      the pronunciation respelling key: alphabet, how each sound is
                          written with an example word, notes per target language (07 §7;
                          09 validation and prompt, 19 popover, 44 "How to read pronunciations")
@@ -280,44 +300,61 @@ spec/lang/
 ```
 
 Each file has a JSON Schema in `spec/lang/schema/`, and `langData(base)` (09) resolves a
-file by the full tag, then the primary language, then `_generic`.
+file by the full tag's folder, then the primary language's folder, then `_generic`. A keyed
+`_generic` file (`stopwords.json`, `boundaries.json`, `casing.json`) answers with its entry
+for the full tag, then the primary language, then its `default`, so every consumer still
+asks for "the boundaries of base `fr`" and never knows where the answer came from.
+
+Withdrawn from the earlier plan: `detect.json` (16 detects undeclared pages with
+`i18n.detectLanguage` plus the stopword share from `stopwords.json`, which covers far more
+languages than 40-word lists written by hand), and per-base `no-standalone.json` and
+`grammar.json` for bases other than `en` and `es` (P1 slices 32 and 36 use their generic
+behavior elsewhere).
+
+A folder for another base is optional. Contributors may add one, with any of the files
+above, when a generic rule visibly fails for their language and a native speaker reviews
+it; nothing in the release waits on one. Rules that are about the **target** word rather
+than the base (German nouns keep their capital, 17) live in the slice that owns them as one
+shared table, not in base folders.
 
 `respelling.json` is the one file with no `_generic` fallback: a respelling key only works
 in the conventions of one language, so a base without its own key gets no `pronunciation`
 (the word still shows its stress mark, romanization and audio; [07](../07-word-model-v2/SPEC.md)
 section 7). `en` and `es` have keys at launch, written in 07 section 7; the `es` key is
-reviewed by native speakers before release (open question 5). Other bases get keys later,
-one at a time, each reviewed by native speakers of that base (`pt`, `fr` and `de` first,
-07 open question 7).
+reviewed by native speakers before release (open question 5). Other bases get keys only
+when native speakers of that base contribute and review one (07 open question 7).
 
 **Support levels**, shown in settings next to each base so nobody is surprised:
 
 | Level | Has | Launch bases |
 |---|---|---|
-| **Full** | every file above (including `respelling.json`), at least 15 golden cases (09), a reviewed fixture page (02) | `en`, `es` |
-| **Good** | `stopwords.txt`, `boundaries.json`, `casing.json`, `detect.json`; `_generic` stem rules | `fr`, `de`, `it`, `pt`, `ja`, `zh-Hans`, `zh-Hant`, `ko`, `th` |
-| **Basic** | `stopwords.txt` from [stopwords-iso](https://github.com/stopwords-iso/stopwords-iso) (MIT) and `_generic` everything else | every other language `Intl.Segmenter` supports |
+| **Full** | its own folder with every per-base file above (including `respelling.json`), at least 15 golden cases (09), a reviewed fixture page (02) | `en`, `es` |
+| **Basic** | the shared `_generic` data: Segmenter tokens with the shared boundary and casing tables, the imported stopwords, the 3-grapheme stem rule; no respelling key, no preview sentences | every other language `Intl.Segmenter` supports |
 
-`_generic` rules: tokens from `Intl.Segmenter` with no join or split adjustments; related
-forms must share a stem of at least 3 graphemes with the gloss or equal it; casing copies
-the page's shape only for scripts with case (17); detection uses `i18n.detectLanguage`
-alone. A learner whose base is at the Basic level gets a working Kotiko with looser
-checking, and settings says so: "Kotiko works in Polski. Its word checks are simpler than
-for español; help improve them" (link to `spec/lang/README.md`).
+There is no level in between: the planned "Good" level (nine hand-written bases) is
+withdrawn. A Basic base still gets its words looked up in its own language, swapped on its
+pages (Japanese and Chinese included), detected, and counted for coverage; what it lacks is
+the learner respelling and the stricter related-form check. Settings says so plainly:
+"Kotiko works in Polski. Its word checks are simpler than for español; help improve them"
+(link to `spec/lang/README.md`). The golden set (09) keeps a few cases in Basic bases
+(`fr`, `ja` today) so a model change that breaks them is caught.
 
 ### 6. Matching in any base language (built in 14 and 16)
 
 - **Tokenizer**: `Intl.Segmenter(base, {granularity: "word"})` for every base, one cached
-  instance per base, followed by a per-base adjustment pass from `boundaries.json` (join
-  hyphenated compounds and English contractions; split French and Italian elisions such as
-  l'/d'/dell'; strip Spanish ¿ ¡). Slice 14 may keep its regex tokenizer as a fast path
-  for a base only if it produces identical tokens on that base's fixture corpus.
+  instance per base, followed by an adjustment pass from the shared
+  `_generic/boundaries.json`, whose entries are keyed by language (join hyphenated
+  compounds and English contractions; split French, Italian and Catalan elisions such as
+  l'/d'/dell'; strip Spanish ¿ ¡). One table, a few lines per language that needs one, and
+  every other language uses the Segmenter's tokens as they are. Slice 14 may keep its regex
+  tokenizer as a fast path for a base only if it produces identical tokens on that base's
+  fixture corpus.
 - **Indexes**: one per base, built from the records with that `base_lang`.
 - **Which index applies**: the language of each text subtree (nearest `lang` attribute,
   else the page's declared or detected language, 16). Text in one of the bases uses that
   base's index; text in any other language is left alone.
 - **Casing**: `toLocaleLowerCase(base)` for keys where the base needs it (Turkish İ/ı),
-  and casing rules per base (17).
+  and 17's shared casing table (written once, keyed by language).
 
 ### 7. Cross-cutting rules every slice follows
 
@@ -479,8 +516,11 @@ codes and lets the client choose words.
 - [ ] The `en-XA` and RTL pseudo-locale runs show no truncated or unmirrored controls.
 - [ ] Language names in every surface appear in the interface language ("japonés").
 - [ ] `check-base-neutral.mjs` passes: no `english` identifiers outside the allow-list.
-- [ ] Settings shows each base's support level, and a Basic-level base (`pl`) swaps a
-      Polish fixture page.
+- [ ] Settings shows each base's support level (Full or Basic), and Basic-level bases swap
+      their fixture pages with no folder of their own: Polish (`pl`), Japanese (`ja`, no
+      spaces) and French (`fr`, elisions from the shared boundary table).
+- [ ] `spec/lang/_generic/stopwords.json` is generated by `import-stopwords.mjs` from a
+      pinned stopwords-iso release, and its license is recorded in `REUSE.toml`.
 - [ ] `spec/lang/en/respelling.json` and `spec/lang/es/respelling.json` validate against
       their schema, the `es` key's review is signed off on the release checklist (30), and
       a base without a key (`fr`) resolves no respelling file from `_generic`.
@@ -496,7 +536,8 @@ codes and lets the client choose words.
   `intl.accept_languages` set; fixture pages `es-news.html`, `en-news.html`,
   `ja-news.html`, `de-news.html`, `mixed-lang-subtrees.html`; the Puerto Rico journey above
   with slice 02's fake model; pseudo-locales.
-- **Golden set** (09): cases per Full and Good base, including Spanish-language questions.
+- **Golden set** (09): at least 15 cases per Full base, including Spanish-language
+  questions, and the existing Basic-base cases (`fr`, `ja`).
 - **Manual**: a native Spanish speaker reviews the `es` locale, store listing and the
   welcome flow in context before release. Native speakers from Spain, Mexico, the
   Caribbean and the Southern Cone review `spec/lang/es/respelling.json` by reading ten
@@ -540,7 +581,8 @@ codes and lets the client choose words.
 ## Future work
 
 - Reverse mode: gloss target-language words on target-language pages.
-- More Full-level bases as speakers contribute `spec/lang/` data and golden cases.
+- More Full-level bases, only as native speakers contribute and review `spec/lang/` data
+  and golden cases; never a launch requirement.
 - Respelling keys for more bases (`pt`, `fr`, `de`, then `ja` in katakana), each reviewed
   by native speakers (07 open question 7).
 - A fully localized system prompt per base, if the golden set shows it helps.

@@ -49,7 +49,9 @@ the exact boundary rules for each base. Which language wins (18), what to skip (
   `Intl.Segmenter` supports.
 - Every row in the boundary tables below (English, Spanish, French, Italian, German,
   Japanese, Chinese, Thai) passes as a unit test.
-- Per-language boundary behavior is data in `spec/lang/<base>/boundaries.json`, not code.
+- Per-language boundary behavior is data, not code: one entry per language that needs one in
+  the shared `spec/lang/_generic/boundaries.json` (50 §5); every other language uses its
+  `default`.
 - Matching cost does not grow with vocabulary size: within the budgets in "Performance".
 - One pure, DOM-free module that runs in the content script, extension pages (dashboard
   preview, onboarding preview) and Node tests unchanged.
@@ -99,7 +101,7 @@ array and share the isolated world, per research 03 section 3):
 ```
 extension/lib/text.js      character classes, tokenizer, key normalization, case shape
 extension/lib/matcher.js   buildIndex(), buildIndexes(), scan()
-extension/spec/lang/<base>/boundaries.json   copied from spec/lang/ by slice 09's sync script
+extension/spec/lang/_generic/boundaries.json copied from spec/lang/ by slice 09's sync script
 ```
 
 Following slice 02's convention, each lib file is a classic script that attaches one
@@ -203,9 +205,10 @@ back; and it is several times slower than a regex, which the budgets, a first-ch
 prefilter and slice 15's time-slicing absorb (Performance).
 
 **Adjustment pass.** Segmenter output is then adjusted by the base's
-`spec/lang/<base>/boundaries.json` (falling back to `spec/lang/_generic/boundaries.json`).
-Its schema is `spec/lang/schema/boundaries.schema.json`; the English file, as an example (the
-other bases' values are given with their boundary tables below):
+boundaries: its entry in the shared `spec/lang/_generic/boundaries.json`, keyed by the full
+tag, then the primary language, then `default` (50 §5). Its schema is
+`spec/lang/schema/boundaries.schema.json`; the English entry, as an example (the other
+languages' values are given with their boundary tables below):
 
 ```json
 {
@@ -526,8 +529,10 @@ en "like" (zh-Hans "喜欢"; zh-Hant "喜歡"). `spaces: false`, `fold: ["width"
 | th1 | `ฉันชอบหมา` | ฉัน \| ชอบ \| หมา | `ชอบ`, `หมา` | swapped |
 | th2 | `หมา ตัวนี้` (space between phrases) | หมา \| ตัว \| นี้ | `หมา` | spaces in Thai mark phrases, not words; same result |
 
-Bases without their own `boundaries.json` use `_generic`: Segmenter tokens, `join:
-["invisible"]`, nothing else. Slice 50 calls that the Basic support level.
+Languages without an entry use `default`: Segmenter tokens, `join: ["invisible"]`, nothing
+else. The tables above for French, Italian, German, Japanese, Chinese and Thai are entries
+(or no entry at all, where the default already gives the right tokens) in the same shared
+file, not folders of their own; they are Basic-level bases in 50's terms.
 
 ### Edges across text nodes
 
@@ -599,7 +604,7 @@ from word data. `boundaries.json` lists are compared as strings, never compiled 
 - [ ] The regex fast path is used only for bases whose differential test passes.
 - [ ] Budgets in the Performance table are enforced in CI with a 25 % tolerance.
 - [ ] Oversized forms, natives and vocabularies are dropped and counted, never thrown.
-- [ ] `boundaries.json` for every launch base validates against its schema.
+- [ ] The shared `boundaries.json` validates against its schema, every entry included.
 
 ## Test plan
 
