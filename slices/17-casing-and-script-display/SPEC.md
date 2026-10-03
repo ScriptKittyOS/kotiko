@@ -5,7 +5,7 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | S (a day or two) |
-| **Depends on** | [14-matcher-engine](../14-matcher-engine/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (`spec/lang/<base>/casing.json`) |
+| **Depends on** | [14-matcher-engine](../14-matcher-engine/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (the shared `spec/lang/_generic/casing.json`) |
 | **Unblocks** | [37-language-colors-and-reading-aids](../37-language-colors-and-reading-aids/SPEC.md) (ruby and vowel marks build on the same display function) |
 | **Sources** | [DECISIONS 2026-10-01, "English is not the base language"](../DECISIONS.md); [06 F23](../../docs/research/06-adversarial-qa.md), [02 B3, B4, B5, D6, F3, F4](../../docs/research/02-linguistics.md), [03 D4](../../docs/research/03-browser-extension.md) |
 
@@ -38,8 +38,8 @@ Right-to-left isolation already works through `dir="auto"` (`content.js:95`) and
 - Display text never gains a capital the target language wouldn't write, and never loses one
   it would (German nouns stay capitalized; English "Monday" and "I" stay capitalized on a
   Spanish page), whatever the base language of the page.
-- What a capital on the page means is read from the base's `spec/lang/<base>/casing.json`
-  (50), never from English assumptions.
+- What a capital on the page means is read from the base's entry in the shared
+  `spec/lang/_generic/casing.json` (50 §5), never from English assumptions.
 - Casing is locale-correct for Turkish, Azerbaijani, Lithuanian, Dutch, Greek and Serbo-Croatian
   digraphs, and a no-op for every caseless script, including Georgian.
 - Swapped words never change a line's height, in any script.

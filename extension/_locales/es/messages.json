@@ -1907,6 +1907,167 @@
     "message": "Tus palabras",
     "description": "Link from settings back to the list."
   },
+  "dash_set_bases": {
+    "message": "Idiomas en los que lees",
+    "description": "Settings section: the learner's base languages (slice 50)."
+  },
+  "dash_set_bases_help": {
+    "message": "Kotiko cambia palabras en las páginas en estos idiomas. Arrástralos para ordenarlos; el primero es el principal.",
+    "description": "Help under the base languages section."
+  },
+  "dash_bases_add": {
+    "message": "Agregar un idioma",
+    "description": "Button that adds a language the learner reads."
+  },
+  "dash_bases_add_title": {
+    "message": "Agrega un idioma en el que lees",
+    "description": "Title of the language picker for a new base language."
+  },
+  "dash_bases_last": {
+    "message": "Kotiko necesita al menos un idioma en el que leas.",
+    "description": "Shown when the learner removes their last base language."
+  },
+  "dash_bases_full": {
+    "message": "Kotiko puede seguir hasta $MAX$ idiomas en los que lees. Quita uno primero.",
+    "description": "Shown when the learner tries to add a fifth base language.",
+    "placeholders": {
+      "max": {
+        "content": "{max}"
+      }
+    }
+  },
+  "dash_bases_detected": {
+    "message": "De tu navegador: $LANGUAGES$",
+    "description": "Hint: the languages detected from the browser, each named in itself (\"español, English\").",
+    "placeholders": {
+      "languages": {
+        "content": "{languages}"
+      }
+    }
+  },
+  "dash_base_full": {
+    "message": "Completo",
+    "description": "Support level of a base language with its own data (slice 50 §5)."
+  },
+  "dash_base_basic": {
+    "message": "Básico",
+    "description": "Support level of a base language that uses the shared data (slice 50 §5)."
+  },
+  "dash_base_full_help": {
+    "message": "Kotiko conoce bien este idioma: revisa las palabras con cuidado y trae una guía de pronunciación escrita para quienes lo leen.",
+    "description": "Explains the Full support level, shown on hover and focus."
+  },
+  "dash_base_basic_help": {
+    "message": "Kotiko funciona en $LANGUAGE$, con revisiones de palabras más simples y todavía sin guía de pronunciación.",
+    "description": "Explains the Basic support level, shown on hover and focus. The language is named in itself.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_base_improve": {
+    "message": "Ayuda a mejorarlo",
+    "description": "Link next to a Basic language, to the guide for improving a language's data."
+  },
+  "dash_base_primary": {
+    "message": "principal",
+    "description": "Tag on the first base language, the learner's main one."
+  },
+  "dash_base_missing_one": {
+    "message": "$COUNT$ palabra todavía no tiene significado en $LANGUAGE$.",
+    "description": "Under a base language: words with no meaning in it, so they can't swap on its pages.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_base_missing_other": {
+    "message": "$COUNT$ palabras todavía no tienen significado en $LANGUAGE$.",
+    "description": "Under a base language: words with no meaning in it, so they can't swap on its pages.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_base_type_meanings": {
+    "message": "Escribir significados",
+    "description": "Link that lists the words missing a meaning in a base language."
+  },
+  "dash_base_up": {
+    "message": "Subir $LANGUAGE$",
+    "description": "Accessible name of the button that moves a base language up.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_base_down": {
+    "message": "Bajar $LANGUAGE$",
+    "description": "Accessible name of the button that moves a base language down.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_base_remove": {
+    "message": "Quitar $LANGUAGE$",
+    "description": "Accessible name of the button that removes a base language.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_base_removed_one": {
+    "message": "Kotiko no cambiará palabras en páginas en $LANGUAGE$. Se guarda tu significado.",
+    "description": "Toast after removing a base language; Undo follows.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_base_removed_other": {
+    "message": "Kotiko no cambiará palabras en páginas en $LANGUAGE$. Se guardan tus $COUNT$ significados.",
+    "description": "Toast after removing a base language; Undo follows.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      },
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_base_removed_none": {
+    "message": "Kotiko no cambiará palabras en páginas en $LANGUAGE$.",
+    "description": "Toast after removing a base language with no meanings in it; Undo follows.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_filter_missing": {
+    "message": "Sin significado en $LANGUAGE$",
+    "description": "Filter chip: words missing a meaning in a base language.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
   "dash_set_ui_lang": {
     "message": "Idioma de Kotiko",
     "description": "Settings section: interface language."
@@ -2684,7 +2845,7 @@
     "description": "Small tag on a base language whose word checks are simpler (slice 50's Basic level). Spanish pending native review (slice 50 §9)."
   },
   "welcome_base_basic_help": {
-    "message": "Kotiko funciona en $LANGUAGE$, con revisiones de palabras más sencillas que en inglés y español.",
+    "message": "Kotiko funciona en $LANGUAGE$, con revisiones de palabras más simples y todavía sin guía de pronunciación.",
     "description": "Explains the \"basic\" tag on a base language. Spanish pending native review (slice 50 §9).",
     "placeholders": {
       "language": {

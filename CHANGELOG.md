@@ -14,6 +14,13 @@ Conventional Commits by release-please.
   down (a 10,000-word list on a long article went from about 7 seconds to under a tenth
   of one).
 
+- Choose the languages you read in from the dashboard: Settings, Languages you read in.
+  Add any language your browser can read, drag them into order (the first is your main
+  one), or remove one; its meanings are kept and simply stop swapping. Each language says
+  how well Kotiko knows it, and how many of your words have no meaning in it yet, with a
+  link to type them. Updating from an older version keeps your words swapping: Kotiko adds
+  the languages your words already use to the ones your browser lists.
+
 - Kotiko now works without a server. Your words live in your browser and Kotiko looks new
   words up with your own free OpenRouter key, or any provider you like (OpenAI, Anthropic,
   Google Gemini, Groq, Ollama, LM Studio or another address), set up in the dashboard's

@@ -562,6 +562,38 @@ async function firstInstall() {
   await openWelcome();
 }
 
+// Slice 50 §2's upgrade rule: an update from a version with no base-language setting
+// detects the browser's languages, then adds every base the saved words already have
+// (all of a pre-v2 list is "en"), so an existing learner's swaps never silently stop.
+// A learner who has a setting keeps it untouched.
+async function upgradeBases() {
+  await ready().catch(() => {});
+  let ui;
+  try {
+    ({ ui = {} } = await ext.storage.sync.get({ ui: {} }));
+  } catch {
+    ui = null;
+  }
+  if (Array.isArray(ui?.baseLangs) && ui.baseLangs.length) return;
+  const detected = await detectBrowserBases();
+  const records = await getStore().then((s) => s.list()).catch(() => []);
+  const { words = [] } = await ext.storage.local.get({ words: [] });
+  const present = [];
+  for (const w of [...records, ...(Array.isArray(words) ? words : [])]) {
+    const b = w?.base_lang ?? (w?.english ? "en" : null);
+    if (b && !present.includes(b)) present.push(b);
+  }
+  const Lang = globalThis.KotikoLang;
+  const next = detected.slice();
+  for (const b of present) if (!next.some((d) => Lang.sameBase(d, b))) next.push(b);
+  // Over four: drop detected languages no word uses, from the end.
+  for (let i = next.length - 1; next.length > 4 && i >= 0; i--) if (!present.includes(next[i])) next.splice(i, 1);
+  const bases = next.slice(0, 4);
+  if (ui) await ext.storage.sync.set({ ui: { uiLang: "auto", ...ui, baseLangs: bases, baseLangsDetected: detected, baseLangsConfirmed: false } }).catch(() => {});
+  await ext.storage.local.set({ baseLangs: bases });
+  projector.schedule();
+}
+
 // An update from a version before the welcome tab: the learner is past the first run, and
 // a learner who already has words never gets a first-word or first-swap celebration.
 async function upgradeOnboarding() {
@@ -604,7 +636,9 @@ function onInstalled(details) {
   if (details?.reason === "update") {
     Promise.resolve(ext.alarms.clear(OLD_ALARM)).catch(() => {});
     migrateHiddenLangs().catch(() => {});
-    upgradeOnboarding().catch(() => {});
+    // The bases after the first-run state: writing them projects the words again, and the
+    // first-run check reads the old list first.
+    upgradeOnboarding().catch(() => {}).then(upgradeBases).catch(() => {});
   }
   if (details?.reason === "install") firstInstall().catch((e) => console.warn("Kotiko couldn't open the welcome tab:", e?.message ?? e));
   ensureAlarm();

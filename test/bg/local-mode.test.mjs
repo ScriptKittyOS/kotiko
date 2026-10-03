@@ -304,7 +304,9 @@ describe("upgrading an existing install (slice 11 §8)", () => {
     assert.equal(bg.store.wordsHome, "server");
     assert.equal(bg.store.lookup.kind, "server");
     assert.deepEqual(bg.store.server, { url: srv.kotikoUrl });
-    assert.equal(bg.store.baseLangs, undefined, "a server install's bases are untouched");
+    // Slice 50's upgrade rule: the browser's languages, plus the base every old word has.
+    await bg.until(() => bg.store.baseLangs);
+    assert.deepEqual([...bg.store.baseLangs], ["en"]);
     assert.deepEqual(bg.store.words, LEGACY_WORDS, "the pages' list is the server's, byte for byte");
     // The 50 cached words are also in the store, for a later move into this browser.
     assert.equal((await (await bg.k.getStore()).list()).length, 50);

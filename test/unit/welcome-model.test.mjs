@@ -42,10 +42,18 @@ describe("base languages from the browser (50 §2)", () => {
     assert.deepEqual(M.toggleBase(["es"], "es", true), { bases: ["es"] });
   });
 
-  test("support levels: Full, Good and Basic", () => {
+  test("moving a base: drag or the arrows; the first is the primary base", () => {
+    assert.deepEqual(M.moveBase(["es", "en", "fr"], 2, 0), ["fr", "es", "en"]);
+    assert.deepEqual(M.moveBase(["es", "en", "fr"], 0, 1), ["en", "es", "fr"]);
+    assert.deepEqual(M.moveBase(["es", "en"], 0, 0), ["es", "en"]);
+    assert.deepEqual(M.moveBase(["es", "en"], 1, 2), ["es", "en"], "out of range changes nothing");
+    assert.deepEqual(M.moveBase(["es", "en"], -1, 0), ["es", "en"]);
+  });
+
+  test("support levels: Full or Basic", () => {
     assert.equal(M.levelOf("es"), "full");
-    assert.equal(M.levelOf("pt-BR"), "good");
-    assert.equal(M.levelOf("zh-Hant"), "good");
+    assert.equal(M.levelOf("pt-BR"), "basic");
+    assert.equal(M.levelOf("zh-Hant"), "basic");
     assert.equal(M.levelOf("pl"), "basic");
   });
 });

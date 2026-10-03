@@ -5,7 +5,7 @@
 | **Status** | Proposed; the control rules and the lone-capital rule are implemented early (see "Implemented early") |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
-| **Depends on** | [14-matcher-engine](../14-matcher-engine/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages, `spec/lang/<base>/detect.json` and `casing.json`) |
+| **Depends on** | [14-matcher-engine](../14-matcher-engine/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages, the shared `stopwords.json` and `casing.json`) |
 | **Unblocks** | [38-per-site-rules](../38-per-site-rules/SPEC.md), [32](../32-page-coverage-and-celebrations/SPEC.md) (coverage counts only text Kotiko would consider) |
 | **Sources** | [DECISIONS 2026-10-01, "English is not the base language"](../DECISIONS.md); [06 F13](../../docs/research/06-adversarial-qa.md), [02 B1-B3, C4, E6](../../docs/research/02-linguistics.md), [03 B1, B2, B5, B6, D5, E4](../../docs/research/03-browser-extension.md), [01 S10, S14](../../docs/research/01-language-mixing.md), [05 S23](../../docs/research/05-learner-ux.md) |
 
@@ -141,13 +141,14 @@ if nothing declared:
     pageBase = isBase(top) if top.percentage >= 50
     otherwise null, in mixed mode as above
 if detection is unavailable or the sample is under 200 characters:
-    function-word heuristic: for each base b with spec/lang/<b>/detect.json, the share of word
-    tokens (14's tokenizer for b) that are among that file's 40 most common words
+    function-word heuristic: for each base b with a stopword list (50 §5: its own
+    stopwords.txt, else its entry in _generic/stopwords.json, about 60 languages), the share
+    of word tokens (14's tokenizer for b) that are stopwords of b
     (en: the, and, of, to, a, in, is, it, you, that, ...; es: de, la, que, el, en, y, a, los,
     se, del, ...; ja: の, に, は, を, た, が, で, て, と, し, ...);
     pageBase = the best-scoring base if its share is at least 12 %; recheck once after 5 s
-    if the sample was short (single-page app shells). Bases at 50's Basic level have no
-    detect.json and rely on the declared language and i18n.detectLanguage.
+    if the sample was short (single-page app shells). A base with no stopword list at all
+    relies on the declared language and i18n.detectLanguage.
 ```
 
 `baseFor(el)` (cached per element with the element rules) is what slice 15 calls for each text
@@ -231,8 +232,8 @@ Applied to each match from slice 14 before precedence (18). Inputs: the match (`
 `shape`, `sentenceStart`, `prevToken`, `nextToken`, gaps), the form's `case` flag
 (`any` | `lower` | `exact` | `proper`, default `any`; set by [09](../09-shared-word-spec-and-prompt/SPEC.md)
 and editable in [21](../21-dashboard/SPEC.md)), page evidence (below), and the conventions of
-the base the text was scanned in, `C = spec/lang/<base>/casing.json` (50; `_generic` when the
-base has none).
+the base the text was scanned in, `C` = that base's entry in the shared
+`spec/lang/_generic/casing.json` (50 §5; its `default` when the base has no entry).
 
 ```
 filter(m):
@@ -317,8 +318,9 @@ least 60 % of them title-shaped (headlines, menu labels). Only bases whose `casi
 `title_case_headlines` (English) treat this as headline style; Spanish, French and Italian
 headlines use sentence case, so a capital there is real evidence.
 
-**Per-base conventions** (`casing.json`, schema in `spec/lang/schema/casing.schema.json`, shared
-with slice 17):
+**Per-base conventions** (entries in the shared `_generic/casing.json`, schema in
+`spec/lang/schema/casing.schema.json`, shared with slice 17; a language without an entry
+uses `default`, the column a caseless or unlisted base gets):
 
 | Key | en | es | de | ja, zh, th |
 |---|---|---|---|---|
@@ -471,8 +473,8 @@ present in the index, so they stay small.
 - **Unit (slice 02):** `rules.js` against the worked-examples tables and the English boundary
   table rows 21-28 in slice 14; evidence and deferral ordering; the language decision table
   with stubbed `detectLanguage` results for base sets `["en"]`, `["es"]`, `["es", "en"]` and
-  `["ja"]`; `baseFor` over nested `lang` attributes; every launch `casing.json` and
-  `detect.json` against its schema.
+  `["ja"]`; `baseFor` over nested `lang` attributes; the shared `casing.json` and
+  `stopwords.json` against their schemas.
 - **jsdom:** element rules over a fixture with each selector; `focusin` restore; legacy
   `data-slovo-skip`. Done early for controls: "AOI I / AOI II" toggles as `role=radio`
   divs, as `<label>`s and as `cursor: pointer` divs (inline style and a `<style>` rule); a

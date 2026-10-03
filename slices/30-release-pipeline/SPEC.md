@@ -5,7 +5,7 @@
 | **Status** | Proposed |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
-| **Depends on** | [02-test-harness-and-ci](../02-test-harness-and-ci/SPEC.md), [03-oss-foundations](../03-oss-foundations/SPEC.md); the release checklist checks [50](../50-ui-localization-and-base-language/SPEC.md)'s launch locales and [34](../34-pronunciation-audio/SPEC.md)'s manual voice check |
+| **Depends on** | [02-test-harness-and-ci](../02-test-harness-and-ci/SPEC.md), [03-oss-foundations](../03-oss-foundations/SPEC.md); the release checklist checks [50](../50-ui-localization-and-base-language/SPEC.md)'s launch locales, [34](../34-pronunciation-audio/SPEC.md)'s manual voice check and [54](../54-pre-release-security-review/SPEC.md)'s security gate (the first store upload waits on it) |
 | **Unblocks** | The public release; [40](../40-server-packaging-docker/SPEC.md) (image publishing hooks in here), [44](../44-docs-site/SPEC.md) |
 | **Sources** | [04 section 3 "Release plan", S30, S32](../../docs/research/04-architecture-release.md); [03 E6, E7](../../docs/research/03-browser-extension.md); [DECISIONS: store publisher and contact](../DECISIONS.md) |
 
@@ -227,8 +227,16 @@ language from the same two files ([50](../50-ui-localization-and-base-language/S
 **Release checklist** (`docs/stores.md`), ticked in the release PR: the `i18n` CI job is
 green (both launch locales complete); new strings since the last release were reviewed in
 Spanish by a native speaker; the store listings in English and Spanish match the release.
-Two more boxes for the first public release, and again for any release that changes the
-popover (19), audio (34), the respelling keys or the pronunciation prompt (07, 09):
+Three more boxes for the first public release. The security box comes back for any release
+that changes permissions, messaging, how secrets are stored, the server's API or the bot;
+the other two for any release that changes the popover (19), audio (34), the respelling keys
+or the pronunciation prompt (07, 09):
+
+- **Security review** ([54](../54-pre-release-security-review/SPEC.md)): three independent
+  reports on the release candidate, every finding's proof rerun by the lead, no confirmed
+  critical, high or medium finding open, the fixes confirmed by a fresh reviewer, and
+  `docs/security/review-<tag>.md` committed. No store job is approved before this box is
+  ticked.
 
 - **Voice check** ([34](../34-pronunciation-audio/SPEC.md)'s manual test): the speak button
   tried on Chrome and Firefox on Windows, macOS and Linux with French, Mandarin, Japanese,
@@ -334,8 +342,9 @@ question 3 confirms the tag-signing method.
 - [ ] `manifest.json`, `mix.exs` and the release-please manifest show the same version
       after a release PR merges.
 - [ ] A `dry_run` dispatch on a branch builds artifacts and publishes nothing.
-- [ ] `docs/stores.md`'s checklist has the voice-check and Spanish-key boxes, and the first
-      public release PR carries the voice-check results table.
+- [ ] `docs/stores.md`'s checklist has the security-review, voice-check and Spanish-key
+      boxes, and the first public release PR links slice 54's combined report and carries
+      the voice-check results table.
 
 ## Test plan
 

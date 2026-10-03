@@ -210,7 +210,8 @@ base ("Meanings in") and `T` = the target ("Learning", if set), in order:
 3. **Language of each column.** When scripts don't settle it (Spanish base, English
    target: both Latin), each side's text across all rows is joined and passed to
    `i18n.detectLanguage` (available in extension pages in Chrome and Firefox), plus a
-   count of tokens found in `spec/lang/<B>/stopwords.txt` and `detect.json` (slice 50).
+   count of tokens found in `B`'s stopwords (slice 50 §5: `spec/lang/<B>/stopwords.txt`,
+   else `B`'s entry in `_generic/stopwords.json`).
    The side that detects as `B` with reliability, or that has clearly more of `B`'s
    common words, is Meaning. "dog = perro / cat = gato / house = casa" with base `es`
    puts dog, cat, house as Word.

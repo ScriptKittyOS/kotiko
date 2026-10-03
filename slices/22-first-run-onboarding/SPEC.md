@@ -182,7 +182,7 @@ placeholder only; the box starts empty.
 `s:ui.baseLangs`): "hello" for `en`, "hola" for `es`, "bonjour" for `fr`, "こんにちは" for
 `ja`. The word and the question prefix come from `spec/lang/<base>/welcome.json`
 (`{"hello": "hola", "ask_prefix": "¿cómo se dice hola en ", "no_ai_example": "hello = hola"}`),
-shipped for every Full and Good base ([50 §5](../50-ui-localization-and-base-language/SPEC.md));
+shipped for every Full base ([50 §5](../50-ui-localization-and-base-language/SPEC.md));
 for a base without the file, the chip uses the interface locale's `welcome_try_hello` and
 `welcome_ask_prefix` keys. Pressing it puts the prefix into the box ("how do you say hello
 in " / "¿cómo se dice hola en " / "「こんにちは」は"), moves focus there with the caret at
@@ -531,7 +531,6 @@ Japanese) written by speakers for Kotiko:
 | Base level | Sentences | Coverage check (CI) |
 |---|---|---|
 | Full (`en`, `es` at launch) | about 1,000 | every word in the base's list of about 3,000 common words (`spec/lang/<base>/common.txt`) appears at least once |
-| Good (`fr`, `de`, `it`, `pt`, `ja`, `zh-Hans`, `zh-Hant`, `ko`, `th`) | at least 150 | none; valid and NFC |
 | Basic | none | |
 
 Examples: `en` "She said hello and waved from the bus."; `es` "Ella dijo hola y saludó
@@ -769,7 +768,7 @@ same as in the store listing ([28](../28-privacy-and-store-readiness/SPEC.md)).
   use of `parse.js` for one line in `en` and `es`; base chips (preselect, untick, add, cap,
   last-chip refusal); sentence choice per base (shortest match, inflected forms, multi-word
   forms, Japanese without spaces, fallback template, Basic base with no file); each Full
-  base's `sentences.json` coverage of its `common.txt` (CI check); every Full and Good base
+  base's `sentences.json` coverage of its `common.txt` (CI check); every Full base
   has a valid `welcome.json`.
 - **Integration:** the `preview: true` add job ends in `needs_choice` for one candidate and
   never writes to the store; confirming writes once with the job's `client_request_id`;
@@ -956,8 +955,8 @@ lookup in the tests goes to the fixture server's fake model.*
 add job and `needs_choice` (the page uses the stateless preview above); 13's `parse.js`
 and bulk add; 14's segmenter matcher, without which a Japanese or Chinese base has no
 working preview (the legacy matcher needs word boundaries); about 1,000 sentences per Full
-base, `common.txt` and its CI coverage check, and `welcome.json`/`sentences.json` for the
-Good bases (50 §5); 08's `wikipedia` field and the most-learned-per-script list as data;
+base, `common.txt` and its CI coverage check, and `welcome.json`/`sentences.json` for more
+bases, as native speakers contribute them (50 §5); 08's `wikipedia` field and the most-learned-per-script list as data;
 50's dashboard base-language settings and upgrade rule; 32's page milestones; the Firefox
 run (step 0 with a revoked permission, `welcome.open` without `getContexts` opens a new
 tab); axe-core in Playwright (27); the native Spanish review, the Spanish story, the

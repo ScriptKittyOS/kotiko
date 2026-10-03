@@ -49,7 +49,9 @@ the exact boundary rules for each base. Which language wins (18), what to skip (
   `Intl.Segmenter` supports.
 - Every row in the boundary tables below (English, Spanish, French, Italian, German,
   Japanese, Chinese, Thai) passes as a unit test.
-- Per-language boundary behavior is data in `spec/lang/<base>/boundaries.json`, not code.
+- Per-language boundary behavior is data, not code: one entry per language that needs one in
+  the shared `spec/lang/_generic/boundaries.json` (50 §5); every other language uses its
+  `default`.
 - Matching cost does not grow with vocabulary size: within the budgets in "Performance".
 - One pure, DOM-free module that runs in the content script, extension pages (dashboard
   preview, onboarding preview) and Node tests unchanged.
@@ -99,7 +101,7 @@ array and share the isolated world, per research 03 section 3):
 ```
 extension/lib/text.js      character classes, tokenizer, key normalization, case shape
 extension/lib/matcher.js   buildIndex(), buildIndexes(), scan()
-extension/spec/lang/<base>/boundaries.json   copied from spec/lang/ by slice 09's sync script
+extension/spec/lang/_generic/boundaries.json copied from spec/lang/ by slice 09's sync script
 ```
 
 Following slice 02's convention, each lib file is a classic script that attaches one
@@ -203,56 +205,56 @@ back; and it is several times slower than a regex, which the budgets, a first-ch
 prefilter and slice 15's time-slicing absorb (Performance).
 
 **Adjustment pass.** Segmenter output is then adjusted by the base's
-`spec/lang/<base>/boundaries.json` (falling back to `spec/lang/_generic/boundaries.json`).
-Its schema is `spec/lang/schema/boundaries.schema.json`; the English file, as an example (the
-other bases' values are given with their boundary tables below):
+boundaries: its entry in the shared `spec/lang/_generic/boundaries.json`, keyed by the full
+tag, then the primary language, then `default` (50 §5). Its schema is
+`spec/lang/schema/boundaries.schema.json`; the English entry, as an example (the other
+languages' values are given with their boundary tables below):
 
 ```json
 {
   "spaces": true,
   "join": ["apostrophe", "hyphen", "invisible"],
-  "contractions_whole": ["n't", "'ll", "'re", "'ve", "'d", "'m"],
   "possessive_suffix": "'s",
   "possessive_whole_after": ["it", "he", "she", "that", "what", "there", "here", "who", "where", "how", "let"],
   "elision_prefixes": [],
-  "keep_whole": ["o'clock", "ma'am", "rock'n'roll"],
+  "keep_whole": [],
   "trailing_apostrophe_words": [],
   "sentence_openers": [],
   "fold": [],
-  "fast_path": true
+  "lower_locale": false
 }
 ```
 
 | Key | Effect |
 |---|---|
-| `spaces` | `false` for bases written without spaces (`ja`, `zh-Hans`, `zh-Hant`, `th`, `km`, `lo`, `my`). Then a phrase may continue across an empty gap (see Longest phrase), and the regex fast path is never used. |
+| `spaces` | `false` for bases written without spaces (`ja`, `zh-Hans`, `zh-Hant`, `th`, `km`, `lo`, `my`). Then a phrase may continue across an empty gap (see Longest phrase). |
 | `join` | Which joiners merge two adjacent word-like segments with exactly one joiner between them: `apostrophe` (**A**), `hyphen` (**H**), `invisible` (**I**; always on, in `_generic` too). So "well-known", "can't" and "hot­dog" (soft hyphen) are one token whatever the segmenter returned. |
-| `contractions_whole` | Suffixes after **A** that make the token match only whole, never by its stem ("can't" never matches "can"). |
 | `possessive_suffix`, `possessive_whole_after` | English `'s`: match the stem only, leaving `'s` outside the swap, except after the listed words, where `'s` is "is" or "us" and the token is whole-only. |
 | `elision_prefixes` | Prefixes ending in **A** that split off as their own non-matching token: French "l'eau" → `l'` + `eau`. The prefix keeps its apostrophe and is never swapped. |
 | `keep_whole` | Lexicalised tokens never split or partly matched (aujourd'hui, d'accord, quelqu'un, o'clock). A form equal to one of them still matches it whole. |
 | `trailing_apostrophe_words` | Words whose apostrophe is part of the word at the end (Italian "po'", "perché" written "perche'"). |
 | `sentence_openers` | Extra characters that start a sentence (Spanish `¿ ¡`). |
 | `fold` | Extra key folding: `"width"` maps halfwidth katakana and fullwidth Latin with NFKC on the token only (ｺｰﾋｰ → コーヒー, ｄｏｇ → dog). Nothing else is folded. |
-| `fast_path` | Allows the regex tokenizer below for this base, only if the differential test passes (below). |
+| `lower_locale` | Lowercase keys with the language's own rules: Turkish and Azeri "İ" → "i", "I" → "ı"; Lithuanian. Otherwise the root locale. |
 
-**Regex fast path.** For a base with `fast_path: true` and `spaces: true`, `tokenize` may use
-the sticky regex `W+ ( (A | H | I) W+ )*` (flags `gu`) followed by the same adjustment pass.
-It exists only for speed. CI runs a differential test per base: the regex path and the
-Segmenter path must produce identical tokens over that base's fixture corpus
-(`test/fixtures/lang/<base>/*.txt`, at least 20,000 words of real page text) in Node and in
-Chromium and Firefox; a base whose test fails has `fast_path` turned off in its file. At
-launch the flag is proposed for `en`, `es`, `fr`, `it`, `de`, `pt` and off for every other
-base.
+Contractions need no key of their own: a token is only ever matched whole (or, for the
+possessive and elisions above, split as described), so "can't" never matches "can" and German
+"geht's" never matches "geht".
+
+**No regex fast path.** An earlier draft allowed a regex tokenizer for spaced bases if it
+matched the segmenter token for token. It isn't needed: with the key cache and lazy match
+details below, the segmenter path meets the English budget (about 47 ms for 250 KB with
+10,000 words, of which segmentation is about 44 ms). Revisit only with a differential test
+over real page text, if a base ever misses its budget.
 
 **Key normalization** (`text.js: keyOf(token, base)`):
 
-1. Fast path: if the token is ASCII and the base's `casing.json` has no special lowering,
-   the key is `token.toLowerCase()`.
-2. Otherwise: remove **I** characters, map every **A** to `'` and every **H** to `-`,
-   `normalize("NFC")`, apply the base's `fold`, then lowercase with the base's locale where
-   `casing.json` says so (`tr`, `az`: "İ" → "i", "I" → "ı"; `lt`) and the root locale
-   otherwise. Caseless scripts are unchanged by lowercasing.
+1. Fast path: if the token is ASCII, only spaces and hyphens are folded before lowercasing.
+2. Otherwise: remove **I** characters, map every **A** to `'`, `normalize("NFC")`, apply the
+   base's `fold`; then (both paths) runs of **H** and **S** become one space, so "ice-cream"
+   and "ice cream" are one key, and the key is lowercased with the base's locale where
+   `lower_locale` says so and the root locale otherwise. Caseless scripts are unchanged.
+   Keys are cached per base (up to 20,000), since a page repeats its words.
 3. No accent folding. "cafe" and "café" are different keys, as are Spanish "si" (if) and "sí"
    (yes), and French "ou" (or) and "où" (where); folding would make "resume" match "résumé".
    Slice 09's prompt asks for every spelling a base actually uses.
@@ -380,7 +382,7 @@ base's `boundaries.json`:
 | Whole token is a form ("can't", "well-known", "e-mail", "aujourd'hui") | Match the whole token. |
 | Hyphenated, not a form ("ice-cream", "est-ce") | Look up its hyphen segments as a path that must end exactly at the token end. "ice-cream" matches the form "ice cream"; "well-known" never matches "well"; "est-ce" never matches "est". |
 | In `keep_whole` | Whole token only. |
-| Ends in a `contractions_whole` suffix | Whole token only. Never match the stem. |
+| Contraction ("can't", "geht's") | Whole token only. Never match the stem. |
 | Possessive suffix after a word in `possessive_whole_after` (it's, let's) | Whole token only. |
 | Other possessive (`X's`) | Match `X` only; the suffix stays as written, outside the swap. |
 | Starts with an `elision_prefixes` prefix (l'eau, qu'il, dell'acqua) | Split: the prefix is its own token, never swapped; the rest is looked up as a word. |
@@ -437,8 +439,8 @@ cream", "c++", "résumé", "may", "will", "bill".
 **Spanish base** (`es`). Words with `base_lang: "es"`: ja 犬 (forms "perro", "perros"), en
 "house" ("casa"), en "water" ("agua"), en "park" ("parque"), ja こんにちは ("hola"), en
 "give it to me" ("dámelo"), en "please" ("por favor"), en "yes" ("sí"), en "and" ("y").
-`boundaries.json`: `join: ["hyphen", "invisible"]`, `sentence_openers: ["¿", "¡"]`,
-`fast_path: true`.
+Its boundaries entry: `sentence_openers: ["¿", "¡"]` (the default joins hyphens).
+
 
 | # | Input | Matches reported | Final result |
 |---|---|---|---|
@@ -456,10 +458,10 @@ cream", "c++", "résumé", "may", "will", "bill".
 | es12 | `agua» dijo` (« » quotes) | `agua` | quotes stay |
 
 **French base** (`fr`). Words: en "water" ("eau"), en "okay" ("d'accord"), en "today"
-("aujourd'hui"), en "dog" ("chien", "chiens"), en "is" ("est"). `boundaries.json`:
-`join: ["hyphen", "invisible"]`, `elision_prefixes: ["l'", "d'", "j'", "m'", "n'", "s'",
+("aujourd'hui"), en "dog" ("chien", "chiens"), en "is" ("est"). Its boundaries entry:
+`elision_prefixes: ["l'", "d'", "j'", "m'", "n'", "s'",
 "t'", "c'", "qu'", "jusqu'", "lorsqu'", "puisqu'", "quoiqu'"]`, `keep_whole: ["aujourd'hui",
-"d'accord", "quelqu'un", "presqu'île", "prud'homme"]`, `fast_path: true`.
+"d'accord", "quelqu'un", "presqu'île", "prud'homme"]`.
 
 | # | Input | Matches reported | Final result |
 |---|---|---|---|
@@ -484,8 +486,8 @@ cream", "c++", "résumé", "may", "will", "bill".
 | it3 | `un po' di pane` | `un po'`, key "un po'" | swapped whole, apostrophe included |
 
 **German base** (`de`). Words: en "dog" ("Hund", "Hunde"), en "doghouse" ("Hundehütte"),
-en "mail" ("Mail"). `join: ["hyphen", "invisible"]`, `contractions_whole: ["'s"]` (geht's,
-wie geht's), `fast_path: true`. `casing.json` marks nouns as capitalised (17 and 16 read it).
+en "mail" ("Mail"). No entry in the boundary table: the default is right, and "geht's" is matched only whole
+like any contraction.  `casing.json` marks nouns as capitalised (17 and 16 read it).
 
 | # | Input | Matches reported | Final result |
 |---|---|---|---|
@@ -497,8 +499,7 @@ wie geht's), `fast_path: true`. `casing.json` marks nouns as capitalised (17 and
 | de6 | `Straße`, `STRASSE` (form "Straße") | `Straße` only | "STRASSE" lowercases to "strasse", another key; accepted |
 
 **Japanese base** (`ja`). Words: ko 개 (form "犬"), en "coffee" ("コーヒー"), en "ate"
-("食べた"), en "like" ("好き"). `spaces: false`, `join: ["invisible"]`, `fold: ["width"]`,
-`sentence_openers: []`, `fast_path: false`.
+("食べた"), en "like" ("好き"). Its boundaries entry: `spaces: false`, `fold: ["width"]`.
 
 | # | Input | Tokens (ICU) | Matches reported | Final result |
 |---|---|---|---|---|
@@ -526,8 +527,12 @@ en "like" (zh-Hans "喜欢"; zh-Hant "喜歡"). `spaces: false`, `fold: ["width"
 | th1 | `ฉันชอบหมา` | ฉัน \| ชอบ \| หมา | `ชอบ`, `หมา` | swapped |
 | th2 | `หมา ตัวนี้` (space between phrases) | หมา \| ตัว \| นี้ | `หมา` | spaces in Thai mark phrases, not words; same result |
 
-Bases without their own `boundaries.json` use `_generic`: Segmenter tokens, `join:
-["invisible"]`, nothing else. Slice 50 calls that the Basic support level.
+Languages without an entry use `default`: Segmenter tokens, `join: ["hyphen", "invisible"]`,
+nothing else. Hyphens join by default because a hyphenated word is safer kept whole in any
+language (Portuguese "dá-me", French "est-ce", Spanish "hispano-americano"): precision over
+coverage. The tables above for French, Italian, German, Japanese, Chinese and Thai are entries
+(or no entry at all, where the default already gives the right tokens) in the same shared
+file, not folders of their own; they are Basic-level bases in 50's terms.
 
 ### Edges across text nodes
 
@@ -550,20 +555,22 @@ Budgets, measured by slice 02's benchmark job on the CI runner, matching only (n
 |---|---|---|
 | `buildIndex`, 1,000 words (about 4,000 forms), one base | 10 ms | regex compile, negligible |
 | `buildIndex`, 20,000 words (about 80,000 forms), one base | 80 ms | 880 ms per scan below |
-| `scan` over 100,000 eight-word text nodes, fast-path base (`en`, `es`), any vocabulary 1k-20k | 100 ms | 60 / 430 / 880 ms |
-| `scan` over the same nodes with the Segmenter path, spaced base | 300 ms | — |
-| `scan` over 100,000 Japanese text nodes of about 20 characters, 5,000 forms | 300 ms | — (fails today) |
-| `scan` of a 250 KB page with 10,000 forms, fast-path base | 50 ms | 117-435 ms |
+| `scan` over 100,000 eight-word text nodes, spaced base, any vocabulary 1k-20k | 300 ms | 60 / 430 / 880 ms |
+| `scan` over 100,000 Japanese text nodes of about 20 characters, 5,000 forms | 1,500 ms (target 300) | — (fails today) |
+| `scan` of a 250 KB page with 10,000 forms, spaced base | 75 ms (target 50) | 117-435 ms |
 | Segmenter construction, per base, once per content script | 5 ms | — |
 
-These are totals of work, not of blocking: slice 15 runs scans in time-sliced batches of at
-most 8 ms each, yielding between batches, so no budget above becomes a long task. Build cost
-roughly doubles from the forms' own segmentation and is paid once per word-list version per
-base, in the background idle time slice 15 schedules.
+Measured when this slice was built (Node 22, test/perf): the browser's word segmenter alone
+takes about 0.85 s for the Japanese case, so its 300 ms target can't be met with
+`Intl.Segmenter`; the matcher's own work is about 0.25 s on top. A typical page of 1,000 to
+5,000 text nodes is 10 to 55 ms. These are totals of work, not of blocking: slice 15 runs scans in time-sliced batches of at
+most 8 ms each, yielding between batches, so no budget above becomes a long task. Forms are keyed without
+segmenting them (a phrase's length is counted by its spaces), so building costs about 5 ms for
+10,000 words, paid once per word-list version per base.
 
 Rules that keep it there: a fast reject for strings with no letter; the first-character
-prefilter for `spaces: false` bases; one cached segmenter per base; the regex fast path where
-allowed; ASCII fast path in `keyOf`; one `Map` lookup per token; no allocation for tokens
+prefilter for `spaces: false` bases; one cached segmenter per base; the key cache and the ASCII fast path in `keyOf`; match details (shape,
+neighbours, sentence start) computed only when read; one `Map` lookup per token; no allocation for tokens
 that miss the root map; the index built once per word-list `version` and reused across scans;
 no per-match string building beyond `surface` (tooltips are lazy, slice 19). Memory for
 80,000 forms stays under 20 MB of heap per base, checked in the benchmark.
@@ -596,10 +603,9 @@ from word data. `boundaries.json` lists are compared as strings, never compiled 
       false` bases), never across punctuation or elements, and leftmost-longest wins
       ("thank you" beats "thank"; "por favor" beats "favor").
 - [ ] Every candidate for a form is returned, including several in one language.
-- [ ] The regex fast path is used only for bases whose differential test passes.
 - [ ] Budgets in the Performance table are enforced in CI with a 25 % tolerance.
 - [ ] Oversized forms, natives and vocabularies are dropped and counted, never thrown.
-- [ ] `boundaries.json` for every launch base validates against its schema.
+- [ ] The shared `boundaries.json` validates against its schema, every entry included.
 
 ## Test plan
 
@@ -609,8 +615,6 @@ from word data. `boundaries.json` lists are compared as strings, never compiled 
   Turkish I); phrase walk with gaps of every **S** kind and the empty gap; elision and
   `keep_whole` lists; symbolic forms; property test that matches never overlap and always lie
   inside `text`.
-- **Differential:** regex path versus Segmenter path per fast-path base, over
-  `test/fixtures/lang/<base>/*.txt`.
 - **Cross-engine:** the `ja`, `zh` and `th` tables run in Chromium and Firefox through
   Playwright as well as Node, because ICU data versions differ; a mismatch fails the build
   and is fixed by adjusting the fixture or adding a form, never by special-casing an engine.

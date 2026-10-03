@@ -11,6 +11,7 @@
 //
 //   M.detectBases({ uiLanguage, acceptLanguages, Lang })        -> ["es"]
 //   M.toggleBase(["es", "en"], "en", false)                      -> { bases: ["es"] }
+//   M.moveBase(["es", "en"], 1, 0)                               -> ["en", "es"]
 //   M.parseEntry("es: hola = hello", { bases, Lang, Local })     -> { kind: "manual", word }
 //   M.pickPreview(records, "en", { sentences, Matcher })          -> { before, parts, fallback }
 //   M.wikipediaUrl("es", "hola")                                  -> "https://es.wikipedia.org/…"
@@ -18,9 +19,9 @@
   const MAX_BASES = 4;
   const MAX_DETECTED = 3;
   const MAX_CANDIDATES = 5;
-  // 50 section 5's support levels at launch.
+  // 50 section 5's support levels: Full bases have their own data in spec/lang/; every
+  // other base is Basic and uses the shared data.
   const FULL = new Set(["en", "es"]);
-  const GOOD = new Set(["fr", "de", "it", "pt", "ja", "zh-Hans", "zh-Hant", "ko", "th"]);
 
   const primary = (tag) => String(tag ?? "").split(/[-_]/)[0].toLowerCase();
 
@@ -60,9 +61,18 @@
     return { bases: [...bases, tag] };
   }
 
+  // Moves the base at `from` to `to` (dashboard settings, drag or ↑/↓); the first is the
+  // primary base. Out-of-range moves change nothing.
+  function moveBase(bases, from, to) {
+    if (from === to || from < 0 || to < 0 || from >= bases.length || to >= bases.length) return bases.slice();
+    const next = bases.slice();
+    const [tag] = next.splice(from, 1);
+    next.splice(to, 0, tag);
+    return next;
+  }
+
   function levelOf(base) {
     if (FULL.has(base) || FULL.has(primary(base))) return "full";
-    if (GOOD.has(base) || GOOD.has(primary(base))) return "good";
     return "basic";
   }
 
@@ -317,6 +327,7 @@
     MAX_DETECTED,
     detectBases,
     toggleBase,
+    moveBase,
     levelOf,
     langFile,
     prefixOf,

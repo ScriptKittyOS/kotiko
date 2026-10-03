@@ -105,3 +105,23 @@ test("search finds a word with one keystroke sequence, without accents", async (
   await expect(dash.locator(".wrow")).toHaveCount(1);
   await expect(dash.locator(".wrow mark.hit")).toHaveText("café");
 });
+
+test("Languages you read in: add one, drag it first, and the pages' copy follows (slice 50)", async ({ context, server, popup }) => {
+  await server.control({ words: WORDS });
+  const p = await popup.connect(server.kotikoUrl, server.token);
+  const dash = await openFromPopup(context, p);
+  await dash.evaluate(() => (location.hash = "#settings/languages"));
+  const rows = dash.locator("#baseList .base-row");
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toHaveAttribute("data-lang", "en");
+  await dash.locator("#addBaseLang").click();
+  await dash.locator(".dialog-card input").fill("pol");
+  await dash.locator(".dialog-card input").press("Enter");
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(1).locator(".base-level")).toHaveText("Basic");
+  await rows.nth(1).dragTo(rows.nth(0));
+  await expect(rows.first()).toHaveAttribute("data-lang", "pl");
+  await expect.poll(() => dash.evaluate(() => chrome.storage.sync.get("ui").then((s) => s.ui.baseLangs))).toEqual(["pl", "en"]);
+  // Content scripts read the local mirror; the background's projection keeps it in step.
+  await expect.poll(() => dash.evaluate(() => chrome.storage.local.get("baseLangs").then((s) => s.baseLangs))).toEqual(["pl", "en"]);
+});
