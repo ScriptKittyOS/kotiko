@@ -59,5 +59,208 @@
     "intent": "chat",
     "words": [],
     "reply": "Hello! Send me a word to look up."
+  },
+  "how do you say hello in japanese": {
+    "intent": "add",
+    "words": [
+      {
+        "lang": "ja",
+        "language": "Japanese",
+        "native": "こんにちは",
+        "romanization": "konnichiwa",
+        "base_lang": "en",
+        "gloss": "hello",
+        "forms": [
+          "hello",
+          "hi"
+        ],
+        "pronunciation": "kon-nee-chee-wa",
+        "note": null
+      }
+    ]
+  },
+  "¿cómo se dice hola en japonés?": {
+    "intent": "add",
+    "words": [
+      {
+        "lang": "ja",
+        "language": "japonés",
+        "native": "こんにちは",
+        "romanization": "konnichiwa",
+        "base_lang": "es",
+        "gloss": "hola",
+        "forms": [
+          "hola"
+        ],
+        "pronunciation": "kon-ni-chi-ua",
+        "note": null
+      }
+    ]
+  },
+  "please in russian": {
+    "intent": "add",
+    "words": [
+      {
+        "lang": "ru",
+        "language": "Russian",
+        "native": "пожалуйста",
+        "native_vocalized": "пожа́луйста",
+        "romanization": "pozhaluysta",
+        "base_lang": "en",
+        "gloss": "please",
+        "forms": [
+          "please"
+        ],
+        "pronunciation": "pa-ZHAL-sta",
+        "pronunciation_careful": "pa-ZHA-lu-sta",
+        "note": null
+      }
+    ]
+  },
+  "hi in japanese": {
+    "intent": "add",
+    "words": [
+      {
+        "lang": "ja",
+        "language": "Japanese",
+        "native": "こんにちは",
+        "romanization": "konnichiwa",
+        "base_lang": "en",
+        "gloss": "hello",
+        "forms": [
+          "hello",
+          "hi"
+        ],
+        "pronunciation": "kon-nee-chee-wa",
+        "note": null
+      },
+      {
+        "lang": "ja",
+        "language": "Japanese",
+        "native": "もしもし",
+        "romanization": "moshi moshi",
+        "base_lang": "en",
+        "gloss": "hello (on the phone)",
+        "forms": [
+          "hello"
+        ],
+        "pronunciation": "moh-shee moh-shee",
+        "note": null
+      },
+      {
+        "lang": "ja",
+        "language": "Japanese",
+        "native": "やあ",
+        "romanization": "yaa",
+        "base_lang": "en",
+        "gloss": "hey",
+        "forms": [
+          "hey"
+        ],
+        "pronunciation": "yah",
+        "note": null
+      }
+    ]
+  },
+  "hola in english": {
+    "intent": "add",
+    "words": []
+  },
+  "por favor en ruso": {
+    "intent": "add",
+    "words": [
+      {
+        "lang": "ru",
+        "language": "ruso",
+        "native": "пожалуйста",
+        "native_vocalized": "пожа́луйста",
+        "romanization": "pozhaluysta",
+        "base_lang": "es",
+        "gloss": "por favor",
+        "forms": [
+          "por favor"
+        ],
+        "pronunciation": "pa-ZHAL-sta",
+        "pronunciation_careful": "pa-ZHA-lu-sta",
+        "note": null
+      }
+    ]
+  },
+  "hola en japonés": {
+    "intent": "add",
+    "words": [
+      {
+        "lang": "ja",
+        "language": "japonés",
+        "native": "こんにちは",
+        "romanization": "konnichiwa",
+        "base_lang": "es",
+        "gloss": "hola",
+        "forms": [
+          "hola"
+        ],
+        "pronunciation": "kon-ni-chi-ua",
+        "note": null
+      },
+      {
+        "lang": "ja",
+        "language": "japonés",
+        "native": "もしもし",
+        "romanization": "moshi moshi",
+        "base_lang": "es",
+        "gloss": "aló (al teléfono)",
+        "forms": [
+          "aló"
+        ],
+        "pronunciation": "mo-shi mo-shi",
+        "note": null
+      },
+      {
+        "lang": "ja",
+        "language": "japonés",
+        "native": "やあ",
+        "romanization": "yaa",
+        "base_lang": "es",
+        "gloss": "ey",
+        "forms": [
+          "ey"
+        ],
+        "pronunciation": "ia",
+        "note": null
+      }
+    ]
+  },
+  "perro en japonés": {
+    "intent": "add",
+    "words": [
+      {
+        "lang": "ja",
+        "language": "japonés",
+        "native": "犬",
+        "romanization": "inu",
+        "base_lang": "es",
+        "gloss": "perro",
+        "forms": [
+          "perro",
+          "perros"
+        ],
+        "pronunciation": "i-NU",
+        "note": null
+      },
+      {
+        "lang": "ja",
+        "language": "Japanese",
+        "native": "犬",
+        "romanization": "inu",
+        "base_lang": "en",
+        "gloss": "dog",
+        "forms": [
+          "dog",
+          "dogs"
+        ],
+        "pronunciation": "ee-noo",
+        "note": null
+      }
+    ]
   }
 }

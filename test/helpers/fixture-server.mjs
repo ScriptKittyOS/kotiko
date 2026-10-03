@@ -17,7 +17,7 @@
 //   { "reset": true,                       back to seed words and normal behaviour
 //     "kotiko": "slow" | "401" | "html" | "500" | null,
 //     "delayMs": 1500,                     how slow "slow" is
-//     "llm": "429" | "429-headers" | "429-once" | "stall" | "prose" | null,
+//     "llm": "401" | "429" | "429-headers" | "429-once" | "stall" | "prose" | null,
 //     "llmRemaining": 40 | null,           free requests /key reports (null: not reported)
 //     "llmDelayMs": 0,                     how long the fake model thinks before answering
 //     "words": [...],                      replace the fake server's word list (0.2 shape)
@@ -377,6 +377,7 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
 
     const body = await readBody(req);
     if (state.llm === "stall") return; // never answers; closed when the server stops
+    if (state.llm === "401") return send(res, 401, { error: { message: "No auth credentials found", code: 401 } });
     if (state.llm === "429") return send(res, 429, { error: { message: "Rate limit exceeded", code: 429 } });
     if (state.llm === "429-once") {
       state.llm = null;

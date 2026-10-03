@@ -795,6 +795,196 @@ celebration for an old list. Their base languages follow
 plus English, since their words have English meanings). Changelog: "A welcome page that helps you pick your first word,
 in any language, and shows it on a page in under a minute."
 
+## Implementation notes
+
+*2026-10-02, first build (branch `slice/22-welcome`), on [11](../11-local-first-mode/SPEC.md)'s
+local mode, [20](../20-popup-redesign/SPEC.md)'s popup and [21](../21-dashboard/SPEC.md)'s
+dashboard, before [13](../13-bulk-add/SPEC.md), [14](../14-matcher-engine/SPEC.md),
+[24](../24-add-flow-safety/SPEC.md), [44](../44-docs-site/SPEC.md) and most of
+[50](../50-ui-localization-and-base-language/SPEC.md). Requirements above are unchanged;
+this records what exists now and what waits. No live call to any provider was made: every
+lookup in the tests goes to the fixture server's fake model.*
+
+**Built.**
+
+- `extension/welcome.html|css|js`: one column (max 640 px of text beside a 40 px kitten),
+  Kotiko's lines one under another, the learner's parts as controls, no Next buttons.
+  Bundled scripts only (spec data, `lib/lang.js`, `lib/wordspec.js`, `lib/local-mode.js`,
+  the matcher, `lib/i18n.js`, the icons, `lib/speak.js`, `lib/word-card.js`, the popover,
+  `ui/confetti.js`, `lib/welcome-model.js`), so the page is complete on first paint. The
+  rules are plain functions in `extension/lib/welcome-model.js` (also loaded by the
+  background for detection).
+- **When it opens (§1).** `runtime.onInstalled` with `reason: "install"` only: the background
+  detects the bases, writes `onboarding: {completedAt: null, skipped: false, version: 2}`
+  and opens `welcome.html` in a new active tab. `update` and `chrome_update` never open
+  it; an update from before this slice sets `onboarding` done (`upgraded: true`) and, when
+  the learner has words, marks `vocab:first` and `page:first-swap` done silently (rollout).
+  `welcome.open` (extension pages only) brings an open welcome tab to the front with
+  `runtime.getContexts` and `tabs.update`, or opens one; the popup's first-run card and
+  the dashboard's About use it. The first word saved anywhere (the projection's `words`
+  becoming non-empty) sets `completedAt`.
+- **Bases (§2b, slice 50 §2 as far as 22 needs).** Detection at install: interface language
+  plus `i18n.getAcceptLanguages()` (else `navigator.languages`) through 08's `baseTagOf`,
+  deduplicated by same base, kept when `Intl.Segmenter` supports them, at most three.
+  Stored where 50 says: `storage.sync` `ui: {uiLang, baseLangs, baseLangsDetected,
+  baseLangsConfirmed}`, mirrored to `storage.local.baseLangs` (what the projection and the
+  dashboard read). A reinstall keeps a list the learner already confirmed. Chips are
+  `role="checkbox"` buttons named in the interface language ("Spanish, Español" when the
+  endonym differs, endonym as tooltip), a "basic" tag with its explanation for Basic
+  bases, untick (the last refused with `welcome_bases_last`), "+ Another" as a combobox
+  over the languages this browser can segment (about 245 here; names in the interface
+  language, endonyms and tags), at most four. Every change writes both copies at once; a
+  card on screen is looked up (or, for a typed word, rebuilt) for the new bases.
+  `toLocal` (11) now keeps `ui.baseLangs` in step with the local list. Not built: the
+  dashboard's "Languages you read in", 50's upgrade rule beyond 11's, and per-base data
+  other than `en` and `es`.
+- **Connect your AI (§4).** "Connect OpenRouter (free)" is absent, as 11 decided, until the
+  docs site serves the PKCE callback (44); **Paste an OpenRouter key (free)** is the primary
+  button. The key field is `type="password"`, `autocomplete="off"`, `spellcheck="false"`,
+  with Show; pasting (or Enter, or leaving the field) saves through `secrets.set`, makes
+  OpenRouter the provider (`backend.set`) and runs 11's one-request check (`backend.test`);
+  the field is cleared and shows "Saved key: sk-or-…a1b2". "Another service or my own
+  model" lists 11's other presets: a local model is checked as soon as it is picked; an
+  address or key is checked when entered. "My Kotiko server" sends the address and access
+  key to `server.connect` and shows 25's server messages. "Skip: I'll type meanings myself"
+  closes the step with a line that says how. Connected collapses the step to one line
+  ("Connected to OpenRouter, free models." / "Connected to {provider}." / "Connected to your
+  Kotiko server.") with Change; a failed check keeps the field with the message
+  (`welcome_key_rejected`: "OpenRouter didn't accept your key. Check it and paste it
+  again.", 25's others through `lib/lookup-status.js`), and the key stays saved.
+- **Ask (§5).** The placeholder cycles every 4 s through `welcome_placeholder_1…4` (still
+  under reduced motion). Try “hello” and the hints come from `spec/lang/<base>/welcome.json`
+  (`en`, `es`; schema in `spec/lang/schema/`), else the interface locale's keys; the chip
+  only fills the box. A line is read by `KotikoWelcomeModel.parseEntry`: a language prefix
+  ("es: hola = hello"), then 24 §7's "native = meaning" syntax (11's `parseManual`; 13's
+  `bulk/parse.js` doesn't exist yet), whose language comes from the prefix or from a script
+  exactly one segmentable language uses by default (kana, Hangul, Thai, Georgian, Armenian,
+  Greek…; Latin, Cyrillic, Arabic, Hebrew, Devanagari and Han ask), never the meaning's
+  base. Those words are built on the page with 11's `manualWord`: no model, no network.
+  State D offers six of the most-learned languages in that script (a static list in
+  `welcome-model.js`; 08's data has none) minus the meaning's base, and the search.
+  Anything else is looked up with `words.preview` (11's route: the learner's provider, or
+  with a server 07's `preview: true` through `lib/words-v1.js`), with the ticked bases;
+  a newer entry replaces a pending one. **Deviation:** 24's add queue with a
+  `preview: true` job and `needs_choice` isn't built, so the page uses that stateless
+  preview: nothing is written anywhere until "Make it my first word" (tested against the
+  store, the projection and `addJobs`), and closing the tab leaves nothing behind. States
+  B, C, C2 (a radio group; the chosen word's respelling, label and speak button below),
+  D, E (the meaning form; connecting afterwards runs the lookup with no retyping) and F
+  (`no_word_found`, `rejected_same_as_gloss`, offline and 25's lookup codes, then the
+  meaning form) as specified. A typed word with several bases has a "Meaning in" select.
+- **The card** is the popover's pronunciation block (`lib/word-card.js`): the stress-marked
+  headword in the display role with its `lang` and `dir="auto"`, the speak button (34, shown
+  only when a voice exists), the respelling with the stressed syllable in semibold, "Slowly:
+  …", the romanization with "AI-generated" (no label for a typed word), the meaning (one
+  base: "hello · Japanese"; several: "{gloss} · on pages in {base}" per base and the
+  language). It takes focus, named "{word}, Pronunciation: …, stress on …, {meanings},
+  {language}" from 19's keys.
+- **Make it my first word (§6)** saves the chosen records with `words.save` and a fresh
+  `client_request_id` (origin `add` for a looked-up word, `manual` for a typed one, one
+  record per base the card has), sets `onboarding.completedAt` and
+  `ui.baseLangsConfirmed`, and, for a learner with no words yet, claims `vocab:first`
+  (`celebrations.claim`, below).
+- **Celebration (§7).** "Congrats, you got your first word!" with a small card (word,
+  respelling, speak button, meaning) and Turn off celebrations ("Off. You can turn them
+  back on in Settings."). Confetti is 32's renderer (`ui/confetti.js`, see 32's notes),
+  only when the claim succeeded, celebrations are on and motion isn't reduced; otherwise the
+  section fades in over 120 ms. The ask step steps aside during the celebration; "Add
+  another word" brings it back ("What would you like to learn next?", "Add this word", no
+  celebration).
+- **Preview (§8).** `pickPreview` runs the matcher pages use today (`lib/matcher.js`, with
+  the same swap rules as `content.js`, minus the DOM) over `spec/lang/<base>/sentences.json`
+  (98 sentences each for `en` and `es`, 6 to 12 words, written for this slice and checked
+  for NFC and length) and picks the shortest sentence with a match, else the base's
+  `fallback`, else "{gloss} → {native}" for a base with no file; a second pair for a second
+  base. The before line is `--ink-3`, the after line real text with `<kotiko-w>` elements
+  (the dotted underline, 06's swap motion, none under reduced motion) inside a `<figure>`
+  with "Preview" as its caption, not a live region. The real popover (19) opens on them.
+  Edit turns the before line into a field in the base's language; the after line updates
+  on the next animation frame. Try it on a page links to the Wikipedia full-text search of
+  the base (`simple` for `en`, the primary subtag otherwise, `zh` with `variant` for
+  Chinese; 08's `languages.json` has no `wikipedia` field yet, so the mapping is in
+  `welcome-model.js`), with "Opens a Wikipedia search for “hello”." as its description.
+  Add another word, Open your words (the options page), Have a list already (the
+  dashboard's `#add`; 13's bulk add doesn't exist yet), the pin tip by browser, the Find on
+  page tip and, with no AI, "To look up words you don't know yet, connect your AI in
+  Settings."
+- **Skip for now (§9)** sets `onboarding = {completedAt, skipped: true}` and
+  `baseLangsConfirmed`, then closes its own tab. **Reopened (§10)**: with words, the next
+  question and no celebration; a connected AI shows as connected.
+- **Step 0 (§3)**: `permissions.contains({origins: ["<all_urls>"]})`, Allow calls
+  `permissions.request`, and a refusal shows `welcome_permission_declined`. Chrome grants
+  host access at install, so it never shows there; the Firefox run is still to do.
+- **Popup (20 §2 A).** Until `onboarding.completedAt`, the first-run card reads "Finish
+  setting up Kotiko / Choose your first word, in any language. It takes under a minute."
+  and Get started opens or focuses the welcome tab (`welcome.open`). After Skip with no
+  words it is 11's card ("Add your first word", Set up lookups). The popup has no key field.
+- **Dashboard (21).** Settings → About: "Show welcome again" and the "Why Kotiko?" story;
+  Settings → Learning: 32's Celebrations switch (`prefs.celebrations`).
+- **The story's single source (05 §1).** `scripts/sync-story.mjs` writes
+  `docs/story/en.md` from 05's block quote and copies every `docs/story/<locale>.md`
+  unchanged into `extension/story/` (a bundled file rather than `messages.json`, so the
+  mascot's name stays out of the locale files); `--check` runs in CI's "versions and
+  licenses" job and in `test/unit/story.test.mjs`. `docs/story/es.md` is a **placeholder**
+  draft marked `PLACEHOLDER, NOT FOR RELEASE` until the native writer's version (05's
+  brief); the About shows "This text is waiting for its final version." under it.
+  `lib/story.js` renders the interface language's file, else English.
+  `check-old-name.mjs` allows `docs/story/` and `extension/story/`.
+- **Copy.** 90 new keys in `en` and `es` (the §13 table, the AI step, the states, the
+  dashboard's About and Learning). The `{hello}` and examples come from the base's
+  `welcome.json`. **Every `es` string is pending native review** (each says so in its
+  description); to review: "Omitir por ahora", "Fija Kotiko", "Apaga Kotiko un momento desde
+  su ventana", "aló (al teléfono)" in the fixtures. `welcome_ai_other` became
+  `welcome_ai_another` (a `_other` suffix reads as a plural set to the i18n tests).
+
+**Steps** (§11's counting; measured by the DOM tests where marked):
+
+| Path | Steps to the celebrated first word | Then to a swap on a real page |
+|---|---|---|
+| "ありがとう = thanks", no key | 3 (tested) | +1 |
+| "hola = hello", no key | 4 (tested) | +1 |
+| "es: hola = hello", no key | 3 | +1 |
+| Spanish reader: "hello = hola", no key | 4 | +1 |
+| Paste an OpenRouter key, then ask | 5 (Paste an OpenRouter key, paste, type, Enter, Make it), plus getting the key | +1 |
+| Another service at an address (local model: 3) | 4 to connect (link, pick, type the address, Enter), then 3 | +1 |
+| Try “hello”, then ask (connected) | 4 | +1 |
+| Bases detected wrong | +1 per chip changed | |
+| Several results | +1 when choosing one other than the first | |
+| Connect OpenRouter (one click) | waits for 44's callback page | |
+
+**Waiting for other slices.** The one-click OpenRouter connect (44); 24's `preview: true`
+add job and `needs_choice` (the page uses the stateless preview above); 13's `parse.js`
+and bulk add; 14's segmenter matcher, without which a Japanese or Chinese base has no
+working preview (the legacy matcher needs word boundaries); about 1,000 sentences per Full
+base, `common.txt` and its CI coverage check, and `welcome.json`/`sentences.json` for the
+Good bases (50 §5); 08's `wikipedia` field and the most-learned-per-script list as data;
+50's dashboard base-language settings and upgrade rule; 32's page milestones; the Firefox
+run (step 0 with a revoked permission, `welcome.open` without `getContexts` opens a new
+tab); axe-core in Playwright (27); the native Spanish review, the Spanish story, the
+five-person usability test and the manual screen-reader passes.
+
+**Tests.** `test/unit/welcome-model.test.mjs` (detection with 50's examples, chips, the
+script rule, prefixes, the meaning's base excluded, language search, candidate groups, the
+preview per base with inflected and multi-word forms, fallback and no file, Edit, the
+Wikipedia URLs, `welcome.json`/`sentences.json` against their schemas),
+`test/unit/confetti.test.mjs`, `test/unit/celebrations.test.mjs`,
+`test/unit/story.test.mjs` (the single-source check), `test/bg/welcome.test.mjs` (install
+opens once with the browser's bases, a reinstall keeps confirmed bases, update and
+`chrome_update` never open it and mark an old list's milestones, open-or-focus, content
+scripts refused, a claim fired once under a race, the first word from the popup finishing
+the first run), `test/dom/welcome.test.mjs` (21 tests against the real background: every
+state in English and Spanish, the Puerto Rico page with a DOM scan for English strings,
+3 and 4 steps with no request, nothing saved before the tap, two bases from one model call,
+the refused key, confetti once, reduced motion, celebrations off, Skip, reopen, Edit, and
+the key field only on full pages), dashboard tests for About and Learning, popup tests for
+the new card, and `test/e2e/welcome.spec.mjs` (Chromium: the install opens the tab, a
+fake provider is connected on the page, a word is asked, confirmed with confetti and
+previewed, the popover opens on it, and Try it on a page swaps it on a stand-in for the
+Wikipedia search; the typed path with no request at all; an update through the worker's
+own `onInstalled` listener opens nothing, since an unpacked extension can't be updated in
+this harness). Screenshots of every step in light and dark, English and Spanish:
+`node test/visual/welcome-screenshots.mjs <dir>` (for review; not in CI).
+
 ## Open questions
 
 1. **Which page does "Try it on a page" open?** Recommendation: a Wikipedia search in the

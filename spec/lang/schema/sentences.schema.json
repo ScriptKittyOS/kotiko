@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "spec/lang/<base>/sentences.json: preview sentences",
+  "description": "Slice 22: short plain sentences in this base, written by speakers for Kotiko, in which the welcome tab (and later the dashboard) shows a learner's word swapped. Text for the preview, never words to learn. `fallback` is used when no sentence contains the word; `{gloss}` is replaced by the word's meaning.",
+  "type": "object",
+  "required": ["fallback", "sentences"],
+  "additionalProperties": false,
+  "properties": {
+    "fallback": { "type": "string", "pattern": "\\{gloss\\}", "maxLength": 120 },
+    "sentences": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 10, "maxLength": 120 }
+    }
+  }
+}

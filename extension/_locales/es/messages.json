@@ -2599,5 +2599,468 @@
   "dash_key_label_custom": {
     "message": "Clave, si el servicio la pide",
     "description": "Label of the key field for 'Another service', where a key is optional. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_title": {
+    "message": "Te damos la bienvenida a Kotiko",
+    "description": "The welcome tab's title (slice 22). Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_skip": {
+    "message": "Omitir por ahora",
+    "description": "Header link on the welcome tab: finishes the first run without a word and closes the tab. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_log_label": {
+    "message": "Mensajes de Kotiko",
+    "description": "Accessible name of the region that announces Kotiko's new lines on the welcome tab. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_greeting": {
+    "message": "Hola, soy Kotiko. Cambio palabras en las páginas que lees por palabras que estás aprendiendo, una a la vez.",
+    "description": "Kotiko's first line on the welcome tab. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_bases": {
+    "message": "Las páginas que lees están en:",
+    "description": "Before the chips of the learner's base languages, detected from the browser (slice 50). Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_bases_add": {
+    "message": "Otro",
+    "description": "Chip that adds another language the learner reads. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_bases_last": {
+    "message": "Kotiko necesita al menos un idioma que leas.",
+    "description": "Shown when the learner unticks the last base language. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_bases_full": {
+    "message": "Hasta cuatro idiomas. Quita uno para agregar otro.",
+    "description": "Shown when the learner tries to add a fifth base language. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_bases_search": {
+    "message": "Buscar idiomas",
+    "description": "Label and placeholder of the language search field. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_bases_none": {
+    "message": "Ningún idioma con ese nombre.",
+    "description": "The language search found nothing. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_lang_a11y": {
+    "message": "$NAME$, $ENDONYM$",
+    "description": "How a language chip is announced: its name in the interface language, then in itself (\"Spanish, Español\"). Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "name": {
+        "content": "{name}"
+      },
+      "endonym": {
+        "content": "{endonym}"
+      }
+    }
+  },
+  "welcome_base_basic": {
+    "message": "básico",
+    "description": "Small tag on a base language whose word checks are simpler (slice 50's Basic level). Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_base_basic_help": {
+    "message": "Kotiko funciona en $LANGUAGE$, con revisiones de palabras más sencillas que en inglés y español.",
+    "description": "Explains the \"basic\" tag on a base language. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "welcome_ai_step": {
+    "message": "Primero, conecta tu propia IA. Busca palabras por ti.",
+    "description": "Kotiko's line before the ways to connect an AI. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_ai_connect": {
+    "message": "Conectar OpenRouter (gratis)",
+    "description": "One-click sign-in with OpenRouter (slice 11 §4). Shown once the docs site's callback page exists. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_ai_paste_primary": {
+    "message": "Pegar una clave de OpenRouter (gratis)",
+    "description": "The main button of the AI step while the one-click connect isn't available: opens the key field. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_ai_paste": {
+    "message": "Pegar una clave",
+    "description": "Secondary choice under Connect OpenRouter: opens the key field. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_ai_another": {
+    "message": "Otro servicio o mi propio modelo",
+    "description": "Opens the list of other AI services and local models. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_ai_server": {
+    "message": "Mi servidor de Kotiko",
+    "description": "Opens the fields to connect an existing Kotiko server. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_ai_skip": {
+    "message": "Omitir: escribiré los significados yo",
+    "description": "Leaves the AI step without connecting anything. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_ai_skipped": {
+    "message": "Sin IA por ahora. Escribe una palabra con su significado, como “$EXAMPLE$”.",
+    "description": "Replaces the AI step after Skip. {example} is a word = its meaning. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "example": {
+        "content": "{example}"
+      }
+    }
+  },
+  "welcome_ai_get_key": {
+    "message": "Obtener una clave gratis",
+    "description": "Link to OpenRouter's key page, in a new tab. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_ai_checking": {
+    "message": "Revisando…",
+    "description": "While the key or server is being checked. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_connected": {
+    "message": "Conectado a $PROVIDER$.",
+    "description": "The AI step once connected. {provider} is the service's name. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "provider": {
+        "content": "{provider}"
+      }
+    }
+  },
+  "welcome_connected_openrouter": {
+    "message": "Conectado a OpenRouter, modelos gratis.",
+    "description": "The AI step once connected to OpenRouter. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_connected_server": {
+    "message": "Conectado a tu servidor de Kotiko.",
+    "description": "The AI step once a Kotiko server accepted the access key. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_change": {
+    "message": "Cambiar",
+    "description": "Link after the Connected line: shows the ways to connect again. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_server_connect": {
+    "message": "Conectar",
+    "description": "Button that checks the server address and access key. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_ask": {
+    "message": "¿Cuál es la primera palabra que te encantaría aprender?",
+    "description": "Kotiko's question before the ask box. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_ask_sub": {
+    "message": "Pregunta con tus propias palabras, en cualquier idioma.",
+    "description": "Under the question. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_reopened_ask": {
+    "message": "¿Qué te gustaría aprender ahora?",
+    "description": "Kotiko's question when the learner already has words. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_ask_label": {
+    "message": "Tu palabra o pregunta",
+    "description": "Accessible name of the ask box. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_ask_button": {
+    "message": "Preguntar",
+    "description": "Submits the ask box. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_placeholder_1": {
+    "message": "¿cómo se dice hola en japonés?",
+    "description": "Example in the ask box, 1 of 4 (cycles every 4 s). Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_placeholder_2": {
+    "message": "hello",
+    "description": "Example in the ask box, 2 of 4: a word in another language. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_placeholder_3": {
+    "message": "perro en árabe",
+    "description": "Example in the ask box, 3 of 4. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_placeholder_4": {
+    "message": "merci = gracias",
+    "description": "Example in the ask box, 4 of 4: a word with its meaning. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_try_hello": {
+    "message": "Prueba con “$HELLO$”",
+    "description": "Chip that starts the question for {hello} (\"hello\" in the learner's language). It only fills the box. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "hello": {
+        "content": "{hello}"
+      }
+    }
+  },
+  "welcome_hello_word": {
+    "message": "hola",
+    "description": "\"hello\" in the interface language, for a base language without its own welcome data. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_ask_prefix": {
+    "message": "¿cómo se dice hola en ",
+    "description": "The start of the question the Try chip puts in the box; the learner types the language after it. Keep the trailing space. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_no_ai_example": {
+    "message": "hello = hola",
+    "description": "A word in another language = its meaning in the interface language. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_example_question": {
+    "message": "hola en japonés",
+    "description": "A short example question naming a language. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_example_other_language": {
+    "message": "hola en inglés",
+    "description": "An example naming another language a reader of this language might learn. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_no_ai_hint": {
+    "message": "¿Aún no tienes IA? Escribe la palabra y su significado, como “$EXAMPLE$”. Funciona sin IA.",
+    "description": "Under the ask box while no AI is connected. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "example": {
+        "content": "{example}"
+      }
+    }
+  },
+  "welcome_looking_up": {
+    "message": "Buscando “$TEXT$”…",
+    "description": "While the learner's AI looks up what they typed. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "text": {
+        "content": "{text}"
+      }
+    }
+  },
+  "welcome_one_result": {
+    "message": "Aquí está:",
+    "description": "Before the word card. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_several": {
+    "message": "Encontré varias. ¿Cuál es la tuya?",
+    "description": "Before a choice of several words (\"la tuya\" refers to la palabra). Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_meaning_on_pages": {
+    "message": "$GLOSS$ · en páginas en $BASE$",
+    "description": "One meaning line per base language when the learner reads several. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "gloss": {
+        "content": "{gloss}"
+      },
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "welcome_meaning_in": {
+    "message": "Significado en",
+    "description": "Label of the choice of which base language a typed meaning is in. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_which_language": {
+    "message": "¿En qué idioma está?",
+    "description": "Asked when a word's letters don't say its language. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_choose_language_first": {
+    "message": "Primero elige un idioma",
+    "description": "The confirm button until a language is picked. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_no_ai_word": {
+    "message": "Para buscar “$TEXT$”, conecta tu IA arriba. O dime qué significa:",
+    "description": "A word or question asked with no AI connected. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "text": {
+        "content": "{text}"
+      }
+    }
+  },
+  "welcome_or_meaning": {
+    "message": "O dime qué significa:",
+    "description": "After a failed lookup, before the meaning field. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_meaning_placeholder": {
+    "message": "significado en $BASE$",
+    "description": "Placeholder of the meaning field. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "welcome_meaning_label": {
+    "message": "Significado de “$TEXT$”",
+    "description": "Accessible name of the meaning field. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "text": {
+        "content": "{text}"
+      }
+    }
+  },
+  "welcome_meaning_add": {
+    "message": "Agregar",
+    "description": "Builds the word card from the typed meaning (nothing is saved yet). Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_confirm": {
+    "message": "Que sea mi primera palabra",
+    "description": "Saves the word on the card: the one step that saves. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_confirm_next": {
+    "message": "Agregar esta palabra",
+    "description": "The same button when the learner already has words. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_try_another": {
+    "message": "Probar otra",
+    "description": "Discards the card; nothing was saved. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_no_word_found": {
+    "message": "No encontré ninguna palabra ahí. Prueba “$EXAMPLE$”, o escríbela como “$MEANING$”.",
+    "description": "The lookup found no word. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "example": {
+        "content": "{example}"
+      },
+      "meaning": {
+        "content": "{meaning}"
+      }
+    }
+  },
+  "welcome_same_as_gloss": {
+    "message": "Eso parece una palabra en $BASE$. ¿En qué idioma la quieres? Prueba “$EXAMPLE$”.",
+    "description": "The word is already in a language the learner reads. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      },
+      "example": {
+        "content": "{example}"
+      }
+    }
+  },
+  "welcome_error_offline": {
+    "message": "No tienes conexión, así que ahora no puedo buscarla.",
+    "description": "A lookup while offline. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_save_failed": {
+    "message": "No se pudo guardar esa palabra. Inténtalo de nuevo.",
+    "description": "Saving the confirmed word failed. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_celebration": {
+    "message": "¡Felicidades, ya tienes tu primera palabra!",
+    "description": "The first-word celebration: the one exclamation mark 05 §3 allows for milestones. Spanish pending native review (slice 50 §9)."
+  },
+  "celebrations_off": {
+    "message": "Desactivar celebraciones",
+    "description": "Link under a celebration (slice 32). Spanish pending native review (slice 50 §9)."
+  },
+  "celebrations_off_done": {
+    "message": "Desactivadas. Puedes volver a activarlas en Ajustes.",
+    "description": "After Turn off celebrations. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_preview_intro": {
+    "message": "Así es como te la vas a encontrar:",
+    "description": "Before the preview sentence. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_preview_caption": {
+    "message": "Vista previa",
+    "description": "Caption of the preview sentence. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_preview_edit": {
+    "message": "Editar",
+    "description": "Turns the sample sentence into a field. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_preview_done": {
+    "message": "Listo",
+    "description": "Ends editing the sample sentence. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_preview_field": {
+    "message": "Una oración en $BASE$",
+    "description": "Accessible name of the sentence field. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "welcome_whats_next": {
+    "message": "Desde ahora, $NATIVE$ aparece en páginas en $BASE$ donde diga “$FORM$”. Señálala o tócala para ver qué significa. Aunque sea la única que veas, es tuya.",
+    "description": "After the preview. {native} is the word, {base} the base languages, {form} the word in the learner's language. \"Señálala\" refers to la palabra. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      },
+      "base": {
+        "content": "{base}"
+      },
+      "form": {
+        "content": "{form}"
+      }
+    }
+  },
+  "welcome_try_page": {
+    "message": "Probar en una página",
+    "description": "Opens a Wikipedia search for the word in the learner's language. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_try_page_desc": {
+    "message": "Abre una búsqueda de Wikipedia de “$FORM$”.",
+    "description": "Description of Try it on a page. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "form": {
+        "content": "{form}"
+      }
+    }
+  },
+  "welcome_add_another": {
+    "message": "Agregar otra",
+    "description": "Back to the ask box. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_open_words": {
+    "message": "Abrir tus palabras",
+    "description": "Opens the dashboard. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_list_link": {
+    "message": "¿Ya tienes una lista? Agrégala de una vez.",
+    "description": "Opens adding words in the dashboard. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_pin_chrome": {
+    "message": "Fija Kotiko: haz clic en la pieza de rompecabezas y luego en el alfiler junto a Kotiko.",
+    "description": "How to pin the toolbar button in Chrome and Edge. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_pin_firefox": {
+    "message": "Fija Kotiko: haz clic en el botón de extensiones, luego en el engranaje junto a Kotiko y después en Fijar a la barra de herramientas.",
+    "description": "How to pin the toolbar button in Firefox. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_find_hint": {
+    "message": "Las palabras cambiadas no aparecen al buscar en la página. Apaga Kotiko un momento desde su ventana cuando necesites buscar.",
+    "description": "Find-on-page note. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_no_ai_later": {
+    "message": "Para buscar palabras que aún no conoces, conecta tu IA en Ajustes.",
+    "description": "After the first word when no AI is connected. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_permission": {
+    "message": "Permite que Kotiko lea las páginas. Kotiko lo necesita para cambiar palabras. El texto de las páginas nunca sale de tu navegador.",
+    "description": "Step 0, only when the page permission is missing (Firefox). The same line as the store listing. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_permission_declined": {
+    "message": "Sin este permiso, Kotiko no puede cambiar palabras. Puedes permitirlo después desde su ventana.",
+    "description": "After the learner declines the page permission. Spanish pending native review (slice 50 §9)."
+  },
+  "popup_first_run_body_welcome": {
+    "message": "Elige tu primera palabra, en cualquier idioma. Toma menos de un minuto.",
+    "description": "Body of the popup's first-run card until the first run is done (slice 20 §2 A); Get started opens the welcome tab. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_set_learning": {
+    "message": "Aprendizaje",
+    "description": "Settings section (slice 32 §8). Spanish pending native review (slice 50 §9)."
+  },
+  "dash_celebrations": {
+    "message": "Celebraciones",
+    "description": "Switch in Settings → Learning (slice 32 §8). Spanish pending native review (slice 50 §9)."
+  },
+  "dash_celebrations_help": {
+    "message": "Marca los logros, como la primera vez que la mitad de una página podría estar en tus idiomas.",
+    "description": "Help under the Celebrations switch. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_show_welcome": {
+    "message": "Mostrar la bienvenida otra vez",
+    "description": "Button in Settings → About: opens the welcome tab. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_story_pending": {
+    "message": "Este texto espera su versión final.",
+    "description": "Shown under the story while its translation is a placeholder. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_key_rejected": {
+    "message": "$PROVIDER$ no aceptó tu clave. Revísala y pégala de nuevo.",
+    "description": "A pasted key was refused by the AI service (slice 25's key_rejected, on the welcome tab). {provider} is the service's name. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "provider": {
+        "content": "{provider}"
+      }
+    }
   }
 }

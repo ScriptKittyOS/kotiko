@@ -23,6 +23,9 @@ const ALLOWED_PATHS = [
   "docs/research/",
   "slices/",
   "brand/", // Mira is the mascot
+  // The "Why Kotiko?" story names the mascot (slice 05 section 1) and its copies.
+  "docs/story/",
+  "extension/story/",
   "LICENSES/",
   "scripts/check-old-name.mjs", // this file
   // The one-time move of the old data folder must name its paths.

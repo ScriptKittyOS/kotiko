@@ -50,7 +50,19 @@ async function setUpLookups(context, extensionId, llmUrl) {
 }
 
 test("a fresh profile: words live in the browser, the first run offers lookups, a word is looked up with the learner's own provider and swapped", async ({ context, extensionId, server, popup }) => {
-  const p = await popup.page();
+  let p = await popup.page();
+  // Slice 22: until the first run is done, the card's Get started brings the welcome tab
+  // (opened at install) to the front instead of opening another.
+  await expect(p.locator("#firstRunTitle")).toHaveText("Finish setting up Kotiko");
+  await expect(p.locator("#getStarted")).toHaveText("Get started");
+  await p.locator("#getStarted").click();
+  await expect.poll(() => p.isClosed()).toBe(true);
+  // The background opens the welcome tab after the popup closes; wait for it.
+  await expect.poll(() => context.pages().filter((x) => x.url().includes("welcome.html")).length).toBe(1);
+  const welcome = context.pages().find((x) => x.url().includes("welcome.html"));
+  await welcome.locator("#skip").click();
+  await expect.poll(() => welcome.isClosed()).toBe(true);
+  p = await popup.page();
   await expect(p.locator("#firstRunTitle")).toHaveText("Add your first word");
   await expect(p.locator("#getStarted")).toHaveText("Set up lookups");
   await expect(p.locator("#banners .banner")).toHaveCount(0);

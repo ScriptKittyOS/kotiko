@@ -15,7 +15,7 @@ if (!globalThis.SyncController && typeof importScripts === "function") {
     "lib/url.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js", "lib/i18n.js", "lib/badge.js",
     "spec/spec.js", "lib/lang.js", "lib/words-v1.js", "lib/wordspec.js", "lib/word-merge.js", "lib/store.js",
     "lib/projection.js", "lib/llm/policy.js", "lib/llm/catalog.js", "lib/llm/client.js", "lib/add-queue.js",
-    "lib/refresh-job.js", "lib/local-mode.js", "lib/pkce.js",
+    "lib/refresh-job.js", "lib/local-mode.js", "lib/pkce.js", "lib/celebrations.js", "lib/welcome-model.js",
   );
 }
 
@@ -420,6 +420,13 @@ async function toLocal({ forget = false, serverLookups = false } = {}) {
   const nextBases = [...bases, ...present.filter((b) => !bases.includes(b))].slice(0, 4);
   const kind = s.lookup.kind === "server" && !(serverLookups && !forget) ? "none" : s.lookup.kind;
   await ext.storage.local.set({ wordsHome: "local", lookup: { ...s.lookup, kind }, baseLangs: nextBases, syncError: null });
+  // Slice 50's synced list, when there is one, is what currentBases() reads first.
+  try {
+    const { ui } = await ext.storage.sync.get({ ui: null });
+    if (Array.isArray(ui?.baseLangs) && JSON.stringify(ui.baseLangs) !== JSON.stringify(nextBases)) await ext.storage.sync.set({ ui: { ...ui, baseLangs: nextBases } });
+  } catch {
+    // no storage.sync here
+  }
   if (forget) {
     await setSecret("server", null);
     await ext.storage.local.set({ server: { url: Local.DEFAULT_SERVER } });
@@ -458,14 +465,116 @@ ready()
   })
   .catch(() => {});
 
-ext.runtime.onInstalled.addListener((details) => {
+// ── first run (slice 22) and milestones (slice 32) ─────────────────────────
+
+const WELCOME = "welcome.html";
+const Celebrations = globalThis.KotikoCelebrations;
+
+// Opens the welcome tab, or brings an open one to the front.
+async function openWelcome() {
+  const url = ext.runtime.getURL(WELCOME);
+  try {
+    const contexts = (await ext.runtime.getContexts?.({ contextTypes: ["TAB"] })) ?? [];
+    const open = contexts.find((c) => typeof c.documentUrl === "string" && c.documentUrl.startsWith(url) && c.tabId >= 0);
+    if (open) {
+      await ext.tabs.update(open.tabId, { active: true });
+      if (open.windowId >= 0) await Promise.resolve(ext.windows?.update?.(open.windowId, { focused: true })).catch(() => {});
+      return { ok: true, focused: true };
+    }
+  } catch {
+    // no getContexts (Firefox): open a new one
+  }
+  await Promise.resolve(ext.tabs?.create?.({ url, active: true })).catch(() => {});
+  return { ok: true, focused: false };
+}
+
+// Slice 50 section 2: the languages the learner reads, from the browser's settings (read
+// here, nothing sent). Confirmed on the welcome tab.
+async function detectBrowserBases() {
+  let accept;
+  try {
+    accept = (await ext.i18n?.getAcceptLanguages?.()) ?? [];
+  } catch {
+    accept = [];
+  }
+  if (!accept.length) accept = Array.isArray(globalThis.navigator?.languages) ? [...globalThis.navigator.languages] : [];
+  return globalThis.KotikoWelcomeModel.detectBases({ uiLanguage: uiLanguage(), acceptLanguages: accept, Lang: globalThis.KotikoLang });
+}
+
+// A new install: detect the base languages, mark the first run as not done, and open the
+// welcome tab. Never on update: existing learners keep what they have.
+async function firstInstall() {
+  await ready().catch(() => {});
+  const bases = await detectBrowserBases();
+  let ui;
+  try {
+    ({ ui = {} } = await ext.storage.sync.get({ ui: {} }));
+  } catch {
+    ui = null;
+  }
+  // storage.sync can outlive an uninstall; a learner who confirmed before keeps their list.
+  const keep = ui?.baseLangsConfirmed === true && Array.isArray(ui.baseLangs) && ui.baseLangs.length;
+  const next = keep ? ui.baseLangs.slice(0, 4) : bases;
+  if (ui) {
+    await ext.storage.sync.set({ ui: { uiLang: "auto", ...ui, baseLangs: next, baseLangsDetected: bases, baseLangsConfirmed: !!keep } }).catch(() => {});
+  }
+  const { onboarding } = await ext.storage.local.get({ onboarding: null });
+  const patch = { baseLangs: next };
+  if (!onboarding) patch.onboarding = { completedAt: null, skipped: false, version: 2 };
+  await ext.storage.local.set(patch);
+  projector.schedule();
+  await openWelcome();
+}
+
+// An update from a version before the welcome tab: the learner is past the first run, and
+// a learner who already has words never gets a first-word or first-swap celebration.
+async function upgradeOnboarding() {
+  await ready().catch(() => {});
+  const { onboarding, celebrations, words } = await ext.storage.local.get({ onboarding: null, celebrations: null, words: [] });
+  const patch = {};
+  if (!onboarding) patch.onboarding = { completedAt: now(), skipped: false, version: 2, upgraded: true };
+  const stored = await getStore().then((s) => s.count()).catch(() => 0);
+  if ((Array.isArray(words) && words.length) || stored > 0) {
+    const next = Celebrations.markDone(celebrations, ["vocab:first", "page:first-swap"], now());
+    if (JSON.stringify(next) !== JSON.stringify(celebrations)) patch.celebrations = next;
+  }
+  if (Object.keys(patch).length) await ext.storage.local.set(patch);
+}
+
+// The first word saved anywhere (the popup too) finishes the first run.
+let finishing = Promise.resolve();
+function noteFirstWord() {
+  finishing = finishing.then(async () => {
+    const { onboarding } = await ext.storage.local.get({ onboarding: null });
+    if (onboarding && !onboarding.completedAt) await ext.storage.local.set({ onboarding: { ...onboarding, completedAt: now() } });
+  }).catch(() => {});
+  return finishing;
+}
+
+// One claim at a time, so two pages can't both fire a milestone (32 section 4).
+let claiming = Promise.resolve();
+function claimMilestone(key) {
+  const run = claiming.then(async () => {
+    const { celebrations, prefs } = await ext.storage.local.get({ celebrations: null, prefs: {} });
+    const r = Celebrations.claim(celebrations, key, { now: now() });
+    if (r.claimed) await ext.storage.local.set({ celebrations: r.next });
+    return { claimed: r.claimed, reason: r.reason ?? null, celebrate: r.claimed && Celebrations.enabled(prefs) };
+  });
+  claiming = run.catch(() => {});
+  return run;
+}
+
+function onInstalled(details) {
   if (details?.reason === "update") {
     Promise.resolve(ext.alarms.clear(OLD_ALARM)).catch(() => {});
     migrateHiddenLangs().catch(() => {});
+    upgradeOnboarding().catch(() => {});
   }
+  if (details?.reason === "install") firstInstall().catch((e) => console.warn("Kotiko couldn't open the welcome tab:", e?.message ?? e));
   ensureAlarm();
   ready().catch(() => {}).finally(() => requestSync({ reason: "installed" }));
-});
+}
+ext.runtime.onInstalled.addListener(onInstalled);
 ext.runtime.onStartup.addListener(() => {
   ensureAlarm();
   requestSync({ reason: "startup" });
@@ -598,6 +707,15 @@ ext.runtime.onMessage.addListener(
           );
           return { ok: true };
         },
+      },
+      // The welcome tab (slice 22): opened from the popup's first-run card and the
+      // dashboard's About; one tab, brought to the front when already open.
+      "welcome.open": { from: ["page"], run: () => openWelcome() },
+      // Milestones (slice 32): claimed once, by one page.
+      "celebrations.claim": {
+        from: ["page"],
+        check: (m) => (Celebrations.isKey(m.key) ? null : "key must be a milestone key"),
+        run: (m) => claimMilestone(m.key),
       },
       "jobs.retry": { from: ["page"], check: (m) => (isUuid(m.id) ? null : "id must be a job id"), run: (m) => queue.retry(m.id).then(() => ({ ok: true })) },
       "jobs.cancel": { from: ["page"], check: (m) => (isUuid(m.id) ? null : "id must be a job id"), run: (m) => queue.cancel(m.id).then(() => ({ ok: true })) },
@@ -812,6 +930,7 @@ ext.storage.onChanged.addListener((changes, area) => {
     projector.schedule();
   }
   if (changes.wordsHome && changes.wordsHome.newValue === "local") projector.schedule();
+  if (Array.isArray(changes.words?.newValue) && changes.words.newValue.length) noteFirstWord();
 });
 
 // The toolbar badge and tooltip per tab (slice 20 §5): "off" when Kotiko is off everywhere
@@ -854,4 +973,4 @@ ext.storage.onChanged.addListener((changes, area) => {
 updateAllBadges();
 
 // For tests: the parts a test drives directly.
-globalThis.__kotiko = { ready, getStore, queue, refresh, projector, client, settings, currentBases, toServer, toLocal };
+globalThis.__kotiko = { ready, getStore, queue, refresh, projector, client, settings, currentBases, toServer, toLocal, openWelcome, claimMilestone, onInstalled };
