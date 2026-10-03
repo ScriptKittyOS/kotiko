@@ -75,6 +75,7 @@ defmodule Kotiko.Word do
     }
   end
 
+  # base-neutral-ok-start: 07's legacy API adapter, the one place a field is called english.
   @doc """
   The 0.2 shape for the legacy `GET /api/words`: integer id, `english` (the gloss), the
   enabled forms as strings and `language` as the English name derived from the tag (what
@@ -91,6 +92,7 @@ defmodule Kotiko.Word do
       native: w.native,
       romanization: w.romanization,
       english: w.gloss,
+      # base-neutral-ok-end
       forms: enabled_forms(w),
       note: w.note,
       base_lang: w.base_lang,

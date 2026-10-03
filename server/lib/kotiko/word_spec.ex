@@ -314,6 +314,7 @@ defmodule Kotiko.WordSpec do
   defp word_list(v) when is_list(v), do: Enum.filter(v, &is_map/1)
 
   defp word_list(v) when is_map(v) do
+    # base-neutral-ok: 09's legacy-key repair reads replies in the old shape
     if Enum.any?(~w(native lang gloss english), &Map.has_key?(v, &1)) do
       [v]
     else
@@ -357,8 +358,10 @@ defmodule Kotiko.WordSpec do
     entry = %{
       lang_raw: clean(w["lang"]),
       native: clean(w["native"]),
+      # base-neutral-ok: 09's legacy-key repair
       gloss: strip_punct(clean(if(has.("gloss"), do: w["gloss"], else: single && w["english"]))),
       base_raw: clean(w["base_lang"]) || if(single, do: hd(ctx.bases)),
+      # base-neutral-ok: 09's legacy-key repair
       forms_raw: if(has.("forms"), do: w["forms"], else: single && w["english_forms"]),
       base: nil
     }
