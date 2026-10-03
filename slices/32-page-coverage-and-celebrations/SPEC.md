@@ -393,6 +393,44 @@ already has words. Changelog: "See how much of a page could be in your
 languages, and a small celebration the first time you cross a milestone (you can turn it
 off)."
 
+## Implementation notes
+
+*2026-10-02, shipped early by [22](../22-first-run-onboarding/SPEC.md) for the first word,
+as §7 of that slice asks: the renderer, the claim and the setting. Requirements above are
+unchanged; coverage and page milestones are still to build.*
+
+**Built.**
+
+- `extension/ui/confetti.js` (`KotikoConfetti.burst({host, win, colors, reduced, raf,
+  caf, random})`): a `<canvas>` appended to `host` (the welcome page's body today; the
+  popover's closed shadow root for page milestones), `position: fixed`, full viewport,
+  `pointer-events: none`, `aria-hidden`, `contain: strict`, at `min(devicePixelRatio, 2)`.
+  `clamp(60, viewportArea / 12,000, 120)` particles in one preallocated `Float32Array`
+  (no allocation per frame), thrown from the lower left and lower right corners up and
+  inward, with gravity, air drag and spin; 6 × 10 rounded rectangles that flutter with
+  their spin, and 5 px circles; colors `--brand` and `--orange` read from the page's tokens,
+  the light `--primary-hover` (#723CD7), #F6A672 and #8DBBFF. 1.6 s, fading over the last
+  0.4 s, then removed; nothing loops; no sound. Esc, any click (`pointerdown`) or any key
+  stops it. One `requestAnimationFrame` loop: a gap over 1 s (a hidden tab gets no frames)
+  abandons it, a shorter one moves the clock on. `reducedMotion(win)` is the media query
+  or `<html data-motion="reduce">` (Kotiko's setting); under it `burst` returns null and
+  the caller fades its message in over 120 ms.
+- `extension/lib/celebrations.js`: `claim(state, key, {now})` (once ever per key; `page:`
+  keys also one per local calendar day; `vocab:` keys not), `markDone` (silent), `enabled`.
+  The background's `celebrations.claim` runs claims one at a time (extension pages only
+  for now; content scripts join with the page milestones) and answers `{claimed,
+  celebrate}`, where `celebrate` is false when `prefs.celebrations` is false. Storage is
+  `celebrations: {done, lastPageAt}` in `storage.local`. Updates from before 22 mark
+  `vocab:first` and `page:first-swap` done for learners with words (§ Rollout).
+- `prefs.celebrations` (default on) and its switch in the dashboard's Settings → Learning,
+  with §8's help text; "Turn off celebrations" on the welcome tab writes the same key.
+
+**Waiting.** Coverage counting and reporting (§1, §2), page milestones with their toast
+(§3 to §5), vocabulary milestone cards in the popup and dashboard, the badge setting, the
+string lint for "can read" and friends, and the per-frame benchmark (§7). The renderer's
+tests are `test/unit/confetti.test.mjs` (count, duration and fade, removal, stopping,
+abandoning, reduced motion, palette) and `test/unit/celebrations.test.mjs`.
+
 ## Open questions
 
 1. **A 10 % milestone?** Recommendation: no confetti, but a toast-only "first glimpse" at

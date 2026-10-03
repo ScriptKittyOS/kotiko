@@ -86,9 +86,32 @@ function perceivable(doc) {
   return out;
 }
 
+// The first run is done (slice 22): a word was saved somewhere, or the welcome tab skipped.
+const ONBOARDED = { completedAt: Date.UTC(2026, 9, 1), skipped: true, version: 2 };
+
 describe("states", () => {
+  test("A, not onboarded (slice 22): the card invites the first word and Get started opens the welcome tab", async () => {
+    const p = await openPopup({ local: { wordsHome: "local", lookup: { kind: "none", provider: "openrouter" }, onboarding: { completedAt: null, skipped: false, version: 2 } } });
+    assert.ok(p.visible("#firstRun"));
+    assert.equal(p.text("#firstRunTitle"), "Finish setting up Kotiko");
+    assert.equal(p.text("#firstRunBody"), "Choose your first word, in any language. It takes under a minute.");
+    assert.equal(p.text("#getStarted"), "Get started");
+    assert.equal(p.doc.activeElement, p.$("#addText"), "the add box stays usable");
+    let closed = false;
+    p.win.close = () => void (closed = true);
+    p.$("#getStarted").click();
+    await p.settle();
+    assert.deepEqual(p.fake.calls.sendMessage.filter((m) => m.type === "welcome.open"), [{ type: "welcome.open" }]);
+    assert.deepEqual(p.opened, [], "the background opens or focuses the one welcome tab");
+    assert.ok(closed);
+    // A saved word (anywhere) or Skip for now finishes the first run: the card changes.
+    await p.fake.chrome.storage.local.set({ onboarding: ONBOARDED });
+    await p.settle();
+    assert.equal(p.text("#firstRunTitle"), "Add your first word");
+  });
+
   test("A, first run (slice 11: words in this browser): add the first word now, Set up lookups opens the dashboard", async () => {
-    const p = await openPopup({ local: { wordsHome: "local", lookup: { kind: "none", provider: "openrouter" } } });
+    const p = await openPopup({ local: { wordsHome: "local", lookup: { kind: "none", provider: "openrouter" }, onboarding: ONBOARDED } });
     assert.ok(p.visible("#firstRun"));
     assert.equal(p.text("#firstRunTitle"), "Add your first word");
     assert.match(p.text("#firstRunBody"), /your own AI, free with OpenRouter\. Or type it with its meaning: gato = cat\.$/);
@@ -105,10 +128,10 @@ describe("states", () => {
   });
 
   test("A, first run with lookups set up: the card has no button; a fresh profile counts as words in this browser", async () => {
-    const p = await openPopup({ local: { wordsHome: "local", lookup: { kind: "provider", provider: "openrouter" }, keys: { server: false, providers: { openrouter: true } } } });
+    const p = await openPopup({ local: { wordsHome: "local", lookup: { kind: "provider", provider: "openrouter" }, keys: { server: false, providers: { openrouter: true } }, onboarding: ONBOARDED } });
     assert.equal(p.text("#firstRunTitle"), "Add your first word");
     assert.ok(!p.visible("#getStarted"));
-    const fresh = await openPopup();
+    const fresh = await openPopup({ local: { onboarding: ONBOARDED } });
     assert.equal(fresh.text("#firstRunTitle"), "Add your first word");
     assert.equal(fresh.text("#getStarted"), "Set up lookups");
   });

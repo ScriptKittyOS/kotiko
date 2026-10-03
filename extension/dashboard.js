@@ -2239,6 +2239,7 @@
     ["lookups", "dash_set_lookups"],
     ["connection", "dash_set_connection"],
     ["voices", "settings_voices"],
+    ["learning", "dash_set_learning"],
     ["appearance", "dash_set_appearance"],
     ["about", "dash_set_about"],
   ];
@@ -2266,6 +2267,25 @@
       // no manifest in tests
     }
     $("aboutVersion").textContent = t("dash_set_version", { version });
+    $("celebrations").setAttribute("aria-checked", String(state.s.prefs?.celebrations !== false));
+    renderStory();
+  }
+
+  // Settings → About: the "Why Kotiko?" story in the interface language (slice 22), from
+  // the copy of its single source the extension ships (lib/story.js).
+  let storyFor = null;
+  async function renderStory() {
+    const Story = globalThis.KotikoStory;
+    const locale = I18n.locale();
+    if (!Story || storyFor === locale) return;
+    storyFor = locale;
+    const story = await Story.load(locale);
+    if (!story || storyFor !== locale) return;
+    $("story").hidden = false;
+    $("story").lang = story.locale;
+    $("storyTitle").textContent = story.title;
+    $("storyBody").replaceChildren(...story.paragraphs.map((p) => el("p", {}, p)));
+    $("storyPending").hidden = !story.placeholder;
   }
 
   function renderUiLang() {
@@ -2859,6 +2879,8 @@
     });
     $("removeKey").addEventListener("click", removeKey);
     $("testLookup").addEventListener("click", testLookup);
+    $("celebrations").addEventListener("click", () => setPref("celebrations", state.s.prefs?.celebrations === false));
+    $("showWelcome").addEventListener("click", () => send({ type: "welcome.open" }).catch(() => {}));
     $("dataCollection").addEventListener("click", () => setLookup({ dataCollection: $("dataCollection").getAttribute("aria-checked") === "true" ? "allow" : "deny" }));
     for (const id of ["lookupBaseUrl", "lookupModel"]) {
       $(id).addEventListener("input", () => dirty.add(id));

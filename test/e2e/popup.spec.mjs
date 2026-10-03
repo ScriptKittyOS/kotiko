@@ -75,7 +75,9 @@ test.describe("with the browser in Spanish", () => {
 
   test("the popup, its accessible names and the extension's name are Spanish", async ({ server, popup }) => {
     const first = await popup.page();
-    await expect(first.locator("#firstRunTitle")).toHaveText("Agrega tu primera palabra");
+    // Not onboarded yet (slice 22): the card sends the learner to the welcome tab.
+    await expect(first.locator("#firstRunTitle")).toHaveText("Termina de configurar Kotiko");
+    await expect(first.locator("#firstRunBody")).toHaveText("Elige tu primera palabra, en cualquier idioma. Toma menos de un minuto.");
     await expect(first.locator("#addText")).toHaveAttribute("placeholder", "Agrega una palabra, en cualquier idioma");
     await expect(first.getByRole("switch", { name: "Cambiar palabras en las páginas" })).toBeVisible();
     await expect(first.locator("html")).toHaveAttribute("lang", "es");

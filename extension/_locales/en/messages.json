@@ -2599,5 +2599,468 @@
   "dash_key_label_custom": {
     "message": "Key, if the service needs one",
     "description": "Label of the key field for 'Another service', where a key is optional."
+  },
+  "welcome_title": {
+    "message": "Welcome to Kotiko",
+    "description": "The welcome tab's title (slice 22)."
+  },
+  "welcome_skip": {
+    "message": "Skip for now",
+    "description": "Header link on the welcome tab: finishes the first run without a word and closes the tab."
+  },
+  "welcome_log_label": {
+    "message": "Kotiko's messages",
+    "description": "Accessible name of the region that announces Kotiko's new lines on the welcome tab."
+  },
+  "welcome_greeting": {
+    "message": "Hi, I'm Kotiko. I swap words on the pages you read for words you're learning, one word at a time.",
+    "description": "Kotiko's first line on the welcome tab."
+  },
+  "welcome_bases": {
+    "message": "The pages you read are in:",
+    "description": "Before the chips of the learner's base languages, detected from the browser (slice 50)."
+  },
+  "welcome_bases_add": {
+    "message": "Another",
+    "description": "Chip that adds another language the learner reads."
+  },
+  "welcome_bases_last": {
+    "message": "Kotiko needs at least one language you read.",
+    "description": "Shown when the learner unticks the last base language."
+  },
+  "welcome_bases_full": {
+    "message": "Up to four languages. Untick one to add another.",
+    "description": "Shown when the learner tries to add a fifth base language."
+  },
+  "welcome_bases_search": {
+    "message": "Search languages",
+    "description": "Label and placeholder of the language search field."
+  },
+  "welcome_bases_none": {
+    "message": "No language by that name.",
+    "description": "The language search found nothing."
+  },
+  "welcome_lang_a11y": {
+    "message": "$NAME$, $ENDONYM$",
+    "description": "How a language chip is announced: its name in the interface language, then in itself (\"Spanish, Español\").",
+    "placeholders": {
+      "name": {
+        "content": "{name}"
+      },
+      "endonym": {
+        "content": "{endonym}"
+      }
+    }
+  },
+  "welcome_base_basic": {
+    "message": "basic",
+    "description": "Small tag on a base language whose word checks are simpler (slice 50's Basic level)."
+  },
+  "welcome_base_basic_help": {
+    "message": "Kotiko works in $LANGUAGE$, with simpler word checks than for English and Spanish.",
+    "description": "Explains the \"basic\" tag on a base language.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "welcome_ai_step": {
+    "message": "First, connect your own AI. It looks words up for you.",
+    "description": "Kotiko's line before the ways to connect an AI."
+  },
+  "welcome_ai_connect": {
+    "message": "Connect OpenRouter (free)",
+    "description": "One-click sign-in with OpenRouter (slice 11 §4). Shown once the docs site's callback page exists."
+  },
+  "welcome_ai_paste_primary": {
+    "message": "Paste an OpenRouter key (free)",
+    "description": "The main button of the AI step while the one-click connect isn't available: opens the key field."
+  },
+  "welcome_ai_paste": {
+    "message": "Paste a key instead",
+    "description": "Secondary choice under Connect OpenRouter: opens the key field."
+  },
+  "welcome_ai_another": {
+    "message": "Another service or my own model",
+    "description": "Opens the list of other AI services and local models."
+  },
+  "welcome_ai_server": {
+    "message": "My Kotiko server",
+    "description": "Opens the fields to connect an existing Kotiko server."
+  },
+  "welcome_ai_skip": {
+    "message": "Skip: I'll type meanings myself",
+    "description": "Leaves the AI step without connecting anything."
+  },
+  "welcome_ai_skipped": {
+    "message": "No AI for now. Type a word with its meaning, like “$EXAMPLE$”.",
+    "description": "Replaces the AI step after Skip. {example} is a word = its meaning.",
+    "placeholders": {
+      "example": {
+        "content": "{example}"
+      }
+    }
+  },
+  "welcome_ai_get_key": {
+    "message": "Get a free key",
+    "description": "Link to OpenRouter's key page, in a new tab."
+  },
+  "welcome_ai_checking": {
+    "message": "Checking…",
+    "description": "While the key or server is being checked."
+  },
+  "welcome_connected": {
+    "message": "Connected to $PROVIDER$.",
+    "description": "The AI step once connected. {provider} is the service's name.",
+    "placeholders": {
+      "provider": {
+        "content": "{provider}"
+      }
+    }
+  },
+  "welcome_connected_openrouter": {
+    "message": "Connected to OpenRouter, free models.",
+    "description": "The AI step once connected to OpenRouter."
+  },
+  "welcome_connected_server": {
+    "message": "Connected to your Kotiko server.",
+    "description": "The AI step once a Kotiko server accepted the access key."
+  },
+  "welcome_change": {
+    "message": "Change",
+    "description": "Link after the Connected line: shows the ways to connect again."
+  },
+  "welcome_server_connect": {
+    "message": "Connect",
+    "description": "Button that checks the server address and access key."
+  },
+  "welcome_ask": {
+    "message": "What's the first word you'd love to learn?",
+    "description": "Kotiko's question before the ask box."
+  },
+  "welcome_ask_sub": {
+    "message": "Ask in your own words, in any language.",
+    "description": "Under the question."
+  },
+  "welcome_reopened_ask": {
+    "message": "What would you like to learn next?",
+    "description": "Kotiko's question when the learner already has words."
+  },
+  "welcome_ask_label": {
+    "message": "Your word or question",
+    "description": "Accessible name of the ask box."
+  },
+  "welcome_ask_button": {
+    "message": "Ask",
+    "description": "Submits the ask box."
+  },
+  "welcome_placeholder_1": {
+    "message": "how do you say hello in Japanese",
+    "description": "Example in the ask box, 1 of 4 (cycles every 4 s)."
+  },
+  "welcome_placeholder_2": {
+    "message": "hola",
+    "description": "Example in the ask box, 2 of 4: a word in another language."
+  },
+  "welcome_placeholder_3": {
+    "message": "dog in Arabic",
+    "description": "Example in the ask box, 3 of 4."
+  },
+  "welcome_placeholder_4": {
+    "message": "merci = thank you",
+    "description": "Example in the ask box, 4 of 4: a word with its meaning."
+  },
+  "welcome_try_hello": {
+    "message": "Try “$HELLO$”",
+    "description": "Chip that starts the question for {hello} (\"hello\" in the learner's language). It only fills the box.",
+    "placeholders": {
+      "hello": {
+        "content": "{hello}"
+      }
+    }
+  },
+  "welcome_hello_word": {
+    "message": "hello",
+    "description": "\"hello\" in the interface language, for a base language without its own welcome data."
+  },
+  "welcome_ask_prefix": {
+    "message": "how do you say hello in ",
+    "description": "The start of the question the Try chip puts in the box; the learner types the language after it. Keep the trailing space."
+  },
+  "welcome_no_ai_example": {
+    "message": "hola = hello",
+    "description": "A word in another language = its meaning in the interface language."
+  },
+  "welcome_example_question": {
+    "message": "hello in Japanese",
+    "description": "A short example question naming a language."
+  },
+  "welcome_example_other_language": {
+    "message": "hello in Spanish",
+    "description": "An example naming another language a reader of this language might learn."
+  },
+  "welcome_no_ai_hint": {
+    "message": "No AI yet? Type the word and its meaning, like “$EXAMPLE$”. That works without one.",
+    "description": "Under the ask box while no AI is connected.",
+    "placeholders": {
+      "example": {
+        "content": "{example}"
+      }
+    }
+  },
+  "welcome_looking_up": {
+    "message": "Looking up “$TEXT$”…",
+    "description": "While the learner's AI looks up what they typed.",
+    "placeholders": {
+      "text": {
+        "content": "{text}"
+      }
+    }
+  },
+  "welcome_one_result": {
+    "message": "Here it is:",
+    "description": "Before the word card."
+  },
+  "welcome_several": {
+    "message": "I found a few. Which one is yours?",
+    "description": "Before a choice of several words (\"la tuya\" refers to la palabra)."
+  },
+  "welcome_meaning_on_pages": {
+    "message": "$GLOSS$ · on pages in $BASE$",
+    "description": "One meaning line per base language when the learner reads several.",
+    "placeholders": {
+      "gloss": {
+        "content": "{gloss}"
+      },
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "welcome_meaning_in": {
+    "message": "Meaning in",
+    "description": "Label of the choice of which base language a typed meaning is in."
+  },
+  "welcome_which_language": {
+    "message": "Which language is this?",
+    "description": "Asked when a word's letters don't say its language."
+  },
+  "welcome_choose_language_first": {
+    "message": "Choose a language first",
+    "description": "The confirm button until a language is picked."
+  },
+  "welcome_no_ai_word": {
+    "message": "To look up “$TEXT$”, connect your AI above. Or tell me what it means:",
+    "description": "A word or question asked with no AI connected.",
+    "placeholders": {
+      "text": {
+        "content": "{text}"
+      }
+    }
+  },
+  "welcome_or_meaning": {
+    "message": "Or tell me what it means:",
+    "description": "After a failed lookup, before the meaning field."
+  },
+  "welcome_meaning_placeholder": {
+    "message": "meaning in $BASE$",
+    "description": "Placeholder of the meaning field.",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "welcome_meaning_label": {
+    "message": "Meaning of “$TEXT$”",
+    "description": "Accessible name of the meaning field.",
+    "placeholders": {
+      "text": {
+        "content": "{text}"
+      }
+    }
+  },
+  "welcome_meaning_add": {
+    "message": "Add",
+    "description": "Builds the word card from the typed meaning (nothing is saved yet)."
+  },
+  "welcome_confirm": {
+    "message": "Make it my first word",
+    "description": "Saves the word on the card: the one step that saves."
+  },
+  "welcome_confirm_next": {
+    "message": "Add this word",
+    "description": "The same button when the learner already has words."
+  },
+  "welcome_try_another": {
+    "message": "Try another",
+    "description": "Discards the card; nothing was saved."
+  },
+  "welcome_no_word_found": {
+    "message": "I couldn't find a word in that. Try “$EXAMPLE$”, or type it as “$MEANING$”.",
+    "description": "The lookup found no word.",
+    "placeholders": {
+      "example": {
+        "content": "{example}"
+      },
+      "meaning": {
+        "content": "{meaning}"
+      }
+    }
+  },
+  "welcome_same_as_gloss": {
+    "message": "That looks like a word in $BASE$ already. Which language would you like it in? Try “$EXAMPLE$”.",
+    "description": "The word is already in a language the learner reads.",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      },
+      "example": {
+        "content": "{example}"
+      }
+    }
+  },
+  "welcome_error_offline": {
+    "message": "You're offline, so I can't look that up right now.",
+    "description": "A lookup while offline."
+  },
+  "welcome_save_failed": {
+    "message": "Couldn't save that word. Try again.",
+    "description": "Saving the confirmed word failed."
+  },
+  "welcome_celebration": {
+    "message": "Congrats, you got your first word!",
+    "description": "The first-word celebration: the one exclamation mark 05 §3 allows for milestones."
+  },
+  "celebrations_off": {
+    "message": "Turn off celebrations",
+    "description": "Link under a celebration (slice 32)."
+  },
+  "celebrations_off_done": {
+    "message": "Off. You can turn them back on in Settings.",
+    "description": "After Turn off celebrations."
+  },
+  "welcome_preview_intro": {
+    "message": "This is how you'll meet it:",
+    "description": "Before the preview sentence."
+  },
+  "welcome_preview_caption": {
+    "message": "Preview",
+    "description": "Caption of the preview sentence."
+  },
+  "welcome_preview_edit": {
+    "message": "Edit",
+    "description": "Turns the sample sentence into a field."
+  },
+  "welcome_preview_done": {
+    "message": "Done",
+    "description": "Ends editing the sample sentence."
+  },
+  "welcome_preview_field": {
+    "message": "A sentence in $BASE$",
+    "description": "Accessible name of the sentence field.",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "welcome_whats_next": {
+    "message": "From now on, $NATIVE$ shows up on pages in $BASE$ wherever “$FORM$” does. Point at it, or tap it, to see what it means. Even if it's the only one you see, it's yours.",
+    "description": "After the preview. {native} is the word, {base} the base languages, {form} the word in the learner's language. \"Señálala\" refers to la palabra.",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      },
+      "base": {
+        "content": "{base}"
+      },
+      "form": {
+        "content": "{form}"
+      }
+    }
+  },
+  "welcome_try_page": {
+    "message": "Try it on a page",
+    "description": "Opens a Wikipedia search for the word in the learner's language."
+  },
+  "welcome_try_page_desc": {
+    "message": "Opens a Wikipedia search for “$FORM$”.",
+    "description": "Description of Try it on a page.",
+    "placeholders": {
+      "form": {
+        "content": "{form}"
+      }
+    }
+  },
+  "welcome_add_another": {
+    "message": "Add another word",
+    "description": "Back to the ask box."
+  },
+  "welcome_open_words": {
+    "message": "Open your words",
+    "description": "Opens the dashboard."
+  },
+  "welcome_list_link": {
+    "message": "Have a list already? Add it in one go.",
+    "description": "Opens adding words in the dashboard."
+  },
+  "welcome_pin_chrome": {
+    "message": "Pin Kotiko: click the puzzle piece, then the pin next to Kotiko.",
+    "description": "How to pin the toolbar button in Chrome and Edge."
+  },
+  "welcome_pin_firefox": {
+    "message": "Pin Kotiko: click the extensions button, then the gear next to Kotiko, then Pin to Toolbar.",
+    "description": "How to pin the toolbar button in Firefox."
+  },
+  "welcome_find_hint": {
+    "message": "Swapped words won't show up in Find on page. Turn Kotiko off for a moment from the popup when you need to search.",
+    "description": "Find-on-page note."
+  },
+  "welcome_no_ai_later": {
+    "message": "To look up words you don't know yet, connect your AI in Settings.",
+    "description": "After the first word when no AI is connected."
+  },
+  "welcome_permission": {
+    "message": "Allow Kotiko to read pages. Kotiko needs this to swap words. Page text never leaves your browser.",
+    "description": "Step 0, only when the page permission is missing (Firefox). The same line as the store listing."
+  },
+  "welcome_permission_declined": {
+    "message": "Without it, Kotiko can't swap words. You can allow it later from the popup.",
+    "description": "After the learner declines the page permission."
+  },
+  "popup_first_run_body_welcome": {
+    "message": "Choose your first word, in any language. It takes under a minute.",
+    "description": "Body of the popup's first-run card until the first run is done (slice 20 §2 A); Get started opens the welcome tab."
+  },
+  "dash_set_learning": {
+    "message": "Learning",
+    "description": "Settings section (slice 32 §8)."
+  },
+  "dash_celebrations": {
+    "message": "Celebrations",
+    "description": "Switch in Settings → Learning (slice 32 §8)."
+  },
+  "dash_celebrations_help": {
+    "message": "Mark milestones, like the first time half a page could be in your languages.",
+    "description": "Help under the Celebrations switch."
+  },
+  "dash_show_welcome": {
+    "message": "Show welcome again",
+    "description": "Button in Settings → About: opens the welcome tab."
+  },
+  "dash_story_pending": {
+    "message": "This text is waiting for its final version.",
+    "description": "Shown under the story while its translation is a placeholder."
+  },
+  "welcome_key_rejected": {
+    "message": "$PROVIDER$ didn't accept your key. Check it and paste it again.",
+    "description": "A pasted key was refused by the AI service (slice 25's key_rejected, on the welcome tab). {provider} is the service's name.",
+    "placeholders": {
+      "provider": {
+        "content": "{provider}"
+      }
+    }
   }
 }

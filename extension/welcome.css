@@ -1,0 +1,888 @@
+/* SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/*
+ * The welcome tab (slice 22 §2): one column, at most 640 px, Kotiko's lines one under
+ * another with the kitten, the learner's parts as controls. Tokens and components come
+ * from ui/; this file only places them. Usable at 320 px and at 200 % zoom.
+ */
+
+html {
+  background: var(--canvas);
+}
+
+body {
+  min-height: 100vh;
+  color: var(--ink);
+  font: var(--t-body) var(--font-ui);
+}
+
+/* --- Header --------------------------------------------------------------------------- */
+.w-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-5);
+  max-width: 704px;
+  margin: 0 auto;
+  padding: var(--s-7) var(--s-8) 0;
+}
+
+.w-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.mark {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+}
+
+.wordmark {
+  font: 600 1.25rem/1.75rem var(--font-display);
+  color: var(--ink);
+}
+
+.w-skip {
+  min-height: var(--target-min);
+  color: var(--ink-2);
+  font: var(--t-body) var(--font-ui);
+  font-weight: 500;
+}
+
+/* --- The conversation ----------------------------------------------------------------- */
+.w-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-8);
+  max-width: 704px;
+  margin: 0 auto;
+  padding: var(--s-10) var(--s-8) var(--s-11);
+}
+
+.turn {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  column-gap: var(--s-6);
+  align-items: start;
+}
+
+.turn[hidden] {
+  display: none;
+}
+
+/* The small kitten beside each of Kotiko's lines (05). */
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--purple-soft) url("ui/art/kitten-curious.png") center 62% / 30px auto no-repeat;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .avatar {
+    background: var(--brand) url("ui/art/kitten-curious-on-purple.png") center / 40px auto no-repeat;
+  }
+}
+
+:root[data-theme="dark"] .avatar {
+  background: var(--brand) url("ui/art/kitten-curious-on-purple.png") center / 40px auto no-repeat;
+}
+
+.turn-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  min-width: 0;
+  padding-block-start: var(--s-3);
+}
+
+.line {
+  margin: 0;
+  font: var(--t-lead) var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.line-strong {
+  font: 600 1.25rem/1.75rem var(--font-ui);
+}
+
+.line-sub {
+  margin: calc(-1 * var(--s-4)) 0 0;
+  font: var(--t-body) var(--font-ui);
+  color: var(--ink-2);
+}
+
+.line-ok {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-4);
+}
+
+.line-ok .icon {
+  flex: none;
+  margin-block-start: 2px;
+  color: var(--success);
+}
+
+.connected {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-3) var(--s-6);
+}
+
+.note {
+  margin: 0;
+  font: var(--t-small) var(--font-ui);
+  color: var(--ink-2);
+}
+
+.note-error {
+  color: var(--danger);
+}
+
+.hint {
+  margin: 0;
+  font: var(--t-small) var(--font-ui);
+  color: var(--ink-2);
+}
+
+/* --- Base languages (§2b) ------------------------------------------------------------- */
+.bases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-4);
+}
+
+.base-chip {
+  min-height: 32px;
+  padding-inline: var(--s-4) var(--s-5);
+  font: var(--t-body) var(--font-ui);
+  font-weight: 500;
+}
+
+.base-chip[aria-checked="false"] {
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  color: var(--ink-3);
+}
+
+.base-chip .chip-glyph {
+  display: inline-flex;
+}
+
+.chip-tag {
+  padding: 0 var(--s-3);
+  border-radius: var(--r-xs);
+  background: var(--sunken);
+  color: var(--ink-2);
+  font: var(--t-caption) var(--font-ui);
+}
+
+.add-chip {
+  min-height: 32px;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  color: var(--ink-2);
+  font: var(--t-body) var(--font-ui);
+}
+
+.add-chip:hover {
+  background: var(--sunken);
+}
+
+.lang-search {
+  position: relative;
+  max-width: 320px;
+}
+
+.lang-options {
+  display: grid;
+  margin: var(--s-2) 0 0;
+  padding: var(--s-2);
+  list-style: none;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--e-2);
+}
+
+.lang-options:empty {
+  display: none;
+}
+
+.lang-option {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-5);
+  min-height: 36px;
+  padding: var(--s-3) var(--s-5);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.lang-option[aria-selected="true"],
+.lang-option:hover {
+  background: var(--selected);
+}
+
+.lang-option .endonym {
+  color: var(--ink-3);
+  font: var(--t-small) var(--font-ui);
+}
+
+.lang-option-none {
+  color: var(--ink-3);
+  cursor: default;
+}
+
+/* --- Connect your AI (§4) ----------------------------------------------------------------- */
+.ai-buttons {
+  display: flex;
+  margin-block-start: var(--s-2);
+  flex-wrap: wrap;
+  gap: var(--s-4);
+}
+
+.ai-buttons .btn {
+  min-height: 40px;
+  padding-inline: var(--s-7);
+}
+
+.ai-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-3) var(--s-4);
+  margin: 0;
+  font: var(--t-body) var(--font-ui);
+}
+
+.ai-links .link {
+  color: var(--ink-2);
+}
+
+.sep {
+  color: var(--ink-3);
+}
+
+.panel {
+  display: grid;
+  margin-block-start: var(--s-3);
+  gap: var(--s-5);
+  padding: var(--s-6);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--e-1);
+}
+
+.panel[hidden] {
+  display: none;
+}
+
+.set-field {
+  display: grid;
+}
+
+.key-wrap {
+  position: relative;
+}
+
+.key-wrap .field {
+  padding-inline-end: 80px;
+}
+
+.key-wrap .btn {
+  position: absolute;
+  inset-block-start: 6px;
+  inset-inline-end: 6px;
+}
+
+.field {
+  min-height: 40px;
+}
+
+.status {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-4);
+  margin: 0;
+  font: var(--t-body) var(--font-ui);
+}
+
+.status:empty {
+  display: none;
+}
+
+.status .icon {
+  flex: none;
+}
+
+.status-ok .icon {
+  color: var(--success);
+}
+
+.status-bad {
+  color: var(--danger);
+}
+
+.status-busy {
+  color: var(--ink-2);
+}
+
+.radio-list {
+  display: grid;
+  gap: var(--s-1);
+  margin-inline: calc(-1 * var(--s-4));
+}
+
+.radio {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  min-height: 40px;
+  padding: 0 var(--s-4);
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--ink);
+  font: var(--t-body) var(--font-ui);
+  text-align: start;
+}
+
+.radio:hover {
+  background: var(--sunken);
+}
+
+.radio-dot {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.radio[aria-checked="true"] .radio-dot {
+  border: 5.5px solid var(--primary);
+}
+
+.other-fields {
+  display: grid;
+  gap: var(--s-5);
+}
+
+.other-fields[hidden] {
+  display: none;
+}
+
+/* --- Ask (§5) -------------------------------------------------------------------------- */
+.ask {
+  display: flex;
+  gap: var(--s-4);
+}
+
+.ask-field {
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  padding-inline: var(--s-6);
+  font: var(--t-lead) var(--font-ui);
+  border-radius: var(--r-lg);
+  border-width: 1.5px;
+  box-shadow: var(--e-1);
+}
+
+.ask-btn {
+  min-height: 48px;
+  padding-inline: var(--s-7);
+  border-radius: var(--r-lg);
+}
+
+.ask-extras {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-4);
+}
+
+.try-chip {
+  min-height: 32px;
+  padding-inline: var(--s-5);
+  font: var(--t-body) var(--font-ui);
+  font-weight: 500;
+}
+
+.meaning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.meaning[hidden] {
+  display: none;
+}
+
+.meaning-word {
+  font: var(--t-word) var(--font-word);
+}
+
+.meaning-eq {
+  color: var(--ink-3);
+}
+
+.meaning-field {
+  flex: 1 1 180px;
+  min-width: 0;
+  max-width: 280px;
+}
+
+/* --- The word card (§5 C, C2, D) --------------------------------------------------------- */
+.card-slot:empty {
+  display: none;
+}
+
+.wcard {
+  display: grid;
+  gap: var(--s-3);
+  margin-inline-start: 56px;
+  padding: var(--s-8);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  box-shadow: var(--e-1);
+}
+
+.wcard:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.wcard-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  min-width: 0;
+}
+
+.wcard-word {
+  font: var(--t-specimen) var(--font-word);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+}
+
+.speak {
+  flex: none;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--purple-text);
+  background: var(--purple-soft);
+}
+
+.speak:hover {
+  background: var(--selected);
+  color: var(--purple-text);
+}
+
+.wcard-pron {
+  margin: 0;
+  font: var(--t-word) var(--font-ui);
+  font-weight: 400;
+  color: var(--ink);
+}
+
+.wcard-pron strong,
+.mini-pron strong {
+  font-weight: 650;
+}
+
+.wcard-slow,
+.wcard-rom {
+  margin: 0;
+  font: var(--t-body) var(--font-ui);
+  color: var(--ink-2);
+}
+
+.wcard-meaning {
+  display: grid;
+  gap: var(--s-1);
+  margin: var(--s-4) 0 0;
+  padding: 0;
+  list-style: none;
+  font: var(--t-lead) var(--font-ui);
+  color: var(--ink);
+}
+
+.wcard-meaning .lang-name {
+  color: var(--ink-2);
+}
+
+.wcard-meaning-in {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  font: var(--t-small) var(--font-ui);
+  color: var(--ink-2);
+}
+
+.wcard-meaning-in select {
+  min-height: 32px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: var(--t-small) var(--font-ui);
+}
+
+.wcard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-4) var(--s-7);
+  margin-block-start: var(--s-6);
+}
+
+.wcard-actions .btn-primary {
+  min-height: 44px;
+  padding-inline: var(--s-7);
+  font: var(--t-lead) var(--font-ui);
+  font-weight: 600;
+}
+
+/* Several results: a radio group (§5 C2). */
+.choices {
+  display: grid;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.choices legend {
+  padding: 0;
+  margin-block-end: var(--s-4);
+  font: var(--t-small) var(--font-ui);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s-5);
+  min-height: 48px;
+  padding: var(--s-3) var(--s-5);
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+
+.choice:hover {
+  background: var(--sunken);
+}
+
+.choice:has(input:checked) {
+  background: var(--selected);
+}
+
+.choice input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+.choice-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--s-5);
+}
+
+.choice-word {
+  font: var(--t-word-lg) var(--font-word);
+}
+
+.choice-meta {
+  color: var(--ink-2);
+}
+
+.choice-detail {
+  padding-block-start: var(--s-5);
+  margin-inline-start: var(--s-5);
+  border-block-start: 1px solid var(--divider);
+}
+
+.choice-pron {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-5);
+}
+
+.choice-pron > div {
+  display: grid;
+  gap: var(--s-3);
+}
+
+/* Which language (§5 D). */
+.lang-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-4);
+}
+
+.pick-chip,
+.pick-chip[aria-pressed="false"] {
+  min-height: 32px;
+  padding-inline: var(--s-5);
+  font: var(--t-body) var(--font-ui);
+  font-weight: 500;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ink);
+}
+
+.pick-chip:hover {
+  background: var(--sunken);
+  color: var(--ink);
+}
+
+.pick-chip[aria-pressed="true"] {
+  background: var(--purple-soft);
+  border-color: var(--purple-text);
+  color: var(--purple-text);
+}
+
+/* --- Celebration (§7) ------------------------------------------------------------------- */
+.done {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-8);
+}
+
+.done[hidden] {
+  display: none;
+}
+
+.avatar-happy {
+  box-shadow: 0 0 0 3px var(--orange-soft);
+}
+
+.celebrate-line {
+  font: 600 1.75rem/2.25rem var(--font-display);
+}
+
+.mini-card {
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-6) var(--s-7);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  box-shadow: var(--e-1);
+}
+
+.mini-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3) var(--s-6);
+}
+
+.mini-word {
+  font: 500 2rem/2.5rem var(--font-word);
+}
+
+.mini-pron {
+  font: var(--t-word) var(--font-ui);
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+.mini-head .speak {
+  margin-inline-start: auto;
+}
+
+.mini-meaning {
+  margin: 0;
+  font: var(--t-lead) var(--font-ui);
+  color: var(--ink-2);
+}
+
+.celebrate-off {
+  margin: 0;
+  font: var(--t-small) var(--font-ui);
+  color: var(--ink-2);
+}
+
+/* The calm alternative (and the arrival of every celebration): a 120 ms fade. */
+.fade-in {
+  animation: w-fade 120ms var(--ease-standard) both;
+}
+
+@keyframes w-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* --- Preview (§8) ----------------------------------------------------------------------- */
+.previews {
+  display: grid;
+  gap: var(--s-5);
+}
+
+.preview {
+  display: grid;
+  gap: var(--s-4);
+  margin: 0 0 0 56px;
+  padding: var(--s-7) var(--s-8);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  box-shadow: var(--e-1);
+}
+
+.preview figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-5);
+  font: var(--t-small) var(--font-ui);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.preview-before {
+  margin: 0;
+  font: var(--t-lead) var(--font-ui);
+  color: var(--ink-3);
+}
+
+.preview-after {
+  margin: 0;
+  font: 400 1.25rem/2rem var(--font-ui);
+  color: var(--ink);
+}
+
+.preview-after kotiko-w {
+  font-family: var(--font-word);
+  font-weight: 500;
+  cursor: help;
+  unicode-bidi: isolate;
+}
+
+.preview-field {
+  font: var(--t-lead) var(--font-ui);
+}
+
+.next-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.next-actions .btn {
+  min-height: 40px;
+}
+
+.tips {
+  display: grid;
+  gap: var(--s-3);
+  margin: var(--s-4) 0 0;
+  padding: var(--s-6) 0 0;
+  list-style: none;
+  border-block-start: 1px solid var(--divider);
+  font: var(--t-small) var(--font-ui);
+  color: var(--ink-2);
+}
+
+.tips li[hidden] {
+  display: none;
+}
+
+/* Long labels (Spanish, 200 % zoom) wrap inside their button instead of spilling out. */
+.ai-buttons .btn,
+.next-actions .btn,
+.wcard-actions .btn {
+  max-width: 100%;
+  padding-block: var(--s-3);
+  white-space: normal;
+  text-align: center;
+}
+
+/* --- Narrow screens (320 px) -------------------------------------------------------------- */
+@media (max-width: 560px) {
+  .w-head {
+    padding-inline: var(--s-6);
+  }
+
+  .w-main {
+    padding: var(--s-8) var(--s-6) var(--s-10);
+  }
+
+  .turn {
+    grid-template-columns: 32px minmax(0, 1fr);
+    column-gap: var(--s-5);
+  }
+
+  .avatar {
+    width: 32px;
+    height: 32px;
+    background-size: 24px auto;
+  }
+
+  .wcard,
+  .preview {
+    margin-inline-start: 0;
+    padding: var(--s-6);
+  }
+
+  .wcard-word {
+    font: 500 2rem/2.5rem var(--font-word);
+  }
+
+  .ask {
+    flex-wrap: wrap;
+  }
+
+  .ask-btn {
+    flex: 1 0 100%;
+  }
+
+  .line-strong {
+    font: 600 1.125rem/1.5rem var(--font-ui);
+  }
+
+  .celebrate-line {
+    font: 600 1.5rem/2rem var(--font-display);
+  }
+}
+
+/* The underline the pages draw under a swap (content.css), here for the preview. */
+kotiko-w {
+  text-decoration: underline dotted var(--orange);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+@media (forced-colors: active) {
+  .wcard,
+  .mini-card,
+  .preview,
+  .panel {
+    border: 1px solid CanvasText;
+  }
+}

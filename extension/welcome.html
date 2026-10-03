@@ -1,0 +1,227 @@
+<!doctype html>
+<!-- SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kotiko</title>
+  <link rel="icon" href="icon32.png" />
+  <script src="ui/theme.js"></script>
+  <link rel="stylesheet" href="ui/tokens.css" />
+  <link rel="stylesheet" href="ui/base.css" />
+  <link rel="stylesheet" href="ui/components.css" />
+  <link rel="stylesheet" href="welcome.css" />
+</head>
+<body>
+  <!--
+    Slice 22: the first run as a short conversation. Kotiko's lines sit one under another,
+    each with the kitten; the learner's parts are controls. Nothing is saved until "Make it
+    my first word". Every string comes from _locales through KotikoI18n; welcome.js builds
+    the dynamic parts with DOM methods (word data is only ever text).
+  -->
+  <header class="w-head">
+    <div class="w-brand">
+      <img class="mark" src="icon32.png" alt="" width="24" height="24" />
+      <span class="wordmark">Kotiko</span>
+    </div>
+    <button class="link link-quiet w-skip" id="skip" type="button" data-i18n="welcome_skip"></button>
+  </header>
+
+  <main class="w-main" id="main" data-ready="false">
+    <!-- Step 0, only when the page permission is missing (Firefox). -->
+    <section class="banner banner-blocking w-permission" id="permission" hidden>
+      <span data-icon="warning"></span>
+      <div class="banner-body">
+        <p id="permissionText" data-i18n="welcome_permission"></p>
+        <div class="banner-actions">
+          <button class="btn btn-primary btn-sm" id="allow" type="button" data-i18n="error_permission_missing_action"></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 1. Hello. -->
+    <div class="turn" id="turnGreet">
+      <span class="avatar" aria-hidden="true"></span>
+      <div class="turn-body">
+        <p class="line" data-i18n="welcome_greeting"></p>
+      </div>
+    </div>
+
+    <!-- 2. The languages you read (slice 50 section 2). -->
+    <div class="turn" id="turnBases">
+      <span class="avatar" aria-hidden="true"></span>
+      <div class="turn-body">
+        <p class="line" id="basesLine" data-i18n="welcome_bases"></p>
+        <div class="bases" id="bases" role="group" aria-labelledby="basesLine"></div>
+        <div class="lang-search" id="baseSearch" hidden>
+          <label class="sr-only" for="baseSearchField" data-i18n="welcome_bases_search"></label>
+          <input class="field" id="baseSearchField" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="baseSearchList" autocomplete="off" spellcheck="false" data-i18n-placeholder="welcome_bases_search" />
+          <ul class="lang-options" id="baseSearchList" role="listbox" data-i18n-aria-label="welcome_bases_search"></ul>
+        </div>
+        <p class="note note-error" id="basesNote" role="status" hidden></p>
+      </div>
+    </div>
+
+    <!-- 3. Connect your own AI (slice 11). The key is typed only here and in the dashboard. -->
+    <div class="turn" id="turnAi">
+      <span class="avatar" aria-hidden="true"></span>
+      <div class="turn-body">
+        <div id="aiConnected" class="connected" hidden>
+          <p class="line line-ok"><span data-icon="success"></span><span id="aiConnectedText"></span></p>
+          <button class="link link-quiet" id="aiChange" type="button" data-i18n="welcome_change"></button>
+        </div>
+        <div id="aiSetup">
+          <p class="line" data-i18n="welcome_ai_step"></p>
+          <div class="ai-buttons">
+            <!-- 11 §4: "Connect OpenRouter (free)" joins here once the docs site serves its callback page (44). -->
+            <button class="btn btn-primary" id="aiPaste" type="button" aria-expanded="false" aria-controls="pastePanel" data-i18n="welcome_ai_paste_primary"></button>
+          </div>
+          <p class="ai-links">
+            <button class="link link-quiet" id="aiOther" type="button" aria-expanded="false" aria-controls="otherPanel" data-i18n="welcome_ai_another"></button>
+            <span class="sep" aria-hidden="true">·</span>
+            <button class="link link-quiet" id="aiServer" type="button" aria-expanded="false" aria-controls="serverPanel" data-i18n="welcome_ai_server"></button>
+            <span class="sep" aria-hidden="true">·</span>
+            <button class="link link-quiet" id="aiSkip" type="button" data-i18n="welcome_ai_skip"></button>
+          </p>
+
+          <div class="panel" id="pastePanel" hidden>
+            <label class="field-label" for="pasteKey" data-i18n="dash_key_placeholder"></label>
+            <div class="key-wrap">
+              <input class="field" id="pasteKey" type="password" autocomplete="off" spellcheck="false" aria-describedby="pasteHelp pasteStatus" />
+              <button class="btn btn-quiet btn-sm" id="pasteShow" type="button" aria-controls="pasteKey" aria-pressed="false" data-i18n="settings_show_key"></button>
+            </div>
+            <p class="field-help" id="pasteHelp">
+              <span data-i18n="dash_key_privacy"></span>
+              <a class="link" id="getKey" href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener noreferrer" data-i18n="welcome_ai_get_key"></a>
+            </p>
+            <p class="status" id="pasteStatus" role="status"></p>
+          </div>
+
+          <div class="panel" id="otherPanel" hidden>
+            <div class="radio-list" id="providerOptions" role="radiogroup" data-i18n-aria-label="welcome_ai_another"></div>
+            <div class="other-fields" id="otherFields" hidden>
+              <div class="set-field" id="otherUrlField" hidden>
+                <label class="field-label" for="otherUrl" data-i18n="dash_base_url"></label>
+                <input class="field" id="otherUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" />
+              </div>
+              <div class="set-field" id="otherKeyField" hidden>
+                <label class="field-label" for="otherKey" id="otherKeyLabel"></label>
+                <input class="field" id="otherKey" type="password" autocomplete="off" spellcheck="false" aria-describedby="otherNote otherStatus" />
+              </div>
+              <p class="field-help" id="otherNote"></p>
+              <p class="status" id="otherStatus" role="status"></p>
+            </div>
+          </div>
+
+          <form class="panel" id="serverPanel" hidden autocomplete="off">
+            <div class="set-field">
+              <label class="field-label" for="serverUrl" data-i18n="settings_server_address"></label>
+              <input class="field" id="serverUrl" type="text" inputmode="url" spellcheck="false" placeholder="http://localhost:4747" />
+            </div>
+            <div class="set-field">
+              <label class="field-label" for="serverKey" data-i18n="settings_access_key"></label>
+              <input class="field" id="serverKey" type="password" autocomplete="off" spellcheck="false" aria-describedby="serverStatus" />
+            </div>
+            <button class="btn btn-secondary btn-sm" id="serverConnect" type="submit" data-i18n="welcome_server_connect"></button>
+            <p class="status" id="serverStatus" role="status"></p>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Ask for the first word. -->
+    <div class="turn" id="turnAsk">
+      <span class="avatar" aria-hidden="true"></span>
+      <div class="turn-body">
+        <p class="line line-strong" id="askLine" data-i18n="welcome_ask"></p>
+        <p class="line-sub" id="askSub" data-i18n="welcome_ask_sub"></p>
+        <form class="ask" id="askForm" autocomplete="off">
+          <label class="sr-only" for="askText" data-i18n="welcome_ask_label"></label>
+          <input class="field ask-field" id="askText" type="text" dir="auto" spellcheck="false" maxlength="200" enterkeyhint="send" />
+          <button class="btn btn-primary ask-btn" id="askBtn" type="submit" data-i18n="welcome_ask_button"></button>
+        </form>
+        <div class="ask-extras">
+          <button class="chip try-chip" id="tryHello" type="button"></button>
+          <p class="hint" id="noAiHint"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- States B to F: Kotiko's line about the entry, then the card (outside the log). -->
+    <div class="turn" id="turnResult" hidden>
+      <span class="avatar" aria-hidden="true"></span>
+      <div class="turn-body">
+        <p class="line" id="resultLine"></p>
+        <form class="meaning" id="meaningForm" hidden autocomplete="off">
+          <bdi class="meaning-word" id="meaningWord" dir="auto"></bdi>
+          <span class="meaning-eq" aria-hidden="true">=</span>
+          <input class="field meaning-field" id="meaningText" type="text" dir="auto" spellcheck="false" maxlength="64" />
+          <button class="btn btn-secondary btn-sm" id="meaningAdd" type="submit" data-i18n="welcome_meaning_add"></button>
+        </form>
+      </div>
+    </div>
+    <div class="card-slot" id="cardSlot"></div>
+
+    <!-- 7. Celebration, then 8. preview and what's next. -->
+    <section class="done" id="done" hidden aria-labelledby="celebrateLine">
+      <div class="turn" id="turnCelebrate">
+        <span class="avatar avatar-happy" aria-hidden="true"></span>
+        <div class="turn-body">
+          <p class="line line-strong celebrate-line" id="celebrateLine"></p>
+          <div class="mini-card" id="miniCard"></div>
+          <p class="celebrate-off">
+            <button class="link link-quiet" id="celebrationsOff" type="button" data-i18n="celebrations_off"></button>
+            <span id="celebrationsOffDone" hidden data-i18n="celebrations_off_done"></span>
+          </p>
+        </div>
+      </div>
+      <div class="turn">
+        <span class="avatar" aria-hidden="true"></span>
+        <div class="turn-body">
+          <p class="line" data-i18n="welcome_preview_intro"></p>
+        </div>
+      </div>
+      <div class="previews" id="previews"></div>
+      <div class="turn">
+        <span class="avatar" aria-hidden="true"></span>
+        <div class="turn-body">
+          <p class="line" id="whatsNext"></p>
+          <div class="next-actions">
+            <a class="btn btn-primary" id="tryPage" href="#" target="_blank" rel="noopener noreferrer" aria-describedby="tryPageDesc" data-i18n="welcome_try_page"></a>
+            <button class="btn btn-secondary" id="addAnother" type="button" data-i18n="welcome_add_another"></button>
+            <button class="btn btn-quiet" id="openWords" type="button" data-i18n="welcome_open_words"></button>
+          </div>
+          <p class="sr-only" id="tryPageDesc"></p>
+          <ul class="tips">
+            <li><button class="link link-quiet" id="addList" type="button" data-i18n="welcome_list_link"></button></li>
+            <li id="pinTip"></li>
+            <li data-i18n="welcome_find_hint"></li>
+            <li id="noAiLater" hidden data-i18n="welcome_no_ai_later"></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Kotiko's new lines, announced once each (22 §14); the visible lines above stay plain text. -->
+    <div class="sr-only" id="log" role="log" aria-live="polite" data-i18n-aria-label="welcome_log_label"></div>
+  </main>
+
+  <script src="spec/spec.js"></script>
+  <script src="lib/lang.js"></script>
+  <script src="lib/wordspec.js"></script>
+  <script src="lib/word-merge.js"></script>
+  <script src="lib/local-mode.js"></script>
+  <script src="lib/matcher.js"></script>
+  <script src="lib/i18n.js"></script>
+  <script src="ui/icons.js"></script>
+  <script src="lib/speak.js"></script>
+  <script src="lib/word-card.js"></script>
+  <script src="lib/lookup-status.js"></script>
+  <script src="ui/popover-style.js"></script>
+  <script src="content/popover.js"></script>
+  <script src="ui/confetti.js"></script>
+  <script src="lib/welcome-model.js"></script>
+  <script src="welcome.js"></script>
+</body>
+</html>

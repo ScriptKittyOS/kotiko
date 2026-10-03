@@ -104,6 +104,12 @@ export const PAIRS = [
   ["focus", "selected", "Focus ring on a selected row", NON_TEXT],
   ["border", "selected", "Checkbox on a selected row", NON_TEXT],
   ["orange-text", "sunken", "Shelf: this week's adds on hover", TEXT],
+  // Added with the welcome tab (slice 22): the Connected line's check on the canvas, the
+  // swapped word's underline in the preview, the purple avatar's edge, the "basic" tag.
+  ["success", "canvas", "Welcome: Connected check mark", NON_TEXT],
+  ["orange", "surface", "Welcome: the preview word's dotted underline", NON_TEXT],
+  ["ink-2", "canvas", "Welcome: hints and tips", TEXT],
+  ["purple-text", "purple-soft", "Welcome: Try “hello” chip and checked base chips", TEXT],
 ];
 
 // 06 §4.2 pairs, plus the brand's distance from danger (re-checked for every brand input).

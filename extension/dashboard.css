@@ -1972,6 +1972,43 @@ kbd {
   gap: var(--s-6);
 }
 
+/* The "Why Kotiko?" story (slice 05 §1, shown here by slice 22). */
+.story {
+  display: grid;
+  gap: var(--s-5);
+  max-width: 34rem;
+  margin-block-start: var(--s-4);
+  padding: var(--s-7) var(--s-8);
+  border-radius: var(--r-lg);
+  background: var(--sunken);
+}
+
+.story[hidden] {
+  display: none;
+}
+
+.story-title {
+  margin: 0;
+  font: 600 1.25rem/1.75rem var(--font-display);
+  color: var(--ink);
+}
+
+.story-body {
+  display: grid;
+  gap: var(--s-5);
+  font: var(--t-lead) var(--font-ui);
+  color: var(--ink);
+}
+
+.story-body p {
+  margin: 0;
+}
+
+.story-body p:last-child {
+  font-family: var(--font-display);
+  font-style: italic;
+}
+
 /* --- Narrow (< 960 px): the inspector becomes a sheet over the list ------------------------ */
 @media (max-width: 959px) {
   .app {

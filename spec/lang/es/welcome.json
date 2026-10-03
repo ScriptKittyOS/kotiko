@@ -1,0 +1,7 @@
+{
+  "hello": "hola",
+  "ask_prefix": "¿cómo se dice hola en ",
+  "no_ai_example": "hello = hola",
+  "example_question": "hola en japonés",
+  "example_other_language": "hola en inglés"
+}

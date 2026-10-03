@@ -17,7 +17,7 @@ const SPEC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = path.join(path.dirname(SPEC), "extension", "spec");
 
 const TOP = ["VERSION", "rules.json", "pronunciation.json", "prompt.md", "languages.json", "lang-aliases.json", "models.json", "providers.json"];
-const LANG_FILES = ["stopwords.txt", "stem.json", "variants.json", "respelling.json"];
+const LANG_FILES = ["stopwords.txt", "stem.json", "variants.json", "respelling.json", "welcome.json", "sentences.json"];
 
 // REUSE-IgnoreStart
 const HEADER =

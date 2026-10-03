@@ -221,7 +221,15 @@
             <p class="field-help" id="onlineVoicesHelp" data-i18n="settings_online_voices_help"></p>
           </section>
 
-          <!-- 31, 16, 37, 43: "Reading"; 32, 35, 46: "Learning"; 33: "Shortcuts". -->
+          <!-- 31, 16, 37, 43: "Reading"; 35, 46 join "Learning"; 33: "Shortcuts". -->
+          <section class="set-section" id="set-learning" data-section="learning" aria-labelledby="setLearningTitle">
+            <h2 class="set-title" id="setLearningTitle" data-i18n="dash_set_learning"></h2>
+            <button class="switch-row" id="celebrations" type="button" role="switch" aria-checked="true" aria-describedby="celebrationsHelp">
+              <span data-i18n="dash_celebrations"></span>
+              <span class="switch" aria-hidden="true"></span>
+            </button>
+            <p class="field-help" id="celebrationsHelp" data-i18n="dash_celebrations_help"></p>
+          </section>
 
           <section class="set-section" id="set-appearance" data-section="appearance" aria-labelledby="setLookTitle">
             <h2 class="set-title" id="setLookTitle" data-i18n="dash_set_appearance"></h2>
@@ -244,7 +252,16 @@
               <a class="link" href="https://github.com/ScriptKittyOS/kotiko" target="_blank" rel="noopener noreferrer" data-i18n="dash_set_source"></a>
               <a class="link" href="https://github.com/ScriptKittyOS/kotiko/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" data-i18n="dash_set_license"></a>
             </p>
-            <!-- 28: privacy policy; 22: "Show welcome again". -->
+            <div class="set-actions">
+              <button class="btn btn-secondary" id="showWelcome" type="button" data-i18n="dash_show_welcome"></button>
+            </div>
+            <!-- The "Why Kotiko?" story, from its single source (slice 05 §1; extension/story/). -->
+            <article class="story" id="story" hidden aria-labelledby="storyTitle">
+              <h3 class="story-title" id="storyTitle"></h3>
+              <div class="story-body" id="storyBody"></div>
+              <p class="field-help" id="storyPending" hidden data-i18n="dash_story_pending"></p>
+            </article>
+            <!-- 28: privacy policy. -->
           </section>
         </div>
       </div>
@@ -288,6 +305,7 @@
   <script src="lib/dashboard-model.js"></script>
   <script src="lib/word-source.js"></script>
   <script src="lib/lookup-status.js"></script>
+  <script src="lib/story.js"></script>
   <script src="dashboard.js"></script>
 </body>
 </html>

@@ -2,7 +2,7 @@
 
 One folder per base tag (slice 50 section 5): the languages learners read in. The word
 checks of slice 09 read a word's base from here; the other files slice 50 lists
-(`boundaries.json`, `casing.json`, `detect.json`, …) arrive with slices 14, 16, 17 and 22.
+(`boundaries.json`, `casing.json`, `detect.json`, `common.txt`, …) arrive with slices 14, 16, 17 and 22.
 
 | File | Used for | Fallback |
 |---|---|---|
@@ -10,6 +10,8 @@ checks of slice 09 read a word's base from here; the other files slice 50 lists
 | `stem.json` | Is a form related to the gloss? `kind: "suffix"`: irregulars, then the first matching suffix rule; `strip_accents` for stems only. `kind: "prefix"` (`_generic`): equal to the gloss or sharing its first 3 graphemes. | `_generic` |
 | `variants.json` | Spellings of one word (colour, color). | `_generic` (none) |
 | `respelling.json` | The pronunciation key (slice 07 section 7): `alphabet`, `sounds`, `targets` notes, `examples`, `prompt_summary` (at most 800 characters). | **none**: a base without its own key gets no pronunciation |
+| `welcome.json` | The welcome tab's words in this base (slice 22): `hello` for the "Try hello" chip, the `ask_prefix` it puts in the box, `no_ai_example` ("hola = hello" for `en`), and the two examples in its hints. Never words to learn. | the interface locale's `welcome_*` strings |
+| `sentences.json` | Short plain sentences in this base (6 to 12 words) in which the welcome tab previews the learner's word, plus a `fallback` template with `{gloss}`. Text for the preview only, written by speakers. | the word alone, "{gloss} → {native}" |
 
 A base tag resolves to its own folder (`pt-BR`), then its language (`pt`), then `_generic`,
 file by file (`spec/fixtures/lang-data.json`). Schemas for each file are in `schema/`.

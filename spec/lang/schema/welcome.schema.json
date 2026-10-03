@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "spec/lang/<base>/welcome.json: the welcome tab's words in this base",
+  "description": "Slice 22: the word the \"Try hello\" chip suggests, the question it starts, and the examples in the welcome tab's hints, all written in the base language. Never words to learn: the learner chooses every word.",
+  "type": "object",
+  "required": ["hello", "ask_prefix", "no_ai_example", "example_question", "example_other_language"],
+  "additionalProperties": false,
+  "properties": {
+    "hello": { "type": "string", "minLength": 1, "maxLength": 40, "description": "\"hello\" in this base: hola, bonjour." },
+    "ask_prefix": { "type": "string", "minLength": 1, "maxLength": 80, "description": "The start of a question the learner finishes with a language name, ending where they type: \"how do you say hello in \"." },
+    "no_ai_example": { "type": "string", "pattern": "^\\S.* = .*\\S$", "description": "A word in another language with its meaning in this base: \"hola = hello\" for en, \"hello = hola\" for es." },
+    "example_question": { "type": "string", "minLength": 1, "maxLength": 80, "description": "A short question naming a target language: \"hello in Japanese\"." },
+    "example_other_language": { "type": "string", "minLength": 1, "maxLength": 80, "description": "The same, naming another language a reader of this base might learn: \"hello in Spanish\"." }
+  }
+}

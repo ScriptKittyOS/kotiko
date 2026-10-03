@@ -106,7 +106,10 @@ async function openDashboard({ local = CONNECTED, sync = {}, locale = "en", hash
   };
   runInWindow(dom, "lib/i18n.js");
   w.KotikoI18n._setLoader(async (l) => readMessages(l));
-  for (const rel of ["ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/word-search.js", "lib/dashboard-model.js", "lib/word-source.js", "lib/lookup-status.js", "dashboard.js"]) runInWindow(dom, rel);
+  for (const rel of ["ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/word-search.js", "lib/dashboard-model.js", "lib/word-source.js", "lib/lookup-status.js", "lib/story.js", "dashboard.js"]) {
+    runInWindow(dom, rel);
+    if (rel === "lib/story.js") w.KotikoStory._setLoader(async (l) => readExt(`story/${l}.md`));
+  }
   await w.KotikoDashboard.ready;
   const doc = w.document;
   const $ = (sel) => doc.querySelector(sel);
@@ -727,10 +730,41 @@ describe("adding words (§8; 24's preview, full control)", () => {
 });
 
 describe("settings (§9)", () => {
+  test("About: the story from its single source, and Show welcome again (slice 22)", async () => {
+    const d = await openDashboard({ hash: "#settings/about" });
+    await d.settle();
+    assert.equal(d.text("#storyTitle"), "Why Kotiko?");
+    assert.equal(d.$$("#storyBody p").length, 7);
+    // The story names the mascot (05 §1). legacy-name-ok
+    assert.match(d.text("#storyBody"), /Our mascot is a small black kitten named Mira\./); // legacy-name-ok
+    assert.ok(d.$("#storyPending").hidden);
+    d.$("#showWelcome").click();
+    await d.settle();
+    assert.ok(d.backend.sent.some((m) => m.type === "welcome.open"));
+    const es = await openDashboard({ hash: "#settings/about", locale: "es" });
+    await es.settle();
+    assert.equal(es.text("#storyTitle"), "¿Por qué Kotiko?");
+    assert.equal(es.$("#story").lang, "es");
+    assert.ok(!es.$("#storyPending").hidden, "the Spanish story says it is waiting for its final version");
+    assert.equal(es.text("#showWelcome"), "Mostrar la bienvenida otra vez");
+  });
+
+  test("Learning: Celebrations, on by default, one switch (slice 32 §8)", async () => {
+    const d = await openDashboard({ hash: "#settings/learning" });
+    assert.equal(d.$("#celebrations").getAttribute("aria-checked"), "true");
+    d.$("#celebrations").click();
+    await d.settle();
+    assert.equal(d.store.prefs.celebrations, false);
+    assert.equal(d.$("#celebrations").getAttribute("aria-checked"), "false");
+    d.$("#celebrations").click();
+    await d.settle();
+    assert.equal(d.store.prefs.celebrations, true);
+  });
+
   test("every built section, each saving on change", async () => {
     const d = await openDashboard({ hash: "#settings" });
     assert.equal(d.$("#settingsView").hidden, false);
-    assert.deepEqual(d.$$("#settingsIndex a").map((a) => a.textContent), ["Kotiko’s language", "Word lookups", "Your Kotiko server", "Voices", "Appearance", "About"]);
+    assert.deepEqual(d.$$("#settingsIndex a").map((a) => a.textContent), ["Kotiko’s language", "Word lookups", "Your Kotiko server", "Voices", "Learning", "Appearance", "About"]);
     assert.equal(d.$("#accessKey").type, "password", "the key is typed here, hidden by default");
     assert.equal(d.$("#accessKey").value, "", "a saved token is never read back (slice 11)");
     d.$("#serverUrl").value = "http://127.0.0.1:5000";

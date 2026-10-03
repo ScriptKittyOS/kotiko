@@ -37,6 +37,8 @@
     // Voices for the speak button (slice 34); the dashboard's voice settings (21) add the
     // rest. Online voices send the word to the browser's voice service, so they're off.
     speech: { allowOnline: false, rate: 0.9, voices: {} },
+    // Slice 22: {completedAt, skipped, version} once the welcome tab's first run is done.
+    onboarding: null,
   };
   const MAX_JOBS = 3;
   const DEFAULT_SERVER = "http://localhost:4747";
@@ -359,7 +361,13 @@
     const local = !!s && mode(s) === "local";
     const firstRun = !!s && (local || !hasToken(s)) && wordTotal(s.words) === 0;
     $("firstRun").hidden = !firstRun;
-    if (firstRun) {
+    if (firstRun && !onboarded(s)) {
+      // Not onboarded yet (20 §2 A): Get started opens or focuses the welcome tab (22).
+      $("firstRunTitle").textContent = t("popup_first_run_title");
+      $("firstRunBody").textContent = t("popup_first_run_body_welcome");
+      $("getStarted").textContent = t("popup_get_started");
+      $("getStarted").hidden = false;
+    } else if (firstRun) {
       $("firstRunTitle").textContent = local ? t("popup_first_run_title_local") : t("popup_first_run_title");
       $("firstRunBody").textContent = local ? t("popup_first_run_body_local") : t("popup_first_run_body");
       $("getStarted").textContent = local ? t("popup_set_up_lookups") : t("popup_get_started");
@@ -944,6 +952,17 @@
   }
   const openLookupSettings = () => openDashboardAt("#settings/lookups");
 
+  // Slice 22: the first run is done once a word is saved or the welcome tab is skipped.
+  const onboarded = (s) => !!s?.onboarding?.completedAt;
+  async function openWelcome() {
+    await send({ type: "welcome.open" });
+    window.close();
+  }
+  function getStarted() {
+    if (state.s && !onboarded(state.s)) return openWelcome();
+    return state.s && mode(state.s) === "local" ? openLookupSettings() : openSettings();
+  }
+
   // The dashboard (slice 21) is the extension's options page, so the browser focuses an
   // open one instead of opening a second.
   async function openDashboard() {
@@ -974,6 +993,7 @@
     addJobs: [renderJobs],
     speech: [renderVoices],
     lookupStatus: [renderQuota],
+    onboarding: [renderSections],
   };
 
   function renderFor(keys) {
@@ -1046,7 +1066,7 @@
     $("chips").addEventListener("keydown", onChipKeys);
     $("openSettings").addEventListener("click", openSettings);
     $("openDashboard").addEventListener("click", openDashboard);
-    $("getStarted").addEventListener("click", () => (state.s && mode(state.s) === "local" ? openLookupSettings() : openSettings()));
+    $("getStarted").addEventListener("click", getStarted);
     $("closeSettings").addEventListener("click", closeSettings);
     $("connForm").addEventListener("submit", saveConnection);
     $("checkNow").addEventListener("click", () => syncNow());
