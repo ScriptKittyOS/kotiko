@@ -139,6 +139,11 @@
     return -Infinity;
   }
 
+  // A word with no meaning yet in base `base` (slice 50 §2, "Adding a base later"). A word
+  // in that very language never needs one: it would swap into its own language.
+  const lacksMeaning = (g, base) => !g.bases.includes(base) && primary(g.lang) !== primary(base);
+  const missingMeanings = (groups, base) => groups.reduce((n, g) => n + (lacksMeaning(g, base) ? 1 : 0), 0);
+
   // Groups passing the filters, in the given order. Status "deleted" is a separate list
   // (tombstones), so here it passes nothing.
   function filterGroups(groups, f = {}, { now = Date.now() } = {}) {
@@ -152,7 +157,7 @@
       if (g.created < since) return false;
       if (origins && !origins.includes(g.origin)) return false;
       if (f.meaningIn && !g.bases.includes(f.meaningIn)) return false;
-      if (f.missingIn && g.bases.includes(f.missingIn)) return false;
+      if (f.missingIn && !lacksMeaning(g, f.missingIn)) return false;
       return true;
     });
   }
@@ -189,7 +194,7 @@
 
   // --- Routes (§1) ----------------------------------------------------------------------------
 
-  const ROUTE_KEYS = ["lang", "status", "q", "sort", "added", "source"];
+  const ROUTE_KEYS = ["lang", "status", "q", "sort", "added", "source", "missing"];
 
   // "#words/abc?lang=es&q=thank" -> { view: "words", id: "abc", params: {lang: "es", q: "thank"} }
   function parseRoute(hash) {
@@ -209,6 +214,12 @@
     if (params.added && !ADDED.includes(params.added)) delete params.added;
     if (params.source && !SOURCES.includes(params.source)) delete params.source;
     if (view === "settings") return { view, section: rest[0] || null, params: {} };
+    // The popup's link to the languages you read in (slice 20), with an optional language
+    // to add: "#settings-languages?add=pt-BR".
+    if (view === "settings-languages") {
+      const add = new URLSearchParams(query).get("add");
+      return { view: "settings", section: "bases", params: {}, add: add && /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$/.test(add) ? add : null };
+    }
     if (view === "add") return { view, params: {} };
     return { view: "words", id: view === "words" && rest[0] ? rest[0] : null, params };
   }
@@ -402,6 +413,8 @@
     meaningOf,
     sortGroups,
     filterGroups,
+    lacksMeaning,
+    missingMeanings,
     shelf,
     deletedGroups,
     parseRoute,

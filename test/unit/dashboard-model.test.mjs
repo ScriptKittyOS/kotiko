@@ -96,7 +96,21 @@ describe("sort and filters (§3)", () => {
 
   test("Meaning in and Missing a meaning in", () => {
     assert.deepEqual(M.filterGroups(groups, { meaningIn: "es" }).map((g) => g.native), ["犬"]);
-    assert.equal(M.filterGroups(groups, { missingIn: "es" }).length, groups.length - 1);
+    // Words in Spanish itself never need a Spanish meaning (they'd swap into themselves).
+    const spanish = groups.filter((g) => g.lang === "es").length;
+    assert.ok(spanish > 0);
+    assert.equal(M.filterGroups(groups, { missingIn: "es" }).length, groups.length - 1 - spanish);
+    assert.ok(M.filterGroups(groups, { missingIn: "es" }).every((g) => g.lang !== "es" && !g.bases.includes("es")));
+  });
+
+  test("words missing a meaning in a base (Settings, Languages you read in)", () => {
+    const g = (lang, bases) => ({ lang, bases });
+    const list = [g("ja", ["en"]), g("ja", ["en", "fr"]), g("fr", ["en"]), g("de", ["en"])];
+    assert.equal(M.missingMeanings(list, "fr"), 2, "the French word itself doesn't count");
+    assert.equal(M.missingMeanings(list, "en"), 0);
+    assert.equal(M.missingMeanings([], "fr"), 0);
+    assert.ok(M.lacksMeaning(g("ja", ["en"]), "pt-BR"));
+    assert.ok(!M.lacksMeaning(g("pt", ["en"]), "pt-BR"));
   });
 });
 
@@ -132,6 +146,12 @@ describe("routes (§1)", () => {
     assert.deepEqual(M.parseRoute(""), { view: "words", id: null, params: {} });
     assert.deepEqual(M.parseRoute("#words"), { view: "words", id: null, params: {} });
     assert.deepEqual(M.parseRoute("#words/abc-1"), { view: "words", id: "abc-1", params: {} });
+    assert.deepEqual(M.parseRoute("#words?missing=fr"), { view: "words", id: null, params: { missing: "fr" } });
+    assert.equal(M.formatRoute({ view: "words", params: { missing: "fr" } }), "#words?missing=fr");
+    // The popup's link to the languages you read in (slice 20), with a language to add.
+    assert.deepEqual(M.parseRoute("#settings-languages"), { view: "settings", section: "bases", params: {}, add: null });
+    assert.deepEqual(M.parseRoute("#settings-languages?add=pt-BR"), { view: "settings", section: "bases", params: {}, add: "pt-BR" });
+    assert.equal(M.parseRoute("#settings-languages?add=<x>").add, null);
     assert.deepEqual(M.parseRoute("#words?lang=es&status=paused&q=thank"), { view: "words", id: null, params: { lang: "es", status: "paused", q: "thank" } });
     assert.deepEqual(M.parseRoute("#add"), { view: "add", params: {} });
     assert.deepEqual(M.parseRoute("#settings"), { view: "settings", section: null, params: {} });

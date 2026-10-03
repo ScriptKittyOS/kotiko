@@ -1749,6 +1749,126 @@ kbd {
   gap: var(--s-4);
 }
 
+/* Languages you read in (slice 50 §2): one row per base language, primary first. */
+.base-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 1px var(--divider);
+}
+
+.base-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4);
+}
+
+.base-row + .base-row {
+  border-block-start: 1px solid var(--divider);
+}
+
+.base-row.is-dragging {
+  opacity: 0.5;
+}
+
+.base-grip {
+  display: inline-flex;
+  color: var(--ink-3);
+  cursor: grab;
+}
+
+.base-pos {
+  min-width: 1.25em;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.base-main {
+  display: grid;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+.base-name {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2) var(--s-3);
+}
+
+.base-label {
+  font-weight: 600;
+}
+
+.base-endonym,
+.base-primary {
+  color: var(--ink-2);
+}
+
+.base-level {
+  padding: 0 var(--s-3);
+  border-radius: var(--r-xs);
+  background: var(--sunken);
+  color: var(--ink-2);
+  font: var(--t-caption) var(--font-ui);
+}
+
+.base-level.is-full {
+  background: var(--purple-soft);
+  color: var(--purple-text);
+}
+
+/* The level's one-line explanation, on hover and focus. */
+.base-tip {
+  position: absolute;
+  inset-block-start: calc(100% + var(--s-2));
+  inset-inline-start: 0;
+  z-index: 2;
+  display: none;
+  max-width: 32rem;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--ink);
+  color: var(--surface);
+  font: var(--t-small) var(--font-ui);
+}
+
+.base-level:hover + .base-tip,
+.base-level:focus-visible + .base-tip {
+  display: block;
+}
+
+.base-improve,
+.base-missing {
+  font: var(--t-small) var(--font-ui);
+}
+
+.base-missing {
+  color: var(--ink-2);
+}
+
+.base-controls {
+  display: flex;
+  gap: var(--s-1);
+}
+
+.base-actions {
+  align-items: center;
+}
+
+.set-title:focus {
+  outline: none;
+}
+
+.bases-note:empty {
+  display: none;
+}
+
 .key-wrap {
   position: relative;
 }
@@ -2224,7 +2344,8 @@ kbd {
   .selbar,
   .add-sheet,
   .set-section,
-  .filter {
+  .filter,
+  .base-tip {
     border: 1px solid CanvasText;
   }
 

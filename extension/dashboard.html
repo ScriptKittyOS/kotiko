@@ -112,7 +112,23 @@
         </nav>
         <div class="settings-body">
           <h1 class="title" id="settingsTitle" tabindex="-1" data-i18n="dash_settings"></h1>
-          <!-- 50: "Languages you read in" (base languages) goes first when slice 50 ships. -->
+          <!--
+            Languages you read in (slice 50 §2): the base languages, primary first. Kotiko
+            swaps words on pages in these languages; each one shows its support level (50 §5).
+          -->
+          <section class="set-section" id="set-bases" data-section="bases" aria-labelledby="setBasesTitle">
+            <h2 class="set-title" id="setBasesTitle" tabindex="-1" data-i18n="dash_set_bases"></h2>
+            <p class="set-help" data-i18n="dash_set_bases_help"></p>
+            <ol class="base-list" id="baseList" aria-labelledby="setBasesTitle"></ol>
+            <p class="field-help bases-note" id="basesNote" role="status" aria-live="polite"></p>
+            <div class="set-actions base-actions">
+              <button class="btn btn-secondary" id="addBaseLang" type="button">
+                <span data-icon="add" data-icon-size="16"></span>
+                <span data-i18n="dash_bases_add"></span>
+              </button>
+              <span class="field-help" id="basesDetected" hidden></span>
+            </div>
+          </section>
 
           <section class="set-section" id="set-language" data-section="language" aria-labelledby="setLangTitle">
             <h2 class="set-title" id="setLangTitle" data-i18n="dash_set_ui_lang"></h2>
@@ -297,6 +313,10 @@
     <div class="layer" id="layer"></div>
   </div>
 
+  <!-- The language data and base-language rules (slice 50), shared with the welcome tab. -->
+  <script src="spec/spec.js"></script>
+  <script src="lib/lang.js"></script>
+  <script src="lib/welcome-model.js"></script>
   <script src="lib/i18n.js"></script>
   <script src="ui/icons.js"></script>
   <script src="lib/speak.js"></script>

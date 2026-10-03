@@ -20,6 +20,10 @@
   const Search = globalThis.KotikoSearch;
   const M = globalThis.KotikoDashModel;
   const LookupStatus = globalThis.KotikoLookupStatus;
+  // Base-language rules and language data (slice 50), shared with the welcome tab.
+  const Bases = globalThis.KotikoWelcomeModel;
+  const Lang = globalThis.KotikoLang;
+  const SPEC = globalThis.KOTIKO_SPEC;
   const { t } = I18n;
   const $ = (id) => document.getElementById(id);
 
@@ -90,6 +94,8 @@
     testing: false,
     lookupTest: null,
     move: null, // {to, count, server, busy, error}
+    ui: {}, // storage.sync `ui`: baseLangs, baseLangsDetected, uiLang (slice 50)
+    langList: null, // every language a learner can read in, named in the interface language
   };
 
   const index = Search.createIndex();
@@ -164,8 +170,9 @@
   }
 
   function bases() {
-    const stored = Array.isArray(state.s.baseLangs) && state.s.baseLangs.length ? state.s.baseLangs : null;
-    if (stored) return stored;
+    const synced = Array.isArray(state.ui?.baseLangs) && state.ui.baseLangs.length ? state.ui.baseLangs : null;
+    const stored = synced ?? (Array.isArray(state.s.baseLangs) && state.s.baseLangs.length ? state.s.baseLangs : null);
+    if (stored) return stored.slice(0, Bases.MAX_BASES);
     // Until slice 50: the bases words already have, English first (today's pages).
     const seen = new Set(["en"]);
     for (const r of state.records.values()) seen.add(r.base_lang ?? "en");
@@ -226,7 +233,7 @@
     const deleted = isDeletedView();
     const filtered = deleted
       ? state.sorted.filter((g) => !p.lang || g.lang === p.lang)
-      : M.filterGroups(state.sorted, { lang: p.lang, status: p.status ?? "live", added: p.added, source: p.source }, { now: Date.now() });
+      : M.filterGroups(state.sorted, { lang: p.lang, status: p.status ?? "live", added: p.added, source: p.source, missingIn: p.missing }, { now: Date.now() });
     const ids = filtered.map((g) => g.id);
     state.view = p.q ? (deleted ? deletedIndex : index).search(p.q, ids) : ids;
     for (const id of [...state.selected]) if (!groupById(id)) state.selected.delete(id);
@@ -741,13 +748,26 @@
       }
       return wrap;
     };
+    // "Missing a meaning in français", from Settings → Languages you read in (50 §2).
+    const missing = p.missing
+      ? el("span", { class: "filter-wrap" },
+        el("span", { class: "filter is-active", "data-filter": "missing" }, t("dash_filter_missing", { language: languageName(p.missing) })),
+        el("button", {
+          class: "filter-clear",
+          type: "button",
+          "aria-label": t("dash_filter_clear", { filter: t("dash_filter_missing", { language: languageName(p.missing) }) }),
+          title: t("dash_filter_clear", { filter: t("dash_filter_missing", { language: languageName(p.missing) }) }),
+          onclick: () => setParams({ missing: null }),
+        }, icon("close", 14)))
+      : null;
     const items = [
+      missing,
       chip("status", STATUS_KEYS, p.status ?? "live", "live"),
       chip("added", ADDED_KEYS, p.added ?? "any", "any"),
       chip("source", SOURCE_KEYS, p.source ?? "any", "any"),
       el("span", { class: "filters-space" }),
       chip("sort", SORT_KEYS, p.sort ?? "newest", "newest", { clearable: false }),
-    ];
+    ].filter(Boolean);
     const focused = $("filters").contains(document.activeElement) ? document.activeElement.dataset.filter : null;
     $("filters").replaceChildren(...items);
     if (focused) $("filters").querySelector(`[data-filter="${focused}"]`)?.focus();
@@ -796,7 +816,7 @@
       strip.replaceChildren(
         t("dash_new_hidden", { count: hidden.length }),
         " ",
-        el("button", { class: "link", type: "button", onclick: () => { state.hiddenNew.clear(); setParams({ lang: null, status: null, added: null, source: null, q: null }); } }, t("dash_new_hidden_show")),
+        el("button", { class: "link", type: "button", onclick: () => { state.hiddenNew.clear(); setParams({ lang: null, status: null, added: null, source: null, missing: null, q: null }); } }, t("dash_new_hidden_show")),
       );
     }
   }
@@ -1995,12 +2015,17 @@
 
   // A searchable list of languages by name in the interface language (§5 "Other
   // language…", §7 "+ Start a language").
-  function pickLanguage({ title, exclude = new Set() }) {
+  // A searchable list of languages; `given` replaces the default list (the shelf's languages
+  // and the common ones) with options of its own, {lang, name, endonym}.
+  function pickLanguage({ title, exclude = new Set(), options: given = null, query = "" }) {
     return new Promise((resolve) => {
-      const known = M.shelf(state.groups).map((e) => e.lang);
-      const all = [...new Set([...known, ...M.COMMON_LANGS])].filter((l) => !exclude.has(l));
       const c = new Intl.Collator(I18n.locale());
-      const options = all.map((l) => ({ lang: l, name: languageName(l), endonym: endonym(l) })).sort((a, b) => c.compare(a.name, b.name));
+      let options = given;
+      if (!options) {
+        const known = M.shelf(state.groups).map((e) => e.lang);
+        const all = [...new Set([...known, ...M.COMMON_LANGS])].filter((l) => !exclude.has(l));
+        options = all.map((l) => ({ lang: l, name: languageName(l), endonym: endonym(l) })).sort((a, b) => c.compare(a.name, b.name));
+      }
       const input = el("input", { class: "field", type: "search", role: "combobox", "aria-autocomplete": "list", "aria-expanded": "true", "aria-label": t("dash_lang_search"), placeholder: t("dash_lang_search") });
       const list = el("ul", { class: "lang-list", role: "listbox", id: `lst${++jobSeq}`, "aria-label": title });
       input.setAttribute("aria-controls", list.id);
@@ -2017,7 +2042,7 @@
           id: `${list.id}-${i}`,
           "aria-selected": String(i === active),
           onclick: () => pick(o.lang),
-        }, el("span", {}, o.name), o.endonym !== o.name ? el("span", { class: "lang-endonym", lang: o.lang, dir: "auto" }, o.endonym) : null)));
+        }, el("span", {}, o.name), o.endonym && o.endonym !== o.name ? el("span", { class: "lang-endonym", lang: o.lang, dir: "auto" }, o.endonym) : null)));
         if (shown.length) input.setAttribute("aria-activedescendant", `${list.id}-${active}`);
         else input.removeAttribute("aria-activedescendant");
         list.children[active]?.scrollIntoView?.({ block: "nearest" });
@@ -2038,6 +2063,7 @@
         render();
       });
       const d = dialog({ title, body: el("div", { class: "lang-picker" }, input, list), actions: [el("button", { class: "btn btn-secondary", type: "button", onclick: () => d.close(null) }, t("dash_cancel"))], onClose: (v) => resolve(v) });
+      input.value = query;
       render();
       input.focus();
     });
@@ -2235,6 +2261,7 @@
   // Settings (§9).
 
   const SETTINGS_SECTIONS = [
+    ["bases", "dash_set_bases"],
     ["language", "dash_set_ui_lang"],
     ["lookups", "dash_set_lookups"],
     ["connection", "dash_set_connection"],
@@ -2251,6 +2278,7 @@
       href: `#settings/${id}`,
       "aria-current": state.route.section === id ? "true" : null,
     }, t(key)))));
+    renderBases();
     renderUiLang();
     renderLookups();
     renderConnection();
@@ -2286,6 +2314,168 @@
     $("storyTitle").textContent = story.title;
     $("storyBody").replaceChildren(...story.paragraphs.map((p) => el("p", {}, p)));
     $("storyPending").hidden = !story.placeholder;
+  }
+
+  // --- Languages you read in (slice 50 §2) ------------------------------------------------
+  // Kotiko swaps words on pages in these languages, primary first. Changes save at once to
+  // storage.sync `ui` (the background projects the words again) and to the local mirror
+  // content scripts read. Removing a language keeps its meanings; they stop swapping.
+
+  const LANG_README = "https://github.com/ScriptKittyOS/kotiko/blob/main/spec/lang/README.md";
+
+  function baseNote(text) {
+    $("basesNote").textContent = text ?? "";
+  }
+
+  async function writeBases(next) {
+    state.ui = { uiLang: "auto", ...state.ui, baseLangs: next.slice(), baseLangsConfirmed: true };
+    try {
+      await ext.storage.sync.set({ ui: state.ui });
+    } catch {
+      // no storage.sync: the local copy below still works
+    }
+    state.s.baseLangs = next.slice();
+    await ext.storage.local.set({ baseLangs: next.slice() });
+    rebuild();
+    renderWords();
+  }
+
+  // Focus follows the moved or neighbouring language after a re-render.
+  let baseFocus = null;
+
+  async function moveBase(from, to, action) {
+    const next = Bases.moveBase(bases(), from, to);
+    baseFocus = { lang: next[to], action };
+    baseNote(null);
+    await writeBases(next);
+    renderBases();
+  }
+
+  async function removeBase(tag) {
+    const before = bases();
+    const r = Bases.toggleBase(before, tag, false);
+    if (r.error) {
+      baseNote(t("dash_bases_last"));
+      return;
+    }
+    const i = before.indexOf(tag);
+    const kept = state.groups.filter((g) => g.bases.includes(tag)).length;
+    baseFocus = { lang: r.bases[Math.min(i, r.bases.length - 1)], action: "remove" };
+    baseNote(null);
+    await writeBases(r.bases);
+    renderBases();
+    const language = languageName(tag);
+    const entry = undoStack.push({ run: async () => {
+      baseFocus = { lang: tag, action: "remove" };
+      await writeBases(before);
+      renderBases();
+    } });
+    toast({ text: kept ? t("dash_base_removed", { language, count: kept }) : t("dash_base_removed_none", { language }), undo: entry });
+  }
+
+  // Every language this browser can split into words, named in the interface language.
+  function readableLanguages() {
+    state.langList ??= Bases.languageList({ spec: SPEC, uiLocale: I18n.locale(), Lang });
+    return state.langList;
+  }
+
+  async function addBase({ preselect = null } = {}) {
+    const now = bases();
+    if (preselect && now.some((b) => Lang.sameBase(b, preselect))) return;
+    if (now.length >= Bases.MAX_BASES) {
+      baseNote(t("dash_bases_full", { max: Bases.MAX_BASES }));
+      return;
+    }
+    baseNote(null);
+    const options = readableLanguages()
+      .filter((o) => !now.some((b) => Lang.sameBase(b, o.tag)))
+      .map((o) => ({ lang: o.tag, name: o.name, endonym: o.endonym ?? endonym(o.tag) }));
+    const ready = preselect ? options.find((o) => Lang.sameBase(o.lang, preselect)) : null;
+    const picked = await pickLanguage({ title: t("dash_bases_add_title"), options, query: ready?.name ?? "" });
+    if (!picked) return;
+    const tag = Lang.baseTagOf(picked) ?? picked;
+    const r = Bases.toggleBase(bases(), tag, true);
+    if (r.error) return baseNote(t("dash_bases_full", { max: Bases.MAX_BASES }));
+    baseFocus = { lang: tag, action: "remove" };
+    await writeBases(r.bases);
+    renderBases();
+  }
+
+  function baseButton(name, label, disabled, run) {
+    return el("button", {
+      class: "btn btn-icon",
+      type: "button",
+      "aria-label": label,
+      title: label,
+      disabled,
+      "data-action": name,
+      onclick: run,
+    }, icon(name === "remove" ? "close" : name, 16));
+  }
+
+  function renderBases() {
+    const active = document.activeElement;
+    if (!baseFocus && $("baseList").contains(active)) baseFocus = { lang: active.closest(".base-row")?.dataset.lang, action: active.dataset.action ?? null };
+    const list = bases();
+    const number = new Intl.NumberFormat(I18n.locale());
+    const rows = list.map((tag, i) => {
+      const name = languageName(tag);
+      const endo = endonym(tag);
+      const full = Bases.levelOf(tag) === "full";
+      const helpId = `baseHelp${i}`;
+      const missing = M.missingMeanings(state.groups, tag);
+      const row = el("li", {
+        class: "base-row",
+        "data-lang": tag,
+        draggable: "true",
+        ondragstart: (e) => {
+          e.dataTransfer?.setData("text/plain", String(i));
+          if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+          row.classList.add("is-dragging");
+        },
+        ondragend: () => row.classList.remove("is-dragging"),
+        ondragover: (e) => {
+          e.preventDefault();
+          if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+        },
+        ondrop: (e) => {
+          e.preventDefault();
+          const from = Number(e.dataTransfer?.getData("text/plain"));
+          if (Number.isInteger(from) && from !== i) moveBase(from, i, "up");
+        },
+      },
+      el("span", { class: "base-grip", "aria-hidden": "true" }, icon("grip", 16)),
+      el("span", { class: "base-pos", "aria-hidden": "true" }, number.format(i + 1)),
+      el("span", { class: "base-main" },
+        el("span", { class: "base-name" },
+          el("span", { class: "base-label" }, name),
+          endo && endo.toLocaleLowerCase() !== name.toLocaleLowerCase() ? el("span", { class: "base-endonym", lang: tag, dir: "auto" }, endo) : null,
+          el("span", { class: `base-level is-${full ? "full" : "basic"}`, tabindex: "0", "aria-describedby": helpId }, t(full ? "dash_base_full" : "dash_base_basic")),
+          el("span", { class: "base-tip", id: helpId, role: "tooltip" }, t(full ? "dash_base_full_help" : "dash_base_basic_help", { language: endo || name })),
+          i === 0 ? el("span", { class: "base-primary" }, t("dash_base_primary")) : null),
+        !full ? el("a", { class: "link link-quiet base-improve", href: LANG_README, target: "_blank", rel: "noopener noreferrer" }, t("dash_base_improve")) : null,
+        missing ? el("span", { class: "base-missing" },
+          t("dash_base_missing", { count: missing, language: name }), " ",
+          el("button", { class: "link", type: "button", onclick: () => go(M.formatRoute({ view: "words", params: { missing: tag } })) }, t("dash_base_type_meanings"))) : null),
+      el("span", { class: "base-controls" },
+        baseButton("up", t("dash_base_up", { language: name }), i === 0, () => moveBase(i, i - 1, "up")),
+        baseButton("down", t("dash_base_down", { language: name }), i === list.length - 1, () => moveBase(i, i + 1, "down")),
+        baseButton("remove", t("dash_base_remove", { language: name }), false, () => removeBase(tag))));
+      return row;
+    });
+    $("baseList").replaceChildren(...rows);
+    if (baseFocus) {
+      const row = rows.find((r) => r.dataset.lang === baseFocus.lang);
+      const buttons = row ? [...row.querySelectorAll("button[data-action]")] : [];
+      (buttons.find((b) => b.dataset.action === baseFocus.action && !b.disabled) ?? buttons.find((b) => !b.disabled))?.focus();
+      baseFocus = null;
+    }
+    const detected = Array.isArray(state.ui?.baseLangsDetected) ? state.ui.baseLangsDetected : [];
+    const hint = $("basesDetected");
+    hint.hidden = !detected.length;
+    hint.textContent = detected.length
+      ? t("dash_bases_detected", { languages: new Intl.ListFormat(I18n.locale(), { type: "conjunction" }).format(detected.map((b) => endonym(b))) })
+      : "";
   }
 
   function renderUiLang() {
@@ -2357,6 +2547,7 @@
     const scroll = { list: $("gridBody").scrollTop, page: document.scrollingElement?.scrollTop ?? 0 };
     const changed = await I18n.useLocale(value).catch(() => false);
     if (!changed) return renderSettings();
+    state.langList = null;
     I18n.apply(document);
     resort();
     renderWords();
@@ -2721,6 +2912,11 @@
       state.route = { ...state.route, view: route.view, section: route.section };
     }
     showView(prevView);
+    // "#settings-languages?add=pt-BR" (the popup): the picker opens ready to add it, once.
+    if (route.add) {
+      history.replaceState(null, "", "#settings/bases");
+      addBase({ preselect: route.add });
+    }
     if (route.view === "words") {
       if ((params().status ?? "live") !== (prevStatus ?? "live")) resort();
       else refilter();
@@ -2756,7 +2952,8 @@
       const section = state.route.section ? document.getElementById(`set-${state.route.section}`) : null;
       if (section) {
         section.scrollIntoView?.({ block: "start" });
-        section.querySelector("input, button")?.focus({ preventScroll: true });
+        // Languages you read in is reached from the popup's "I read … too": its heading.
+        (state.route.section === "bases" ? $("setBasesTitle") : section.querySelector("input, button"))?.focus({ preventScroll: true });
       } else if (prevView !== "settings") $("settingsTitle").focus();
       document.title = `${t("dash_settings")} · ${t("extName")}`;
     } else {
@@ -2775,10 +2972,16 @@
 
   function onStorage(changes, area) {
     if (area === "sync" && changes.ui) {
-      const v = changes.ui.newValue?.uiLang ?? "auto";
+      const prev = JSON.stringify(state.ui?.baseLangs ?? null);
+      state.ui = changes.ui.newValue ?? {};
+      const v = state.ui.uiLang ?? "auto";
       if (v !== state.uiLang) {
         state.uiLang = v;
         applyUiLang(v);
+      } else if (JSON.stringify(state.ui.baseLangs ?? null) !== prev) {
+        rebuild();
+        renderWords();
+        if (state.route.view === "settings") renderBases();
       }
       return;
     }
@@ -2832,6 +3035,11 @@
 
     const skeleton = setTimeout(showSkeleton, SKELETON_MS);
     Object.assign(state.s, await ext.storage.local.get(LOCAL_DEFAULTS));
+    try {
+      state.ui = (await ext.storage.sync.get({ ui: {} })).ui ?? {};
+    } catch {
+      state.ui = {};
+    }
     Speak?.configure?.(state.s.speech);
 
     $("search").addEventListener("input", (e) => setParams({ q: e.target.value || null }));
@@ -2847,6 +3055,7 @@
     $("inspector").addEventListener("keydown", onInspectorKey);
     $("scrim").addEventListener("click", () => closeInspector({ focusList: true }));
     $("addWords").addEventListener("click", () => go("#add"));
+    $("addBaseLang").addEventListener("click", addBase);
     $("closeAdd").addEventListener("click", closeAdd);
     $("addBackdrop").addEventListener("click", closeAdd);
     $("addForm").addEventListener("submit", (e) => {

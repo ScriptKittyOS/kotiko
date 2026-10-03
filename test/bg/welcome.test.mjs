@@ -72,7 +72,28 @@ describe("install and update (22 §1)", () => {
     assert.equal(bg.store.onboarding.upgraded, true);
     assert.ok(bg.store.celebrations.done["vocab:first"], "no first-word celebration for an old list");
     assert.ok(bg.store.celebrations.done["page:first-swap"]);
-    assert.equal(bg.sync.ui, undefined, "base languages of an update follow 50's upgrade rule, not the welcome tab");
+    await bg.until(() => bg.sync.ui);
+    assert.deepEqual(plain(bg.sync.ui), { uiLang: "auto", baseLangs: ["en"], baseLangsDetected: ["en"], baseLangsConfirmed: false }, "50's upgrade rule, not the welcome tab");
+  });
+
+  test("50's upgrade rule: a Spanish browser keeps swapping the old English words", async () => {
+    const words = [{ id: 1, lang: "ru", native: "дом", english: "house", forms: ["house"] }];
+    const bg = loadBackground({ local: { words }, ui: "es-PR", accept: ["es-PR", "es"] });
+    await bg.fake.fireInstalled({ reason: "update", previousVersion: "0.2.0" });
+    // The projection mirrors the bases into storage.local too; wait for the rule's own write.
+    await bg.until(() => bg.sync.ui && bg.store.baseLangs?.length === 2);
+    assert.deepEqual(plain(bg.sync.ui), { uiLang: "auto", baseLangs: ["es", "en"], baseLangsDetected: ["es"], baseLangsConfirmed: false });
+    assert.deepEqual(plain(bg.store.baseLangs), ["es", "en"]);
+  });
+
+  test("50's upgrade rule leaves a learner's own list alone", async () => {
+    const words = [{ id: 1, lang: "ru", native: "дом", english: "house", forms: ["house"] }];
+    const ui = { uiLang: "auto", baseLangs: ["es"], baseLangsConfirmed: true };
+    const bg = loadBackground({ local: { words }, sync: { ui }, ui: "es-PR", accept: ["es-PR"] });
+    await bg.fake.fireInstalled({ reason: "update", previousVersion: "0.3.0" });
+    await bg.until(() => bg.store.onboarding?.completedAt);
+    await bg.fake.idle();
+    assert.deepEqual(plain(bg.sync.ui), ui);
   });
 
   test("an update with no words: past the first run, but every celebration still ahead", async () => {

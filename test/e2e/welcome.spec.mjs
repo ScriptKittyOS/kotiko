@@ -97,6 +97,8 @@ test("an update never opens the welcome tab, and an existing learner gets no fir
   // before the welcome tab: words, and no first-run state.
   const first = await welcomeTab(context, extensionId);
   await first.close();
+  // The install's own projection writes the (empty) word list; let it land before ours.
+  await expect.poll(() => serviceWorker.evaluate(async () => !!(await chrome.storage.local.get("wordsVersion")).wordsVersion)).toBe(true);
   await serviceWorker.evaluate(async () => {
     await chrome.storage.local.remove(["onboarding"]);
     await chrome.storage.local.set({ words: [{ id: "1", lang: "ru", native: "дом", base_lang: "en", gloss: "house", forms: ["house"] }] });
