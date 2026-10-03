@@ -272,6 +272,9 @@ language:
   [stopwords-iso](https://github.com/stopwords-iso/stopwords-iso) (MIT; recorded in
   `REUSE.toml` and `LICENSES/`) by `spec/tools/import-stopwords.mjs` into one file,
   `_generic/stopwords.json` (`{ "<lang>": [...] }`). Nobody writes these lists by hand.
+  They are broad (the Russian list includes белый, "white"), so they only tell languages
+  apart (13 and 16 detection, 32 coverage); 09's check that rejects a function word as a
+  form uses a base's own hand-reviewed `stopwords.txt` and nothing for other bases.
 
 Read by both runtimes through slice 09's `sync-extension.mjs`:
 
@@ -279,8 +282,8 @@ Read by both runtimes through slice 09's `sync-extension.mjs`:
 spec/lang/
   README.md            how the data works; how to improve a language; review rules
   _generic/            used for every base, and as the fallback for a missing file
-    stopwords.json       stopwords-iso, one list per language (09 validation, 13 and 16
-                         detection, 32 coverage)
+    stopwords.json       stopwords-iso, one list per language (13 and 16 detection,
+                         32 coverage; never 09's form check)
     boundaries.json      {"default": {...}, "<lang>": {...}}: tokenizer adjustments for
                          every language, en and es included (14)
     casing.json          {"default": {...}, "<lang>": {...}}: capital conventions for
@@ -288,7 +291,8 @@ spec/lang/
     stem.json            "shares its first 3 graphemes with the gloss, or equals it" (09)
     variants.json        none
   en/  es/             the two Full bases, written for launch (and already built)
-    stopwords.txt        function words, one per line (overrides the imported list)
+    stopwords.txt        function words, one per line (09's form check; detection
+                         prefers it to the imported list)
     stem.json            suffix rules and irregulars for the related-form check (09)
     variants.json        spelling variants (en: colour/color)
     respelling.json      the pronunciation respelling key: alphabet, how each sound is

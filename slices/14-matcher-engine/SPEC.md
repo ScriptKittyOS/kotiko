@@ -529,8 +529,10 @@ en "like" (zh-Hans "喜欢"; zh-Hant "喜歡"). `spaces: false`, `fold: ["width"
 | th1 | `ฉันชอบหมา` | ฉัน \| ชอบ \| หมา | `ชอบ`, `หมา` | swapped |
 | th2 | `หมา ตัวนี้` (space between phrases) | หมา \| ตัว \| นี้ | `หมา` | spaces in Thai mark phrases, not words; same result |
 
-Languages without an entry use `default`: Segmenter tokens, `join: ["invisible"]`, nothing
-else. The tables above for French, Italian, German, Japanese, Chinese and Thai are entries
+Languages without an entry use `default`: Segmenter tokens, `join: ["hyphen", "invisible"]`,
+nothing else. Hyphens join by default because a hyphenated word is safer kept whole in any
+language (Portuguese "dá-me", French "est-ce", Spanish "hispano-americano"): precision over
+coverage. The tables above for French, Italian, German, Japanese, Chinese and Thai are entries
 (or no entry at all, where the default already gives the right tokens) in the same shared
 file, not folders of their own; they are Basic-level bases in 50's terms.
 
