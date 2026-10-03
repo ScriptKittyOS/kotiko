@@ -116,6 +116,10 @@ test("an update never opens the welcome tab, and an existing learner gets no fir
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
   // Past the first run: the popup never sends this learner to the welcome tab.
   await expect(popup.locator('#main[data-ready="true"]')).toBeAttached();
-  await expect(popup.locator("#firstRunTitle")).not.toHaveText("Finish setting up Kotiko");
+  // The first-run card may be hidden (the learner has words) with its default text still in
+  // the DOM; what matters is that a visible card never asks this learner to finish setup.
+  if (await popup.locator("#firstRun").isVisible()) {
+    await expect(popup.locator("#firstRunTitle")).not.toHaveText("Finish setting up Kotiko");
+  }
   expect(context.pages().some((p) => p.url().includes("welcome.html"))).toBe(false);
 });

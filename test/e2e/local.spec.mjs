@@ -57,7 +57,8 @@ test("a fresh profile: words live in the browser, the first run offers lookups, 
   await expect(p.locator("#getStarted")).toHaveText("Get started");
   await p.locator("#getStarted").click();
   await expect.poll(() => p.isClosed()).toBe(true);
-  expect(context.pages().filter((x) => x.url().includes("welcome.html"))).toHaveLength(1);
+  // The background opens the welcome tab after the popup closes; wait for it.
+  await expect.poll(() => context.pages().filter((x) => x.url().includes("welcome.html")).length).toBe(1);
   const welcome = context.pages().find((x) => x.url().includes("welcome.html"));
   await welcome.locator("#skip").click();
   await expect.poll(() => welcome.isClosed()).toBe(true);
