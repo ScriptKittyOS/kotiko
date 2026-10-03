@@ -32,7 +32,7 @@ function deferred() {
   return { promise, resolve };
 }
 
-async function openPopup({ local = {}, locale = "en", tabUrl = `https://${HOST}/wiki/Cat`, permission = true, answer = () => ({ ok: true }) } = {}) {
+async function openPopup({ local = {}, locale = "en", tabUrl = `https://${HOST}/wiki/Cat`, permission = true, answer = () => ({ ok: true }), pageStatus = null } = {}) {
   const fake = createFakeChrome({
     local: { words: [], ...local },
     tabs: [{ id: 1, active: true, url: tabUrl }],
@@ -41,6 +41,13 @@ async function openPopup({ local = {}, locale = "en", tabUrl = `https://${HOST}/
   const requested = [];
   const opened = [];
   fake.chrome.tabs.create = async (o) => void opened.push(o.url);
+  // The tab's content script answers "page-status" (slice 16), or there is none.
+  const asked = [];
+  fake.chrome.tabs.sendMessage = async (tabId, msg) => {
+    asked.push(JSON.parse(JSON.stringify({ tabId, msg })));
+    if (!pageStatus) throw new Error("Could not establish connection. Receiving end does not exist.");
+    return JSON.parse(JSON.stringify(pageStatus));
+  };
   fake.chrome.i18n = createI18n(locale);
   fake.chrome.permissions = {
     contains: async () => permission,
@@ -67,7 +74,7 @@ async function openPopup({ local = {}, locale = "en", tabUrl = `https://${HOST}/
     for (let el = $(sel); el; el = el.parentElement) if (el.hidden) return false;
     return !!$(sel);
   };
-  return { dom, win: dom.window, doc, $, fake, settle, text, visible, requested, opened, store: fake.store.local };
+  return { dom, win: dom.window, doc, $, fake, settle, text, visible, requested, opened, asked, store: fake.store.local };
 }
 
 // Every text node and accessible name a person can perceive, for language checks.
@@ -753,5 +760,48 @@ describe("words in this browser (slice 11): adds are background jobs", () => {
     const p = await openPopup({ local: { ...LOCAL, words: WORDS, lookupStatus: { provider: "openrouter", quota: { remaining: 4, limit: 50, resets_at: new Date(Date.now() + 3_600_000).toISOString() } } } });
     assert.equal(p.text("#lookupsLeft"), "4 free lookups left today");
     assert.ok(p.fake.calls.sendMessage.some((m) => m.type === "llmStatus"));
+  });
+});
+
+// Slice 20 states H and H2: what the tab's content script made of the page (16).
+describe("the page's language", () => {
+  test("a page in a language the learner doesn't read says so, with a way to add it", async () => {
+    const p = await openPopup({ local: { words: WORDS }, pageStatus: { base: null, reason: "declared_other", lang: "de", words: 0 } });
+    await p.settle();
+    assert.deepEqual(p.asked, [{ tabId: 1, msg: { type: "page-status" } }]);
+    assert.ok(p.visible("#pageLang"));
+    assert.equal(p.text("#pageLangText"), "This page is in German, which isn't one of your languages. Kotiko leaves it alone. I read German too");
+    assert.equal(p.text("#readToo"), "I read German too");
+    p.$("#readToo").click();
+    await p.settle();
+    assert.deepEqual(p.opened, ["chrome-extension://fake-extension-id/dashboard.html#settings/languages"]);
+  });
+
+  test("in Spanish, the language is named in Spanish", async () => {
+    const p = await openPopup({ locale: "es", local: { words: WORDS }, pageStatus: { base: null, reason: "detected_other", lang: "de", words: 0 } });
+    await p.settle();
+    assert.equal(p.text("#pageLangText"), "Esta página está en alemán, que no es uno de tus idiomas. Kotiko no la toca. También leo alemán");
+    assert.equal(p.text("#readToo"), "También leo alemán");
+  });
+
+  test("a page in one of the learner's languages with no word for it yet", async () => {
+    const p = await openPopup({ local: { words: WORDS }, pageStatus: { base: "fr", reason: "declared", lang: "fr", words: 0 } });
+    await p.settle();
+    assert.equal(p.text("#pageLangText"), "No words have meanings in French yet.");
+    assert.ok(!p.visible("#readToo"));
+  });
+
+  test("nothing when the page is in their language, unknown, paused, or there is no content script", async () => {
+    for (const [pageStatus, local] of [
+      [{ base: "en", reason: "declared", lang: "en", words: 12 }, {}],
+      [{ base: null, reason: "unknown", lang: null, words: 0 }, {}],
+      [{ base: null, reason: "declared_other", lang: "de", words: 0 }, { pausedHosts: [HOST] }],
+      [{ base: null, reason: "declared_other", lang: "de", words: 0 }, { enabled: false }],
+      [null, {}],
+    ]) {
+      const p = await openPopup({ local: { words: WORDS, ...local }, pageStatus });
+      await p.settle();
+      assert.ok(!p.visible("#pageLang"), JSON.stringify(pageStatus));
+    }
   });
 });

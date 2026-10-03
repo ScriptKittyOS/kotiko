@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "spec/lang/_generic/boundaries.json: how the matcher splits text into words",
+  "description": "One shared table for every language (slice 50 section 5, slice 14). `default` applies to every base; an entry keyed by a full tag (zh-Hant) or a primary language (fr) overrides it key by key. A language needs an entry only when the default visibly fails for it.",
+  "type": "object",
+  "required": [
+    "default"
+  ],
+  "properties": {
+    "default": {
+      "$ref": "#/$defs/entry",
+      "description": "Every key is required here (the tests check this), so a base without an entry still has a complete set."
+    }
+  },
+  "additionalProperties": {
+    "$ref": "#/$defs/entry"
+  },
+  "$defs": {
+    "words": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 32
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "spaces": {
+          "type": "boolean",
+          "description": "false for languages written without spaces between words (ja, zh, th): a phrase may continue across an empty gap."
+        },
+        "join": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "apostrophe",
+              "hyphen",
+              "invisible"
+            ]
+          },
+          "description": "Joiners that merge two words with exactly one of them between (well-known, can't, a soft hyphen). invisible is always on."
+        },
+        "possessive_suffix": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "A suffix after an apostrophe that stays outside the swap (English 's)."
+        },
+        "possessive_whole_after": {
+          "$ref": "#/$defs/words",
+          "description": "Words after which the suffix is a contraction, so the token matches only whole (it's, let's)."
+        },
+        "elision_prefixes": {
+          "$ref": "#/$defs/words",
+          "description": "Prefixes ending in an apostrophe that split off and are never swapped (French l'eau)."
+        },
+        "keep_whole": {
+          "$ref": "#/$defs/words",
+          "description": "Words with an elision-like apostrophe that are never split (aujourd'hui)."
+        },
+        "trailing_apostrophe_words": {
+          "$ref": "#/$defs/words",
+          "description": "Words whose final apostrophe is part of the word (Italian po')."
+        },
+        "sentence_openers": {
+          "$ref": "#/$defs/words",
+          "description": "Characters that start a sentence besides the usual ones (Spanish ¿ ¡)."
+        },
+        "fold": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "width"
+            ]
+          },
+          "description": "width: halfwidth and fullwidth forms match their usual forms (ｺｰﾋｰ, ｄｏｇ)."
+        },
+        "lower_locale": {
+          "type": "boolean",
+          "description": "Lowercase keys with the language's own rules (Turkish İ and I)."
+        }
+      }
+    }
+  }
+}

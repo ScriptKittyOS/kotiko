@@ -146,7 +146,7 @@ describe("spec/ data files", () => {
 
   test("every spec/lang file validates against spec/lang/schema", () => {
     for (const folder of folders) {
-      for (const kind of ["stem", "variants", "respelling"]) {
+      for (const kind of ["stem", "variants", "respelling", "boundaries"]) {
         const file = path.join(LANG, folder, `${kind}.json`);
         if (!fs.existsSync(file)) continue;
         assert.deepEqual(validate(schema(kind), read(file)), [], `${folder}/${kind}.json`);
@@ -165,6 +165,19 @@ describe("spec/ data files", () => {
         assert.equal(w, w.toLocaleLowerCase(locale), `${folder}: ${w}`);
       }
       assert.equal(new Set(words).size, words.length, `${folder} has duplicates`);
+    }
+  });
+
+  test("the imported stopword lists are NFC, lowercase in their language, sorted, without duplicates", () => {
+    const lists = read(LANG, "_generic", "stopwords.json");
+    assert.ok(Object.keys(lists).length >= 50, "about 60 languages");
+    for (const [lang, words] of Object.entries(lists)) {
+      for (const w of words) {
+        assert.equal(w, w.normalize("NFC"), `${lang}: ${w}`);
+        assert.equal(w, w.toLocaleLowerCase(lang), `${lang}: ${w}`);
+        assert.match(w, /^[\p{L}\p{M}' -]+$/u, `${lang}: ${w}`);
+      }
+      assert.deepEqual(words, [...new Set(words)].sort(), `${lang} is sorted without duplicates`);
     }
   });
 

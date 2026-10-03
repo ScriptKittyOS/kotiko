@@ -19,6 +19,13 @@ precedence = "override"
 SPDX-FileCopyrightText = ["2026 ScriptKittyOS and the Kotiko contributors", "1991-2026 Unicode, Inc."]
 SPDX-License-Identifier = "Apache-2.0 AND Unicode-3.0"
 
+# Slice 50: imported from stopwords-iso (spec/tools/import-stopwords.mjs).
+[[annotations]]
+path = ["spec/lang/_generic/stopwords.json", "extension/spec/lang/_generic/stopwords.json"]
+precedence = "override"
+SPDX-FileCopyrightText = ["2026 ScriptKittyOS and the Kotiko contributors", "2016 Gene Diaz and the stopwords-iso contributors"]
+SPDX-License-Identifier = "Apache-2.0 AND MIT"
+
 [[annotations]]
 path = ["brand/**", "extension/*.png", "extension/ui/art/**"]
 precedence = "override"

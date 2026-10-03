@@ -17,7 +17,10 @@ const SPEC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = path.join(path.dirname(SPEC), "extension", "spec");
 
 const TOP = ["VERSION", "rules.json", "pronunciation.json", "prompt.md", "languages.json", "lang-aliases.json", "models.json", "providers.json"];
-const LANG_FILES = ["stopwords.txt", "stem.json", "variants.json", "respelling.json", "welcome.json", "sentences.json"];
+const LANG_FILES = ["stopwords.txt", "stem.json", "variants.json", "respelling.json", "welcome.json", "sentences.json", "boundaries.json"];
+// Copied but kept out of spec.js: about 200 KB that only the background reads, by fetch,
+// when the learner's languages change (slice 50 section 5).
+const COPY_ONLY = ["lang/_generic/stopwords.json"];
 
 // REUSE-IgnoreStart
 const HEADER =
@@ -52,6 +55,7 @@ function expected() {
       lang[folder][kind] = f.endsWith(".txt") ? stopwords(read(rel)) : json(rel);
     }
   }
+  for (const rel of COPY_ONLY) files.set(rel, read(rel));
   const data = {
     version: read("VERSION").trim(),
     rules: json("rules.json"),

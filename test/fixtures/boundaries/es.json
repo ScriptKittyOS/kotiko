@@ -1,0 +1,177 @@
+{
+  "base": "es",
+  "words": [
+    {
+      "native": "犬",
+      "lang": "ja",
+      "forms": [
+        "perro",
+        "perros"
+      ]
+    },
+    {
+      "native": "house",
+      "lang": "en",
+      "forms": [
+        "casa"
+      ]
+    },
+    {
+      "native": "water",
+      "lang": "en",
+      "forms": [
+        "agua"
+      ]
+    },
+    {
+      "native": "park",
+      "lang": "en",
+      "forms": [
+        "parque"
+      ]
+    },
+    {
+      "native": "こんにちは",
+      "lang": "ja",
+      "forms": [
+        "hola"
+      ]
+    },
+    {
+      "native": "give it to me",
+      "lang": "en",
+      "forms": [
+        "dámelo"
+      ]
+    },
+    {
+      "native": "please",
+      "lang": "en",
+      "forms": [
+        "por favor"
+      ]
+    },
+    {
+      "native": "yes",
+      "lang": "en",
+      "forms": [
+        "sí"
+      ]
+    },
+    {
+      "native": "and",
+      "lang": "en",
+      "forms": [
+        "y"
+      ]
+    },
+    {
+      "native": "American",
+      "lang": "en",
+      "forms": [
+        "americano"
+      ]
+    },
+    {
+      "native": "penguin",
+      "lang": "en",
+      "forms": [
+        "pingüino"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "id": "es1",
+      "input": "¿Tienes un perro?",
+      "matches": [
+        "perro"
+      ]
+    },
+    {
+      "id": "es2",
+      "input": "¡Hola! ¿Qué tal?",
+      "matches": [
+        "Hola"
+      ]
+    },
+    {
+      "id": "es3",
+      "input": "la casa del perro",
+      "matches": [
+        "casa",
+        "perro"
+      ]
+    },
+    {
+      "id": "es4",
+      "input": "vamos al parque",
+      "matches": [
+        "parque"
+      ]
+    },
+    {
+      "id": "es5",
+      "input": "dámelo",
+      "matches": [],
+      "words": [
+        {
+          "native": "give",
+          "lang": "en",
+          "forms": [
+            "dar"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "es6",
+      "input": "dámelo",
+      "matches": [
+        "dámelo"
+      ]
+    },
+    {
+      "id": "es7",
+      "input": "un acuerdo hispano-americano",
+      "matches": []
+    },
+    {
+      "id": "es8",
+      "input": "un pingu\u0308ino y la accio\u0301n",
+      "matches": [
+        "pingu\u0308ino",
+        "y"
+      ]
+    },
+    {
+      "id": "es9",
+      "input": "si quieres, sí, claro",
+      "matches": [
+        "sí"
+      ]
+    },
+    {
+      "id": "es10",
+      "input": "por\u00a0favor",
+      "matches": [
+        "por\u00a0favor"
+      ]
+    },
+    {
+      "id": "es11",
+      "input": "perros y gatos",
+      "matches": [
+        "perros",
+        "y"
+      ]
+    },
+    {
+      "id": "es12",
+      "input": "«agua» dijo",
+      "matches": [
+        "agua"
+      ]
+    }
+  ]
+}

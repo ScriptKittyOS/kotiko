@@ -1,0 +1,82 @@
+{
+  "base": "de",
+  "note": "No entry in the boundary table: German uses the shared default.",
+  "words": [
+    {
+      "native": "dog",
+      "lang": "en",
+      "forms": [
+        "Hund",
+        "Hunde"
+      ]
+    },
+    {
+      "native": "mail",
+      "lang": "en",
+      "forms": [
+        "Mail"
+      ]
+    },
+    {
+      "native": "goes",
+      "lang": "en",
+      "forms": [
+        "geht"
+      ]
+    },
+    {
+      "native": "street",
+      "lang": "en",
+      "forms": [
+        "Straße"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "id": "de1",
+      "input": "der Hund bellt",
+      "matches": [
+        "Hund"
+      ]
+    },
+    {
+      "id": "de2",
+      "input": "die Hundehütte",
+      "matches": []
+    },
+    {
+      "id": "de3",
+      "input": "die Hundehütte",
+      "matches": [
+        "Hundehütte"
+      ],
+      "words": [
+        {
+          "native": "doghouse",
+          "lang": "en",
+          "forms": [
+            "Hundehütte"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "de4",
+      "input": "eine E-Mail",
+      "matches": []
+    },
+    {
+      "id": "de5",
+      "input": "wie geht's",
+      "matches": []
+    },
+    {
+      "id": "de6",
+      "input": "Straße, STRASSE",
+      "matches": [
+        "Straße"
+      ]
+    }
+  ]
+}

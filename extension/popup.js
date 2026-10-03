@@ -177,6 +177,9 @@
     s: null,
     host: null,
     supported: false,
+    tabId: null,
+    // What the tab's content script made of the page (16): { base, reason, lang, words }.
+    pageStatus: null,
     online: navigator.onLine !== false,
     permission: true,
     jobs: [],
@@ -504,6 +507,36 @@
     if (paused) {
       $("pausedText").replaceChildren(icon("pause", 16), el("span", {}, t("popup_paused_on", { host: state.host })));
     }
+    renderPageLanguage(supported && !paused && s.enabled !== false ? state.pageStatus : null);
+  }
+
+  // Slice 20 states H and H2, from what the page's content script made of it (16): a page
+  // in a language the learner doesn't read, or in one of theirs with no word for it yet.
+  function renderPageLanguage(st) {
+    const other = !!(st && !st.base && st.lang && st.reason !== "unknown");
+    const empty = !!(st && st.base && st.words === 0 && wordTotal(state.s.words) > 0);
+    $("pageLang").hidden = !other && !empty;
+    if (other) {
+      const name = I18n.languageName(st.lang) ?? st.lang;
+      const readToo = el("button", { class: "link", id: "readToo", type: "button", onclick: () => openDashboardAt("#settings/languages") }, t("popup_read_too", { lang: name }));
+      $("pageLangText").replaceChildren(`${t("popup_page_not_yours", { lang: name })} `, readToo);
+    } else if (empty) {
+      $("pageLangText").replaceChildren(t("popup_no_meanings_base", { base: I18n.languageName(st.base) ?? st.base }));
+    } else {
+      $("pageLangText").replaceChildren();
+    }
+  }
+
+  // Asks the tab's content script which language it found the page in. No answer (a page
+  // loaded before Kotiko, or one it can't run on) shows nothing.
+  async function askPage() {
+    if (!state.supported || state.tabId == null) return;
+    try {
+      state.pageStatus = (await ext.tabs.sendMessage(state.tabId, { type: "page-status" })) ?? null;
+    } catch {
+      state.pageStatus = null;
+    }
+    renderPage();
   }
 
   // --- Recent adds -------------------------------------------------------------------
@@ -1104,6 +1137,7 @@
       .then(([tab]) => {
         state.host = hostOf(tab?.url);
         state.supported = !!state.host;
+        state.tabId = tab?.id ?? null;
       })
       .catch(() => {
         state.host = null;
@@ -1133,6 +1167,7 @@
     // free lookups left today (slice 10); the popup shows what it has until they arrive.
     send({ type: "sync" });
     if (lookupReady(s)) send({ type: "llmStatus" });
+    askPage();
   }
 
   globalThis.KotikoPopup = { wordGroups, wordTotal, languages, hostOf, syncProblem, addProblem, mode, lookupReady, state, ready: init() };

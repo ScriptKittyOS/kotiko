@@ -12,10 +12,21 @@
     "ci_factor": 3
   },
   "matcher.scan.250kb.10k": {
-    "budget_ms": 15000,
+    "budget_ms": 75,
     "ci_factor": 3,
     "target_ms": 50,
-    "note": "Today's single alternation regex takes about 7.5 s here (research 06 F24). Slice 14 brings it under target_ms and tightens budget_ms to match."
+    "note": "Slice 14: tokens looked up by key, so 10,000 words cost what 1,000 do. About 47 ms locally (the old single regex took about 7.5 s here, research 06 F24); the browser's word segmenter is about 44 ms of it."
+  },
+  "matcher.build.ja.5k": {
+    "budget_ms": 20,
+    "ci_factor": 3,
+    "note": "5,000 Japanese forms, one index."
+  },
+  "matcher.scan.ja.100k-nodes.5k": {
+    "budget_ms": 1500,
+    "ci_factor": 3,
+    "target_ms": 300,
+    "note": "Slice 14's Japanese case: 100,000 text nodes of about 20 characters, about 1.5 words to swap in each. About 1.1 s locally, of which the browser's word segmenter alone is about 0.85 s, which slice 14's 300 ms didn't allow for. Text with no first character of any form is never segmented, and slice 15's time slicing runs scans in 8 ms batches; a typical page of 1,000 to 5,000 text nodes is 10 to 55 ms."
   },
   "wordcard.cardFor.x1000": {
     "budget_ms": 40,

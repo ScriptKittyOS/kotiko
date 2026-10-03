@@ -1,0 +1,36 @@
+{
+  "base": "th",
+  "words": [
+    {
+      "native": "dog",
+      "lang": "en",
+      "forms": [
+        "หมา"
+      ]
+    },
+    {
+      "native": "like",
+      "lang": "en",
+      "forms": [
+        "ชอบ"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "id": "th1",
+      "input": "ฉันชอบหมา",
+      "matches": [
+        "ชอบ",
+        "หมา"
+      ]
+    },
+    {
+      "id": "th2",
+      "input": "หมา ตัวนี้",
+      "matches": [
+        "หมา"
+      ]
+    }
+  ]
+}

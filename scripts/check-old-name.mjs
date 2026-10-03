@@ -35,6 +35,9 @@ const ALLOWED_PATHS = [
   "spec/languages.json",
   "extension/spec/languages.json",
   "extension/spec/spec.js",
+  // Imported from stopwords-iso: Russian's common words include слово ("word").
+  "spec/lang/_generic/stopwords.json",
+  "extension/spec/lang/_generic/stopwords.json",
 ];
 
 // Generated lines that can contain any letters (package hashes and URLs).

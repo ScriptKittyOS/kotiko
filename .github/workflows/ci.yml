@@ -92,6 +92,7 @@ jobs:
           restore-keys: mix-28.1-1.19.2-
       - run: npm ci
       - run: node spec/tools/sync-extension.mjs --check
+      - run: node spec/tools/import-stopwords.mjs --check
       - run: node spec/tools/gen-lang-data.mjs --check
       - run: node spec/tools/fixture-results.mjs --check
       - run: node spec/eval/run-eval.mjs --replay --set all --check

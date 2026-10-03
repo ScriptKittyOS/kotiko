@@ -5,6 +5,15 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Kotiko now reads pages in the languages you read, whatever they are, including
+  languages written without spaces like Japanese, Chinese and Thai. It swaps words only
+  on pages (and parts of pages) in one of your languages and leaves the rest alone; the
+  popup says when a page is in a language you don't read. Contractions like "can't",
+  hyphenated words, accented words, web addresses and French "l'eau" stay intact, phrases
+  like "thank you" and "por favor" swap as one, and large word lists no longer slow pages
+  down (a 10,000-word list on a long article went from about 7 seconds to under a tenth
+  of one).
+
 - Kotiko now works without a server. Your words live in your browser and Kotiko looks new
   words up with your own free OpenRouter key, or any provider you like (OpenAI, Anthropic,
   Google Gemini, Groq, Ollama, LM Studio or another address), set up in the dashboard's

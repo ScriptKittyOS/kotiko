@@ -213,6 +213,33 @@
     "message": "Resume",
     "description": "Button that resumes Kotiko on a paused site."
   },
+  "popup_page_not_yours": {
+    "message": "This page is in $LANG$, which isn't one of your languages. Kotiko leaves it alone.",
+    "description": "Popup, This page section (slice 20 state H). $LANG$ is the page's language, named in the interface language.",
+    "placeholders": {
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "popup_read_too": {
+    "message": "I read $LANG$ too",
+    "description": "Quiet link after popup_page_not_yours: opens the languages you read in, in the dashboard.",
+    "placeholders": {
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "popup_no_meanings_base": {
+    "message": "No words have meanings in $BASE$ yet.",
+    "description": "Popup, This page section (slice 20 state H2): the page is in one of your languages, but none of your words has a meaning in it. $BASE$ is that language.",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
   "popup_off_banner": {
     "message": "Kotiko is off on all sites.",
     "description": "Banner when the master switch is off."

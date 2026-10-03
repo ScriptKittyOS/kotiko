@@ -1,0 +1,34 @@
+{
+  "base": "zh-Hans",
+  "words": [
+    {
+      "native": "dog",
+      "lang": "en",
+      "forms": [
+        "狗"
+      ]
+    },
+    {
+      "native": "like",
+      "lang": "en",
+      "forms": [
+        "喜欢"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "id": "zh1",
+      "input": "我喜欢狗",
+      "matches": [
+        "喜欢",
+        "狗"
+      ]
+    },
+    {
+      "id": "zh2",
+      "input": "小狗很可爱",
+      "matches": []
+    }
+  ]
+}

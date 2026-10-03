@@ -1,0 +1,125 @@
+{
+  "base": "fr",
+  "words": [
+    {
+      "native": "water",
+      "lang": "en",
+      "forms": [
+        "eau"
+      ]
+    },
+    {
+      "native": "okay",
+      "lang": "en",
+      "forms": [
+        "d'accord"
+      ]
+    },
+    {
+      "native": "today",
+      "lang": "en",
+      "forms": [
+        "aujourd'hui"
+      ]
+    },
+    {
+      "native": "dog",
+      "lang": "en",
+      "forms": [
+        "chien",
+        "chiens"
+      ]
+    },
+    {
+      "native": "is",
+      "lang": "en",
+      "forms": [
+        "est"
+      ]
+    },
+    {
+      "native": "he",
+      "lang": "en",
+      "forms": [
+        "il"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "id": "fr1",
+      "input": "l'eau froide",
+      "matches": [
+        "eau"
+      ]
+    },
+    {
+      "id": "fr2",
+      "input": "l’eau",
+      "matches": [
+        "eau"
+      ]
+    },
+    {
+      "id": "fr3",
+      "input": "d'accord\u202f!",
+      "matches": [
+        "d'accord"
+      ]
+    },
+    {
+      "id": "fr4",
+      "input": "d'accord",
+      "matches": [],
+      "words": [
+        {
+          "native": "chord",
+          "lang": "en",
+          "forms": [
+            "accord"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fr5",
+      "input": "qu'il pleuve",
+      "matches": [
+        "il"
+      ]
+    },
+    {
+      "id": "fr6",
+      "input": "aujourd'hui",
+      "matches": [],
+      "words": [
+        {
+          "native": "day",
+          "lang": "en",
+          "forms": [
+            "hui"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fr7",
+      "input": "est-ce que",
+      "matches": []
+    },
+    {
+      "id": "fr8",
+      "input": "«\u202fchien\u202f»",
+      "matches": [
+        "chien"
+      ]
+    },
+    {
+      "id": "fr9",
+      "input": "des chiens",
+      "matches": [
+        "chiens"
+      ]
+    }
+  ]
+}

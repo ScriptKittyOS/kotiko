@@ -1,0 +1,431 @@
+{
+  "base": "en",
+  "note": "Slice 14, English base. Rows that slice 16 later drops (acronyms, names) still report a match here.",
+  "words": [
+    {
+      "native": "можно",
+      "lang": "ru",
+      "forms": [
+        "can"
+      ]
+    },
+    {
+      "native": "нельзя",
+      "lang": "ru",
+      "forms": [
+        "can't"
+      ]
+    },
+    {
+      "native": "сумма",
+      "lang": "ru",
+      "forms": [
+        "sum"
+      ]
+    },
+    {
+      "native": "кафе",
+      "lang": "ru",
+      "forms": [
+        "café"
+      ]
+    },
+    {
+      "native": "собака",
+      "lang": "ru",
+      "forms": [
+        "dog",
+        "dogs"
+      ]
+    },
+    {
+      "native": "дом",
+      "lang": "ru",
+      "forms": [
+        "house"
+      ]
+    },
+    {
+      "native": "хорошо",
+      "lang": "ru",
+      "forms": [
+        "well"
+      ]
+    },
+    {
+      "native": "почта",
+      "lang": "ru",
+      "forms": [
+        "mail"
+      ]
+    },
+    {
+      "native": "это",
+      "lang": "ru",
+      "forms": [
+        "it"
+      ]
+    },
+    {
+      "native": "нас",
+      "lang": "ru",
+      "forms": [
+        "us"
+      ]
+    },
+    {
+      "native": "ein",
+      "lang": "de",
+      "forms": [
+        "a"
+      ]
+    },
+    {
+      "native": "yo",
+      "lang": "es",
+      "forms": [
+        "I"
+      ]
+    },
+    {
+      "native": "спасибо",
+      "lang": "ru",
+      "forms": [
+        "thank you"
+      ]
+    },
+    {
+      "native": "мороженое",
+      "lang": "ru",
+      "forms": [
+        "ice cream"
+      ]
+    },
+    {
+      "native": "си++",
+      "lang": "ru",
+      "forms": [
+        "c++"
+      ]
+    },
+    {
+      "native": "си-шарп",
+      "lang": "ru",
+      "forms": [
+        "c#"
+      ]
+    },
+    {
+      "native": "резюме",
+      "lang": "ru",
+      "forms": [
+        "résumé"
+      ]
+    },
+    {
+      "native": "май",
+      "lang": "ru",
+      "forms": [
+        "may"
+      ]
+    },
+    {
+      "native": "воля",
+      "lang": "ru",
+      "forms": [
+        "will"
+      ]
+    },
+    {
+      "native": "счёт",
+      "lang": "ru",
+      "forms": [
+        "bill"
+      ]
+    },
+    {
+      "native": "причина",
+      "lang": "ru",
+      "forms": [
+        "cause"
+      ]
+    },
+    {
+      "native": "проход",
+      "lang": "ru",
+      "forms": [
+        "pass"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "id": "1",
+      "input": "I can't go",
+      "matches": [
+        "I",
+        "can't"
+      ]
+    },
+    {
+      "id": "1b",
+      "input": "I can't go",
+      "matches": [
+        "I"
+      ],
+      "words": [
+        {
+          "native": "можно",
+          "lang": "ru",
+          "forms": [
+            "can"
+          ]
+        },
+        {
+          "native": "yo",
+          "lang": "es",
+          "forms": [
+            "I"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "input": "I can’t go",
+      "matches": [
+        "I",
+        "can’t"
+      ]
+    },
+    {
+      "id": "3",
+      "input": "we won't",
+      "matches": [],
+      "words": [
+        {
+          "native": "победил",
+          "lang": "ru",
+          "forms": [
+            "won"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "input": "the house's roof",
+      "matches": [
+        "house"
+      ]
+    },
+    {
+      "id": "5",
+      "input": "it's late",
+      "matches": []
+    },
+    {
+      "id": "6",
+      "input": "a well-known fact",
+      "matches": [
+        "a"
+      ]
+    },
+    {
+      "id": "7",
+      "input": "send an e-mail",
+      "matches": []
+    },
+    {
+      "id": "8",
+      "input": "ice-cream and ice cream",
+      "matches": [
+        "ice-cream",
+        "ice cream"
+      ]
+    },
+    {
+      "id": "9",
+      "input": "ice  cream, ice\u00a0cream, ice\ncream",
+      "matches": [
+        "ice  cream",
+        "ice\u00a0cream",
+        "ice\ncream"
+      ]
+    },
+    {
+      "id": "10",
+      "input": "ice, cream",
+      "matches": []
+    },
+    {
+      "id": "11",
+      "input": "a passé résumé",
+      "matches": [
+        "a",
+        "résumé"
+      ]
+    },
+    {
+      "id": "12",
+      "input": "my re\u0301sume\u0301",
+      "matches": [
+        "re\u0301sume\u0301"
+      ]
+    },
+    {
+      "id": "13",
+      "input": "a café, two cafés",
+      "matches": [
+        "a",
+        "café"
+      ]
+    },
+    {
+      "id": "14",
+      "input": "www.house.com house.com @house #house house_2",
+      "matches": []
+    },
+    {
+      "id": "15",
+      "input": "My house. The dog",
+      "matches": [
+        "house",
+        "dog"
+      ]
+    },
+    {
+      "id": "16",
+      "input": "dog",
+      "matches": [],
+      "before": "hot"
+    },
+    {
+      "id": "17",
+      "input": "do",
+      "matches": [],
+      "after": "g"
+    },
+    {
+      "id": "18",
+      "input": "hot\u00addog",
+      "matches": []
+    },
+    {
+      "id": "18b",
+      "input": "hot\u00addog",
+      "matches": [
+        "hot\u00addog"
+      ],
+      "words": [
+        {
+          "native": "хот-дог",
+          "lang": "ru",
+          "forms": [
+            "hotdog"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "19",
+      "input": "Thank you!",
+      "matches": [
+        "Thank you"
+      ]
+    },
+    {
+      "id": "20",
+      "input": "C++ and C#",
+      "matches": [
+        "C++",
+        "C#"
+      ]
+    },
+    {
+      "id": "21",
+      "input": "the US army",
+      "matches": [
+        "US"
+      ]
+    },
+    {
+      "id": "22",
+      "input": "the IT team",
+      "matches": [
+        "IT"
+      ]
+    },
+    {
+      "id": "23",
+      "input": "Vitamin A.",
+      "matches": [
+        "A"
+      ]
+    },
+    {
+      "id": "24",
+      "input": "I think a cat is a pet",
+      "matches": [
+        "I",
+        "a",
+        "a"
+      ]
+    },
+    {
+      "id": "25",
+      "input": "World War I",
+      "matches": [
+        "I"
+      ]
+    },
+    {
+      "id": "26",
+      "input": "May 2026, in May we",
+      "matches": [
+        "May",
+        "May"
+      ]
+    },
+    {
+      "id": "27",
+      "input": "Will Smith and Bill Gates",
+      "matches": [
+        "Will",
+        "Bill"
+      ]
+    },
+    {
+      "id": "28",
+      "input": "THANK YOU FOR READING",
+      "matches": [
+        "THANK YOU"
+      ]
+    },
+    {
+      "id": "29",
+      "input": "'cause I said so",
+      "matches": [
+        "cause",
+        "I"
+      ]
+    },
+    {
+      "id": "30",
+      "input": "the dogs' bowls",
+      "matches": [
+        "dogs"
+      ]
+    },
+    {
+      "id": "31",
+      "input": "node.js and U.S. law",
+      "matches": []
+    },
+    {
+      "id": "32",
+      "input": "9am, house2",
+      "matches": []
+    }
+  ]
+}

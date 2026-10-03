@@ -234,23 +234,26 @@
 
   const compact = (w) => ({ ...w, forms: formTexts(w) });
 
+  // The index pages use (lib/matcher.js) for one base, with the shared boundary rules.
+  function indexFor(mine, base, { spec, Matcher }) {
+    const rules = globalThis.KotikoText.rulesFor(spec?.lang?._generic?.boundaries, base);
+    return Matcher.buildIndex(mine, { base, rules });
+  }
+
   // The page's swap (content.js) without the DOM: a line split into text and swapped words.
   //   -> [{ text }, { native, surface, word, all }, …]
-  function swapParts(text, matcher, Matcher) {
-    if (!matcher) return [{ text }];
-    const { re, map } = matcher;
-    re.lastIndex = 0;
+  function swapParts(text, index, Matcher) {
+    if (!index?.size) return [{ text }];
     const out = [];
     let last = 0;
-    let m;
-    while ((m = re.exec(text))) {
-      const all = map.get(Matcher.norm(m[0]));
-      if (!all) continue;
-      if (m[0].length === 1 && m[0] !== m[0].toLowerCase() && Matcher.skipLetter(text, m.index)) continue;
+    for (const m of Matcher.scan(text, { base: index.base }, index).matches) {
+      if (m.surface.length === 1 && Matcher.skipLetter(text, m.start)) continue;
+      const seen = new Set();
+      const all = m.entry.candidates.map((c) => c.word).filter((w) => !seen.has(w.lang) && seen.add(w.lang));
       const w = all[0];
-      if (m.index > last) out.push({ text: text.slice(last, m.index) });
-      out.push({ native: Matcher.matchCase(m[0], w.native), surface: m[0], word: w, all });
-      last = m.index + m[0].length;
+      if (m.start > last) out.push({ text: text.slice(last, m.start) });
+      out.push({ native: Matcher.matchCase(m.surface, w.native), surface: m.surface, word: w, all });
+      last = m.end;
     }
     if (last < text.length) out.push({ text: text.slice(last) });
     return out;
@@ -263,9 +266,9 @@
   function pickPreview(records, base, { spec, Matcher }) {
     const mine = records.filter((r) => r.base_lang === base).map(compact);
     if (!mine.length) return null;
-    const matcher = Matcher.buildMatcher(mine, new Set());
+    const index = indexFor(mine, base, { spec, Matcher });
     const file = langFile(spec, base, "sentences");
-    const parts = (text) => swapParts(text, matcher, Matcher);
+    const parts = (text) => swapParts(text, index, Matcher);
     const swapped = (p) => p.some((x) => x.native !== undefined);
     if (file) {
       const sorted = file.sentences.slice().sort((a, b) => [...a].length - [...b].length || (a < b ? -1 : 1));
@@ -283,9 +286,9 @@
   }
 
   // A sentence the learner typed in Edit, swapped the same way.
-  function previewText(records, base, text, { Matcher }) {
+  function previewText(records, base, text, { Matcher, spec = globalThis.KOTIKO_SPEC }) {
     const mine = records.filter((r) => r.base_lang === base).map(compact);
-    return swapParts(text, mine.length ? Matcher.buildMatcher(mine, new Set()) : null, Matcher);
+    return swapParts(text, mine.length ? indexFor(mine, base, { spec, Matcher }) : null, Matcher);
   }
 
   // "Try it on a page" (22 section 8): a Wikipedia full-text search in the base's own

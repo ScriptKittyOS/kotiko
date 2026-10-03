@@ -76,7 +76,12 @@
           <span data-icon="info" data-icon-size="16"></span>
           <span data-i18n="error_unsupported_page"></span>
         </p>
-        <!-- 31: Amount; 32: coverage meter; 38: per-site languages; 16/50: state H and H2. -->
+        <!-- 20 states H and H2: a page in a language the learner doesn't read, or in one with no words yet. -->
+        <div class="page-note" id="pageLang" hidden>
+          <span data-icon="info" data-icon-size="16"></span>
+          <span id="pageLangText"></span>
+        </div>
+        <!-- 31: Amount; 32: coverage meter; 38: per-site languages and "Swap here anyway". -->
       </section>
     </div>
 
