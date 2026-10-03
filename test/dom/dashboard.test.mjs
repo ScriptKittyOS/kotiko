@@ -106,7 +106,7 @@ async function openDashboard({ local = CONNECTED, sync = {}, locale = "en", hash
   };
   runInWindow(dom, "lib/i18n.js");
   w.KotikoI18n._setLoader(async (l) => readMessages(l));
-  for (const rel of ["ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/word-search.js", "lib/dashboard-model.js", "lib/word-source.js", "lib/lookup-status.js", "lib/story.js", "dashboard.js"]) {
+  for (const rel of ["spec/spec.js", "lib/lang.js", "lib/welcome-model.js", "ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/word-search.js", "lib/dashboard-model.js", "lib/word-source.js", "lib/lookup-status.js", "lib/story.js", "dashboard.js"]) {
     runInWindow(dom, rel);
     if (rel === "lib/story.js") w.KotikoStory._setLoader(async (l) => readExt(`story/${l}.md`));
   }
@@ -764,7 +764,7 @@ describe("settings (§9)", () => {
   test("every built section, each saving on change", async () => {
     const d = await openDashboard({ hash: "#settings" });
     assert.equal(d.$("#settingsView").hidden, false);
-    assert.deepEqual(d.$$("#settingsIndex a").map((a) => a.textContent), ["Kotiko’s language", "Word lookups", "Your Kotiko server", "Voices", "Learning", "Appearance", "About"]);
+    assert.deepEqual(d.$$("#settingsIndex a").map((a) => a.textContent), ["Languages you read in", "Kotiko’s language", "Word lookups", "Your Kotiko server", "Voices", "Learning", "Appearance", "About"]);
     assert.equal(d.$("#accessKey").type, "password", "the key is typed here, hidden by default");
     assert.equal(d.$("#accessKey").value, "", "a saved token is never read back (slice 11)");
     d.$("#serverUrl").value = "http://127.0.0.1:5000";
@@ -803,6 +803,147 @@ describe("settings (§9)", () => {
   test("the stored choice applies on open, whatever the browser's language", async () => {
     const d = await openDashboard({ locale: "es", sync: { ui: { uiLang: "en" } } });
     assert.equal(d.text("#wordsTitle"), "Your words");
+  });
+});
+
+describe("Languages you read in (slice 50 §2)", () => {
+  const UI = { uiLang: "auto", baseLangs: ["en", "es"], baseLangsDetected: ["en"], baseLangsConfirmed: true };
+  const open = (ui = UI, opts = {}) => openDashboard({ hash: "#settings/languages", sync: { ui: { ...ui } }, ...opts });
+  const baseRows = (d) => d.$$("#baseList .base-row");
+  const langs = (d) => baseRows(d).map((r) => r.dataset.lang);
+  const button = (d, lang, action) => d.$(`#baseList .base-row[data-lang="${lang}"] button[data-action="${action}"]`);
+
+  test("primary first, each with its support level, the words missing a meaning, and the browser's languages as a hint", async () => {
+    const d = await open();
+    assert.equal(d.$$("#settingsIndex a")[0].textContent, "Languages you read in");
+    assert.deepEqual(langs(d), ["en", "es"]);
+    const [en, es] = baseRows(d);
+    assert.equal(en.querySelector(".base-label").textContent, "English");
+    assert.equal(en.querySelector(".base-primary").textContent, "main");
+    assert.equal(es.querySelector(".base-primary"), null);
+    assert.deepEqual(baseRows(d).map((r) => r.querySelector(".base-level").textContent), ["Full", "Full"]);
+    assert.equal(es.querySelector(".base-endonym").textContent, "Español");
+    assert.equal(es.querySelector(".base-endonym").lang, "es");
+    // The level explains itself on focus, as the level's description.
+    const level = es.querySelector(".base-level");
+    assert.equal(d.doc.getElementById(level.getAttribute("aria-describedby")).textContent, "Kotiko knows this language well: careful word checks and a pronunciation guide written for its readers.");
+    assert.equal(en.querySelector(".base-missing"), null, "every word has an English meaning");
+    // 23 words: 犬 has a Spanish meaning and three words are Spanish themselves.
+    assert.match(es.querySelector(".base-missing").textContent, /^19 words have no meaning in Spanish yet\. Type meanings$/);
+    assert.equal(d.text("#basesDetected"), "From your browser: English");
+    assert.equal(button(d, "en", "up").disabled, true);
+    assert.equal(button(d, "es", "down").disabled, true);
+    for (const b of d.$$("#baseList button[data-action]")) assert.ok(b.getAttribute("aria-label"), "icon buttons have names");
+  });
+
+  test("Add a language: a search over every language, saved at once as a Basic one", async () => {
+    const d = await open();
+    d.$("#addBaseLang").click();
+    await d.settle();
+    const input = d.$(".dialog-card input");
+    assert.equal(d.text(".dialog-title"), "Add a language you read");
+    assert.ok(!d.$$(".dialog-card .lang-option").some((o) => /Spanish|English/.test(o.textContent)), "languages already read aren't offered");
+    await d.type(input, "pol");
+    d.key("Enter", {}, input);
+    await d.settle();
+    assert.deepEqual(d.fake.store.sync.ui, { ...UI, baseLangs: ["en", "es", "pl"] });
+    assert.deepEqual(d.store.baseLangs, ["en", "es", "pl"], "the copy content scripts read");
+    const pl = baseRows(d)[2];
+    assert.equal(pl.querySelector(".base-level").textContent, "Basic");
+    assert.equal(d.doc.getElementById(pl.querySelector(".base-level").getAttribute("aria-describedby")).textContent, "Kotiko works in Polski, with simpler word checks and no pronunciation guide yet.");
+    assert.equal(pl.querySelector(".base-improve").href, "https://github.com/ScriptKittyOS/kotiko/blob/main/spec/lang/README.md");
+    // Type meanings: the list of words missing one, with a chip that clears the filter.
+    pl.querySelector(".base-missing button").click();
+    await d.settle();
+    assert.equal(d.w.location.hash, "#words?missing=pl");
+    assert.equal(d.rows().length, 23);
+    assert.equal(d.text('[data-filter="missing"]'), "No meaning in Polish");
+    d.$('[data-filter="missing"] + .filter-clear').click();
+    await d.settle();
+    assert.equal(d.w.location.hash, "#words");
+  });
+
+  test("up to four; the fifth is refused with what to do", async () => {
+    const d = await open({ ...UI, baseLangs: ["en", "es", "fr", "de"] });
+    d.$("#addBaseLang").click();
+    await d.settle();
+    assert.equal(d.$(".dialog-card"), null);
+    assert.equal(d.text("#basesNote"), "Kotiko can follow up to 4 languages you read. Remove one first.");
+    assert.deepEqual(d.fake.store.sync.ui.baseLangs, ["en", "es", "fr", "de"]);
+  });
+
+  test("↑ and ↓ reorder, keep focus on the language, and the first becomes the primary", async () => {
+    const d = await open({ ...UI, baseLangs: ["en", "es", "fr"] });
+    button(d, "fr", "up").focus();
+    button(d, "fr", "up").click();
+    await d.settle();
+    assert.deepEqual(langs(d), ["en", "fr", "es"]);
+    assert.equal(d.doc.activeElement, button(d, "fr", "up"));
+    button(d, "fr", "up").click();
+    await d.settle();
+    assert.deepEqual(langs(d), ["fr", "en", "es"]);
+    assert.deepEqual(d.fake.store.sync.ui.baseLangs, ["fr", "en", "es"]);
+    assert.equal(baseRows(d)[0].querySelector(".base-primary").textContent, "main");
+    assert.equal(d.doc.activeElement.closest(".base-row").dataset.lang, "fr", "the disabled ↑ hands focus to a sibling");
+    button(d, "en", "down").click();
+    await d.settle();
+    assert.deepEqual(langs(d), ["fr", "es", "en"]);
+  });
+
+  test("removing keeps the meanings, says so with Undo; the last one stays", async () => {
+    const d = await open();
+    button(d, "es", "remove").click();
+    await d.settle();
+    assert.deepEqual(d.fake.store.sync.ui.baseLangs, ["en"]);
+    assert.deepEqual(d.store.baseLangs, ["en"]);
+    assert.equal(d.text(".toast-text"), "Kotiko won’t swap words on pages in Spanish. Your 1 meaning is kept.");
+    assert.ok(!d.backend.sent.some((m) => m.type === "words.write"), "no word is touched");
+    d.$(".toast-undo").click();
+    await d.settle();
+    assert.deepEqual(d.fake.store.sync.ui.baseLangs, ["en", "es"]);
+    button(d, "es", "remove").click();
+    await d.settle();
+    button(d, "en", "remove").click();
+    await d.settle();
+    assert.deepEqual(d.fake.store.sync.ui.baseLangs, ["en"]);
+    assert.equal(d.text("#basesNote"), "Kotiko needs at least one language you read.");
+  });
+
+  test("a change from the welcome tab or another device shows at once", async () => {
+    const d = await open();
+    await d.fake.chrome.storage.sync.set({ ui: { ...UI, baseLangs: ["es"] } });
+    await d.settle();
+    assert.deepEqual(langs(d), ["es"]);
+  });
+
+  test("#settings/languages (the popup's link) shows the section with its heading focused", async () => {
+    const d = await openDashboard({ hash: "#settings/languages", sync: { ui: { ...UI } } });
+    assert.equal(d.$("#settingsView").hidden, false);
+    assert.equal(d.doc.activeElement, d.$("#setBasesTitle"));
+    assert.equal(d.$(".dialog-card"), null);
+  });
+
+  test("#settings/languages/add/pt-BR opens the picker ready to add it; Enter adds it", async () => {
+    const d = await openDashboard({ hash: "#settings/languages/add/pt-BR", sync: { ui: { ...UI } } });
+    await d.settle();
+    const input = d.$(".dialog-card input");
+    assert.ok(input.value);
+    assert.equal(d.w.location.hash, "#settings/languages", "a reload doesn't open it again");
+    d.key("Enter", {}, input);
+    await d.settle();
+    assert.deepEqual(d.fake.store.sync.ui.baseLangs, ["en", "es", "pt-BR"]);
+    // A language already read opens nothing.
+    const again = await openDashboard({ hash: "#settings/languages/add/es-PR", sync: { ui: { ...UI } } });
+    await again.settle();
+    assert.equal(again.$(".dialog-card"), null);
+  });
+
+  test("in Spanish", async () => {
+    const d = await open(UI, { locale: "es" });
+    assert.equal(d.text("#setBasesTitle"), "Idiomas en los que lees");
+    assert.equal(baseRows(d)[0].querySelector(".base-label").textContent, "inglés");
+    assert.equal(baseRows(d)[0].querySelector(".base-level").textContent, "Completo");
+    assert.equal(button(d, "es", "remove").getAttribute("aria-label"), "Quitar español");
   });
 });
 

@@ -1880,6 +1880,170 @@
     "message": "Your words",
     "description": "Link from settings back to the list."
   },
+  "dash_set_bases": {
+    "message": "Languages you read in",
+    "description": "Settings section: the learner's base languages (slice 50)."
+  },
+  "dash_set_bases_help": {
+    "message": "Kotiko swaps words on pages in these languages. Drag to reorder; the first is your main one.",
+    "description": "Help under the base languages section."
+  },
+  "dash_bases_add": {
+    "message": "Add a language",
+    "description": "Button that adds a language the learner reads."
+  },
+  "dash_bases_add_title": {
+    "message": "Add a language you read",
+    "description": "Title of the language picker for a new base language."
+  },
+  "dash_bases_last": {
+    "message": "Kotiko needs at least one language you read.",
+    "description": "Shown when the learner removes their last base language."
+  },
+  "dash_bases_full": {
+    "message": "Kotiko can follow up to $MAX$ languages you read. Remove one first.",
+    "description": "Shown when the learner tries to add a fifth base language.",
+    "placeholders": {
+      "max": {
+        "content": "{max}"
+      }
+    }
+  },
+  "dash_bases_detected": {
+    "message": "From your browser: $LANGUAGES$",
+    "description": "Hint: the languages detected from the browser, each named in itself (\"español, English\").",
+    "placeholders": {
+      "languages": {
+        "content": "{languages}"
+      }
+    }
+  },
+  "dash_base_full": {
+    "message": "Full",
+    "description": "Support level of a base language with its own data (slice 50 §5)."
+  },
+  "dash_base_basic": {
+    "message": "Basic",
+    "description": "Support level of a base language that uses the shared data (slice 50 §5)."
+  },
+  "dash_base_full_help": {
+    "message": "Kotiko knows this language well: careful word checks and a pronunciation guide written for its readers.",
+    "description": "Explains the Full support level, shown on hover and focus."
+  },
+  "dash_base_basic_help": {
+    "message": "Kotiko works in $LANGUAGE$, with simpler word checks and no pronunciation guide yet.",
+    "description": "Explains the Basic support level, shown on hover and focus. The language is named in itself.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_base_improve": {
+    "message": "Help improve it",
+    "description": "Link next to a Basic language, to the guide for improving a language's data."
+  },
+  "dash_base_primary": {
+    "message": "main",
+    "description": "Tag on the first base language, the learner's main one."
+  },
+  "dash_base_missing_one": {
+    "message": "$COUNT$ word has no meaning in $LANGUAGE$ yet.",
+    "description": "Under a base language: words with no meaning in it, so they can't swap on its pages.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_base_missing_other": {
+    "message": "$COUNT$ words have no meaning in $LANGUAGE$ yet.",
+    "description": "Under a base language: words with no meaning in it, so they can't swap on its pages.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_base_type_meanings": {
+    "message": "Type meanings",
+    "description": "Link that lists the words missing a meaning in a base language."
+  },
+  "dash_base_up": {
+    "message": "Move $LANGUAGE$ up",
+    "description": "Accessible name of the button that moves a base language up.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_base_down": {
+    "message": "Move $LANGUAGE$ down",
+    "description": "Accessible name of the button that moves a base language down.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_base_remove": {
+    "message": "Remove $LANGUAGE$",
+    "description": "Accessible name of the button that removes a base language.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_base_removed_one": {
+    "message": "Kotiko won’t swap words on pages in $LANGUAGE$. Your $COUNT$ meaning is kept.",
+    "description": "Toast after removing a base language; Undo follows.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      },
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_base_removed_other": {
+    "message": "Kotiko won’t swap words on pages in $LANGUAGE$. Your $COUNT$ meanings are kept.",
+    "description": "Toast after removing a base language; Undo follows.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      },
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_base_removed_none": {
+    "message": "Kotiko won’t swap words on pages in $LANGUAGE$.",
+    "description": "Toast after removing a base language with no meanings in it; Undo follows.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_filter_missing": {
+    "message": "No meaning in $LANGUAGE$",
+    "description": "Filter chip: words missing a meaning in a base language.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
   "dash_set_ui_lang": {
     "message": "Kotiko’s language",
     "description": "Settings section: interface language."
@@ -2657,7 +2821,7 @@
     "description": "Small tag on a base language whose word checks are simpler (slice 50's Basic level)."
   },
   "welcome_base_basic_help": {
-    "message": "Kotiko works in $LANGUAGE$, with simpler word checks than for English and Spanish.",
+    "message": "Kotiko works in $LANGUAGE$, with simpler word checks and no pronunciation guide yet.",
     "description": "Explains the \"basic\" tag on a base language.",
     "placeholders": {
       "language": {

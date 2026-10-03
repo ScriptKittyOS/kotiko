@@ -425,7 +425,7 @@
     function wordList(v) {
       if (Array.isArray(v)) return v.filter((w) => w && typeof w === "object" && !Array.isArray(w));
       if (v && typeof v === "object") {
-        if (["native", "lang", "gloss", "english"].some((k) => Object.hasOwn(v, k))) return [v];
+        if (["native", "lang", "gloss", "english"].some((k) => Object.hasOwn(v, k))) return [v]; // base-neutral-ok: legacy-key repair
         // Values in key order, so both runtimes read them alike.
         return Object.keys(v)
           .sort()
@@ -449,9 +449,10 @@
       const has = (k) => w[k] !== undefined && w[k] !== null;
       const langRaw = clean(w.lang);
       let native = clean(w.native);
-      let gloss = stripPunct(clean(has("gloss") ? w.gloss : single ? w.english : null));
+      // Legacy-key repair (09): a reply in the old shape names the gloss english.
+      let gloss = stripPunct(clean(has("gloss") ? w.gloss : single ? w.english : null)); // base-neutral-ok
       const baseRaw = clean(w.base_lang) ?? (single ? ctx.bases[0] : null);
-      const formsRaw = has("forms") ? w.forms : single ? w.english_forms : null;
+      const formsRaw = has("forms") ? w.forms : single ? w.english_forms : null; // base-neutral-ok
       const summary = () => ({ native, gloss, base_lang: base ?? baseRaw });
       let base = null;
       const reject = (reason, extra = {}) => ({ rejected: { ...summary(), reason }, ...extra });

@@ -50,7 +50,7 @@
     if (w.forms != null && !Array.isArray(w.forms)) return "bad_forms";
     // Bad individual forms are removed by cleanForms; a word is only dropped when nothing
     // usable is left (no valid form and no valid `english` to fall back on).
-    if (!cleanForms(w.forms ?? []).length && !isForm(w.english)) return "bad_forms";
+    if (!cleanForms(w.forms ?? []).length && !isForm(w.english)) return "bad_forms"; // base-neutral-ok: a 0.2 server's words
     return null;
   }
 
