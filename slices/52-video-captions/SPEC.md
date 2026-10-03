@@ -112,7 +112,7 @@ Per-word page caps (31) don't apply to captions; they are a stream.
 track's language code; automatic captions are in the video's spoken language). Otherwise it
 collects caption text per video until it has 200 characters (60 for bases written without
 spaces, whose characters carry more per character) and runs slice 16's detection once, with each
-base's `detect.json`; until then it swaps nothing. The result resets when the video changes
+base's stopwords (50 §5); until then it swaps nothing. The result resets when the video changes
 (URL `v=` parameter or `src`). A translated caption track (YouTube's auto-translate into
 Spanish) counts as machine output, as in slice 43: it is not swapped.
 

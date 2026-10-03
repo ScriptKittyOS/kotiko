@@ -45,12 +45,15 @@ phases that can overlap:
 3. **Local first, beautifully**: brand, design system, popup, dashboard, bulk add,
    onboarding around the learner's own first word (asked in their own language), the word
    popover with its pronunciation and audio (34), all in English and Spanish from day one.
-4. **Release**: privacy, store readiness and listings in English and Spanish, release
+4. **Release**: privacy, store readiness and listings in English and Spanish, a security
+   review by three independent reviewers who must prove every claim (54), release
    pipeline, and the OpenSSF passing badge on the day the repository goes public (53).
 
 English is not special anywhere: it is one possible base language and one possible target
-([DECISIONS](DECISIONS.md), [50](50-ui-localization-and-base-language/SPEC.md)). Every
-slice follows 50's cross-cutting rules.
+([DECISIONS](DECISIONS.md), [50](50-ui-localization-and-base-language/SPEC.md)). Nor is
+Spanish: Kotiko works in every language the browser can split into words through shared
+rules and data, not a pack per language; English and Spanish are simply the two that also
+get hand-written extras at launch. Every slice follows 50's cross-cutting rules.
 
 ## All slices
 
@@ -105,10 +108,11 @@ slice follows 50's cross-cutting rules.
 | 47 | ~~[Hosted word packs](47-hosted-word-packs/SPEC.md)~~ | – | – | – | **Dropped** (2026-10-01): no word lists of any kind, hosted or subscribed ([DECISIONS](DECISIONS.md)). Replaced by 13 and 12; classrooms use 48's offered lists. |
 | 48 | [Multi-user and classroom](48-multi-user-and-classroom/SPEC.md) | P2 | L | 07, 40, 50 | Users and tokens on one server; families; teachers offering word lists that each student reviews and accepts, never added automatically. 04. |
 | 49 | [Dictionary verification](49-dictionary-verification/SPEC.md) | P2 | L | 09, 50 | Open dictionaries (CC-CEDICT, Wiktionary editions per base language) to verify model output and work offline, where a dictionary exists for the language pair. 02, 04. |
-| 50 | [Base languages and UI localization](50-ui-localization-and-base-language/SPEC.md) | P0 | L | 02, 08 | The learner's base languages (detected from the browser, confirmed on the welcome tab, several allowed); the word-record shape for them; `spec/lang/<base>/` data and support levels; every string in `_locales` with English and Spanish at launch; translation workflow (Weblate); the cross-cutting rules every slice follows. Maintainer decision; 02, 05. |
+| 50 | [Base languages and UI localization](50-ui-localization-and-base-language/SPEC.md) | P0 | L | 02, 08 | The learner's base languages (detected from the browser, confirmed on the welcome tab, several allowed); the word-record shape for them; shared `spec/lang/` data that covers every language (Full for `en` and `es`, Basic for the rest; no pack per language); every string in `_locales` with English and Spanish at launch; translation workflow (Weblate); the cross-cutting rules every slice follows. Maintainer decision; 02, 05. |
 | 51 | [Safari port](51-safari-port/SPEC.md) | P2 | L | 45 | macOS and iOS via Xcode conversion. 03. |
 | 52 | [Video captions](52-video-captions/SPEC.md) | P2 | M | 15, 50 | Flicker-free swapping in YouTube and similar captions. 03. |
 | 53 | [OpenSSF Best Practices badge](53-openssf-best-practices/SPEC.md) | P1 (§4.1, §4.2 and the passing badge P0) | M | 02, 03, 30 | Passing on the day the repository goes public, then silver: full criteria matrix with evidence; HTTP API and settings reference; vulnerability response process; GOVERNANCE, MAINTAINERS, roles and access continuity; roadmap; architecture; security requirements and assurance case; coding standards; test, regression and 80 % coverage policy; additions to 01, 02, 30, 40, 44; DCO question; gold outlook. OpenSSF criteria; 03. |
+| 54 | [Pre-release security review](54-pre-release-security-review/SPEC.md) | P0 | M | every other P0 | Gate before the first store upload: three independent reviewers (hostile page and model, network and server, supply chain and release) each report on the whole release candidate; every claim, including "no issue", carries proof (`path:line`, a runnable reproduction or failing test, the observed output); the lead reruns every proof and only confirmed findings count; fixes with regression tests, checked by a fresh reviewer. Maintainer decision. |
 
 ## Critical path to the public release
 
@@ -119,7 +123,7 @@ slice follows 50's cross-cutting rules.
                                     └─ 16 skip rules, 17 casing, 18 precedence ─────────────────┤
 05 brand ─ 06 design system ─┬─ 20 popup ───────────────────────────────────────────────────────┤
                              └─ 21 dashboard ─ 13 bulk add ─────────────────────────────────────┴─ 22 onboarding ─┐
-03 OSS files, 01 auth, 29 ops, 25 errors, 26 sync, 27 a11y, 12 export, 24 add ────────────────────────────────────┴─ 28 privacy + listings ─ 30 release
+03 OSS files, 01 auth, 29 ops, 25 errors, 26 sync, 27 a11y, 12 export, 24 add ────────────────────────────────────┴─ 28 privacy + listings ─ 54 security review ─ 30 release
 ```
 
 50's base-language setting, `spec/lang/<base>/` data and `_locales` files come early: 09,

@@ -352,7 +352,7 @@ Sections and their owners:
 
 | Section | Contents | Owner |
 |---|---|---|
-| Languages you read in | Base languages: chips in order (primary first), drag or ↑/↓ to reorder, "Add a language" from a searchable list of names in the interface language, remove (×), each with its support level (Full, Good, Basic) and "Add meanings in {base} for your {n} words" when words lack one; the detected list as a hint ("From your browser: español, English") | [50 §2](../50-ui-localization-and-base-language/SPEC.md), this slice |
+| Languages you read in | Base languages: chips in order (primary first), drag or ↑/↓ to reorder, "Add a language" from a searchable list of names in the interface language, remove (×), each with its support level (Full or Basic) and "Add meanings in {base} for your {n} words" when words lack one; the detected list as a hint ("From your browser: español, English") | [50 §2](../50-ui-localization-and-base-language/SPEC.md), this slice |
 | Kotiko's language | Interface language: "Same as my browser ({name})" (default) or any shipped locale, by its endonym; "Help translate Kotiko" link to Weblate | [50 §8](../50-ui-localization-and-base-language/SPEC.md) |
 | Reading | Amount; skip buttons and menus; language colors; readings above words (pronunciation, romanization or kana); vowel marks; copy the original text (`copyOriginal`) | [31](../31-density-and-amount/SPEC.md), [16](../16-what-not-to-swap/SPEC.md), [37](../37-language-colors-and-reading-aids/SPEC.md), [43](../43-copy-print-translate-coexistence/SPEC.md) |
 | Learning | Celebrations; reveal mode; weekly recap | [32](../32-page-coverage-and-celebrations/SPEC.md), [35](../35-reveal-mode-and-review/SPEC.md), [46](../46-local-stats-and-recap/SPEC.md) |
@@ -373,7 +373,7 @@ are absent, not disabled.
   ┌──────────────────────────────────────────────────────────────┐
   │ ⋮⋮ 1  español        Full    · primary                    ×  │
   │ ⋮⋮ 2  English        Full                                 ×  │
-  │ ⋮⋮ 3  français       Good    Add meanings in français for  │
+  │ ⋮⋮ 3  français       Basic   Add meanings in français for  │
   │                               your 214 words  [ Add ]     ×  │
   └──────────────────────────────────────────────────────────────┘
   [ + Add a language ]          From your browser: español, English

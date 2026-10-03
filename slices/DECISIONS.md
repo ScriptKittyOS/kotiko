@@ -6,6 +6,33 @@ and why. Open questions live in each slice's own "Open questions" section and in
 
 ## 2026-10-02
 
+**Three independent security reviews before the stores, and every claim needs proof.**
+*Maintainer.* "We also need a full security run with 3 independent reviewers all bringing
+reports back and you reviewing them, ensuring they bring proof of any claims. That is very
+important before it hits the store." Before the first upload to the Chrome Web Store or
+Firefox Add-ons, three reviewers who don't see each other's work each review the whole
+release candidate and report. Every finding, and every "no issue", carries proof:
+`path:line`, a reproduction or failing test, and the observed result. The lead reviewer
+reruns each proof; only confirmed findings count. Medium and above are fixed with
+regression tests and rechecked by a fresh reviewer before the upload. This is a release
+gate; the outside review gold asks for (53) is still wanted. See
+[54](54-pre-release-security-review/SPEC.md) and [30](30-release-pipeline/SPEC.md).
+
+**Every language works without its own pack.** *Maintainer.* "I was only using Spanish as
+an example. This has been so helpful for me and I want to be sure it is useful around the
+globe. I am not asking for you to create every lang or only Spanish. If it is a custom
+pack for every lang then that seems like too much." Kotiko works for readers of any
+language from the first release through what is shared: the browser's word splitting,
+casing and language names; the model answering in the learner's language; stopword lists
+for about 60 languages imported in one step from stopwords-iso; and one shared table each
+for word boundaries and capitals, a few lines for each language whose default needs one.
+English and Spanish keep the extras already written for them (the respelling key, welcome
+words, preview sentences); no other language needs a folder of its own for the release, and
+more Full bases come only from native speakers who contribute them. The planned "Good"
+level (nine hand-written bases) and the per-base `detect.json` are withdrawn. The interface
+stays in English and Spanish at launch, with other languages from community translators.
+See [50](50-ui-localization-and-base-language/SPEC.md) §5.
+
 **@KotikoBot is the maintainer's own Telegram bot; there is no public shared bot.**
 *Maintainer.* "I don't want to deal with the folks and their accounts." The Telegram bot
 stays part of each person's self-hosted server: everyone who runs a server creates their

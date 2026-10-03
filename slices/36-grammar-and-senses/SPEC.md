@@ -61,7 +61,7 @@ ones are added here):
 - The user can state variant preferences that the model and the matcher respect.
 - Low-confidence or ambiguous adds ask "Did you mean" before saving.
 - Agglutinative and article-less languages are handled honestly in matching and coverage.
-- Each Full- and Good-level base language (50 §5) has a `spec/lang/<base>/grammar.json` that
+- Each Full-level base language (50 §5) has a `spec/lang/<base>/grammar.json` that
   tells the prompt which base-side forms to produce and tells the sense filter how to read
   context, so English is one base among several, not the only one with grammar.
 
@@ -430,9 +430,9 @@ sentence uses."
    10. Recommendation: the six `form_slots` above (the forms most frequent in running text), and
    revisit with the golden set; raising the cap for verbs only is the alternative if Spanish
    readers report missed swaps.
-5. **Who writes `grammar.json` for bases beyond `en` and `es`?** Recommendation: ship `fr`,
-   `de` and `ja` tables written by the team from public grammars, each reviewed by a native
-   speaker before it moves a base from Good to Full (50 §5); everything else via contributors.
+5. **Who writes `grammar.json` for bases beyond `en` and `es`?** Decided (2026-10-02, no
+   pack per language): contributors, each table reviewed by a native speaker; the team
+   writes none. Bases without one use the generic prompt (50 §5).
 
 ## Future work
 
