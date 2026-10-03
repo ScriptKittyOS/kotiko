@@ -1,0 +1,79 @@
+{
+  "base": "ja",
+  "words": [
+    {
+      "native": "개",
+      "lang": "ko",
+      "forms": [
+        "犬"
+      ]
+    },
+    {
+      "native": "coffee",
+      "lang": "en",
+      "forms": [
+        "コーヒー"
+      ]
+    },
+    {
+      "native": "ate",
+      "lang": "en",
+      "forms": [
+        "食べた"
+      ]
+    },
+    {
+      "native": "like",
+      "lang": "en",
+      "forms": [
+        "好き"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "id": "ja1",
+      "input": "犬が好きです",
+      "matches": [
+        "犬",
+        "好き"
+      ]
+    },
+    {
+      "id": "ja2",
+      "input": "子犬を飼う",
+      "matches": []
+    },
+    {
+      "id": "ja3",
+      "input": "昨日寿司を食べた",
+      "matches": [
+        "食べた"
+      ]
+    },
+    {
+      "id": "ja4",
+      "input": "食べる",
+      "matches": []
+    },
+    {
+      "id": "ja5",
+      "input": "コーヒーを飲む",
+      "matches": [
+        "コーヒー"
+      ]
+    },
+    {
+      "id": "ja6",
+      "input": "ｺｰﾋｰ",
+      "matches": [
+        "ｺｰﾋｰ"
+      ]
+    },
+    {
+      "id": "ja7",
+      "input": "いぬ",
+      "matches": []
+    }
+  ]
+}

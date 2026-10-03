@@ -52,8 +52,10 @@ function polyfillContentEditable(window) {
 }
 
 // A jsdom page with `chrome` installed, ready for content scripts.
+// A page for content scripts. A fragment becomes an English page (lang="en"), as most real
+// pages declare their language; pass a whole document to declare another or none.
 export function createPage({ html = "", url = "https://example.com/", chrome } = {}) {
-  const doc = /<html[\s>]/i.test(html) ? html : `<!doctype html><html><head></head><body>${html}</body></html>`;
+  const doc = /<html[\s>]/i.test(html) ? html : `<!doctype html><html lang="en"><head></head><body>${html}</body></html>`;
   const dom = new JSDOM(doc, { url, runScripts: "outside-only", pretendToBeVisual: true });
   polyfillContentEditable(dom.window);
   if (chrome) dom.window.chrome = chrome;
@@ -65,10 +67,26 @@ export function injectContentScripts(dom) {
   for (const rel of manifest().content_scripts[0].js) runInWindow(dom, rel);
 }
 
+// The extension's own files (chrome-extension://<id>/spec/…), served from disk as a browser
+// serves them from the package; anything else goes to `fetch`, the test's network.
+const OWN_FILE = /^(?:chrome|moz)-extension:\/\/[^/]+\/(.+)$/;
+function withOwnFiles(fetch) {
+  return (url, init) => {
+    const own = OWN_FILE.exec(String(url));
+    if (!own) return fetch(url, init);
+    try {
+      return Promise.resolve(new Response(readExt(own[1])));
+    } catch {
+      return Promise.resolve(new Response("", { status: 404 }));
+    }
+  };
+}
+
 // Runs a script in a fresh vm context with the given globals (for background.js).
 // The context gets its own built-ins; timers, fetch and friends come from Node unless
-// overridden, and a fresh, empty IndexedDB (fake-indexeddb) per context. Returns the
-// context, whose properties are the script's globals.
+// overridden (the extension's own files are always served from disk), and a fresh, empty
+// IndexedDB (fake-indexeddb) per context. Returns the context, whose properties are the
+// script's globals.
 export function runInVm(rel, globals = {}) {
   const ctx = vm.createContext({
     console,
@@ -94,6 +112,7 @@ export function runInVm(rel, globals = {}) {
     fetch: () => Promise.reject(new TypeError("fetch is not stubbed in this test")),
     ...globals,
   });
+  ctx.fetch = withOwnFiles(ctx.fetch);
   ctx.self = ctx;
   // importScripts, as in a service worker: paths resolve against the script's folder.
   if (!("importScripts" in globals)) {

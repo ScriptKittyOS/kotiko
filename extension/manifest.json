@@ -11,7 +11,7 @@
     "service_worker": "background.js",
     "scripts": [
       "lib/url.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js", "lib/i18n.js", "lib/badge.js",
-      "spec/spec.js", "lib/lang.js", "lib/words-v1.js", "lib/wordspec.js", "lib/word-merge.js", "lib/store.js",
+      "spec/spec.js", "lib/text.js", "lib/lang.js", "lib/words-v1.js", "lib/wordspec.js", "lib/word-merge.js", "lib/store.js",
       "lib/projection.js", "lib/llm/policy.js", "lib/llm/catalog.js", "lib/llm/client.js", "lib/add-queue.js",
       "lib/refresh-job.js", "lib/local-mode.js", "lib/pkce.js", "lib/celebrations.js", "lib/welcome-model.js",
       "background.js"
@@ -21,7 +21,7 @@
     {
       "matches": ["<all_urls>"],
       "js": [
-        "lib/matcher.js", "lib/controls.js", "lib/i18n.js", "lib/speak.js", "lib/word-card.js",
+        "lib/text.js", "lib/matcher.js", "lib/page-lang.js", "lib/controls.js", "lib/i18n.js", "lib/speak.js", "lib/word-card.js",
         "ui/icons.js", "ui/popover-style.js", "content/popover.js", "content.js"
       ],
       "css": ["content.css"],

@@ -17,7 +17,9 @@ const budgets = JSON.parse(fs.readFileSync(path.join(HERE, "budgets.json"), "utf
 const CI = !!process.env.CI;
 const filter = process.argv[2] ?? "";
 
-const { buildMatcher, matchCase, norm, skipLetter } = requireExt("lib/matcher.js");
+const Text = requireExt("lib/text.js");
+const { buildIndex, scan: scanText, matchCase, skipLetter } = requireExt("lib/matcher.js");
+const BOUNDARIES = JSON.parse(fs.readFileSync(path.join(HERE, "../../spec/lang/_generic/boundaries.json"), "utf8"));
 const { cardFor } = requireExt("lib/word-card.js");
 const { pickVoice } = requireExt("lib/speak.js");
 
@@ -75,39 +77,52 @@ function generateWords(count) {
   const words = [];
   for (let i = 0; i < count; i++) {
     const base = i < COMMON.length ? COMMON[i] : pseudoWord(next, 4, 12);
-    const english = i % 7 === 6 ? `${base} ${pseudoWord(next, 3, 8)}` : base;
-    words.push({
-      id: i + 1,
-      lang: langs[i % langs.length],
-      language: null,
-      native: `w${i}`,
-      romanization: null,
-      english,
-      forms: [english, `${english}s`],
-      note: null,
-    });
+    const gloss = i % 7 === 6 ? `${base} ${pseudoWord(next, 3, 8)}` : base;
+    words.push({ id: i + 1, lang: langs[i % langs.length], native: `w${i}`, base_lang: "en", gloss, forms: [gloss, `${gloss}s`], status: "active" });
   }
   return words;
 }
 
-// The matching half of content.js's swapText, without the DOM: find each match, skip a
+// Japanese pages (slice 14's budget: 100,000 nodes of about 20 characters, 5,000 forms):
+// short sentences of common words and particles, written without spaces. The learner
+// knows the first six words of the page's vocabulary, so a node has a word or two to swap.
+const JA_COMMON = ["犬", "好き", "食べた", "コーヒー", "水", "本", "猫", "です", "時間", "日本", "学校", "先生", "友達", "今日", "明日", "家", "車", "電車", "会社", "仕事", "映画", "音楽", "天気", "新聞", "大学", "病院", "銀行", "部屋", "料理", "旅行"];
+const JA_KNOWN = 6;
+const JA_PARTICLES = ["が", "を", "に", "は", "で", "と", "の", "も"];
+function generateJapanese(count = 100_000) {
+  const next = rng(42);
+  const nodes = [];
+  for (let i = 0; i < count; i++) {
+    let text = "";
+    while (text.length < 20) text += JA_COMMON[Math.floor(next() * JA_COMMON.length)] + JA_PARTICLES[Math.floor(next() * JA_PARTICLES.length)];
+    nodes.push(`${text}。`);
+  }
+  return nodes;
+}
+function generateJapaneseWords(count) {
+  const next = rng(count + 1);
+  const kana = "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわん";
+  const words = JA_COMMON.slice(0, JA_KNOWN).map((f, i) => ({ id: i + 1, lang: "ko", native: `w${i}`, base_lang: "ja", gloss: f, forms: [f], status: "active" }));
+  for (let i = words.length; i < count; i++) {
+    let f = "";
+    for (let n = 2 + Math.floor(next() * 3); n > 0; n--) f += kana[Math.floor(next() * kana.length)];
+    words.push({ id: i + 1, lang: "ko", native: `w${i}`, base_lang: "ja", gloss: f, forms: [f], status: "active" });
+  }
+  return words;
+}
+
+// The matching half of content.js, without the DOM: scan each node in its base, skip a
 // lone capital that is a code, pick the language whose turn it is and case the native word.
-function scan(matcher, nodes) {
-  const { re, map, turns } = matcher;
+function scan(index, nodes) {
+  const turns = new Map();
   let swaps = 0;
   for (const text of nodes) {
-    if (text.length < 2) continue;
-    re.lastIndex = 0;
-    if (!re.test(text)) continue;
-    re.lastIndex = 0;
-    let m;
-    while ((m = re.exec(text))) {
-      const all = map.get(norm(m[0]));
-      if (!all) continue;
-      if (m[0].length === 1 && skipLetter(text, m.index)) continue;
-      const turn = turns.get(all) ?? 0;
-      turns.set(all, turn + 1);
-      matchCase(m[0], all[turn % all.length].native);
+    for (const m of scanText(text, { base: index.base }, index).matches) {
+      if (m.surface.length === 1 && skipLetter(text, m.start)) continue;
+      const all = m.entry.candidates;
+      const turn = turns.get(m.entry) ?? 0;
+      turns.set(m.entry, turn + 1);
+      matchCase(m.surface, all[turn % all.length].word.native);
       swaps++;
     }
   }
@@ -117,15 +132,22 @@ function scan(matcher, nodes) {
 const page = generatePage();
 const pageKb = Math.round(page.reduce((n, t) => n + t.length, 0) / 1024);
 const wordSets = { "1k": generateWords(500), "10k": generateWords(5000) }; // two forms per word
+const build = (words, base) => buildIndex(words, { base, rules: Text.rulesFor(BOUNDARIES, base) });
 
 const benchmarks = {};
 for (const [label, words] of Object.entries(wordSets)) {
-  benchmarks[`matcher.build.${label}`] = () => buildMatcher(words, new Set());
+  benchmarks[`matcher.build.${label}`] = () => `${build(words, "en").size}`;
   benchmarks[`matcher.scan.250kb.${label}`] = {
-    setup: () => buildMatcher(words, new Set()),
-    run: (matcher) => scan(matcher, page),
+    setup: () => build(words, "en"),
+    run: (index) => scan(index, page),
   };
 }
+const jaPage = generateJapanese();
+benchmarks["matcher.build.ja.5k"] = () => `${build(generateJapaneseWords(5000), "ja").size}`;
+benchmarks["matcher.scan.ja.100k-nodes.5k"] = {
+  setup: () => build(generateJapaneseWords(5000), "ja"),
+  run: (index) => scan(index, jaPage),
+};
 
 // The word card (slice 19 §11: opening costs at most ~4 ms) and the voice choice behind its
 // speak button (34): 1,000 cards and 1,000 voice choices, so one open is a thousandth.

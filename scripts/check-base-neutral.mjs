@@ -30,8 +30,6 @@ const ALLOWED_PATHS = [
   // Fixtures that reproduce replies in the old shape, for 09's legacy-key repair.
   "spec/fixtures/",
   "spec/eval/",
-  // Today's matcher falls back to the old field; slice 14 replaces the file.
-  "extension/lib/matcher.js",
 ];
 
 // Identifiers: lowercase "english" starting a word (english, english_forms, .english,

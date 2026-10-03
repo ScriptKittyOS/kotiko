@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
-// content.js in jsdom, loaded the way the manifest injects it (lib/matcher.js and
-// lib/controls.js first).
+// content.js in jsdom, loaded the way the manifest injects it (lib/text.js, lib/matcher.js,
+// lib/page-lang.js and lib/controls.js first). Pages declare lang="en" unless a test says
+// otherwise; `detect` stands in for the browser's language detector.
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { createFakeChrome } from "../helpers/fake-chrome.mjs";
@@ -30,12 +31,14 @@ const WORDS = [
 
 const FLUSH_MS = 300; // content.js batches page mutations for 250 ms
 
-async function load(html, { words = WORDS, url = "https://example.com/", beforeInject, ...local } = {}) {
+async function load(html, { words = WORDS, url = "https://example.com/", beforeInject, lang = "en", detect = null, ...local } = {}) {
   const fake = createFakeChrome({
     local: { words, enabled: true, pausedHosts: [], hiddenLangs: [], ...local },
     onSendMessage: () => ({ ok: true }),
   });
-  const dom = createPage({ html, url, chrome: fake.chrome });
+  fake.chrome.i18n = { detectLanguage: async (text) => (detect ? detect(text) : { isReliable: false, languages: [] }) };
+  const page = /<html[\s>]/i.test(html) ? html : `<!doctype html><html${lang ? ` lang="${lang}"` : ""}><head></head><body>${html}</body></html>`;
+  const dom = createPage({ html: page, url, chrome: fake.chrome });
   beforeInject?.(dom);
   injectContentScripts(dom);
   await fake.idle();
@@ -404,5 +407,79 @@ describe("node identity (slice 15)", () => {
     assert.equal(b.isConnected, true);
     b.nodeValue = "Alice";
     assert.match(r.textContent, /^Hello Alice, nice /);
+  });
+});
+
+// Slices 50 and 16: Kotiko swaps words only in the languages the learner reads, each part of
+// the page with its own language's words.
+describe("pages in the learner's languages", () => {
+  const w = (native, lang, base, forms) => ({ id: nextId++, lang, native, base_lang: base, gloss: forms[0], forms, status: "active" });
+  const ES = [w("犬", "ja", "es", ["perro", "perros"]), w("house", "en", "es", ["casa"])];
+  const EN = [w("perro", "es", "en", ["dog"])];
+  const sure = (language, percentage = 95) => () => ({ isReliable: true, languages: [{ language, percentage }] });
+  const POPUP = { id: "fake-extension-id", url: "chrome-extension://fake-extension-id/popup.html" };
+
+  test("a Spanish reader's Spanish page is swapped; an English page is left alone", async () => {
+    const es = await load(`<p id="p">¿Tienes un perro en casa?</p>`, { lang: "es", words: ES, baseLangs: ["es"] });
+    assert.equal(es.$("p").textContent, "¿Tienes un 犬 en house?");
+    const en = await load(`<p id="p">The perro is a Spanish word.</p>`, { lang: "en", words: ES, baseLangs: ["es"] });
+    assert.equal(en.$("p").textContent, "The perro is a Spanish word.");
+  });
+
+  test("a page whose template says English but is surely Spanish is read as Spanish", async () => {
+    const { $ } = await load(`<p id="p">Mi perro duerme en la casa.</p>`, { lang: "en", words: ES, baseLangs: ["es"], detect: sure("es") });
+    assert.equal($("p").textContent, "Mi 犬 duerme en la house.");
+  });
+
+  test("an undeclared page goes by detection", async () => {
+    const yes = await load(`<p id="p">Mi perro duerme.</p>`, { lang: null, words: ES, baseLangs: ["es"], detect: sure("es", 70) });
+    assert.equal(yes.$("p").textContent, "Mi 犬 duerme.");
+    const no = await load(`<p id="p">Mein perro schläft.</p>`, { lang: null, words: ES, baseLangs: ["es"], detect: sure("de", 90) });
+    assert.equal(no.$("p").textContent, "Mein perro schläft.");
+  });
+
+  test("a short undeclared page goes by its common words", async () => {
+    const baseRules = { es: { boundaries: { spaces: true }, stopwords: ["mi", "en", "la", "el"] } };
+    const yes = await load(`<p id="p">Mi perro en la casa</p>`, { lang: null, words: ES, baseLangs: ["es"], baseRules });
+    assert.equal(yes.$("p").textContent, "Mi 犬 en la house");
+    const no = await load(`<p id="p">Mi perro en la casa</p>`, { lang: null, words: ES, baseLangs: ["es"] });
+    assert.equal(no.$("p").textContent, "Mi perro en la casa", "no common words to go by");
+  });
+
+  test("a bilingual reader gets each part of the page in its own language", async () => {
+    const { $ } = await load(`<p id="p">Dijo que su perro <q id="q" lang="en">is a good dog</q>.</p>`, { lang: "es", words: [...ES, ...EN], baseLangs: ["es", "en"] });
+    assert.equal($("q").textContent, "is a good perro");
+    assert.equal($("p").textContent, "Dijo que su 犬 is a good perro.");
+  });
+
+  test("a quote in a language the learner doesn't read is left alone", async () => {
+    const { $ } = await load(`<p id="p">A dog said <i id="i" lang="de">dog ist ein Wort</i>.</p>`, { words: EN, baseLangs: ["en"] });
+    assert.equal($("i").textContent, "dog ist ein Wort");
+    assert.equal($("p").textContent, "A perro said dog ist ein Wort.");
+  });
+
+  test("Japanese, written without spaces", async () => {
+    const JA = [w("개", "ko", "ja", ["犬"]), w("like", "en", "ja", ["好き"])];
+    const { $ } = await load(`<p id="p">犬が好きです。子犬も。</p>`, { lang: "ja", words: JA, baseLangs: ["ja"] });
+    assert.equal($("p").textContent, "개がlikeです。子犬も。");
+  });
+
+  test("the popup can ask what Kotiko made of the page", async () => {
+    const es = await load(`<p>Mi perro</p>`, { lang: "es", words: ES, baseLangs: ["es"] });
+    assert.deepEqual(await es.fake.deliver({ type: "page-status" }, POPUP), { base: "es", reason: "declared", lang: "es", words: 3 });
+    const de = await load(`<p>Mein Hund</p>`, { lang: "de", words: ES, baseLangs: ["es"] });
+    assert.deepEqual(await de.fake.deliver({ type: "page-status" }, POPUP), { base: null, reason: "declared_other", lang: "de", words: 0 });
+    assert.equal(await de.fake.deliver({ type: "page-status" }), undefined, "never to another tab's content script");
+  });
+
+  test("changing the learner's languages judges the page again", async () => {
+    const { $, set } = await load(`<p id="p">Mi perro duerme.</p>`, { lang: "es", words: [...ES, ...EN], baseLangs: ["en"] });
+    assert.equal($("p").textContent, "Mi perro duerme.");
+    await set({ baseLangs: ["es"] });
+    await sleep(5); // the page is judged again (an async language check) before the swap
+    assert.equal($("p").textContent, "Mi 犬 duerme.");
+    await set({ baseLangs: ["en"] });
+    await sleep(5);
+    assert.equal($("p").textContent, "Mi perro duerme.");
   });
 });

@@ -1,0 +1,22 @@
+{
+  "base": "tr",
+  "note": "Keys lowercase with Turkish rules.",
+  "words": [
+    {
+      "native": "Istanbul",
+      "lang": "en",
+      "forms": [
+        "istanbul"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "id": "tr1",
+      "input": "İSTANBUL güzel",
+      "matches": [
+        "İSTANBUL"
+      ]
+    }
+  ]
+}

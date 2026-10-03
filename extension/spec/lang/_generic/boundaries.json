@@ -1,0 +1,41 @@
+{
+  "default": {
+    "spaces": true,
+    "join": ["hyphen", "invisible"],
+    "possessive_suffix": null,
+    "possessive_whole_after": [],
+    "elision_prefixes": [],
+    "keep_whole": [],
+    "trailing_apostrophe_words": [],
+    "sentence_openers": [],
+    "fold": [],
+    "lower_locale": false
+  },
+  "en": {
+    "join": ["apostrophe", "hyphen", "invisible"],
+    "possessive_suffix": "'s",
+    "possessive_whole_after": ["it", "he", "she", "that", "what", "there", "here", "who", "where", "how", "let"]
+  },
+  "es": { "sentence_openers": ["¿", "¡"] },
+  "ca": {
+    "elision_prefixes": ["l'", "d'", "s'", "m'", "t'", "n'"],
+    "keep_whole": ["d'acord"]
+  },
+  "fr": {
+    "elision_prefixes": ["l'", "d'", "j'", "m'", "n'", "s'", "t'", "c'", "qu'", "jusqu'", "lorsqu'", "puisqu'", "quoiqu'"],
+    "keep_whole": ["aujourd'hui", "d'accord", "quelqu'un", "presqu'île", "prud'homme"]
+  },
+  "it": {
+    "elision_prefixes": ["l'", "un'", "dell'", "dall'", "nell'", "sull'", "all'", "quest'", "quell'", "c'", "d'"],
+    "trailing_apostrophe_words": ["po'", "piu'", "perche'"]
+  },
+  "ja": { "spaces": false, "fold": ["width"] },
+  "zh": { "spaces": false, "fold": ["width"] },
+  "th": { "spaces": false },
+  "lo": { "spaces": false },
+  "km": { "spaces": false },
+  "my": { "spaces": false },
+  "tr": { "lower_locale": true },
+  "az": { "lower_locale": true },
+  "lt": { "lower_locale": true }
+}

@@ -13,13 +13,16 @@ import { stubSpeech, voiceLists } from "../helpers/speech-stub.mjs";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Stores the words and the connection directly (the popup's own flow is covered in
-// smoke.spec.mjs); the page's sync then finds the same list on the fake server.
+// smoke.spec.mjs); the page's sync then finds the same list on the fake server. The
+// learner reads English and Spanish (slice 50's setting), as their words' meanings say.
 async function setup({ server, serviceWorker }, extra = {}) {
   await server.control({ words: POPOVER_WORDS });
-  await serviceWorker.evaluate(
-    (o) => chrome.storage.local.set({ serverUrl: o.url, token: o.token, words: o.words, enabled: true, lastSync: Date.now(), ...o.extra }),
-    { url: server.kotikoUrl, token: server.token, words: POPOVER_WORDS, extra },
-  );
+  await serviceWorker.evaluate(async (o) => {
+    await chrome.storage.sync.set({ ui: { uiLang: "auto", baseLangs: ["en", "es"], baseLangsConfirmed: true } });
+    await chrome.storage.local.set({ serverUrl: o.url, token: o.token, words: o.words, enabled: true, lastSync: Date.now(), ...o.extra });
+  }, { url: server.kotikoUrl, token: server.token, words: POPOVER_WORDS, extra });
+  // The background writes the rules for both languages for content scripts to read.
+  await expect.poll(() => serviceWorker.evaluate(async () => Object.keys((await chrome.storage.local.get("baseRules")).baseRules ?? {}).join())).toBe("en,es");
 }
 
 async function openPage(context, server, name = "popover-light.html") {

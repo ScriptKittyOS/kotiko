@@ -13,7 +13,7 @@
 if (!globalThis.SyncController && typeof importScripts === "function") {
   importScripts(
     "lib/url.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js", "lib/i18n.js", "lib/badge.js",
-    "spec/spec.js", "lib/lang.js", "lib/words-v1.js", "lib/wordspec.js", "lib/word-merge.js", "lib/store.js",
+    "spec/spec.js", "lib/text.js", "lib/lang.js", "lib/words-v1.js", "lib/wordspec.js", "lib/word-merge.js", "lib/store.js",
     "lib/projection.js", "lib/llm/policy.js", "lib/llm/catalog.js", "lib/llm/client.js", "lib/add-queue.js",
     "lib/refresh-job.js", "lib/local-mode.js", "lib/pkce.js", "lib/celebrations.js", "lib/welcome-model.js",
   );
@@ -122,6 +122,41 @@ async function currentBases() {
   const { baseLangs } = await ext.storage.local.get({ baseLangs: null });
   if (Array.isArray(baseLangs) && baseLangs.length) return baseLangs.slice(0, 4);
   return Local.detectBases(uiLanguage());
+}
+
+// What content scripts need to read pages in the learner's languages (slice 50 section 5):
+// each base's word-boundary rules and its common words (for telling languages apart, 16),
+// written to storage.local as `baseRules` when the bases change and after an update. The
+// common words are the base's own list, else the imported stopwords-iso list, about 200 KB
+// that only this worker reads.
+let stopwordsP = null;
+function importedStopwords() {
+  stopwordsP ??= fetch(ext.runtime.getURL("spec/lang/_generic/stopwords.json"))
+    .then((r) => r.json())
+    .catch(() => {
+      stopwordsP = null;
+      return {};
+    });
+  return stopwordsP;
+}
+
+async function mirrorBaseRules({ force = false } = {}) {
+  const Text = globalThis.KotikoText;
+  const spec = globalThis.KOTIKO_SPEC;
+  const bases = await currentBases();
+  const stamp = `${ext.runtime.getManifest?.().version ?? ""}|${spec?.version ?? ""}|${bases.join(",")}`;
+  const { baseRulesFor } = await ext.storage.local.get({ baseRulesFor: null });
+  if (!force && baseRulesFor === stamp) return;
+  const imported = await importedStopwords();
+  const out = {};
+  for (const b of bases) {
+    const own = spec?.lang?.[b]?.stopwords ?? spec?.lang?.[Text.primary(b)]?.stopwords;
+    out[b] = {
+      boundaries: Text.rulesFor(spec?.lang?._generic?.boundaries, b),
+      stopwords: own?.length ? own : imported[b] ?? imported[Text.primary(b)] ?? [],
+    };
+  }
+  await ext.storage.local.set({ baseRules: out, baseRulesFor: stamp });
 }
 
 // ── the server connection ───────────────────────────────────────────────────
@@ -446,6 +481,7 @@ function ensureAlarm() {
     .catch(() => {});
 }
 ensureAlarm();
+mirrorBaseRules().catch(() => {});
 
 // Slice 08: languages hidden under an old code stay hidden under the canonical one, so a
 // hidden "cmn" is a hidden "zh" once the server re-tags its words.
@@ -606,6 +642,7 @@ function onInstalled(details) {
   }
   if (details?.reason === "install") firstInstall().catch((e) => console.warn("Kotiko couldn't open the welcome tab:", e?.message ?? e));
   ensureAlarm();
+  mirrorBaseRules({ force: true }).catch(() => {});
   ready().catch(() => {}).finally(() => requestSync({ reason: "installed" }));
 }
 ext.runtime.onInstalled.addListener(onInstalled);
@@ -952,7 +989,10 @@ async function adoptLegacy() {
 }
 
 ext.storage.onChanged.addListener((changes, area) => {
-  if (area === "sync" && changes.ui) projector.schedule();
+  if (area === "sync" && changes.ui) {
+    projector.schedule();
+    mirrorBaseRules().catch(() => {});
+  }
   if (area !== "local") return;
   if (changes.token?.newValue !== undefined || changes.serverUrl?.newValue !== undefined) {
     sync.credentialsChanged();
@@ -962,6 +1002,7 @@ ext.storage.onChanged.addListener((changes, area) => {
   if (changes.baseLangs && JSON.stringify(changes.baseLangs.newValue) !== lastBases) {
     lastBases = JSON.stringify(changes.baseLangs.newValue);
     projector.schedule();
+    mirrorBaseRules().catch(() => {});
   }
   if (changes.wordsHome && changes.wordsHome.newValue === "local") projector.schedule();
   if (Array.isArray(changes.words?.newValue) && changes.words.newValue.length) noteFirstWord();
@@ -1007,4 +1048,4 @@ ext.storage.onChanged.addListener((changes, area) => {
 updateAllBadges();
 
 // For tests: the parts a test drives directly.
-globalThis.__kotiko = { ready, getStore, queue, refresh, projector, client, settings, currentBases, toServer, toLocal, openWelcome, claimMilestone, onInstalled };
+globalThis.__kotiko = { ready, getStore, queue, refresh, projector, client, settings, currentBases, mirrorBaseRules, toServer, toLocal, openWelcome, claimMilestone, onInstalled };

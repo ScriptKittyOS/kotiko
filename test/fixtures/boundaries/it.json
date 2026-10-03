@@ -1,0 +1,49 @@
+{
+  "base": "it",
+  "words": [
+    {
+      "native": "water",
+      "lang": "en",
+      "forms": [
+        "acqua"
+      ]
+    },
+    {
+      "native": "friend",
+      "lang": "en",
+      "forms": [
+        "amica"
+      ]
+    },
+    {
+      "native": "a little",
+      "lang": "en",
+      "forms": [
+        "un po'"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "id": "it1",
+      "input": "un bicchiere dell'acqua",
+      "matches": [
+        "acqua"
+      ]
+    },
+    {
+      "id": "it2",
+      "input": "un'amica",
+      "matches": [
+        "amica"
+      ]
+    },
+    {
+      "id": "it3",
+      "input": "un po' di pane",
+      "matches": [
+        "un po'"
+      ]
+    }
+  ]
+}

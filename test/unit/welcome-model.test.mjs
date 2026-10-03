@@ -16,6 +16,7 @@ import { validate } from "../helpers/json-schema.mjs";
 const L = loadLocalLibs();
 const { Lang, Local, spec } = L;
 const M = requireExt("lib/welcome-model.js");
+requireExt("lib/text.js");
 const Matcher = requireExt("lib/matcher.js");
 const plain = (v) => JSON.parse(JSON.stringify(v));
 const entry = (text, bases = ["en"]) => M.parseEntry(text, { bases, Lang, Local, spec });

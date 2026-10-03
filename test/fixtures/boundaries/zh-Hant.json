@@ -1,0 +1,21 @@
+{
+  "base": "zh-Hant",
+  "words": [
+    {
+      "native": "like",
+      "lang": "en",
+      "forms": [
+        "喜歡"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "id": "zh3",
+      "input": "我喜歡狗",
+      "matches": [
+        "喜歡"
+      ]
+    }
+  ]
+}
