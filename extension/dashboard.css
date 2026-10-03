@@ -1808,6 +1808,93 @@ kbd {
   color: var(--ink-2);
 }
 
+/* Word lookups (slice 11): the saved key, masked, with Replace and Remove; the key entry
+   with its Save button inside the field; the provider's one-line note. */
+.key-saved {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 44px;
+  padding: 0 var(--s-2) 0 var(--s-5);
+  border-radius: var(--r-md);
+  background: var(--sunken);
+}
+
+.key-masked {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.key-code {
+  font-family: var(--font-mono);
+  font-size: 0.9375em;
+}
+
+/* Nine choices read as a compact grid on wide screens. */
+@media (min-width: 720px) {
+  #providerOptions {
+    grid-template-columns: 1fr 1fr;
+    column-gap: var(--s-4);
+  }
+}
+
+#lookupKeyEntry .field {
+  padding-inline-end: 112px;
+}
+
+#saveKey {
+  position: absolute;
+  inset-block-start: 6px;
+  inset-inline-end: 6px;
+}
+
+#providerNote {
+  margin-block-start: var(--s-2);
+  overflow-wrap: anywhere;
+}
+
+#lookupKeyHelp .link {
+  white-space: nowrap;
+}
+
+#lookupTestRow {
+  align-items: center;
+}
+
+/* Where the words live, and the confirmation before moving them (slice 11 §6). */
+.words-home {
+  gap: var(--s-3);
+  padding-block-start: var(--s-5);
+  border-block-start: 1px solid var(--divider);
+}
+
+.words-home > .btn {
+  justify-self: start;
+}
+
+.move-box {
+  display: grid;
+  gap: var(--s-4);
+  padding: var(--s-5);
+  border-radius: var(--r-md);
+  background: var(--sunken);
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 32px;
+}
+
+.check-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+}
+
 .radio-list {
   display: grid;
   gap: var(--s-1);

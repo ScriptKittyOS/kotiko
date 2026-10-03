@@ -7,9 +7,10 @@
 // settings hub. Every string comes from _locales through KotikoI18n; word data is only
 // ever set as text.
 //
-// Data goes through lib/word-source.js (today the server's /api/v1 via the background;
-// slice 11 swaps in the extension's own store). Pure rules are in lib/dashboard-model.js,
-// search in lib/word-search.js.
+// Data goes through lib/word-source.js: the background answers from the extension's own
+// store when words live in this browser, or from the server's /api/v1 (slice 11). Pure
+// rules are in lib/dashboard-model.js, search in lib/word-search.js. The settings hold
+// slice 11's Word lookups (the learner's own AI and key) and the words' home.
 (() => {
   const ext = globalThis.browser ?? globalThis.chrome;
   const I18n = globalThis.KotikoI18n;
@@ -35,9 +36,16 @@
   const MAX_ADD_JOBS = 6;
   const CONFIRM_AT = 4; // 24 §2: four or more words from one add are confirmed first
 
+  const DEFAULT_SERVER = "http://localhost:4747";
   const LOCAL_DEFAULTS = {
-    serverUrl: "http://localhost:4747",
+    // Kept here before slice 11; the background moves them into its store at once.
+    serverUrl: null,
     token: "",
+    // Slice 11: where words live, who looks them up, which secrets exist (no key material).
+    wordsHome: null,
+    lookup: null,
+    server: null,
+    keys: null,
     hiddenLangs: [],
     lastSync: null,
     syncError: null,
@@ -76,6 +84,12 @@
     addJobs: [],
     hint: null, // language hint for the add box ("Start a language")
     lookupStatus: null, // the server's free lookups left today (slice 10)
+    backend: null, // backend.get: presets and settings (slice 11)
+    masked: {}, // secrets.describe: "sk-or-…a1b2" per secret id
+    replacing: false,
+    testing: false,
+    lookupTest: null,
+    move: null, // {to, count, server, busy, error}
   };
 
   const index = Search.createIndex();
@@ -110,6 +124,21 @@
   const isTyping = (node) =>
     node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement || node?.isContentEditable === true;
   const send = (msg) => Promise.resolve().then(() => ext.runtime.sendMessage(msg));
+
+  // Slice 11: where words live and whether new ones can be looked up.
+  const legacyToken = (s) => !!String(s?.token ?? "").trim();
+  const mode = (s) => s?.wordsHome ?? (legacyToken(s) ? "server" : "local");
+  const serverKey = (s) => s?.keys?.server === true || legacyToken(s);
+  const hasToken = (s) => mode(s) === "server" && serverKey(s);
+  const lookupKind = (s) => s?.lookup?.kind ?? (legacyToken(s) ? "server" : "none");
+  const preset = (id) => state.backend?.providers?.find((p) => p.id === id) ?? null;
+  function lookupReady(s) {
+    const kind = lookupKind(s);
+    if (kind === "server") return serverKey(s);
+    if (kind !== "provider") return false;
+    const p = preset(s.lookup.provider);
+    return p ? !p.keyRequired || s.keys?.providers?.[p.id] === true : s.keys?.providers?.[s.lookup.provider] === true;
+  }
 
   // Sets matched letters in weight 600 (§4), not by color alone.
   function highlighted(text, query, lang) {
@@ -498,7 +527,7 @@
         return invalidText(d.reason ?? null, field ?? d.field);
       default: {
         // A failed lookup (slice 10's codes).
-        const lookup = LookupStatus.lookupProblem(code, d, { locale: I18n.locale() });
+        const lookup = LookupStatus.lookupProblem(code, d, { locale: I18n.locale(), local: lookupKind(state.s) !== "server" });
         return lookup ? t(lookup.key, lookup.params) : t("error_internal");
       }
     }
@@ -536,7 +565,12 @@
 
   function currentBanner() {
     const s = state.s;
-    if (!String(s.token ?? "").trim()) {
+    // Words in this browser: no server to be connected to; say when no AI is set up.
+    if (mode(s) === "local") {
+      if (state.loadError) return { severity: "state", text: problemText(state.loadError), action: { label: t("error_try_again_action"), run: () => tryAgain() } };
+      return lookupReady(s) ? null : { severity: "info", text: t("dash_lookups_off_banner"), action: { label: t("popup_set_up_lookups"), run: () => go("#settings/lookups") } };
+    }
+    if (!hasToken(s)) {
       return { severity: "info", text: t("dash_not_connected"), action: { label: t("error_connection_settings_action"), run: () => go("#settings/connection") } };
     }
     if (!state.online) return { severity: "info", text: t("dash_offline") };
@@ -769,7 +803,7 @@
 
   async function onRefreshAction() {
     const action = $("refreshAction").dataset.action;
-    if (action === "setup") return go("#settings/connection");
+    if (action === "setup") return go(mode(state.s) === "local" ? "#settings/lookups" : "#settings/connection");
     try {
       state.job = await source.refreshJob(action);
     } catch (e) {
@@ -2202,6 +2236,7 @@
 
   const SETTINGS_SECTIONS = [
     ["language", "dash_set_ui_lang"],
+    ["lookups", "dash_set_lookups"],
     ["connection", "dash_set_connection"],
     ["voices", "settings_voices"],
     ["appearance", "dash_set_appearance"],
@@ -2216,9 +2251,11 @@
       "aria-current": state.route.section === id ? "true" : null,
     }, t(key)))));
     renderUiLang();
+    renderLookups();
     renderConnection();
     renderConnStatus();
-    if (String(state.s.token ?? "").trim()) refreshQuota();
+    renderWordsHome();
+    if (lookupReady(state.s)) refreshQuota();
     $("onlineVoices").setAttribute("aria-checked", String(state.s.speech?.allowOnline === true));
     renderSegmented($("themeOptions"), [["system", "dash_theme_system"], ["light", "dash_theme_light"], ["dark", "dash_theme_dark"]], state.s.prefs?.theme ?? "system", (v) => setPref("theme", v));
     renderSegmented($("motionOptions"), [["system", "dash_motion_system"], ["reduce", "dash_motion_on"]], state.s.prefs?.motion ?? "system", (v) => setPref("motion", v));
@@ -2245,8 +2282,9 @@
     renderRadios(box, options, current, (v) => setUiLang(v));
   }
 
-  // A radio group with arrow keys that apply at once (27 §3).
-  function renderRadios(box, options, current, onPick, cls = "radio") {
+  // A radio group with arrow keys that apply at once (27 §3). Options of the interface
+  // language carry their `lang`; others (providers) don't.
+  function renderRadios(box, options, current, onPick, cls = "radio", { langs = box.id === "uiLangOptions" } = {}) {
     const focused = box.contains(document.activeElement);
     const items = options.map(([value, label]) => el("button", {
       class: cls,
@@ -2255,7 +2293,7 @@
       "aria-checked": String(value === current),
       tabindex: value === current ? "0" : "-1",
       "data-value": value,
-      lang: cls === "radio" && value !== "auto" ? value : null,
+      lang: langs && cls === "radio" && value !== "auto" ? value : null,
       onclick: () => onPick(value),
     }, cls === "radio" ? el("span", { class: "radio-dot", "aria-hidden": "true" }) : null, el("span", {}, label)));
     box.replaceChildren(...items);
@@ -2310,25 +2348,261 @@
   }
 
   function renderConnection() {
-    for (const [id, value] of [["serverUrl", state.s.serverUrl], ["accessKey", state.s.token]]) {
-      const input = $(id);
-      if (document.activeElement === input || dirty.has(id)) continue;
-      input.value = value ?? "";
-    }
+    const url = $("serverUrl");
+    if (document.activeElement !== url && !dirty.has("serverUrl")) url.value = state.s.server?.url ?? state.s.serverUrl ?? "";
+    // The token is never read back (slice 11 §3): a saved one shows only masked.
+    $("accessKey").placeholder = state.masked.server ? t("settings_key_saved", { masked: state.masked.server }) : "";
   }
 
+  // The address and token go to the background, which keeps the token where pages can't
+  // read it. With words kept in this browser, connecting doesn't move them: the learner
+  // sees the count first (the words' home, below).
   async function saveConnection(id) {
     dirty.delete(id);
     const value = $(id).value.trim();
-    const key = id === "serverUrl" ? "serverUrl" : "token";
-    const next = key === "serverUrl" ? value || LOCAL_DEFAULTS.serverUrl : value;
-    if (next === (state.s[key] ?? "")) return;
-    state.s[key] = next;
+    const msg = { type: "server.connect" };
+    if (id === "serverUrl") {
+      msg.url = value || DEFAULT_SERVER;
+      if (msg.url === (state.s.server?.url ?? state.s.serverUrl ?? DEFAULT_SERVER)) return;
+    } else {
+      if (!value) return;
+      msg.token = value;
+    }
     state.checking = true;
     renderConnStatus();
-    await ext.storage.local.set({ [key]: next });
+    const res = await send(msg).catch((e) => ({ error: String(e?.message ?? e) }));
+    if (id === "accessKey") $("accessKey").value = "";
     flashConnSaved();
+    await refreshBackend();
+    if (res?.needsSwitch) {
+      state.checking = false;
+      renderSettings();
+      return openMove("server");
+    }
     await checkConnection();
+  }
+
+  // Settings and masked secrets from the background (slice 11).
+  async function refreshBackend() {
+    const [b, d] = await Promise.all([send({ type: "backend.get" }).catch(() => null), send({ type: "secrets.describe" }).catch(() => null)]);
+    if (b && !b.error) {
+      state.backend = b;
+      Object.assign(state.s, { wordsHome: b.wordsHome, lookup: b.lookup, server: b.server, keys: b.keys });
+    }
+    if (d && !d.error) state.masked = d.secrets ?? {};
+  }
+
+  // --- Word lookups (slice 11 §4) -------------------------------------------------------
+
+  const NOTES = {
+    openrouter: "dash_note_openrouter",
+    openai: "dash_note_openai",
+    anthropic: "dash_note_anthropic",
+    gemini: "dash_note_gemini",
+    groq: "dash_note_groq",
+    ollama: "dash_note_ollama",
+    lmstudio: "dash_note_lmstudio",
+    custom: "dash_note_custom",
+  };
+
+  const providerName = (p) => (p.id === "custom" ? t("dash_provider_custom") : p.label);
+
+  function renderLookups() {
+    const s = state.s;
+    const kind = lookupKind(s);
+    const p = kind === "provider" ? preset(s.lookup.provider) : null;
+    const options = (state.backend?.providers ?? []).map((x) => [x.id, x.free && !x.local ? t("dash_provider_free", { name: x.label }) : x.beta ? t("dash_provider_beta", { name: x.label }) : providerName(x)]);
+    if (serverKey(s) || kind === "server") options.push(["server", t("dash_lookup_server")]);
+    options.push(["none", t("dash_lookup_none")]);
+    renderRadios($("providerOptions"), options, kind === "provider" ? s.lookup.provider : kind, pickProvider);
+
+    $("providerNote").hidden = !p;
+    $("providerNote").textContent = p ? t(NOTES[p.id] ?? "dash_note_custom") : "";
+    const masked = p ? state.masked[`provider:${p.id}`] : null;
+    const wantsKey = !!p && (p.keyRequired || p.id === "custom");
+    $("lookupKeyField").hidden = !wantsKey;
+    if (wantsKey) {
+      $("lookupKeyLabel").textContent = p.id === "custom" ? t("dash_key_label_custom") : t("dash_key_label", { provider: providerName(p) });
+      $("lookupKeySaved").hidden = !masked || state.replacing;
+      $("lookupKeyMasked").replaceChildren(...(masked ? I18n.parts("dash_key_saved_as", { masked: el("code", { class: "key-code", dir: "ltr" }, masked) }) : []));
+      $("lookupKeyEntry").hidden = !!masked && !state.replacing;
+      $("getKey").hidden = !p.keyUrl;
+      if (p.keyUrl) $("getKey").href = p.keyUrl;
+    }
+    $("noKeyNeeded").hidden = !(p && !p.keyRequired && p.local);
+    $("baseUrlField").hidden = !(p && (p.local || p.id === "custom"));
+    const baseUrl = $("lookupBaseUrl");
+    if (p && document.activeElement !== baseUrl && !dirty.has("lookupBaseUrl")) {
+      baseUrl.value = s.lookup.baseUrl ?? p.baseUrl ?? "";
+      baseUrl.placeholder = p.baseUrl ?? "https://…/v1";
+    }
+    $("modelField").hidden = !p;
+    const model = $("lookupModel");
+    if (p && document.activeElement !== model && !dirty.has("lookupModel")) model.value = s.lookup.model ?? "";
+    $("dataCollectionRow").hidden = p?.id !== "openrouter";
+    $("dataCollection").setAttribute("aria-checked", String(s.lookup?.dataCollection === "deny"));
+    $("lookupTestRow").hidden = kind === "none" || !lookupReady(s);
+    // Only OpenRouter's free models have a daily count a test uses up.
+    $("lookupTestNote").hidden = p?.id !== "openrouter";
+    renderLookupState();
+  }
+
+  function renderLookupState() {
+    const box = $("lookupState");
+    const s = state.s;
+    const kind = lookupKind(s);
+    if (state.testing) return box.replaceChildren(el("p", { class: "conn-note" }, t("dash_lookup_testing")));
+    const r = state.lookupTest;
+    if (r && r.ok) {
+      const seconds = I18n.formatNumber(Math.max(0.1, Math.round((r.ms ?? 0) / 100) / 10));
+      return box.replaceChildren(el("p", { class: "conn-ok" }, icon("success", 18), el("span", {}, t("dash_lookup_test_ok", { model: r.model ?? r.provider ?? "", seconds }))));
+    }
+    if (r && (r.error || r.code)) {
+      return box.replaceChildren(el("p", { class: "conn-bad" }, icon("error", 18), el("span", {}, problemText(r.code ? r : { code: r.error?.code, details: r.error?.details }))));
+    }
+    if (kind === "none") return box.replaceChildren(el("p", { class: "conn-note" }, t("dash_lookup_off")));
+    if (!lookupReady(s)) return box.replaceChildren(el("p", { class: "conn-note" }, t("dash_lookup_needs_key")));
+    const q = state.lookupStatus?.quota;
+    const left = q && typeof q.remaining === "number" && typeof q.limit === "number" ? el("p", { class: "conn-note" }, t("dash_set_lookups_left", { count: q.remaining, limit: q.limit })) : "";
+    box.replaceChildren(el("p", { class: "conn-ok" }, icon("success", 18), el("span", {}, t("dash_lookup_ready"))), left);
+  }
+
+  async function setLookup(patch) {
+    state.lookupTest = null;
+    state.s.lookup = { ...(state.s.lookup ?? {}), ...patch };
+    renderLookups();
+    renderBanners();
+    const res = await send({ type: "backend.set", lookup: patch }).catch((e) => ({ error: String(e?.message ?? e), code: "internal" }));
+    if (res?.error) state.lookupTest = res;
+    else if (res?.lookup) state.s.lookup = res.lookup;
+    renderLookups();
+    renderBanners();
+    renderQuota();
+  }
+
+  function pickProvider(value) {
+    state.replacing = false;
+    if (value === "none" || value === "server") return setLookup({ kind: value });
+    return setLookup({ kind: "provider", provider: value, baseUrl: null, model: null });
+  }
+
+  async function saveKey() {
+    const p = preset(state.s.lookup?.provider);
+    const value = $("lookupKey").value.trim();
+    if (!p || !value) return;
+    const res = await send({ type: "secrets.set", id: `provider:${p.id}`, value }).catch((e) => ({ error: String(e?.message ?? e), code: "internal" }));
+    $("lookupKey").value = "";
+    if (res?.error) {
+      state.lookupTest = res;
+      return renderLookups();
+    }
+    state.masked[`provider:${p.id}`] = res.masked;
+    state.s.keys = { ...(state.s.keys ?? {}), providers: { ...(state.s.keys?.providers ?? {}), [p.id]: true } };
+    state.replacing = false;
+    state.lookupTest = null;
+    toast({ text: t("dash_set_saved") });
+    renderLookups();
+    renderBanners();
+    refreshQuota();
+  }
+
+  async function removeKey() {
+    const p = preset(state.s.lookup?.provider);
+    if (!p) return;
+    await send({ type: "secrets.remove", id: `provider:${p.id}` }).catch(() => null);
+    delete state.masked[`provider:${p.id}`];
+    state.s.keys = { ...(state.s.keys ?? {}), providers: { ...(state.s.keys?.providers ?? {}), [p.id]: false } };
+    state.lookupTest = null;
+    toast({ text: t("dash_key_removed") });
+    renderLookups();
+    renderBanners();
+    $("lookupKey").focus();
+  }
+
+  async function testLookup() {
+    state.testing = true;
+    state.lookupTest = null;
+    renderLookupState();
+    const res = await send({ type: "backend.test" }).catch((e) => ({ error: String(e?.message ?? e), code: "internal" }));
+    state.testing = false;
+    state.lookupTest = res ?? { code: "internal" };
+    if (res?.quota) state.lookupStatus = { ...(state.lookupStatus ?? {}), quota: res.quota };
+    renderLookupState();
+  }
+
+  function saveLookupField(id) {
+    dirty.delete(id);
+    const value = $(id).value.trim() || null;
+    const key = id === "lookupBaseUrl" ? "baseUrl" : "model";
+    const p = preset(state.s.lookup?.provider);
+    const current = state.s.lookup?.[key] ?? (key === "baseUrl" ? p?.baseUrl ?? null : null);
+    if (value === current) return;
+    return setLookup({ [key]: key === "baseUrl" && value === p?.baseUrl ? null : value });
+  }
+
+  // --- The words' home (slice 11 §6): moving words between this browser and a server ------
+
+  function renderWordsHome() {
+    const local = mode(state.s) === "local";
+    $("wordsHomeText").textContent = t(local ? "dash_home_local" : "dash_home_server");
+    const btn = $("moveWords");
+    btn.textContent = t(local ? "dash_move_to_server" : "dash_move_to_local");
+    btn.hidden = (local && !serverKey(state.s)) || !!state.move;
+    const m = state.move;
+    $("moveBox").hidden = !m;
+    if (!m) return;
+    const toLocal = m.to === "local";
+    $("moveKeepRow").hidden = !toLocal;
+    $("moveForgetRow").hidden = !toLocal;
+    const confirm = $("moveConfirm");
+    confirm.hidden = m.count === undefined || !!m.error || !!m.done;
+    confirm.disabled = !!m.busy;
+    if (m.error) $("moveText").textContent = t("dash_move_failed", { reason: problemText(m.error) });
+    else if (m.done) $("moveText").textContent = m.done;
+    else if (m.busy) $("moveText").textContent = t("dash_move_moving");
+    else if (m.count === undefined) $("moveText").textContent = t("dash_move_counting");
+    else {
+      $("moveText").textContent = toLocal ? t("dash_move_to_local_confirm", { count: m.count }) : t("dash_move_to_server_confirm", { count: m.count, server: m.server ?? "" });
+      confirm.textContent = toLocal ? t("dash_move_copy", { count: m.count }) : t("dash_move_upload", { count: m.count });
+    }
+  }
+
+  async function openMove(to) {
+    state.move = { to };
+    renderWordsHome();
+    const res = await send({ type: "migrate.preview", to }).catch((e) => ({ error: String(e?.message ?? e), code: "internal" }));
+    if (state.move?.to !== to) return;
+    state.move = res?.error ? { to, error: res } : { to, count: res.count, server: res.server };
+    renderWordsHome();
+    $(state.move.error ? "moveCancel" : "moveConfirm").focus();
+  }
+
+  async function confirmMove() {
+    const m = state.move;
+    if (!m || m.busy) return;
+    state.move = { ...m, busy: true };
+    renderWordsHome();
+    const res = await send({ type: "migrate.run", to: m.to, forget: $("moveForget").checked, serverLookups: $("moveKeep").checked }).catch((e) => ({ error: String(e?.message ?? e), code: "internal" }));
+    if (res?.error) {
+      state.move = { ...m, busy: false, error: res };
+      return renderWordsHome();
+    }
+    const done = m.to === "server"
+      ? t("dash_move_done_server", { created: I18n.formatNumber(res.created ?? 0), merged: I18n.formatNumber(res.updated ?? 0), unchanged: I18n.formatNumber(res.unchanged ?? 0) })
+      : t("dash_move_done_local", { count: res.total ?? 0 });
+    state.move = null;
+    toast({ text: done });
+    await refreshBackend();
+    Object.assign(state.s, await ext.storage.local.get({ lastSync: null, syncError: null }));
+    renderSettings();
+    renderBanners();
+    await Promise.all([load(), loadDeleted()]);
+  }
+
+  function cancelMove() {
+    state.move = null;
+    renderWordsHome();
+    $("moveWords").focus();
   }
 
   function flashConnSaved() {
@@ -2339,7 +2613,7 @@
     state.checking = true;
     renderConnStatus();
     await source.syncNow();
-    Object.assign(state.s, await ext.storage.local.get({ lastSync: null, syncError: null, token: "", serverUrl: LOCAL_DEFAULTS.serverUrl }));
+    Object.assign(state.s, await ext.storage.local.get({ lastSync: null, syncError: null, wordsHome: null, server: null, keys: null }));
     state.checking = false;
     renderConnStatus();
     renderBanners();
@@ -2350,7 +2624,9 @@
     const box = $("connStatus");
     const s = state.s;
     if (state.checking) return box.replaceChildren(el("p", { class: "conn-note" }, t("settings_checking")));
-    if (!String(s.token ?? "").trim()) return box.replaceChildren(el("p", { class: "conn-note" }, t("settings_not_connected")));
+    if (!serverKey(s)) return box.replaceChildren(el("p", { class: "conn-note" }, t("settings_not_connected")));
+    // A server saved while the words stay in this browser: the words' home below says so.
+    if (mode(s) === "local") return box.replaceChildren();
     const err = s.syncError;
     if (err && !(err.code === "server_key_rejected" && err.details?.reason === "no_token")) {
       return box.replaceChildren(el("p", { class: "conn-bad" }, icon("error", 18), el("span", {}, problemText(err))));
@@ -2494,13 +2770,19 @@
       words ||= k === "baseLangs";
     }
     if (changes.speech) Speak?.configure?.(state.s.speech);
-    if (changes.syncError || changes.lastSync || changes.token) {
+    if (changes.syncError || changes.lastSync || changes.token || changes.keys || changes.lookup) {
       renderBanners();
-      if (state.route.view === "settings") renderConnStatus();
+      if (state.route.view === "settings") renderSettings();
     }
-    if (changes.serverUrl || changes.token) {
+    if (changes.serverUrl || changes.token || changes.server) {
       renderConnection();
       if (changes.token) scheduleReload();
+    }
+    // Words moved between this browser and a server: read them from their new home.
+    if (changes.wordsHome) {
+      renderBanners();
+      scheduleReload();
+      loadDeleted();
     }
     if (changes.hiddenLangs) renderShelf();
     if (changes.prefs && state.route.view === "settings") renderSettings();
@@ -2568,6 +2850,24 @@
     ]));
     $("refreshAction").addEventListener("click", onRefreshAction);
     $("testConn").addEventListener("click", () => checkConnection());
+    $("saveKey").addEventListener("click", saveKey);
+    $("lookupKey").addEventListener("keydown", (e) => e.key === "Enter" && (e.preventDefault(), saveKey()));
+    $("replaceKey").addEventListener("click", () => {
+      state.replacing = true;
+      renderLookups();
+      $("lookupKey").focus();
+    });
+    $("removeKey").addEventListener("click", removeKey);
+    $("testLookup").addEventListener("click", testLookup);
+    $("dataCollection").addEventListener("click", () => setLookup({ dataCollection: $("dataCollection").getAttribute("aria-checked") === "true" ? "allow" : "deny" }));
+    for (const id of ["lookupBaseUrl", "lookupModel"]) {
+      $(id).addEventListener("input", () => dirty.add(id));
+      $(id).addEventListener("change", () => saveLookupField(id));
+      $(id).addEventListener("keydown", (e) => e.key === "Enter" && (e.preventDefault(), saveLookupField(id)));
+    }
+    $("moveWords").addEventListener("click", () => openMove(mode(state.s) === "local" ? "server" : "local"));
+    $("moveConfirm").addEventListener("click", confirmMove);
+    $("moveCancel").addEventListener("click", cancelMove);
     $("onlineVoices").addEventListener("click", () => setOnlineVoices($("onlineVoices").getAttribute("aria-checked") !== "true"));
     $("toggleKey").addEventListener("click", () => {
       const input = $("accessKey");
@@ -2613,6 +2913,7 @@
     source.subscribe(({ reason }) => (reason === "deleted" ? loadDeleted() : scheduleReload()));
 
     state.route = { view: "words", id: null, params: {} };
+    await refreshBackend();
     onRoute();
     await Promise.all([load(), loadDeleted()]);
     clearTimeout(skeleton);

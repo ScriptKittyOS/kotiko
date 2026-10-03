@@ -2133,5 +2133,471 @@
         "content": "{limit}"
       }
     }
+  },
+  "popup_first_run_title_local": {
+    "message": "Add your first word",
+    "description": "Title of the first-run card when words are kept in this browser (slice 11)."
+  },
+  "popup_first_run_body_local": {
+    "message": "Type a word in any language. Kotiko looks it up with your own AI, free with OpenRouter. Or type it with its meaning: gato = cat.",
+    "description": "Body of the first-run card in local mode. The example is a word = its meaning in the learner's language."
+  },
+  "popup_set_up_lookups": {
+    "message": "Set up lookups",
+    "description": "Button that opens the dashboard's Word lookups settings, where the learner connects their own AI (slice 11 §9)."
+  },
+  "popup_lookups_off": {
+    "message": "Word lookups aren't set up. Type a word with its meaning (gato = cat), or set up lookups.",
+    "description": "Banner in the popup while no AI is set up to look words up (slice 11 §9)."
+  },
+  "add_waiting": {
+    "message": "Waiting to look up $TEXT$: $REASON$",
+    "description": "An add that will run again by itself. $TEXT$ is what the learner typed, $REASON$ a sentence saying why it waits (slice 24).",
+    "placeholders": {
+      "text": {
+        "content": "{text}"
+      },
+      "reason": {
+        "content": "{reason}"
+      }
+    }
+  },
+  "add_waiting_setup": {
+    "message": "$TEXT$ will be looked up once lookups are set up.",
+    "description": "An add waiting for the learner to set up an AI. $TEXT$ is what they typed.",
+    "placeholders": {
+      "text": {
+        "content": "{text}"
+      }
+    }
+  },
+  "add_cancel": {
+    "message": "Cancel",
+    "description": "Cancels a waiting add."
+  },
+  "error_lookup_not_set_up_local": {
+    "message": "Word lookups aren't set up yet.",
+    "description": "An add can't be looked up: no AI is set up in this browser (slice 25 lookup_not_set_up)."
+  },
+  "error_key_rejected_local": {
+    "message": "$PROVIDER$ didn't accept your key. Check it in Settings.",
+    "description": "The learner's own lookup key was refused. $PROVIDER$ is the service, like OpenRouter (slice 25 key_rejected).",
+    "placeholders": {
+      "provider": {
+        "content": "{provider}"
+      }
+    }
+  },
+  "error_key_rejected_local_generic": {
+    "message": "Your lookup service didn't accept your key. Check it in Settings.",
+    "description": "The learner's own lookup key was refused, service unknown."
+  },
+  "error_vocabulary_full": {
+    "message": "You have 20,000 words, the most Kotiko keeps. Delete some to add more.",
+    "description": "An add failed: the word list is full (slice 11 §9, vocabulary_full)."
+  },
+  "error_storage_full": {
+    "message": "Kotiko couldn't save in this browser. Free some disk space and try again.",
+    "description": "The extension's own word store couldn't be written (slice 25 storage_full)."
+  },
+  "settings_move_first_one": {
+    "message": "You have $COUNT$ word in this browser. Move it to your server in Settings first.",
+    "description": "Connecting a server from the popup while words are kept in this browser: they're moved from the dashboard, after seeing the count.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "settings_move_first_other": {
+    "message": "You have $COUNT$ words in this browser. Move them to your server in Settings first.",
+    "description": "Connecting a server from the popup while words are kept in this browser: they're moved from the dashboard, after seeing the count.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "settings_open_settings": {
+    "message": "Open Settings",
+    "description": "Opens the dashboard's settings from the popup."
+  },
+  "settings_key_saved": {
+    "message": "Saved: $MASKED$. Type a new one to replace it.",
+    "description": "Placeholder of the access key field when one is saved. $MASKED$ is its first and last characters, like test-t…stuv.",
+    "placeholders": {
+      "masked": {
+        "content": "{masked}"
+      }
+    }
+  },
+  "dash_set_lookups": {
+    "message": "Word lookups",
+    "description": "Settings section: which AI looks words up (slice 11)."
+  },
+  "dash_set_lookups_help": {
+    "message": "When you add a word, an AI finds its meaning, forms and pronunciation. Kotiko uses your own, so nothing goes through anyone else.",
+    "description": "Help at the top of the Word lookups settings."
+  },
+  "dash_lookup_with": {
+    "message": "Look words up with",
+    "description": "Label of the provider choice."
+  },
+  "dash_lookup_none": {
+    "message": "Nobody: I'll type meanings myself",
+    "description": "Provider choice: no AI; the learner types 'word = meaning'."
+  },
+  "dash_lookup_server": {
+    "message": "My Kotiko server",
+    "description": "Provider choice: the learner's own Kotiko server looks words up."
+  },
+  "dash_provider_free": {
+    "message": "$NAME$ (free)",
+    "description": "A provider with free models. $NAME$ is its name, like OpenRouter.",
+    "placeholders": {
+      "name": {
+        "content": "{name}"
+      }
+    }
+  },
+  "dash_provider_beta": {
+    "message": "$NAME$ (beta)",
+    "description": "A provider whose support is still being tested. $NAME$ is its name.",
+    "placeholders": {
+      "name": {
+        "content": "{name}"
+      }
+    }
+  },
+  "dash_provider_custom": {
+    "message": "Another service",
+    "description": "Provider choice: any other address that works like OpenAI's."
+  },
+  "dash_key_label": {
+    "message": "$PROVIDER$ key",
+    "description": "Label of the key field. $PROVIDER$ is the service, like OpenRouter.",
+    "placeholders": {
+      "provider": {
+        "content": "{provider}"
+      }
+    }
+  },
+  "dash_key_placeholder": {
+    "message": "Paste your key",
+    "description": "Placeholder of the empty key field."
+  },
+  "dash_key_save": {
+    "message": "Save key",
+    "description": "Saves the pasted key."
+  },
+  "dash_key_saved_as": {
+    "message": "Saved key: $MASKED$",
+    "description": "The saved key, shown masked: its first six and last four characters.",
+    "placeholders": {
+      "masked": {
+        "content": "{masked}"
+      }
+    }
+  },
+  "dash_key_replace": {
+    "message": "Replace",
+    "description": "Replaces the saved key."
+  },
+  "dash_key_remove": {
+    "message": "Remove",
+    "description": "Removes the saved key from this browser."
+  },
+  "dash_key_removed": {
+    "message": "Key removed.",
+    "description": "Toast after the key was removed."
+  },
+  "dash_key_get": {
+    "message": "Get a key",
+    "description": "Link to the provider's page that creates a key."
+  },
+  "dash_key_privacy": {
+    "message": "Your key stays in this browser, where web pages can't read it. It's never copied to other devices or exports. Tip: give it a credit limit.",
+    "description": "Privacy note under the key field (slice 11 §3)."
+  },
+  "dash_key_none_needed": {
+    "message": "No key needed: the model runs on your own computer.",
+    "description": "Shown instead of the key field for Ollama and LM Studio."
+  },
+  "dash_base_url": {
+    "message": "Address",
+    "description": "Label of the service's address field (Ollama, LM Studio, another service)."
+  },
+  "dash_base_url_help": {
+    "message": "The address of a service that works like OpenAI's, usually ending in /v1.",
+    "description": "Help under the address field."
+  },
+  "dash_model": {
+    "message": "Model",
+    "description": "Label of the model field."
+  },
+  "dash_model_help": {
+    "message": "Leave it empty to pick one automatically.",
+    "description": "Help under the model field."
+  },
+  "dash_data_collection": {
+    "message": "Only use services that don't keep my text",
+    "description": "OpenRouter switch: send its 'deny data collection' preference."
+  },
+  "dash_data_collection_help": {
+    "message": "Some free models are run by companies that may keep what you send. With this on, fewer free models may be available.",
+    "description": "Help under the data collection switch."
+  },
+  "dash_lookup_test": {
+    "message": "Test",
+    "description": "Runs one small lookup to check the setup."
+  },
+  "dash_lookup_test_note": {
+    "message": "A test uses one lookup from your free ones.",
+    "description": "Note beside the Test button."
+  },
+  "dash_lookup_testing": {
+    "message": "Testing…",
+    "description": "While the test lookup runs."
+  },
+  "dash_lookup_test_ok": {
+    "message": "It works. $MODEL$ answered in $SECONDS$ s.",
+    "description": "The test lookup succeeded. $MODEL$ is the model's id, $SECONDS$ how long it took.",
+    "placeholders": {
+      "model": {
+        "content": "{model}"
+      },
+      "seconds": {
+        "content": "{seconds}"
+      }
+    }
+  },
+  "dash_lookup_ready": {
+    "message": "Ready to look words up.",
+    "description": "Status line when a provider and key are set."
+  },
+  "dash_lookup_needs_key": {
+    "message": "Paste a key to start looking words up.",
+    "description": "Status line when the provider needs a key."
+  },
+  "dash_lookup_off": {
+    "message": "New words need their meaning typed: gato = cat.",
+    "description": "Status line when no AI is chosen."
+  },
+  "dash_note_openrouter": {
+    "message": "Free models by default. A key with a credit limit is the safest choice.",
+    "description": "Note under the OpenRouter choice."
+  },
+  "dash_note_openai": {
+    "message": "Paid per word; each one costs a fraction of a cent.",
+    "description": "Note under the OpenAI choice."
+  },
+  "dash_note_anthropic": {
+    "message": "Beta: uses Anthropic's OpenAI compatibility layer.",
+    "description": "Note under the Anthropic choice."
+  },
+  "dash_note_gemini": {
+    "message": "Google's free tier has its own daily limits.",
+    "description": "Note under the Google Gemini choice."
+  },
+  "dash_note_groq": {
+    "message": "Fast, with a free tier.",
+    "description": "Note under the Groq choice."
+  },
+  "dash_note_ollama": {
+    "message": "Start Ollama with OLLAMA_ORIGINS=chrome-extension://*,moz-extension://* so Kotiko can reach it.",
+    "description": "Note under the Ollama choice. Keep the setting exactly as written."
+  },
+  "dash_note_lmstudio": {
+    "message": "Start the server in LM Studio's Developer tab.",
+    "description": "Note under the LM Studio choice. 'Developer' is LM Studio's own tab name."
+  },
+  "dash_note_custom": {
+    "message": "Any other address that works like OpenAI's.",
+    "description": "Note under the 'Another service' choice."
+  },
+  "dash_words_home": {
+    "message": "Where your words live",
+    "description": "Label above the words' home in the server settings."
+  },
+  "dash_home_local": {
+    "message": "Your words are kept in this browser.",
+    "description": "Status: words live in the extension (slice 11)."
+  },
+  "dash_home_server": {
+    "message": "Your words are kept on your Kotiko server.",
+    "description": "Status: words live on the learner's server."
+  },
+  "dash_move_to_server": {
+    "message": "Use my Kotiko server for my words",
+    "description": "Starts moving the words from this browser to the server."
+  },
+  "dash_move_to_local": {
+    "message": "Keep my words in this browser",
+    "description": "Starts copying the words from the server into this browser."
+  },
+  "dash_move_to_server_confirm_one": {
+    "message": "Upload your $COUNT$ word to $SERVER$? A word the server already has is merged, never doubled.",
+    "description": "Confirmation before moving words to the server. $SERVER$ is its address.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "server": {
+        "content": "{server}"
+      }
+    }
+  },
+  "dash_move_to_server_confirm_other": {
+    "message": "Upload your $COUNT$ words to $SERVER$? Words the server already has are merged, never doubled.",
+    "description": "Confirmation before moving words to the server. $SERVER$ is its address.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "server": {
+        "content": "{server}"
+      }
+    }
+  },
+  "dash_move_to_local_confirm_one": {
+    "message": "Copy your $COUNT$ word from the server into this browser? The server keeps its copy. Words you add on Telegram won't reach this browser until you connect the server again.",
+    "description": "Confirmation before copying the server's words into this browser.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_move_to_local_confirm_other": {
+    "message": "Copy your $COUNT$ words from the server into this browser? The server keeps its copy. Words you add on Telegram won't reach this browser until you connect the server again.",
+    "description": "Confirmation before copying the server's words into this browser.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_move_keep_lookups": {
+    "message": "Keep using the server to look words up",
+    "description": "Checkbox in the copy-to-browser dialog."
+  },
+  "dash_move_forget": {
+    "message": "Forget the server's address and key",
+    "description": "Checkbox in the copy-to-browser dialog."
+  },
+  "dash_move_upload_one": {
+    "message": "Upload $COUNT$ word",
+    "description": "Confirms the move to the server.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_move_upload_other": {
+    "message": "Upload $COUNT$ words",
+    "description": "Confirms the move to the server.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_move_copy_one": {
+    "message": "Copy $COUNT$ word",
+    "description": "Confirms the copy into this browser.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_move_copy_other": {
+    "message": "Copy $COUNT$ words",
+    "description": "Confirms the copy into this browser.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_move_counting": {
+    "message": "Counting your words…",
+    "description": "While the move dialog counts the words."
+  },
+  "dash_move_moving": {
+    "message": "Moving your words…",
+    "description": "While words are uploaded or copied."
+  },
+  "dash_move_done_server": {
+    "message": "Done. $CREATED$ added, $MERGED$ merged, $UNCHANGED$ already there.",
+    "description": "After moving words to the server: the counts.",
+    "placeholders": {
+      "created": {
+        "content": "{created}"
+      },
+      "merged": {
+        "content": "{merged}"
+      },
+      "unchanged": {
+        "content": "{unchanged}"
+      }
+    }
+  },
+  "dash_move_done_local_one": {
+    "message": "Done. $COUNT$ word is now in this browser.",
+    "description": "After copying the server's words into this browser.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_move_done_local_other": {
+    "message": "Done. $COUNT$ words are now in this browser.",
+    "description": "After copying the server's words into this browser.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "dash_move_failed": {
+    "message": "Nothing changed. $REASON$",
+    "description": "A move failed; every word is where it was. $REASON$ is the problem in plain words.",
+    "placeholders": {
+      "reason": {
+        "content": "{reason}"
+      }
+    }
+  },
+  "dash_lookups_off_banner": {
+    "message": "Word lookups aren't set up. New words need their meaning typed, or set up lookups.",
+    "description": "Dashboard banner while no AI is set up (local mode)."
+  },
+  "add_waiting_quota": {
+    "message": "Waiting to look up $TEXT$: today's free lookups are used up. It runs by itself at $TIME$.",
+    "description": "An add waiting for the free lookups to come back. $TEXT$ is what the learner typed, $TIME$ when it runs (slice 24).",
+    "placeholders": {
+      "text": {
+        "content": "{text}"
+      },
+      "time": {
+        "content": "{time}"
+      }
+    }
+  },
+  "add_waiting_busy": {
+    "message": "Waiting to look up $TEXT$: the AI is busy. It runs again by itself in a moment.",
+    "description": "An add waiting because the model is busy or slow. $TEXT$ is what the learner typed.",
+    "placeholders": {
+      "text": {
+        "content": "{text}"
+      }
+    }
+  },
+  "dash_key_label_custom": {
+    "message": "Key, if the service needs one",
+    "description": "Label of the key field for 'Another service', where a key is optional."
   }
 }

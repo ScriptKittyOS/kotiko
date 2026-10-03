@@ -119,7 +119,8 @@ describe("dashboard routes against the fixture server", () => {
     srv.state.kotiko = null;
     const off = loadBackground({ serverUrl: "http://127.0.0.1:9", token: "t" });
     assert.equal((await off.send({ type: "words.list" })).code, "server_unreachable");
+    // With no token the words live in this browser (slice 11): the list is the store's.
     const unset = loadBackground({ serverUrl: srv.kotikoUrl, token: "" });
-    assert.equal((await unset.send({ type: "words.list" })).code, "server_key_rejected");
+    assert.deepEqual(await unset.send({ type: "words.list" }), { words: [], cursor: null });
   });
 });

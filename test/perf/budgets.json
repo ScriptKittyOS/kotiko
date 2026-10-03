@@ -63,5 +63,15 @@
     "budget_ms": 800,
     "ci_factor": 3,
     "note": "21 §14: interactive within 800 ms with 20,000 words (jsdom, from script start to the first rows; the server's answer is excluded)."
+  },
+  "local.projection.build.5k": {
+    "budget_ms": 30,
+    "ci_factor": 3,
+    "note": "Slice 11 §2: building the content scripts' word list for 5,000 words."
+  },
+  "local.projection.write.5k": {
+    "budget_ms": 50,
+    "ci_factor": 3,
+    "note": "Slice 11 §2 and its acceptance: building and writing it (into the fake storage area, which copies values like Chrome's) for 5,000 words."
   }
 }

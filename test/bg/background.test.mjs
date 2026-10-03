@@ -83,10 +83,10 @@ describe("sync", () => {
     const { fetch } = serverWith(WORDS);
     const { send, fake } = loadBackground({ fetch, local: { words: WORDS } });
     await send({ type: "sync", force: true });
-    const writes = fake.calls.set.filter((c) => c.area === "local");
+    // (The one-time upgrade writes its settings too; none of those writes is `words`.)
+    const writes = fake.calls.set.filter((c) => c.area === "local" && "lastSync" in c.items);
     assert.equal(writes.length, 1);
-    assert.equal("words" in writes[0].items, false);
-    assert.ok(writes[0].items.lastSync);
+    assert.equal(fake.calls.set.some((c) => "words" in c.items), false);
   });
 
   test("skips a page-load sync within 5 s of the last one, unless forced", async () => {
@@ -131,7 +131,6 @@ describe("sync", () => {
   });
 
   const failures = [
-    ["no token", { token: "" }, null, { code: "server_key_rejected", details: { reason: "no_token" } }],
     ["rejected token", {}, () => new Response("unauthorized", { status: 401 }), { code: "server_key_rejected", details: { status: 401 } }],
     ["server error with a message", {}, () => json(500, { error: "Database is locked." }), { code: "internal", details: { status: 500, error: "Database is locked." } }],
     ["server error without one", {}, () => new Response("<h1>Bad gateway</h1>", { status: 502 }), { code: "internal", details: { status: 502 } }],
@@ -153,6 +152,21 @@ describe("sync", () => {
       if (!handler) assert.equal(requests.length, 0);
     });
   }
+});
+
+describe("a profile with no token (slice 11: words in this browser)", () => {
+  test("syncing asks no server, reports no error, and pages keep the cached words", async () => {
+    const { fetch, requests } = serverWith([]);
+    const { send, store, fake } = loadBackground({ fetch, local: { words: WORDS, token: "" } });
+    await send({ type: "sync", force: true });
+    await sleep(150);
+    await fake.idle();
+    assert.equal(requests.length, 0);
+    assert.equal(store.syncError, undefined);
+    assert.equal(store.wordsHome, "local");
+    assert.deepEqual(store.words.map((w) => w.native), WORDS.map((w) => w.native));
+    assert.deepEqual(store.words.map((w) => w.forms), WORDS.map((w) => w.forms));
+  });
 });
 
 describe("triggers", () => {
@@ -500,7 +514,10 @@ describe("sync correctness (slice 26)", () => {
     };
     const { send, store, fake } = loadBackground({ fetch, local: { token: "bad", words: [] } });
     const first = send({ type: "sync", force: true }, POPUP);
-    await sleep(10);
+    // Change the token only once the first request is really in flight: the token now
+    // comes from the secrets store, so how soon that request starts depends on the machine.
+    for (let i = 0; i < 200 && seen.length === 0; i++) await sleep(5);
+    assert.equal(seen.length, 1, "the first sync started");
     await fake.chrome.storage.local.set({ token: "good" });
     await fake.idle();
     assert.deepEqual(await first, { ok: true });
@@ -520,7 +537,8 @@ describe("sync correctness (slice 26)", () => {
     });
     const { send, store, fake } = loadBackground({ fetch });
     send({ type: "sync", force: true });
-    await sleep(10);
+    for (let i = 0; i < 200 && requests.length === 0; i++) await sleep(5);
+    assert.equal(requests.length, 1, "the first sync started");
     await fake.chrome.storage.local.set({ serverUrl: "http://127.0.0.1:5000" });
     await fake.idle();
     await sleep(150);

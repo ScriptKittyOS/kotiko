@@ -120,6 +120,61 @@
             <div class="radio-list" id="uiLangOptions" role="radiogroup" aria-labelledby="setLangTitle"></div>
           </section>
 
+          <!--
+            Word lookups (slice 11): who looks new words up. The key is typed only here and
+            on the welcome tab (22), never in the popup; the page sends it to the background
+            and only ever sees its masked form.
+          -->
+          <section class="set-section" id="set-lookups" data-section="lookups" aria-labelledby="setLookupsTitle">
+            <h2 class="set-title" id="setLookupsTitle" data-i18n="dash_set_lookups"></h2>
+            <p class="set-help" data-i18n="dash_set_lookups_help"></p>
+            <div class="set-field">
+              <p class="field-label" id="providerLabel" data-i18n="dash_lookup_with"></p>
+              <div class="radio-list" id="providerOptions" role="radiogroup" aria-labelledby="providerLabel"></div>
+              <p class="field-help" id="providerNote" hidden></p>
+            </div>
+            <div class="set-field" id="lookupKeyField" hidden>
+              <label class="field-label" for="lookupKey" id="lookupKeyLabel"></label>
+              <div class="key-saved" id="lookupKeySaved" hidden>
+                <span class="key-masked" id="lookupKeyMasked"></span>
+                <button class="btn btn-quiet btn-sm" id="replaceKey" type="button" data-i18n="dash_key_replace"></button>
+                <button class="btn btn-quiet btn-sm" id="removeKey" type="button" data-i18n="dash_key_remove"></button>
+              </div>
+              <div class="key-wrap" id="lookupKeyEntry">
+                <input class="field" id="lookupKey" type="password" spellcheck="false" autocomplete="off" data-i18n-placeholder="dash_key_placeholder" aria-describedby="lookupKeyHelp" />
+                <button class="btn btn-secondary btn-sm" id="saveKey" type="button" data-i18n="dash_key_save"></button>
+              </div>
+              <p class="field-help" id="lookupKeyHelp">
+                <span data-i18n="dash_key_privacy"></span>
+                <a class="link" id="getKey" href="#" target="_blank" rel="noopener noreferrer" data-i18n="dash_key_get"></a>
+              </p>
+            </div>
+            <p class="field-help" id="noKeyNeeded" hidden data-i18n="dash_key_none_needed"></p>
+            <div class="set-field" id="baseUrlField" hidden>
+              <label class="field-label" for="lookupBaseUrl" data-i18n="dash_base_url"></label>
+              <input class="field" id="lookupBaseUrl" type="text" inputmode="url" spellcheck="false" autocomplete="off" aria-describedby="lookupBaseUrlHelp" />
+              <p class="field-help" id="lookupBaseUrlHelp" data-i18n="dash_base_url_help"></p>
+            </div>
+            <div class="set-field" id="modelField" hidden>
+              <label class="field-label" for="lookupModel" data-i18n="dash_model"></label>
+              <input class="field" id="lookupModel" type="text" spellcheck="false" autocomplete="off" aria-describedby="lookupModelHelp" />
+              <p class="field-help" id="lookupModelHelp" data-i18n="dash_model_help"></p>
+            </div>
+            <div id="dataCollectionRow" hidden>
+              <button class="switch-row" id="dataCollection" type="button" role="switch" aria-checked="false" aria-describedby="dataCollectionHelp">
+                <span data-i18n="dash_data_collection"></span>
+                <span class="switch" aria-hidden="true"></span>
+              </button>
+              <p class="field-help" id="dataCollectionHelp" data-i18n="dash_data_collection_help"></p>
+            </div>
+            <div class="set-actions" id="lookupTestRow" hidden>
+              <button class="btn btn-secondary" id="testLookup" type="button" data-i18n="dash_lookup_test"></button>
+              <span class="field-help" id="lookupTestNote" data-i18n="dash_lookup_test_note"></span>
+            </div>
+            <div class="conn-status" id="lookupState" role="status" aria-live="polite"></div>
+            <!-- 11: "Connect OpenRouter" (PKCE) appears here once the docs site serves its callback page (44). -->
+          </section>
+
           <section class="set-section" id="set-connection" data-section="connection" aria-labelledby="setConnTitle">
             <h2 class="set-title" id="setConnTitle" data-i18n="dash_set_connection"></h2>
             <p class="set-help" data-i18n="settings_connection_help"></p>
@@ -140,7 +195,21 @@
               <button class="btn btn-secondary" id="testConn" type="button" data-i18n="dash_set_test"></button>
             </div>
             <div class="conn-status" id="connStatus" role="status" aria-live="polite"></div>
-            <!-- 11: lookup mode, provider and the AI key (typed only on full pages) go here. -->
+            <!-- 11: where the words live, and moving them between this browser and the server. -->
+            <div class="set-field words-home" id="wordsHome">
+              <p class="field-label" data-i18n="dash_words_home"></p>
+              <p class="field-help" id="wordsHomeText"></p>
+              <button class="btn btn-secondary" id="moveWords" type="button"></button>
+              <div class="move-box" id="moveBox" role="group" aria-labelledby="moveText" hidden>
+                <p id="moveText"></p>
+                <label class="check-row" id="moveKeepRow" hidden><input type="checkbox" id="moveKeep" /> <span data-i18n="dash_move_keep_lookups"></span></label>
+                <label class="check-row" id="moveForgetRow" hidden><input type="checkbox" id="moveForget" /> <span data-i18n="dash_move_forget"></span></label>
+                <div class="set-actions">
+                  <button class="btn btn-primary" id="moveConfirm" type="button"></button>
+                  <button class="btn btn-quiet" id="moveCancel" type="button" data-i18n="dash_cancel"></button>
+                </div>
+              </div>
+            </div>
           </section>
 
           <section class="set-section" id="set-voices" data-section="voices" aria-labelledby="setVoicesTitle">
