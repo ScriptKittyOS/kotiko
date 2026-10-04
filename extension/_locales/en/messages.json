@@ -240,6 +240,10 @@
       }
     }
   },
+  "popup_stood_down": {
+    "message": "Kotiko stepped back on this page because the page kept undoing its changes.",
+    "description": "Popup, This page section (slice 15): the page fought Kotiko's swaps, so Kotiko put the page's own words back and stopped there."
+  },
   "popup_off_banner": {
     "message": "Kotiko is off on all sites.",
     "description": "Banner when the master switch is off."

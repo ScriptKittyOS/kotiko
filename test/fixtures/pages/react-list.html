@@ -6,52 +6,49 @@
 </head>
 <body>
   <!--
-    Slice 15 (framework-safe swapping, research 06 F02/F03).
-    Meant to be a React 18 production UMD app loaded from /vendor/ (vendored, MIT, with
-    LICENSE) that re-renders a list containing known words every 200 ms and unmounts it.
-    Vendoring React is deferred to slice 15; until then this page imitates React's text
-    node bookkeeping by hand so the page exists and loads offline.
+    Slice 15 (framework-safe swapping, research 06 F02/F03): a React 18 app (the production
+    build, served from node_modules) that re-renders a list containing known words every
+    100 ms, edits its text, and unmounts and remounts it every second. React keeps references
+    to its text nodes: if Kotiko took them away, React would throw or show stale text.
+    window.check() compares what React rendered with React's own state.
   -->
   <div id="root"></div>
-  <p id="errors"></p>
+  <pre id="errors"></pre>
+  <script src="/npm/react.js"></script>
+  <script src="/npm/react-dom.js"></script>
   <script>
-    // Keeps references to its own text nodes and updates them in place, as React does.
-    const root = document.getElementById("root");
     const errors = document.getElementById("errors");
     window.addEventListener("error", (e) => { errors.textContent += e.message + "\n"; });
-    let tick = 0;
-    let items = null;
-    function mount() {
-      const ul = document.createElement("ul");
-      items = ["house", "thanks", "dog"].map((w) => {
-        const li = document.createElement("li");
-        const lead = document.createTextNode("You have ");
-        const count = document.createTextNode("0");
-        const tail = document.createTextNode(" new messages about the " + w);
-        li.append(lead, count, tail);
-        ul.append(li);
-        return { li, count, tail, w };
-      });
-      root.append(ul);
+    const h = React.createElement;
+    const WORDS = ["house", "thanks", "dog"];
+    let shown = null;
+    function List({ tick }) {
+      shown = { tick };
+      return h("ul", null, WORDS.map((w, i) =>
+        h("li", { key: w, id: "li-" + i },
+          "You have ", h("b", { className: "count" }, String(tick + i)), " new messages about the " + w + (tick % 3 === 0 ? "" : " today"))));
     }
-    function update() {
-      tick++;
-      for (const it of items) {
-        it.count.nodeValue = String(tick);
-        it.tail.nodeValue = " new messages about the " + it.w;
-      }
-      if (tick % 10 === 0) {
-        try {
-          for (const it of items) it.li.removeChild(it.tail); // React's unmount path
-          root.replaceChildren();
-          mount();
-        } catch (e) {
-          errors.textContent += e.name + ": " + e.message + "\n";
-        }
-      }
+    function App() {
+      const [tick, setTick] = React.useState(0);
+      const [on, setOn] = React.useState(true);
+      React.useEffect(() => {
+        const a = setInterval(() => setTick((t) => t + 1), 100);
+        const b = setInterval(() => setOn((x) => !x), 1000);
+        return () => { clearInterval(a); clearInterval(b); };
+      }, []);
+      // What React committed (after the DOM changed), for check().
+      React.useLayoutEffect(() => { window.state = { tick, on }; });
+      return on ? h(List, { tick }) : h("p", { id: "off" }, "The house list is hidden.");
     }
-    mount();
-    setInterval(update, 200);
+    ReactDOM.createRoot(document.getElementById("root")).render(h(App));
+    // React's numbers are what it rendered: the counts never contain known words.
+    window.check = () => {
+      const counts = [...document.querySelectorAll(".count")].map((b) => b.textContent);
+      if (!window.state.on) return document.getElementById("off") ? "ok" : "the hidden list is still shown";
+      if (!counts.length) return "ok";
+      const want = WORDS.map((_, i) => String(window.state.tick + i));
+      return JSON.stringify(counts) === JSON.stringify(want) ? "ok" : `counts ${JSON.stringify(counts)} but state ${JSON.stringify(want)}`;
+    };
   </script>
 </body>
 </html>

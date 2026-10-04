@@ -240,6 +240,10 @@
       }
     }
   },
+  "popup_stood_down": {
+    "message": "Kotiko se apartó de esta página porque la página deshacía sus cambios una y otra vez.",
+    "description": "Popup, This page section (slice 15): the page fought Kotiko's swaps, so Kotiko put the page's own words back and stopped there."
+  },
   "popup_off_banner": {
     "message": "Kotiko está desactivado en todos los sitios.",
     "description": "Banner when the master switch is off."

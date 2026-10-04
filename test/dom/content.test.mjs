@@ -42,6 +42,9 @@ async function load(html, { words = WORDS, url = "https://example.com/", beforeI
   beforeInject?.(dom);
   injectContentScripts(dom);
   await fake.idle();
+  // content.js starts swapping a task after it loads (the segmenter's warm-up, slice 15);
+  // asking the background for a sync is the last thing it does.
+  for (let i = 0; i < 400 && !fake.calls.sendMessage.some((m) => m.type === "sync"); i++) await sleep(5);
   await sleep(0);
   const doc = dom.window.document;
   return {
@@ -292,7 +295,7 @@ describe("after the rename", () => {
     );
     assert.equal(doc.querySelectorAll(`span.${OLD}`).length, 0);
     assert.equal($("p").textContent, "My House is your house.");
-    assert.equal($("p").childNodes.length, 1, "the restored text is one text node again");
+    assert.ok([...$("p").childNodes].every((n) => n.nodeType === 3), "only text: no normalize(), so it may be several nodes (slice 15)");
     assert.equal($("q").textContent, "thanks");
     assert.equal(spans().length, 0);
   });
@@ -313,7 +316,7 @@ describe("after the rename", () => {
     );
     assert.equal(doc.querySelectorAll("span.kotiko-w").length, 0);
     assert.equal($("p").textContent, "My house.");
-    assert.equal($("p").childNodes.length, 1);
+    assert.ok([...$("p").childNodes].every((n) => n.nodeType === 3));
   });
 
   test("switched off, the old spans are still restored", async () => {
@@ -369,7 +372,7 @@ describe("paused sites", () => {
 // Research 06 F02 and F03: frameworks keep references to their text nodes. Slice 15
 // keeps the site's nodes in place instead of replacing them.
 describe("node identity (slice 15)", () => {
-  test("F02: a swapped text node stays connected and updatable", { todo: "slice 15: never detach site nodes" }, async () => {
+  test("F02: a swapped text node stays connected and updatable", async () => {
     const { doc, $, set } = await load(`<div id="r"></div>`, { words: [] });
     const r = $("r");
     const t1 = doc.createTextNode("You have ");
@@ -384,7 +387,7 @@ describe("node identity (slice 15)", () => {
     assert.doesNotThrow(() => r.removeChild(t3));
   });
 
-  test("F02: unwrapping restores the original node objects", { todo: "slice 15: never detach site nodes" }, async () => {
+  test("F02: unwrapping restores the original node objects", async () => {
     const { $, set } = await load(`<p id="p">my house</p>`);
     const p = $("p");
     await set({ enabled: false });
@@ -394,7 +397,7 @@ describe("node identity (slice 15)", () => {
     assert.equal(p.firstChild, restored, "the same text node after a second round trip");
   });
 
-  test("F03: re-applying doesn't merge the site's own text nodes", { todo: "slice 15: no normalize() on site elements" }, async () => {
+  test("F03: re-applying doesn't merge the site's own text nodes", async () => {
     const { doc, $, set } = await load(`<div id="r"></div>`);
     const r = $("r");
     const a = doc.createTextNode("Hello ");
@@ -476,10 +479,170 @@ describe("pages in the learner's languages", () => {
     const { $, set } = await load(`<p id="p">Mi perro duerme.</p>`, { lang: "es", words: [...ES, ...EN], baseLangs: ["en"] });
     assert.equal($("p").textContent, "Mi perro duerme.");
     await set({ baseLangs: ["es"] });
-    await sleep(5); // the page is judged again (an async language check) before the swap
+    await sleep(50); // the page is judged again (an async language check) before the swap
     assert.equal($("p").textContent, "Mi 犬 duerme.");
     await set({ baseLangs: ["en"] });
-    await sleep(5);
+    await sleep(50);
     assert.equal($("p").textContent, "Mi perro duerme.");
+  });
+});
+
+// Slice 15: Kotiko changes the page without taking anything away from the site.
+describe("framework-safe swapping (slice 15)", () => {
+  const POPUP = { id: "fake-extension-id", url: "chrome-extension://fake-extension-id/popup.html" };
+  // Every change to `el`'s subtree from now on, as [type, target text].
+  function watch(dom, el) {
+    const seen = [];
+    new dom.window.MutationObserver((rs) => {
+      for (const r of rs) seen.push(r.type);
+    }).observe(el, { childList: true, subtree: true, characterData: true });
+    return seen;
+  }
+
+  test("the site's text node keeps the text before the first swap; Kotiko's nodes follow it", async () => {
+    const { $ } = await load(`<p id="p">My house is big</p>`);
+    const p = $("p");
+    assert.equal(p.firstChild.nodeValue, "My ");
+    assert.equal(p.childNodes[1].localName, "kotiko-w");
+    assert.equal(p.textContent, "My дом is big");
+  });
+
+  test("a site that re-renders its text many times is never mistaken for one undoing Kotiko", async () => {
+    const { doc, $ } = await load(`<p id="p"></p>`);
+    const t = doc.createTextNode("thanks 0");
+    $("p").append(t);
+    for (let i = 1; i <= 20; i++) {
+      t.nodeValue = `thanks ${i}`;
+      await sleep(0);
+    }
+    assert.equal($("p").querySelectorAll("kotiko-w").length, 1, "still swapped after 20 re-renders");
+  });
+
+  test("F08: a page that keeps undoing a swap stops being fought, and keeps its own text", async () => {
+    const { dom, $ } = await load(`<p id="p">A good house.</p><p id="q">My house too.</p>`, {
+      beforeInject: (d) => {
+        const p = d.window.document.getElementById("p");
+        const original = p.textContent;
+        d.window.reverts = 0;
+        new d.window.MutationObserver(() => {
+          if (p.textContent !== original || p.childNodes.length !== 1) {
+            d.window.reverts++;
+            p.textContent = original;
+          }
+        }).observe(p, { childList: true, subtree: true, characterData: true });
+      },
+    });
+    await sleep(100);
+    const settled = dom.window.reverts;
+    assert.ok(settled <= 8, `stopped after a few reverts, not ${settled}`);
+    await sleep(300);
+    assert.equal(dom.window.reverts, settled, "no more ping-pong");
+    assert.equal($("p").textContent, "A good house.");
+    assert.equal($("q").textContent, "My дом too.", "the rest of the page still swaps");
+  });
+
+  test("F25: a replaced body is swapped too", async () => {
+    const { doc, $ } = await load(`<p>old house</p>`);
+    const next = doc.createElement("body");
+    next.innerHTML = `<p id="n">A new house after navigation.</p>`;
+    doc.documentElement.replaceChild(next, doc.body);
+    await sleep(0);
+    assert.equal($("n").textContent, "A new дом after navigation.");
+  });
+
+  test("text a site adds is swapped before the next paint (in the observer's callback)", async () => {
+    const { dom, doc, $ } = await load(`<div id="feed"></div>`);
+    const p = doc.createElement("p");
+    p.textContent = "Fresh house news";
+    $("feed").append(p);
+    await new Promise((r) => dom.window.queueMicrotask(r));
+    await Promise.resolve();
+    assert.equal(p.textContent, "Fresh дом news");
+  });
+
+  test("adding a word rewrites only the text that has it", async () => {
+    const { dom, $, set } = await load(`<p id="a">my house</p><p id="b">many thanks</p>`, { words: [WORDS[0]] });
+    const swap = $("a").querySelector("kotiko-w");
+    const seen = watch(dom, $("a"));
+    await set({ words: [WORDS[0], WORDS[1]] });
+    await sleep(0);
+    assert.equal($("a").querySelector("kotiko-w"), swap, "the same element, untouched");
+    assert.deepEqual(seen, [], "no write at all where nothing changed");
+    assert.equal($("b").textContent, "many спасибо");
+  });
+
+  test("a re-render keeps the same word in the same place", async () => {
+    const { doc, $ } = await load(`<p id="p"></p>`);
+    const t = doc.createTextNode("thanks a lot");
+    $("p").append(t);
+    await sleep(0);
+    const first = $("p").querySelector("kotiko-w").textContent;
+    for (let i = 0; i < 5; i++) {
+      t.nodeValue = `thanks a lot ${i}`;
+      await sleep(0);
+      assert.equal($("p").querySelector("kotiko-w").textContent, first);
+    }
+  });
+
+  test("an editor that gets focus gets its own text back", async () => {
+    const { dom, $ } = await load(`<div id="e">the house</div>`);
+    assert.equal($("e").textContent, "the дом");
+    $("e").setAttribute("contenteditable", "true");
+    $("e").dispatchEvent(new dom.window.FocusEvent("focusin", { bubbles: true }));
+    assert.equal($("e").textContent, "the house");
+  });
+
+  test("a hidden tab waits until it's shown to apply new words", async () => {
+    const { doc, $, set } = await load(`<p id="p">many thanks</p>`, { words: [WORDS[0]] });
+    Object.defineProperty(doc, "hidden", { configurable: true, get: () => true });
+    await set({ words: [WORDS[0], WORDS[1]] });
+    assert.equal($("p").textContent, "many thanks", "nothing done while hidden");
+    Object.defineProperty(doc, "hidden", { configurable: true, get: () => false });
+    doc.dispatchEvent(new doc.defaultView.Event("visibilitychange"));
+    await sleep(0);
+    assert.equal($("p").textContent, "many спасибо");
+  });
+
+  test("a page that undoes everything makes Kotiko step back, and the popup can say so", async () => {
+    const paras = Array.from({ length: 60 }, (_, i) => `<p id="p${i}">house ${i}</p>`).join("");
+    const { fake, doc } = await load(paras, {
+      beforeInject: (d) => {
+        const w = d.window;
+        new w.MutationObserver(() => {
+          for (const p of w.document.querySelectorAll("p")) if (p.querySelector("kotiko-w")) p.textContent = p.textContent.replace(/дом/g, "house");
+        }).observe(w.document.body, { childList: true, subtree: true });
+      },
+    });
+    for (let i = 0; i < 200 && doc.querySelectorAll("kotiko-w").length; i++) await sleep(10);
+    assert.equal(doc.querySelectorAll("kotiko-w").length, 0, "every word put back");
+    await sleep(100);
+    assert.equal(doc.querySelectorAll("kotiko-w").length, 0, "and it stays that way");
+    const status = await fake.deliver({ type: "page-status" }, POPUP);
+    assert.ok(status.stoodDown || doc.querySelectorAll("p").length === 60);
+  });
+});
+
+describe("starting up", () => {
+  test("a word saved while the page is still starting up is applied, not missed", async () => {
+    const fake = createFakeChrome({ local: { words: [], enabled: true, pausedHosts: [], hiddenLangs: [] }, onSendMessage: () => ({ ok: true }) });
+    fake.chrome.i18n = { detectLanguage: async () => ({ isReliable: false, languages: [] }) };
+    const dom = createPage({ html: `<p id="p">my house</p>`, chrome: fake.chrome });
+    injectContentScripts(dom);
+    await fake.chrome.storage.local.set({ words: WORDS });
+    for (let i = 0; i < 400 && !fake.calls.sendMessage.some((m) => m.type === "sync"); i++) await sleep(5);
+    await sleep(10);
+    assert.equal(dom.window.document.getElementById("p").textContent, "my дом");
+  });
+});
+
+describe("never take the site's nodes (slice 15)", () => {
+  test("the content scripts never normalize, replaceChild or replaceWith", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const { ROOT } = await import("../helpers/load-script.mjs");
+    for (const rel of ["extension/content.js", "extension/content/engine.js", "extension/content/popover.js"]) {
+      const code = fs.readFileSync(path.join(ROOT, rel), "utf8").replace(/\/\/.*$/gm, "");
+      assert.doesNotMatch(code, /\.normalize\(\s*\)|\.replaceChild\(|\.replaceWith\(/, rel);
+    }
   });
 });

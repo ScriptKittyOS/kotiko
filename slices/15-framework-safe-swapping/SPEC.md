@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Built (2026-10-04); see Implementation notes |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
 | **Depends on** | [14-matcher-engine](../14-matcher-engine/SPEC.md); the base for each subtree comes from [16](../16-what-not-to-swap/SPEC.md) and [50](../50-ui-localization-and-base-language/SPEC.md) |
@@ -390,35 +390,44 @@ install or update."
 
 ## Implementation notes
 
-*2026-10-02, the part of this slice that [19](../19-word-popover/SPEC.md)'s word card needs,
-built with it. Requirements above are unchanged; most of the slice is still to do.*
+*2026-10-04: the slice is built (`extension/content/engine.js`, wired from `content.js`).*
 
-**Built.**
+**Built as specified**: swapping in place (the site's node keeps the text before its first
+swap, Kotiko's nodes follow it, tracked in WeakMaps and a WeakSet); restore without
+`normalize()` and a test that forbids `normalize()`, `replaceChild` and `replaceWith` in the
+content scripts; the self-write filter (`takeRecords()` before and after every write); revert
+and churn budgets, volatile elements and page-wide stand-down with its popup line
+(`popup_stood_down`); time-sliced processing in 8 ms slices with `scheduler.yield()` or a
+`MessageChannel`, small changes swapped inside the observer callback, before the next paint;
+centre-first initial passes on pages over 5,000 elements; the hydration wait; signature-based
+re-apply (a new word rewrites only the text that has it; unchanged swaps get their word's
+current data); hidden tabs deferred to `visibilitychange`; `restoreWithin` on a focused editor;
+injection into open tabs on install and update (`scripting`); the handoff. Tests: the F02, F03,
+F08 and F25 repros, a React 18 app (production build from `node_modules`) re-rendering,
+unmounting and remounting for four seconds with no error and its counts always equal to its
+state, Turbo-style body replacement and `document.open()`, the self-healing page, an
+unpainted-frame check, and the 100,000-node page.
 
-- The swap element: `<kotiko-w lang="…" dir="auto" translate="no" class="notranslate">`
-  (`content.css` as specified, including `line-height: 1`). No `title`, `data-*`, `id` or
-  `aria-*`: the original surface, the chosen word and its candidates live in a
-  content-script `WeakMap<Element, {surface, word, all}>`, which the card reads through
-  `infoFor(el)` (adding the same word's other-base records). The neighbouring-text check
-  for a lone capital reads the original surface from the map instead of `data-en`.
-- Unwrapping restores each swap from the map; a `<kotiko-w>` this instance didn't make is
-  left for its own instance.
-- Legacy cleanup: swaps from before this element (`span.kotiko-w` with `data-en`, and the
-  pre-rename span) are put back to their `data-en` text on startup. Remove two releases
-  later.
-- One instance per document, minimally: each instance dispatches `kotiko:handoff` on
-  startup, and an older one hears it, restores its swaps from its own map, and stops; an
-  instance also stops when its extension context is gone (06 F15), checked in the
-  observer callback. A page that fires the event itself makes Kotiko stop on that page
-  (nothing re-walks it), which is the same as the page removing the swaps.
-- Tests: the content DOM tests assert the element and its attributes, and that no
-  original word, gloss or language appears in the page's HTML; e2e checks the same from
-  page scripts.
+**Different from the text above, and why**:
 
-**Not built yet** (the rest of this slice): swapping text nodes in place without detaching
-them (06 F02; `replaceChild` is still used, and the F02 tests stay `todo`), no
-`normalize()` (F03), rewrite budgets and stand-down (F08), the observer on
-`documentElement` (F25), time-sliced processing with `scheduler.yield()`, centre-first
-initial passes and the hydration wait, signature-based re-apply, `restoreWithin`,
-injection into tabs open at install (the `scripting` permission), the `KotikoEngine`
-public surface, and the split into `content/engine.js` and `content/main.js`.
+- The observer watches `document`, not `document.documentElement`: `document.open()`
+  replaces the root element itself.
+- A **revert** is the site putting back its original text or removing Kotiko's nodes. The site
+  writing *new* text into a swapped node (a counter, a re-render) is churn only: counting it as
+  a revert gave up on any live app within about a second.
+- Which word a spot shows is remembered per site text node and spot, so a re-render or a
+  settings change keeps the same word in the same place; slice 18 replaces the rotation.
+- The engine asks `content.js` for a plan (`plan({ text, node, edges })`); `content/main.js`
+  is still `content.js`.
+- Startup warms the word segmenter and pending style work in a task of its own, and listens
+  for storage changes from its first moment, applying any that arrive while starting.
+
+**Measured on the 100,000-node page** (Chromium, Long Animation Frames): Kotiko's own scripts
+never block for more than about 20 ms, but each frame's style and layout pass takes 30 to
+60 ms while swaps land all over the document, and now and then that pass and a garbage
+collection reach about 100 ms; the page finishes in about 3.5 s. The 50 ms and 2 s budgets are
+not met on a page this size; ordinary pages (a few thousand nodes) are well inside them. The
+end-to-end test guards against regressions at 150 ms.
+
+**Next**: viewport-first swapping (Future work, first item) is what brings very large pages
+under the budgets: swap what is on or near the screen, and the rest as it scrolls near.

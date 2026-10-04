@@ -513,6 +513,11 @@
   // Slice 20 states H and H2, from what the page's content script made of it (16): a page
   // in a language the learner doesn't read, or in one of theirs with no word for it yet.
   function renderPageLanguage(st) {
+    if (st?.stoodDown) {
+      $("pageLang").hidden = false;
+      $("pageLangText").replaceChildren(t("popup_stood_down"));
+      return;
+    }
     const other = !!(st && !st.base && st.lang && st.reason !== "unknown");
     const empty = !!(st && st.base && st.words === 0 && wordTotal(state.s.words) > 0);
     $("pageLang").hidden = !other && !empty;
