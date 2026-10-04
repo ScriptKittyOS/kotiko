@@ -141,6 +141,19 @@ function importedStopwords() {
   return stopwordsP;
 }
 
+// Sites left alone by default (slice 16 §4), shipped with the extension.
+let sensitiveP = null;
+function sensitiveSites() {
+  sensitiveP ??= fetch(ext.runtime.getURL("data/sensitive-sites.json"))
+    .then((r) => r.json())
+    .then((d) => (Array.isArray(d?.sites) ? d.sites : []))
+    .catch(() => {
+      sensitiveP = null;
+      return null;
+    });
+  return sensitiveP;
+}
+
 async function mirrorBaseRules({ force = false } = {}) {
   const Text = globalThis.KotikoText;
   const spec = globalThis.KOTIKO_SPEC;
@@ -159,7 +172,9 @@ async function mirrorBaseRules({ force = false } = {}) {
       stopwords: own?.length ? own : imported[b] ?? imported[Text.primary(b)] ?? [],
     };
   }
-  await ext.storage.local.set({ baseRules: out, baseRulesFor: stamp });
+  // Content scripts read the sensitive-sites list here too; it changes only with a release.
+  const sites = await sensitiveSites();
+  await ext.storage.local.set({ baseRules: out, baseRulesFor: sites ? stamp : null, ...(sites ? { sensitiveSites: sites } : {}) });
 }
 
 // ── the server connection ───────────────────────────────────────────────────
@@ -817,6 +832,11 @@ ext.runtime.onMessage.addListener(
           await requestSync(msg.force ? { reason: "manual", force: true } : { reason: "page" });
           return { ok: true };
         },
+      },
+      // A page that opened before the list was copied to storage asks for it (slice 16 §4).
+      sensitiveSites: {
+        from: ["content"],
+        run: async () => ({ sites: (await sensitiveSites()) ?? [] }),
       },
       // The free lookups left today, for the popup and the dashboard (slice 10).
       llmStatus: {

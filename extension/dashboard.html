@@ -247,6 +247,30 @@
             <p class="field-help" id="celebrationsHelp" data-i18n="dash_celebrations_help"></p>
           </section>
 
+          <!-- 16: where Kotiko swaps; 38 adds per-site rules here. -->
+          <section class="set-section" id="set-pages" data-section="pages" aria-labelledby="setPagesTitle">
+            <h2 class="set-title" id="setPagesTitle" data-i18n="dash_set_pages"></h2>
+            <button class="switch-row" id="sensitiveSites" type="button" role="switch" aria-checked="true" aria-describedby="sensitiveSitesHelp">
+              <span data-i18n="dash_sensitive_sites"></span>
+              <span class="switch" aria-hidden="true"></span>
+            </button>
+            <p class="field-help" id="sensitiveSitesHelp" data-i18n="dash_sensitive_sites_help"></p>
+            <div class="fld" id="sensitiveAllowedField" hidden>
+              <p class="field-label" id="sensitiveAllowedLabel" data-i18n="dash_sensitive_allowed"></p>
+              <ul class="form-chips" id="sensitiveAllowed" aria-labelledby="sensitiveAllowedLabel"></ul>
+            </div>
+            <button class="switch-row" id="swapControls" type="button" role="switch" aria-checked="false" aria-describedby="swapControlsHelp">
+              <span data-i18n="dash_swap_controls"></span>
+              <span class="switch" aria-hidden="true"></span>
+            </button>
+            <p class="field-help" id="swapControlsHelp" data-i18n="dash_swap_controls_help"></p>
+            <div class="fld">
+              <p class="field-label" id="neverSwapLabel" data-i18n="dash_never_swap"></p>
+              <ul class="form-chips" id="neverSwap" aria-labelledby="neverSwapLabel" aria-describedby="neverSwapHelp"></ul>
+              <p class="field-help" id="neverSwapHelp" data-i18n="dash_never_swap_help"></p>
+            </div>
+          </section>
+
           <section class="set-section" id="set-appearance" data-section="appearance" aria-labelledby="setLookTitle">
             <h2 class="set-title" id="setLookTitle" data-i18n="dash_set_appearance"></h2>
             <div class="set-field">

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Bank login fixture</title>
+</head>
+<body>
+  <!-- Slice 16 §2 and §4: login and payment forms are left alone on every site. -->
+  <main>
+    <p id="intro">Welcome home. Thanks for banking with us.</p>
+    <form id="login">
+      <h2 id="login-title">Sign in to your home account</h2>
+      <label for="user">Your name at home</label>
+      <input id="user" autocomplete="username">
+      <label for="pass">Password</label>
+      <input id="pass" type="password">
+      <p id="login-help">Thanks, we keep your home safe.</p>
+    </form>
+    <form id="pay">
+      <p id="pay-help">Pay for the house, thanks.</p>
+      <input id="card" autocomplete="cc-number">
+    </form>
+  </main>
+</body>
+</html>

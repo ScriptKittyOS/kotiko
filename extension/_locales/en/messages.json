@@ -3257,5 +3257,96 @@
         "content": "{provider}"
       }
     }
+  },
+  "popover_never_swap": {
+    "message": "Don't swap this word",
+    "description": "Word card action (slice 16 §5): adds the word to the never-swap list, on every page."
+  },
+  "toast_never_swap": {
+    "message": "Kotiko won't swap “$WORD$” anymore.",
+    "description": "Short message on the page after \"Don't swap this word\", with an Undo button. $WORD$ is the word as the page wrote it.",
+    "placeholders": {
+      "word": {
+        "content": "{word}"
+      }
+    }
+  },
+  "popup_sensitive_banking": {
+    "message": "This looks like a bank's site, so Kotiko leaves it alone.",
+    "description": "Popup, on a site from the sensitive-sites list (slice 16 §4), category banking."
+  },
+  "popup_sensitive_payments": {
+    "message": "This looks like a payment site, so Kotiko leaves it alone.",
+    "description": "Popup, on a sensitive site, category payments."
+  },
+  "popup_sensitive_health": {
+    "message": "This looks like a health portal, so Kotiko leaves it alone.",
+    "description": "Popup, on a sensitive site, category health."
+  },
+  "popup_sensitive_government": {
+    "message": "This looks like a government or tax site, so Kotiko leaves it alone.",
+    "description": "Popup, on a sensitive site, category government."
+  },
+  "popup_sensitive_email": {
+    "message": "Kotiko leaves email you're writing alone.",
+    "description": "Popup, on a webmail compose page (slice 16 §4)."
+  },
+  "popup_sensitive_run": {
+    "message": "Swap words here anyway",
+    "description": "Popup link under the sensitive-site message: lets Kotiko run on this site."
+  },
+  "dash_set_pages": {
+    "message": "Pages",
+    "description": "Settings section title: where Kotiko swaps words and where it doesn't (slice 16)."
+  },
+  "dash_sensitive_sites": {
+    "message": "Leave sensitive sites alone",
+    "description": "Settings switch (slice 16 §4), on by default."
+  },
+  "dash_sensitive_sites_help": {
+    "message": "Banks, payments, health portals, government and tax sites, and email you're writing. The list comes with Kotiko and is never downloaded.",
+    "description": "Help under the sensitive-sites switch."
+  },
+  "dash_sensitive_allowed": {
+    "message": "Sensitive sites where Kotiko runs anyway",
+    "description": "Settings: the list of sensitive sites the learner let Kotiko run on."
+  },
+  "dash_sensitive_allowed_remove": {
+    "message": "Leave $HOST$ alone again",
+    "description": "Settings, for screen readers: the button that takes a site off the run-anyway list. $HOST$ is a site name.",
+    "placeholders": {
+      "host": {
+        "content": "{host}"
+      }
+    }
+  },
+  "dash_swap_controls": {
+    "message": "Swap words in buttons and menus",
+    "description": "Settings switch (slice 16 §2), off by default."
+  },
+  "dash_swap_controls_help": {
+    "message": "Off keeps buttons, menus, tabs and labels as the site wrote them, so they are easy to find.",
+    "description": "Help under the buttons-and-menus switch."
+  },
+  "dash_never_swap": {
+    "message": "Words never swapped",
+    "description": "Settings: the never-swap list (slice 16 §5)."
+  },
+  "dash_never_swap_help": {
+    "message": "Kotiko leaves these as they are on every page. Add one from a word's card with “Don't swap this word”.",
+    "description": "Help under the never-swap list."
+  },
+  "dash_never_swap_empty": {
+    "message": "None yet.",
+    "description": "Settings: shown when the never-swap list is empty."
+  },
+  "dash_never_swap_remove": {
+    "message": "Swap $WORD$ again",
+    "description": "Settings, for screen readers: the button that takes a word off the never-swap list.",
+    "placeholders": {
+      "word": {
+        "content": "{word}"
+      }
+    }
   }
 }

@@ -2267,6 +2267,7 @@
     ["connection", "dash_set_connection"],
     ["voices", "settings_voices"],
     ["learning", "dash_set_learning"],
+    ["pages", "dash_set_pages"],
     ["appearance", "dash_set_appearance"],
     ["about", "dash_set_about"],
   ];
@@ -2296,7 +2297,25 @@
     }
     $("aboutVersion").textContent = t("dash_set_version", { version });
     $("celebrations").setAttribute("aria-checked", String(state.s.prefs?.celebrations !== false));
+    renderPages();
     renderStory();
+  }
+
+  // Slice 16: sensitive sites (on by default) and the ones the learner runs Kotiko on
+  // anyway, words in buttons and menus (off), and the never-swap list.
+  function renderPages() {
+    const p = state.s.prefs ?? {};
+    $("sensitiveSites").setAttribute("aria-checked", String(p.sensitiveSites !== false));
+    $("swapControls").setAttribute("aria-checked", String(p.swapControls === true));
+    const chips = (list, key, label) =>
+      (Array.isArray(list) ? list : []).map((v) => el("li", { class: "form-chip" },
+        el("bdi", { dir: "auto" }, v),
+        el("button", { class: "form-remove", type: "button", "aria-label": t(label, { [key]: v }), title: t(label, { [key]: v }), onclick: () => setPref(key === "host" ? "sensitiveAllowed" : "neverSwap", list.filter((x) => x !== v)) }, icon("close", 12))));
+    const allowed = chips(p.sensitiveAllowed, "host", "dash_sensitive_allowed_remove");
+    $("sensitiveAllowedField").hidden = !allowed.length;
+    $("sensitiveAllowed").replaceChildren(...allowed);
+    const never = chips(p.neverSwap, "word", "dash_never_swap_remove");
+    $("neverSwap").replaceChildren(...(never.length ? never : [el("li", { class: "field-help" }, t("dash_never_swap_empty"))]));
   }
 
   // Settings → About: the "Why Kotiko?" story in the interface language (slice 22), from
@@ -3089,6 +3108,8 @@
     $("removeKey").addEventListener("click", removeKey);
     $("testLookup").addEventListener("click", testLookup);
     $("celebrations").addEventListener("click", () => setPref("celebrations", state.s.prefs?.celebrations === false));
+    $("sensitiveSites").addEventListener("click", () => setPref("sensitiveSites", state.s.prefs?.sensitiveSites === false));
+    $("swapControls").addEventListener("click", () => setPref("swapControls", state.s.prefs?.swapControls !== true));
     $("showWelcome").addEventListener("click", () => send({ type: "welcome.open" }).catch(() => {}));
     $("dataCollection").addEventListener("click", () => setLookup({ dataCollection: $("dataCollection").getAttribute("aria-checked") === "true" ? "allow" : "deny" }));
     for (const id of ["lookupBaseUrl", "lookupModel"]) {

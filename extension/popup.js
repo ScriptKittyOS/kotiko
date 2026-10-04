@@ -29,6 +29,7 @@
     enabled: true,
     pausedHosts: [],
     hiddenLangs: [],
+    prefs: {},
     words: [],
     lastSync: null,
     syncError: null,
@@ -513,23 +514,17 @@
   // Slice 20 states H and H2, from what the page's content script made of it (16): a page
   // in a language the learner doesn't read, or in one of theirs with no word for it yet.
   function renderPageLanguage(st) {
-    if (st?.stoodDown) {
-      $("pageLang").hidden = false;
-      $("pageLangText").replaceChildren(t("popup_stood_down"));
-      return;
-    }
-    const other = !!(st && !st.base && st.lang && st.reason !== "unknown");
-    const empty = !!(st && st.base && st.words === 0 && wordTotal(state.s.words) > 0);
-    $("pageLang").hidden = !other && !empty;
-    if (other) {
-      const name = I18n.languageName(st.lang) ?? st.lang;
-      const readToo = el("button", { class: "link", id: "readToo", type: "button", onclick: () => openDashboardAt("#settings/languages") }, t("popup_read_too", { lang: name }));
-      $("pageLangText").replaceChildren(`${t("popup_page_not_yours", { lang: name })} `, readToo);
-    } else if (empty) {
-      $("pageLangText").replaceChildren(t("popup_no_meanings_base", { base: I18n.languageName(st.base) ?? st.base }));
-    } else {
-      $("pageLangText").replaceChildren();
-    }
+    const link = (id, label, onclick) => el("button", { class: "link", id, type: "button", onclick }, label);
+    const name = (l) => I18n.languageName(l) ?? l;
+    let line = null;
+    // A sensitive site (16 §4), with a way to run there anyway; a page that kept undoing
+    // Kotiko (15); a language they don't read; one of theirs with no word yet.
+    if (st?.sensitive) line = [`${t(`popup_sensitive_${st.sensitive}`)} `, link("runSensitive", t("popup_sensitive_run"), allowSensitive)];
+    else if (st?.stoodDown) line = [t("popup_stood_down")];
+    else if (st && !st.base && st.lang && st.reason !== "unknown") line = [`${t("popup_page_not_yours", { lang: name(st.lang) })} `, link("readToo", t("popup_read_too", { lang: name(st.lang) }), () => openDashboardAt("#settings/languages"))];
+    else if (st?.base && st.words === 0 && wordTotal(state.s.words) > 0) line = [t("popup_no_meanings_base", { base: name(st.base) })];
+    $("pageLang").hidden = !line;
+    $("pageLangText").replaceChildren(...(line ?? []));
   }
 
   // Asks the tab's content script which language it found the page in. No answer (a page
@@ -831,6 +826,16 @@
     renderLangs();
     $("chips").querySelector('.chip[tabindex="0"]')?.focus();
     return write(["hiddenLangs"], () => ext.storage.local.set({ hiddenLangs: [] }));
+  }
+
+  // "Swap words here anyway" (16 §4).
+  function allowSensitive() {
+    state.pageStatus = { ...state.pageStatus, sensitive: null };
+    renderPage();
+    return write(["prefs"], async () => {
+      const { prefs } = await ext.storage.local.get({ prefs: {} });
+      await ext.storage.local.set({ prefs: { ...prefs, sensitiveAllowed: [...new Set([...(prefs.sensitiveAllowed ?? []), state.host])] } });
+    });
   }
 
   function setEnabled(on) {

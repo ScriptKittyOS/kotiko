@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Partly built (2026-10-04): the language decision, element rules and token rules (§§1-3); sensitive sites, the two settings and the never-swap list (§§4-5) are next. See Implementation notes |
+| **Status** | Built (2026-10-04); see Implementation notes |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
 | **Depends on** | [14-matcher-engine](../14-matcher-engine/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages, the shared `stopwords.json` and `casing.json`) |
@@ -468,6 +468,24 @@ Built 2026-10-04 (§§1-3):
 - Edges (slice 14) now run straight through inline elements and past empty ones such as
   `<wbr>`, as slice 14 specifies. Before, a space was inserted, so "hot<wbr>dog" became
   "hotсобака".
+
+Built 2026-10-04 (§§4-5):
+
+- `extension/data/sensitive-sites.json` holds about 150 entries across the five categories,
+  matched by `extension/lib/sensitive.js`. The background copies the list into
+  `storage.local.sensitiveSites` with the language rules, again on every update. A page
+  that opens before that asks the background once. One measured change: the spec's "labels
+  starting with `bank`" is narrowed to labels starting with `banking`, `onlinebanking`,
+  `ebanking` or `netbanking`, plus the `.bank` domain and the named banks. Plain `bank*`
+  also matched bankrate.com (news) and banksy.co.uk (art).
+- The settings are in `storage.local.prefs`, beside the theme, until slice 39 moves them
+  into its synced groups: `sensitiveSites` (on unless `false`), `sensitiveAllowed` (hosts
+  the learner ran Kotiko on anyway from the popup; 38 turns this into per-site rules),
+  `swapControls` (off unless `true`) and `neverSwap` (form keys). A change to any of these
+  re-applies open pages; a theme change doesn't.
+- The dashboard has a Pages section with the two switches and both lists. The popup says
+  why Kotiko isn't running on a sensitive site and offers "Swap words here anyway". The
+  word card has "Don't swap this word", with an undo.
 
 ## Acceptance criteria
 

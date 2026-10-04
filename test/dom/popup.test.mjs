@@ -797,6 +797,16 @@ describe("the page's language", () => {
     assert.equal(p.text("#pageLangText"), "Kotiko stepped back on this page because the page kept undoing its changes.");
   });
 
+  test("a sensitive site: why, and a way to run there anyway (slice 16 §4)", async () => {
+    const p = await openPopup({ local: { words: WORDS, prefs: { theme: "dark" } }, pageStatus: { base: "en", reason: "declared", lang: "en", words: 4, sensitive: "banking" } });
+    await p.settle();
+    assert.equal(p.text("#pageLangText"), "This looks like a bank's site, so Kotiko leaves it alone. Swap words here anyway");
+    p.$("#runSensitive").click();
+    await p.settle();
+    assert.deepEqual(p.store.prefs, { theme: "dark", sensitiveAllowed: [HOST] });
+    assert.equal(p.$("#pageLang").hidden, true);
+  });
+
   test("nothing when the page is in their language, unknown, paused, or there is no content script", async () => {
     for (const [pageStatus, local] of [
       [{ base: "en", reason: "declared", lang: "en", words: 12 }, {}],

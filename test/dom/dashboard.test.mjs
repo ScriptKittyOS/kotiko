@@ -761,10 +761,34 @@ describe("settings (§9)", () => {
     assert.equal(d.store.prefs.celebrations, true);
   });
 
+  test("Pages: sensitive sites on, buttons and menus off, and the lists to take things off (slice 16)", async () => {
+    const d = await openDashboard({ hash: "#settings/pages", local: { prefs: { neverSwap: ["house"], sensitiveAllowed: ["www.chase.com"] } } });
+    assert.equal(d.$("#sensitiveSites").getAttribute("aria-checked"), "true");
+    assert.equal(d.$("#swapControls").getAttribute("aria-checked"), "false");
+    d.$("#sensitiveSites").click();
+    await d.settle();
+    assert.equal(d.store.prefs.sensitiveSites, false);
+    d.$("#swapControls").click();
+    await d.settle();
+    assert.equal(d.store.prefs.swapControls, true);
+    assert.deepEqual(d.$$("#neverSwap bdi").map((b) => b.textContent), ["house"]);
+    assert.equal(d.$("#sensitiveAllowedField").hidden, false);
+    d.$("#neverSwap .form-remove").click();
+    await d.settle();
+    assert.deepEqual(d.store.prefs.neverSwap, []);
+    assert.equal(d.$("#neverSwap").textContent, "None yet.");
+    assert.equal(d.$("#sensitiveAllowed .form-remove").getAttribute("aria-label"), "Leave www.chase.com alone again");
+    d.$("#sensitiveAllowed .form-remove").click();
+    await d.settle();
+    assert.deepEqual(d.store.prefs.sensitiveAllowed, []);
+    assert.equal(d.$("#sensitiveAllowedField").hidden, true);
+    assert.equal(d.store.prefs.swapControls, true, "the other settings are kept");
+  });
+
   test("every built section, each saving on change", async () => {
     const d = await openDashboard({ hash: "#settings" });
     assert.equal(d.$("#settingsView").hidden, false);
-    assert.deepEqual(d.$$("#settingsIndex a").map((a) => a.textContent), ["Languages you read in", "Kotiko’s language", "Word lookups", "Your Kotiko server", "Voices", "Learning", "Appearance", "About"]);
+    assert.deepEqual(d.$$("#settingsIndex a").map((a) => a.textContent), ["Languages you read in", "Kotiko’s language", "Word lookups", "Your Kotiko server", "Voices", "Learning", "Pages", "Appearance", "About"]);
     assert.equal(d.$("#accessKey").type, "password", "the key is typed here, hidden by default");
     assert.equal(d.$("#accessKey").value, "", "a saved token is never read back (slice 11)");
     d.$("#serverUrl").value = "http://127.0.0.1:5000";
