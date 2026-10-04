@@ -328,6 +328,8 @@ describe("skipLetter", () => {
     assert.equal(at("Mary and |I went home."), false);
     assert.equal(at("In 2020 |I moved."), false, "a number before, a lowercase word after");
     assert.equal(at("Then |I said: no"), false);
+    assert.equal(at("Can |I?"), false, "a question");
+    assert.equal(at("Type |I."), true, "not a question");
     assert.equal(at("|I'm here"), false);
     assert.equal(at("|I"), false, "alone, with no evidence");
     assert.equal(at("Thanks, Dad. |I love you"), false, "Dad ends the previous sentence");
@@ -372,21 +374,4 @@ describe("F04 word boundaries", () => {
   }
 });
 
-// Research 06 F13: acronyms and single letters. The lone-capital rule (skipLetter) is in;
-// the rest is slice 16's token rules.
-describe("F13 acronyms and single letters (slice 16)", () => {
-  const words = [word("это", "ru", "en", ["it"]), word("нас", "ru", "en", ["us"]), word("кто", "ru", "en", ["who"]), word("ein", "de", "en", ["a", "an"])];
-  const cases = [
-    ["all-caps acronym IT", "the IT team", "the IT team"],
-    ["all-caps acronym US", "the US government", "the US government"],
-    ["all-caps acronym WHO", "WHO advice", "WHO advice"],
-    ["single capital after a noun", "Vitamin A.", "Vitamin A.", true],
-    ["plan letter", "Plan B and Plan A", "Plan B and Plan A", true],
-    ["single-letter forms need opting in", "I think a cat is a pet.", "I think a cat is a pet."],
-  ];
-  for (const [name, input, expected, done] of cases) {
-    test(name, { todo: !done && "slice 16: acronym and single-letter rules" }, () => {
-      assert.equal(swap(input, words), expected);
-    });
-  }
-});
+// Research 06 F13 (acronyms and single letters) is slice 16's: test/unit/rules.test.mjs.

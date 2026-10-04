@@ -16,7 +16,9 @@
 //   plan({ text, node, edges }) -> [{ start, end, display, lang, info }] sorted, or []
 //     edges() -> { before, after }: up to 16 characters of neighbouring inline text, or
 //     U+2029 at a block boundary (slice 14's ctx).
-//   skip(element) -> true when the element's text must be left alone (slice 16).
+//   skip(element) -> true when the element's text must be left alone (slice 16); asked for
+//     every element the walk meets, so the caller caches it.
+//   afterSlice() -> nodes to look at again (slice 16's settled deferrals), or nothing.
 (() => {
   const MARK = "kotiko-w";
   const BLOCK = String.fromCharCode(0x2029);
@@ -32,7 +34,7 @@
   const INLINE = new Set(["A", "ABBR", "B", "BDI", "BDO", "CITE", "DATA", "DEL", "DFN", "EM", "FONT", "I", "INS", "MARK", "Q", "S", "SMALL", "SPAN", "STRONG", "SUB", "SUP", "TIME", "U", "WBR"]);
   const HYDRATION_MARKERS = "#__next, [data-reactroot], #__nuxt, [data-sveltekit-hydrated], [ng-version], [data-server-rendered]";
 
-  function create({ plan, skip = () => false, onSwap = () => {}, onStatus = () => {}, doc = globalThis.document, now = () => performance.now(), clock = () => Date.now(), contextValid = () => true }) {
+  function create({ plan, skip = () => false, afterSlice = () => null, onSwap = () => {}, onStatus = () => {}, doc = globalThis.document, now = () => performance.now(), clock = () => Date.now(), contextValid = () => true }) {
     const win = doc.defaultView ?? globalThis;
     const isMark = (n) => n?.nodeType === 1 && n.localName === MARK;
     // Kotiko's nodes: the text after a swapped word, and the swaps themselves.
@@ -123,19 +125,27 @@
       return false;
     }
 
+    // The caller's rules for an element or any of its ancestors (a text node added inside a
+    // code editor, a language island).
+    function skippedByCaller(el) {
+      for (let e = el; e && e !== doc.documentElement; e = e.parentElement) if (skip(e)) return true;
+      return false;
+    }
+
     function* textsUnder(root) {
       if (root.nodeType === 3) {
-        if (!owned.has(root) && root.parentElement && !skipped(root.parentElement)) yield root;
+        if (!owned.has(root) && root.parentElement && !skipped(root.parentElement) && !skippedByCaller(root.parentElement)) yield root;
         return;
       }
       if (root.nodeType !== 1 && root.nodeType !== 9 && root.nodeType !== 11) return;
-      if (root.nodeType === 1 && skipped(root)) return;
+      if (root.nodeType === 1 && (skipped(root) || skippedByCaller(root))) return;
       const tw = doc.createTreeWalker(root, win.NodeFilter.SHOW_ELEMENT | win.NodeFilter.SHOW_TEXT, {
         acceptNode(n) {
           if (n.nodeType === 3) return owned.has(n) ? win.NodeFilter.FILTER_SKIP : win.NodeFilter.FILTER_ACCEPT;
           if (owned.has(n) || isMark(n) || volatile.has(n) || SKIP_TAGS.has(n.nodeName.toUpperCase()) || n.isContentEditable || n.localName === "kotiko-popover") return win.NodeFilter.FILTER_REJECT;
-          // A part of the page in a language the learner doesn't read.
-          if (n.hasAttribute("lang") && skip(n)) return win.NodeFilter.FILTER_REJECT;
+          // The caller's rules: a language the learner doesn't read, a code editor, a login
+          // form (slice 16).
+          if (skip(n)) return win.NodeFilter.FILTER_REJECT;
           return win.NodeFilter.FILTER_SKIP;
         },
       });
@@ -143,12 +153,12 @@
     }
 
     // Up to 16 characters of the site's text just before or after T in the same inline run,
-    // or U+2029 at a block or skipped boundary (slice 14's edges). Kotiko's nodes count as
-    // the text they replaced.
+    // or U+2029 at a block or skipped boundary (slice 14's edges). The run goes straight
+    // through inline elements, adding nothing: "hot<wbr>dog" and "do<span>g</span>" are one
+    // word each. Kotiko's nodes count as the text they replaced.
     function edge(T, dir) {
       const before = dir === "previousSibling";
       let n = T;
-      let crossed = false;
       for (;;) {
         let s = n[dir];
         // Kotiko's nodes after a site node: before T, they stand for that node's text.
@@ -157,20 +167,22 @@
         if (!s) {
           if (inline(n.parentNode) && n.parentNode !== doc.body) {
             n = n.parentNode;
-            crossed = true;
             continue;
           }
           return BLOCK;
         }
-        if (s.nodeType === 3) {
-          const t = siteText(s);
-          const part = before ? t.slice(-16) : t.slice(0, 16);
-          return crossed ? (before ? `${part} ` : ` ${part}`) : part;
+        if (s.nodeType === 3 || (s.nodeType === 1 && inline(s) && !skip(s))) {
+          const t = s.nodeType === 3 ? siteText(s) : s.textContent;
+          // An empty one (<wbr>, an empty <span>): look past it.
+          if (!t) {
+            n = s;
+            continue;
+          }
+          return before ? t.slice(-16) : t.slice(0, 16);
         }
-        if (s.nodeType === 1 && inline(s) && !skip(s)) {
-          const t = s.textContent;
-          const part = before ? t.slice(-16) : t.slice(0, 16);
-          return before ? `${part} ` : ` ${part}`;
+        if (s.nodeType === 8) {
+          n = s;
+          continue;
         }
         return BLOCK;
       }
@@ -264,7 +276,12 @@
       scheduled = true;
       (async () => {
         try {
-          while (!torn && !run(now() + SLICE_MS)) await yieldNow();
+          for (;;) {
+            const done = torn || run(now() + SLICE_MS);
+            settle();
+            if (done && !walking && !queue.length) break;
+            await yieldNow();
+          }
         } finally {
           scheduled = false;
         }
@@ -275,7 +292,18 @@
     // left after one slice continues time-sliced.
     function flushSoon() {
       if (torn) return;
-      if (!run(now() + SLICE_MS)) schedule();
+      const done = run(now() + SLICE_MS);
+      settle();
+      if (!done) schedule();
+    }
+
+    // The caller's deferred decisions are made at the end of each slice; their nodes are
+    // looked at again (slice 16).
+    function settle() {
+      const nodes = afterSlice();
+      if (!nodes?.length) return;
+      for (const n of nodes) if (n.isConnected) enqueue(n);
+      if (!scheduled) schedule();
     }
 
     // ── observing ─────────────────────────────────────────────────────────

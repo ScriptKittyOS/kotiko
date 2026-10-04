@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed; the control rules and the lone-capital rule are implemented early (see "Implemented early") |
+| **Status** | Partly built (2026-10-04): the language decision, element rules and token rules (§§1-3); sensitive sites, the two settings and the never-swap list (§§4-5) are next. See Implementation notes |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
 | **Depends on** | [14-matcher-engine](../14-matcher-engine/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages, the shared `stopwords.json` and `casing.json`) |
@@ -443,6 +443,31 @@ The page gate's detection runs once per document (and once more for short shells
 initial pass waits for it: total added latency under 20 ms on the reference page. Element
 rules are cached per element. Token rules are O(1) per match. Evidence sets hold only keys
 present in the index, so they stay small.
+
+## Implementation notes
+
+Built 2026-10-04 (§§1-3):
+
+- `extension/lib/rules.js` implements §3's token rules as written, with two measured changes:
+  a Title Case run is three or more words of **three** letters or more, **75 %** title-shaped
+  (four letters and 60 % made "Will Smith said" a headline and "Man Bites Dog" not one); and
+  the capitalised pronoun is also kept at the end of a clause ("so do I.", "Can I?"), with
+  `skipLetter` letting a question mark through after a sentence-start word.
+- The shared `spec/lang/_generic/casing.json` (with `spec/lang/schema/casing.schema.json`)
+  has `default` plus `en`, `es`, `de`, `fr`, `it`, `pt` and `lb`. The background merges the
+  default with each base's entry into `storage.local.baseRules[base].casing`. A language
+  with no entry gets the default, which is safe: no deferral to headlines, no honorifics.
+- Forms keep their case flag through the projection (`{ text, case }` when it isn't `any`),
+  and the matcher's candidates carry it.
+- Deferred capitals are settled at the end of each engine slice (`afterSlice`), and their
+  text nodes are planned again.
+- `skip(el)` covers the element rules: code editors and views, editable roles,
+  `translate=no` and `.notranslate` below `<body>`, the skip attributes, and forms holding a
+  password, payment or one-time-code field. `<html>`'s `lang` is left to the page decision,
+  which fixes an English quote on a German page never being swapped.
+- Edges (slice 14) now run straight through inline elements and past empty ones such as
+  `<wbr>`, as slice 14 specifies. Before, a space was inserted, so "hot<wbr>dog" became
+  "hotсобака".
 
 ## Acceptance criteria
 

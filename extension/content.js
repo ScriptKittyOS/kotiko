@@ -23,6 +23,17 @@
   const MARK = "kotiko-w";
   const SKIP = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA", "INPUT", "SELECT", "OPTION", "CODE", "PRE", "KBD", "SAMP", "SVG", "MATH", "CANVAS", "IFRAME", "TITLE"]);
   const SAMPLE = 2000;
+  // Slice 16's element rules: code editors and code views, editable roles, and the site's own
+  // "don't translate" marks (below <body>: many React sites put translate="no" on <html> only
+  // to keep Google Translate from breaking them).
+  const SKIP_SELECTOR = [
+    ".monaco-editor", ".cm-editor", ".CodeMirror", ".ace_editor", ".react-code-lines", ".blob-code", ".highlight",
+    "[class*='language-']", "[role=code]", "[role=textbox]", "[role=searchbox]",
+    "[translate=no]", ".notranslate", "[data-kotiko-skip]", "[data-slovo-skip]", // legacy-name-ok
+    "template", "var", "object", "embed", "video", "audio",
+  ].join(",");
+  // Login and payment forms, on every site.
+  const SENSITIVE = "input[type=password], [autocomplete^='cc-'], [autocomplete=one-time-code]";
   const host = location.hostname;
   const isMark = (n) => n?.nodeType === 1 && n.localName === MARK;
 
@@ -40,6 +51,10 @@
   let recheckTimer = null;
   // element -> its base for this apply (null: not one of the learner's languages)
   let baseCache = new WeakMap();
+  // element -> whether slice 16's element rules leave it alone, for this apply
+  let skipCache = new WeakMap();
+  // Slice 16's token rules, with this page view's evidence and decisions.
+  let rules = globalThis.KotikoRules.create();
   // Which word each swap shows, remembered per site text node so a re-render or a settings
   // change shows the same word in the same place (a choice is only redone when its word is
   // gone). turns: how many times each form was given a word, to rotate its languages.
@@ -69,6 +84,7 @@
     return seen.length ? seen.slice(0, 4) : ["en"];
   }
   const rulesOf = (base) => state.baseRules?.[base]?.boundaries ?? Text.DEFAULT_RULES;
+  const casingOf = (base) => state.baseRules?.[base]?.casing ?? {};
   const stopwordsOf = (base) => new Set(state.baseRules?.[base]?.stopwords ?? []);
 
   // ── which language the page is in ─────────────────────────────────────────
@@ -147,9 +163,20 @@
   // ── what to swap ────────────────────────────────────────────────────────────
 
   // One candidate per language (the newest), in the order the index keeps them.
-  function choices(entry) {
+  function choices(candidates) {
     const seen = new Set();
-    return entry.candidates.map((c) => c.word).filter((w) => !seen.has(w.lang) && seen.add(w.lang));
+    return candidates.map((c) => c.word).filter((w) => !seen.has(w.lang) && seen.add(w.lang));
+  }
+
+  // The candidates slice 16's rules let a match show, or null; a capital that waits for the
+  // page's evidence is noted and looked at again once decided.
+  function allowed(m, text, ctx, node) {
+    const r = rules.judge(m, { text, ctx, casing: casingOf(ctx.base) });
+    if (r?.keep) return r.keep;
+    if (!r?.defer) return null;
+    const d = rules.decision(m.key, r.defer);
+    if (d === undefined) rules.defer(m.key, r.defer, node);
+    return d ? m.entry.candidates.filter((c) => c.case !== "exact" && c.case !== "proper") : null;
   }
 
   // The word a match shows: the one this spot showed before while it's still a choice,
@@ -180,7 +207,9 @@
     const ordinals = new Map();
     for (const m of scan(text, ctx, index).matches) {
       if (m.surface.length === 1 && skipLetter(ctx.before + text + ctx.after, ctx.before.length + m.start)) continue;
-      const all = choices(m.entry);
+      const cands = allowed(m, text, ctx, node);
+      if (!cands?.length) continue;
+      const all = choices(cands);
       if (!all.length) continue;
       const n = ordinals.get(m.key) ?? 0;
       ordinals.set(m.key, n + 1);
@@ -190,9 +219,20 @@
     return items;
   }
 
-  // Inside an element that the page marks as its own language, or that isn't text to read.
+  // Slice 16's element rules, asked by the engine for every element it walks: a part of
+  // the page in a language the learner doesn't read, a code editor, an editable box, the
+  // site's "don't translate" marks, a login or payment form.
   function skip(el) {
-    return baseFor(el) === null;
+    if (skipCache.has(el)) return skipCache.get(el);
+    // <html>'s lang is the page's, which decidePage weighs: a German page can still hold an
+    // English quote the learner reads.
+    if (el === document.documentElement || el === document.body) {
+      skipCache.set(el, false);
+      return false;
+    }
+    const r = (el.hasAttribute("lang") && baseFor(el) === null) || el.matches(SKIP_SELECTOR) || (el.localName === "form" && !!el.querySelector(SENSITIVE));
+    skipCache.set(el, r);
+    return r;
   }
 
   // ── applying settings ───────────────────────────────────────────────────────
@@ -218,6 +258,7 @@
     const anchorParent = cur?.el.parentElement ?? null;
     controls.reset();
     baseCache = new WeakMap();
+    skipCache = new WeakMap();
     const on = state.enabled && !(state.pausedHosts || []).includes(host);
     const hidden = new Set(state.hiddenLangs || []);
     indexes = on ? buildIndexes((state.words || []).filter((w) => !hidden.has(w.lang)), bases(), { rules: rulesOf }) : null;
@@ -226,6 +267,7 @@
       engine.reset();
       chosen = new WeakMap();
       turns = new Map();
+      rules = globalThis.KotikoRules.create();
     }
     if (indexes) engine.reapply();
     if (cur) {
@@ -362,7 +404,7 @@
     configureSpeech();
     popover = globalThis.KotikoPopover.createPopover({ infoFor });
     popover.install();
-    engine = globalThis.KotikoEngine.create({ plan, skip, contextValid });
+    engine = globalThis.KotikoEngine.create({ plan, skip, afterSlice: () => rules.settle(), contextValid });
     ext.runtime.onMessage.addListener(onMessage);
     await decidePage();
     if (torn) return;
