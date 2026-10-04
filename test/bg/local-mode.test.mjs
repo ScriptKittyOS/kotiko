@@ -29,9 +29,9 @@ const LEGACY_WORDS = Array.from({ length: 50 }, (_, i) => ({
   note: null,
 }));
 
-function loadBackground({ local = {}, sync = {}, fetch: f = fetch } = {}) {
+function loadBackground({ local = {}, sync = {}, fetch: f = fetch, wiktionary } = {}) {
   const fake = createFakeChrome({ runtimeId: EXT_ID, local, sync });
-  const ctx = runInVm("background.js", { chrome: fake.chrome, fetch: f });
+  const ctx = runInVm("background.js", { chrome: fake.chrome, fetch: f, wiktionary });
   const k = ctx.__kotiko;
   return {
     fake,
@@ -98,6 +98,19 @@ describe("a fresh install keeps words in this browser (slice 11)", () => {
     await bg.until(() => bg.store.words?.some((w) => w.native === "شكرا"));
     const chat = srv.state.log.filter((r) => r.path === "/llm/v1/chat/completions");
     assert.ok(chat.length >= 1 && chat.every((r) => r.auth === `Bearer ${KEY}`));
+  });
+
+  test("a word added with the learner's own AI gets its pronunciation from Wiktionary (slice 49 §4a)", async () => {
+    const asked = [];
+    const page = '<h2>Arabic</h2><h3>Pronunciation</h3><span class="IPA">/ʃukˈran/</span><h3>Noun</h3>';
+    const bg = loadBackground({ local: { baseLangs: ["en"] }, wiktionary: (url) => (asked.push(url), new Response(page)) });
+    await bg.k.ready();
+    await bg.send({ type: "backend.set", lookup: { kind: "provider", provider: "openrouter", baseUrl: srv.llmUrl } });
+    await bg.send({ type: "secrets.set", id: "provider:openrouter", value: KEY });
+    const res = await bg.send({ type: "add", text: "shukran" }, POPUP);
+    const done = await bg.until(() => bg.store.addJobs?.find((j) => j.id === res.job.id && j.state === "done"));
+    assert.deepEqual([done.results[0].word.pronunciation, done.results[0].word.pronunciation_source], ["shook-RAN", "wiktionary"]);
+    assert.deepEqual(asked, ["https://en.wiktionary.org/w/rest.php/v1/page/%D8%B4%D9%83%D8%B1%D8%A7/html"]);
   });
 
   test("the same job applied twice saves the word once (worker restart, slice 24 idempotency)", async () => {

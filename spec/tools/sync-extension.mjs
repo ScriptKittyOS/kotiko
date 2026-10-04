@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 const SPEC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = path.join(path.dirname(SPEC), "extension", "spec");
 
-const TOP = ["VERSION", "rules.json", "pronunciation.json", "prompt.md", "languages.json", "lang-aliases.json", "models.json", "providers.json"];
+const TOP = ["VERSION", "rules.json", "pronunciation.json", "prompt.md", "languages.json", "lang-aliases.json", "models.json", "providers.json", "wiktionary.json"];
 const LANG_FILES = ["stopwords.txt", "stem.json", "variants.json", "respelling.json", "welcome.json", "sentences.json", "boundaries.json"];
 // Copied but kept out of spec.js: about 200 KB that only the background reads, by fetch,
 // when the learner's languages change (slice 50 section 5).
@@ -64,6 +64,7 @@ function expected() {
     aliases: json("lang-aliases.json"),
     models: json("models.json"),
     providers: json("providers.json"),
+    wiktionary: json("wiktionary.json"),
     lang,
     prompt: read("prompt.md"),
   };

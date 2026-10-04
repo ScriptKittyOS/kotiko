@@ -972,7 +972,7 @@ defmodule Kotiko.WordSpec do
   defp id(_), do: nil
 
   defp source(_given, :model), do: "model"
-  defp source(given, _) when given in ["model", "user"], do: given
+  defp source(given, _) when given in ["model", "user", "wiktionary"], do: given
   defp source(_given, _), do: "user"
 
   defp pick(value, allowed, default), do: if(value in allowed, do: value, else: default)
@@ -1040,7 +1040,9 @@ defmodule Kotiko.WordSpec do
     end
   end
 
-  defp patch_field(:pronunciation_source, v) when v in [nil, "model", "user"], do: {:ok, v}
+  defp patch_field(:pronunciation_source, v) when v in [nil, "model", "user", "wiktionary"],
+    do: {:ok, v}
+
   defp patch_field(:pronunciation_source, _), do: {:error, "bad_value"}
 
   defp patch_field(:status, v) when v in ["active", "paused"], do: {:ok, v}

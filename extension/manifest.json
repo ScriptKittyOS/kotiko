@@ -14,7 +14,7 @@
       "spec/spec.js", "lib/text.js", "lib/lang.js", "lib/words-v1.js", "lib/wordspec.js", "lib/word-merge.js", "lib/store.js",
       "lib/projection.js", "lib/llm/policy.js", "lib/llm/catalog.js", "lib/llm/client.js", "lib/add-queue.js",
       "lib/refresh-job.js", "lib/local-mode.js", "lib/pkce.js", "lib/celebrations.js", "lib/welcome-model.js",
-      "background.js"
+      "lib/pronounce.js", "lib/wiktionary-pass.js", "background.js"
     ]
   },
   "content_scripts": [

@@ -223,7 +223,7 @@
           break;
         }
         case "pronunciation_source":
-          if (![null, "model", "user"].includes(v)) return invalid(f, "bad_value");
+          if (![null, "model", "user", "wiktionary"].includes(v)) return invalid(f, "bad_value");
           out[f] = v;
           break;
         case "status":
@@ -285,7 +285,7 @@
       native_vocalized: clean(w.native_vocalized),
       pronunciation: clean(w.pronunciation),
       pronunciation_careful: clean(w.pronunciation_careful),
-      pronunciation_source: ["model", "user"].includes(w.pronunciation_source) ? w.pronunciation_source : w.pronunciation ? "model" : null,
+      pronunciation_source: ["model", "user", "wiktionary"].includes(w.pronunciation_source) ? w.pronunciation_source : w.pronunciation ? "model" : null,
       note: clean(w.note),
     });
     return { word: { ...word, id: isId(w.id) ? w.id : undefined, status: w.status === "paused" ? "paused" : "active", origin: typeof w.origin === "string" ? w.origin : origin, source_text: clean(w.source_text) }, dropped_fields };

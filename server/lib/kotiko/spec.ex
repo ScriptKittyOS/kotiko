@@ -12,7 +12,7 @@ defmodule Kotiko.Spec do
 
   @root Path.expand("../../../spec", __DIR__)
 
-  @json_files ~w(languages lang-aliases rules pronunciation models)
+  @json_files ~w(languages lang-aliases rules pronunciation models wiktionary)
   for name <- @json_files, do: @external_resource(Path.join(@root, name <> ".json"))
   @external_resource Path.join(@root, "prompt.md")
   @external_resource Path.join(@root, "VERSION")
@@ -72,6 +72,7 @@ defmodule Kotiko.Spec do
   @rules read_json.(Path.join(@root, "rules.json"))
   @pronunciation read_json.(Path.join(@root, "pronunciation.json"))
   @models read_json.(Path.join(@root, "models.json"))
+  @wiktionary read_json.(Path.join(@root, "wiktionary.json"))
   @prompt_text File.read!(Path.join(@root, "prompt.md"))
   @version @root |> Path.join("VERSION") |> File.read!() |> String.trim()
   @lang_data lang_data
@@ -102,6 +103,9 @@ defmodule Kotiko.Spec do
 
   @doc "One section of models.json's `policy`, by name."
   def llm_policy(name), do: Map.fetch!(@models["policy"], to_string(name))
+
+  @doc "spec/wiktionary.json: where pronunciations come from (slice 49 section 4a)."
+  def wiktionary, do: Map.delete(@wiktionary, "_comment")
 
   @doc "spec/prompt.md, unparsed."
   def prompt_text, do: @prompt_text

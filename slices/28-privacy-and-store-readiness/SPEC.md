@@ -97,6 +97,7 @@ it (a checkbox in the PR template from slice 03).
 | Settings | `storage.sync` / `storage.local` | Through your browser's own sync, if you use it | Google or Mozilla, under their sync terms |
 | Learning stats (slice 46) | Extension | Never | Nobody |
 | A word you ask to hear (slice 34) | Not stored | Only if you turn on online voices (off by default) | Your browser's or operating system's speech service (for example Google, Microsoft or Apple) |
+| A word you add in a language with word stress, only the word (slice 49 §4b) | Its Wiktionary page's pronunciations, 30 days, in the lookup cache | Yes, when you add the word, and once for words saved earlier | The Wikimedia Foundation (en.wiktionary.org), under its privacy policy |
 | Requests for dictionaries (slice 49) and the free-model list | Not stored | The request itself (your IP address) | GitHub Pages; OpenRouter's public models list |
 | Telegram messages and voice notes (server add-on) | Your server | Yes | Telegram; your transcription provider |
 

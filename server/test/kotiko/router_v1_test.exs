@@ -417,6 +417,51 @@ defmodule Kotiko.RouterV1Test do
     end
   end
 
+  describe "pronunciations from Wiktionary (slice 49 §4a)" do
+    setup do
+      put_app_env(:pronounce_enabled, true)
+      Kotiko.Pronounce.clear_cache()
+      :ok
+    end
+
+    @eto %{
+      "lang" => "ru",
+      "native" => "это",
+      "romanization" => "eto",
+      "native_vocalized" => "это́",
+      "base_lang" => "en",
+      "gloss" => "this",
+      "forms" => ["this"],
+      "pronunciation" => "eh-TO"
+    }
+
+    test "an add gets Wiktionary's stress, not the model's" do
+      stub_answer([@eto])
+
+      Req.Test.stub(Kotiko.Pronounce, fn conn ->
+        Req.Test.html(
+          conn,
+          ~s(<h2>Russian</h2><h3>Pronunciation</h3><span class="IPA">[ˈɛtə]</span><h3>Pronoun</h3>)
+        )
+      end)
+
+      assert {200, %{"candidates" => [w]}} = add_text("это", ["en"], %{preview: true})
+
+      assert {w["pronunciation"], w["pronunciation_source"], w["native_vocalized"]} ==
+               {"EH-ta", "wiktionary", "э́то"}
+    end
+
+    test "when Wiktionary can't be reached, the model's is kept and the add still works" do
+      stub_answer([@eto])
+      Req.Test.stub(Kotiko.Pronounce, &Plug.Conn.send_resp(&1, 503, "down"))
+
+      assert {200, %{"results" => [%{"result" => "created", "word" => w}]}} =
+               add_text("это", ["en"])
+
+      assert {w["pronunciation"], w["pronunciation_source"]} == {"eh-TO", "model"}
+    end
+  end
+
   describe "client_request_id" do
     test "a repeat returns the identical body with no model call and no write" do
       stub_answer([@inu_en])

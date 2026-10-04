@@ -65,6 +65,8 @@
   function sourceLabel(word) {
     if (!text(word?.pronunciation)) return null;
     if (word.pronunciation_source === "user") return null;
+    // Written from Wiktionary's IPA (49 §4a): checked, by construction.
+    if (word.pronunciation_source === "wiktionary") return { kind: "checked", source: "Wiktionary" };
     const check = word.verification?.pronunciation;
     const source = text(check?.source);
     if (source && (check.status === "verified" || check.status === "corrected")) return { kind: "checked", source };

@@ -1,0 +1,26 @@
+{
+  "_comment": "Pronunciations from English Wiktionary (DECISIONS 2026-10-04; slice 49 section 4a). For a word whose target language has lexical stress (pronunciation.json), Kotiko reads the IPA in that language's section of the word's page and writes the respelling from it with the base's ipa table (spec/lang/<base>/respelling.json), instead of trusting the model. Only the word is sent, never page text. endpoint: MediaWiki's REST API, {title} the word, percent-encoded. headings: the section heading where it differs from the language's CLDR English name. variants: per target, sounds of a regional pronunciation to pass over when the page lists another first (Spanish [θ] of Spain: the respelling follows the Latin American s).",
+  "endpoint": "https://en.wiktionary.org/w/rest.php/v1/page/{title}/html",
+  "agent": "Kotiko (https://github.com/ScriptKittyOS/kotiko; hello@scriptkittyos.com)",
+  "timeout_ms": 5000,
+  "cache_days": 30,
+  "stress": [
+    "lexical"
+  ],
+  "headings": {
+    "bs": "Serbo-Croatian",
+    "hr": "Serbo-Croatian",
+    "sr": "Serbo-Croatian",
+    "sr-Latn": "Serbo-Croatian",
+    "no": "Norwegian Bokmål",
+    "nb": "Norwegian Bokmål",
+    "nn": "Norwegian Nynorsk"
+  },
+  "variants": {
+    "es": {
+      "avoid": [
+        "θ"
+      ]
+    }
+  }
+}

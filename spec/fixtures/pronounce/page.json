@@ -1,0 +1,17 @@
+{
+ "_comment": "blocksFromHtml on page.html (written for these tests, shaped like MediaWiki's REST HTML): the Russian section only, one block per Pronunciation heading, rhymes and IPA outside those headings left out, entities decoded.",
+ "heading": "Russian",
+ "blocks": [
+  [
+   "[ˈzamək]"
+  ],
+  [
+   "[zɐˈmok]",
+   "[zɐˈmoːk]"
+  ]
+ ],
+ "missing": {
+  "heading": "Polish",
+  "blocks": []
+ }
+}

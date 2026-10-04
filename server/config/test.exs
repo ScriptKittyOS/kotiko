@@ -38,6 +38,10 @@ config :kotiko,
   llm_time_scale: 0.05,
   llm_sync_refresh: true,
   telegram_req_options: [plug: {Req.Test, Kotiko.Telegram}],
+  # Slice 49 §4a: Wiktionary is stubbed, and lookups leave pronunciations alone unless a
+  # test turns it on.
+  pronounce_req_options: [plug: {Req.Test, Kotiko.Pronounce}],
+  pronounce_enabled: false,
   transcribe_url: nil,
   transcribe_model: "whisper-1",
   transcribe_api_key: nil

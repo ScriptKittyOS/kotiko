@@ -81,7 +81,7 @@
     if (w.native_vocalized != null && !(okText(w.native_vocalized, LIMITS.maxVocalized) && unmarked(w.native_vocalized) === unmarked(w.native))) {
       fix.native_vocalized = null;
     }
-    if (w.pronunciation_source != null && w.pronunciation_source !== "model" && w.pronunciation_source !== "user") fix.pronunciation_source = null;
+    if (w.pronunciation_source != null && !["model", "user", "wiktionary"].includes(w.pronunciation_source)) fix.pronunciation_source = null;
     if (w.verification != null) {
       const v = cleanVerification(w.verification);
       if (JSON.stringify(v) !== JSON.stringify(w.verification)) fix.verification = v;

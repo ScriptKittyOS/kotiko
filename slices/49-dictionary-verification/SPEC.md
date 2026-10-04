@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Proposed; pronunciations from Wiktionary (section 4b) built early, 2026-10-04 |
 | **Priority** | P2 (later) |
 | **Size** | L (several weeks) |
 | **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md) (pronunciation fields and the `respell` request of its section 8), [09-shared-word-spec-and-prompt](../09-shared-word-spec-and-prompt/SPEC.md), [50](../50-ui-localization-and-base-language/SPEC.md) (base languages and per-base stem rules); uses [11-local-first-mode](../11-local-first-mode/SPEC.md)'s job pipeline and database, [10-llm-client-resilience](../10-llm-client-resilience/SPEC.md)'s error classes |
@@ -222,6 +222,41 @@ changed: a disagreement is shown in the dashboard only ("Wiktionary stresses thi
 
 Words filled from a dictionary when no model is reachable (section 5) have no respelling
 yet; they get one through the same `respell` request when a model is back.
+
+### 4b. Pronunciations from Wiktionary at add time (built early)
+
+Built ahead of the rest of this slice ([DECISIONS 2026-10-04](../DECISIONS.md)) after the
+free models were measured getting Russian stress wrong on a quarter of everyday words, and
+writing wrong respellings even when given the stress. It replaces section 4a's "regenerating the
+respelling" for targets with lexical stress:
+
+- **When**: on every add (the extension for the learner's own AI and "native = meaning", the
+  server for its lookups and Telegram), and once in the background for saved words
+  (`extension/lib/wiktionary-pass.js`, `Kotiko.WiktionaryPass`: one word every few seconds,
+  ten minutes' wait when Wiktionary can't be reached, three tries at most).
+- **Which words**: targets whose `stress` is `lexical` in `spec/pronunciation.json`, bases whose
+  respelling key has an `ipa` table (`en`, `es`), never a pronunciation the learner wrote.
+- **Source**: the word's page from MediaWiki's REST API (`spec/wiktionary.json`), only the
+  word sent, `Api-User-Agent`/`User-Agent` naming Kotiko and its contact, one wait when
+  Wikimedia asks for a short one. Sections found by the language's CLDR English name (or
+  `headings`); one block per Pronunciation heading.
+- **Which transcription**: in each block, the first whose stress can be read, passing over
+  regional variants `variants` names (Spain's [θ]); the first block's when every block agrees
+  on the stress, else the one the model's respelling agrees with, else none.
+- **Writing it**: the base's `ipa` table maps sounds to letters (longest match), syllables
+  break at IPA's marks or before one consonant (two for an obstruent with a liquid or glide,
+  or s with a stop), the stressed syllable in capitals, soft consonants and open-syllable
+  vowels as the key says. A transcription with a sound the table doesn't know, or no
+  readable stress in a word of two or more syllables, writes nothing.
+- **Result**: `pronunciation` from Wiktionary, `pronunciation_careful` null,
+  `pronunciation_source: "wiktionary"` (the card says "Checked in Wiktionary"), and for ru,
+  uk and be `native_vocalized` with the stress mark. Otherwise the model's stays, labelled
+  AI-generated.
+- **Both runtimes**: `extension/lib/pronounce.js` and `Kotiko.Pronounce` pass the same cases
+  in `spec/fixtures/pronounce/`.
+
+Measured on 40 everyday Russian words: Wiktionary gave a pronunciation for 39, with the stress
+right on all 39 (the best free model: 30 of 40).
 
 ### 5. Offline and quota fallback
 
