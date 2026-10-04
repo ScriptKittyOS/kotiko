@@ -1,0 +1,25 @@
+{
+ "name": "stopword-gloss-allowed-russian-typed",
+ "input": {
+  "text": "оно",
+  "mode": "add",
+  "base_langs": [
+   "en"
+  ]
+ },
+ "raw": "{\"intent\": \"add\", \"words\": [{\"language\": null, \"romanization\": null, \"native_vocalized\": null, \"note\": null, \"lang\": \"ru\", \"native\": \"оно\", \"base_lang\": \"en\", \"gloss\": \"it\", \"forms\": [\"it\"]}], \"reply\": null}",
+ "expect": {
+  "rejected": [],
+  "dropped_forms": [],
+  "dropped_fields": [],
+  "missing_bases": [],
+  "words": [
+   {
+    "gloss": "it",
+    "forms": [
+     "it"
+    ]
+   }
+  ]
+ }
+}

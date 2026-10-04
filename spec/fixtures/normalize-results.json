@@ -1550,29 +1550,37 @@
    "reply": null,
    "code": null
   },
-  "051-stopword-gloss-not-typed-rejected.json": {
+  "051-stopword-gloss-allowed-when-native-typed.json": {
    "intent": "add",
-   "words": [],
-   "rejected": [
+   "words": [
     {
+     "lang": "de",
      "native": "der",
+     "base_lang": "es",
+     "sense": "",
      "gloss": "el",
-     "base_lang": "es",
-     "reason": "no_usable_forms"
+     "forms": [
+      {
+       "text": "el",
+       "enabled": true,
+       "case": "any",
+       "ambiguous": false
+      }
+     ],
+     "romanization": null,
+     "native_vocalized": null,
+     "pronunciation": null,
+     "pronunciation_careful": null,
+     "pronunciation_source": null,
+     "note": null
     }
    ],
-   "dropped_forms": [
-    {
-     "native": "der",
-     "base_lang": "es",
-     "form": "el",
-     "reason": "stopword"
-    }
-   ],
+   "rejected": [],
+   "dropped_forms": [],
    "dropped_fields": [],
    "missing_bases": [],
    "reply": null,
-   "code": "bad_lookup_result"
+   "code": null
   },
   "052-stopword-allowed-when-typed-spanish.json": {
    "intent": "add",
@@ -3985,6 +3993,101 @@
   },
   "101-respell-unparseable.json": {
    "error": "unparseable"
+  },
+  "102-stopword-gloss-allowed-russian-typed.json": {
+   "intent": "add",
+   "words": [
+    {
+     "lang": "ru",
+     "native": "оно",
+     "base_lang": "en",
+     "sense": "",
+     "gloss": "it",
+     "forms": [
+      {
+       "text": "it",
+       "enabled": true,
+       "case": "any",
+       "ambiguous": false
+      }
+     ],
+     "romanization": null,
+     "native_vocalized": null,
+     "pronunciation": null,
+     "pronunciation_careful": null,
+     "pronunciation_source": null,
+     "note": null
+    }
+   ],
+   "rejected": [],
+   "dropped_forms": [],
+   "dropped_fields": [],
+   "missing_bases": [],
+   "reply": null,
+   "code": null
+  },
+  "103-stopword-extra-form-dropped-when-native-typed.json": {
+   "intent": "add",
+   "words": [
+    {
+     "lang": "ru",
+     "native": "это",
+     "base_lang": "en",
+     "sense": "",
+     "gloss": "this",
+     "forms": [
+      {
+       "text": "this",
+       "enabled": true,
+       "case": "any",
+       "ambiguous": false
+      }
+     ],
+     "romanization": null,
+     "native_vocalized": null,
+     "pronunciation": null,
+     "pronunciation_careful": null,
+     "pronunciation_source": null,
+     "note": null
+    }
+   ],
+   "rejected": [],
+   "dropped_forms": [
+    {
+     "native": "это",
+     "base_lang": "en",
+     "form": "it",
+     "reason": "unrelated_form"
+    }
+   ],
+   "dropped_fields": [],
+   "missing_bases": [],
+   "reply": null,
+   "code": null
+  },
+  "104-stopword-gloss-rejected-when-word-not-named.json": {
+   "intent": "add",
+   "words": [],
+   "rejected": [
+    {
+     "native": "der",
+     "gloss": "el",
+     "base_lang": "es",
+     "reason": "no_usable_forms"
+    }
+   ],
+   "dropped_forms": [
+    {
+     "native": "der",
+     "base_lang": "es",
+     "form": "el",
+     "reason": "stopword"
+    }
+   ],
+   "dropped_fields": [],
+   "missing_bases": [],
+   "reply": null,
+   "code": "bad_lookup_result"
   }
  }
 }

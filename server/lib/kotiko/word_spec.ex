@@ -447,7 +447,7 @@ defmodule Kotiko.WordSpec do
     if nk == fold(entry.gloss, base) or Enum.any?(forms, &(fold(&1.text, base) == nk)) do
       reject(entry, :same_as_gloss)
     else
-      {kept, dropped_forms} = form_rules(forms, entry, ctx)
+      {kept, dropped_forms} = form_rules(forms, entry, lang, ctx)
 
       if Enum.any?(kept, & &1.enabled) do
         word(entry, lang, w, kept, note, dropped_forms)
@@ -478,7 +478,7 @@ defmodule Kotiko.WordSpec do
       else: [Forms.form(%{text: gloss}) | forms]
   end
 
-  defp form_rules(forms, entry, ctx) do
+  defp form_rules(forms, entry, lang, ctx) do
     base = entry.base
     data = lang_data(base)
 
@@ -489,13 +489,24 @@ defmodule Kotiko.WordSpec do
 
     input = MapSet.new(tokens(fold(ctx.text, base)))
 
+    # The learner named this very word: they typed its base-language word (checked per form)
+    # or the target word itself ("это", "der", "犬"). Its gloss may then be a function word
+    # ("it", "el"); extra function words the model adds still go.
+    typed = fold(ctx.text, lang)
+    native = fold(entry.native, lang)
+
+    native_typed =
+      if base_script(lang) in rule(:unspaced_scripts),
+        do: String.contains?(typed, native),
+        else: native in tokens(typed)
+
     drop = fn f, reason ->
       %{native: entry.native, base_lang: base, form: f.text, reason: reason}
     end
 
     {kept, dropped} =
       Enum.reduce(forms, {[], []}, fn f, {kept, dropped} ->
-        case form_reason(f.text, entry.gloss, base, data, min, input) do
+        case form_reason(f.text, entry.gloss, base, data, min, input, native_typed) do
           nil -> {kept ++ [f], dropped}
           reason -> {kept, dropped ++ [drop.(f, reason)]}
         end
@@ -505,7 +516,7 @@ defmodule Kotiko.WordSpec do
     {kept, dropped ++ Enum.map(extra, &drop.(&1, "too_many_forms"))}
   end
 
-  defp form_reason(text, gloss, base, data, min, input) do
+  defp form_reason(text, gloss, base, data, min, input, native_typed) do
     n = length(graphemes(text))
     f = fold(text, base)
 
@@ -518,7 +529,7 @@ defmodule Kotiko.WordSpec do
         "unrelated_form"
 
       MapSet.member?(data.stopwords, f) and
-          not (MapSet.member?(input, f) and fold(gloss, base) == f) ->
+          not ((MapSet.member?(input, f) or native_typed) and fold(gloss, base) == f) ->
         "stopword"
 
       true ->

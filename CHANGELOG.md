@@ -5,6 +5,10 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- You can now add little words like "it", "the" or "el" by typing the word in the language
+  you're learning: "оно" or "это" for "it", "der" for "el". Before, Kotiko threw the answer
+  away unless you also typed the English (or Spanish) word.
+
 - Kotiko now reads pages in the languages you read, whatever they are, including
   languages written without spaces like Japanese, Chinese and Thai. It swaps words only
   on pages (and parts of pages) in one of your languages and leaves the rest alone; the
