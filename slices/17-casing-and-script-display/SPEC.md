@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Built (2026-10-04); see Implementation notes |
 | **Priority** | P0 (before public release) |
 | **Size** | S (a day or two) |
 | **Depends on** | [14-matcher-engine](../14-matcher-engine/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (the shared `spec/lang/_generic/casing.json`) |
@@ -220,6 +220,27 @@ outside the swap (slice 14) stays outside the isolate. Persian zero-width non-jo
 
 Missing fonts (tofu) are documented in the FAQ of [44](../44-docs-site/SPEC.md) with the Noto
 font to install per script.
+
+## Implementation notes
+
+Built 2026-10-04:
+
+- `extension/lib/casing.js` follows steps 1 to 3. In step 1 every branch except a shouted
+  line and a sentence start already yields "none", so `display()` needs only `shape`,
+  `sentenceStart`, `shouting`, `native` and `lang`. `baseOwnsCapital`, `inTitleRun` and
+  `formCase` don't change the result; slice 16 has already decided whether such a match is
+  swapped. `shouting` comes from slice 16's rules (`rules.flags`).
+- It replaces `matchCase` in content.js and in the welcome page's preview. `matchCase` is
+  removed from the matcher.
+- **`line-height: 0`, not `1`** (measured). With 1, Firefox still sized the swap's box from
+  the fallback font: a line with a Myanmar swap grew 3.5 px, Thai 0.5 px (Noto fonts, 16 px
+  serif, at both `normal` and 1.6). With 0, every line keeps its height in Chromium and
+  Firefox. Chromium was unaffected either way. The underline, the hit area and the card's
+  anchor use the content area, which line height doesn't change.
+- Right-to-left punctuation is checked by where each character is drawn (Range rects)
+  rather than by screenshots, which differ between font versions. Both directions are
+  covered, and no bidi control characters are added.
+- CI installs Firefox for the stylesheet check. The extension's own tests stay in Chromium.
 
 ## Acceptance criteria
 

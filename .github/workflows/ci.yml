@@ -146,7 +146,8 @@ jobs:
           key: mix-28.1-1.19.2-${{ hashFiles('server/mix.lock') }}
           restore-keys: mix-28.1-1.19.2-
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # Firefox only for slice 17's stylesheet check (the extension runs in Chromium here).
+      - run: npx playwright install --with-deps chromium firefox
       # The full-stack spec boots the real server in dev (the test config never opens a port).
       - run: mix deps.get && mix compile
         working-directory: server

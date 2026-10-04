@@ -217,7 +217,7 @@ test.describe("slice 16: what not to swap", () => {
 });
 
 test.describe("slice 17: casing and script display", () => {
-  test.fixme("rtl.html: swapped words in right-to-left pages are isolated and readable", async () => {});
+  // rtl.html's punctuation and isolation: casing.spec.mjs (slice 17).
 });
 
 test.describe("slice 42: frames and shadow DOM", () => {

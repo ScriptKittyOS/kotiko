@@ -11,6 +11,8 @@ import { ROOT, requireExt } from "../helpers/load-script.mjs";
 
 const T = requireExt("lib/text.js");
 const M = requireExt("lib/matcher.js");
+const Casing = requireExt("lib/casing.js");
+const Rules = requireExt("lib/rules.js");
 const TABLE = JSON.parse(fs.readFileSync(path.join(ROOT, "spec/lang/_generic/boundaries.json"), "utf8"));
 const rules = (base) => T.rulesFor(TABLE, base);
 
@@ -33,7 +35,8 @@ function swap(text, words, base = "en") {
     const all = m.entry.candidates.map((c) => c.word).filter((w) => !seen.has(w.lang) && seen.add(w.lang));
     const turn = turns.get(m.entry) ?? 0;
     turns.set(m.entry, turn + 1);
-    out += text.slice(last, m.start) + M.matchCase(m.surface, all[turn % all.length].native);
+    const w = all[turn % all.length];
+    out += text.slice(last, m.start) + Casing.display({ shape: m.shape, sentenceStart: m.sentenceStart, shouting: Rules.shouting(text), native: w.native, lang: w.lang });
     last = m.end;
   }
   return out + text.slice(last);
@@ -41,7 +44,7 @@ function swap(text, words, base = "en") {
 
 describe("module shape", () => {
   test("exports the APIs and sets the globals", () => {
-    for (const k of ["sameBase", "baseOf", "buildIndex", "buildIndexes", "scan", "matchCase", "skipLetter"]) assert.equal(typeof M[k], "function", k);
+    for (const k of ["sameBase", "baseOf", "buildIndex", "buildIndexes", "scan", "skipLetter"]) assert.equal(typeof M[k], "function", k);
     for (const k of ["rulesFor", "keyOf", "tokenize", "shapeOf", "sentenceStart"]) assert.equal(typeof T[k], "function", k);
     assert.equal(globalThis.KotikoMatcher, M);
     assert.equal(globalThis.KotikoText, T);
@@ -280,16 +283,7 @@ describe("properties", () => {
   });
 });
 
-describe("matchCase", () => {
-  test("copies the page's capitals onto the shown word", () => {
-    assert.equal(M.matchCase("house", "дом"), "дом");
-    assert.equal(M.matchCase("House", "дом"), "Дом");
-    assert.equal(M.matchCase("HOUSE", "дом"), "ДОМ");
-    assert.equal(M.matchCase("I", "я"), "Я", "a single capital is not all-caps");
-    assert.equal(M.matchCase("HOUSE", "谢谢"), "谢谢");
-    assert.equal(M.matchCase("Ámbar", "амбра"), "Амбра", "capitals outside ASCII");
-  });
-});
+// How a swapped word is written is slice 17's: test/unit/casing.test.mjs.
 
 // A maintainer report: toggles labelled "AOI I" / "AOI II" showed "AOI Я" for a learner
 // who saved я ("I"). A lone capital next to a code, numeral or name isn't the pronoun.

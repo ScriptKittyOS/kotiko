@@ -7,7 +7,11 @@
 kotiko-w {
   display: inline;
   unicode-bidi: isolate;
-  line-height: 1; /* slice 17: never grows the line box */
+  /* Slice 17: never grows the line box, whatever font draws the word. With 1, Firefox
+     still sized the box from a taller fallback font (Myanmar +3.5 px, Thai +0.5 px);
+     with 0 the paragraph's own line height alone sets the spacing. The underline, the
+     hit area and the card's anchor use the text's content area, which this doesn't change. */
+  line-height: 0;
   text-decoration-line: underline;
   text-decoration-style: dotted;
   text-decoration-color: currentColor;
