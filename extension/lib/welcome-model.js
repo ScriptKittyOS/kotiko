@@ -263,7 +263,7 @@
       const w = all[0];
       if (m.start > last) out.push({ text: text.slice(last, m.start) });
       // Written as content.js writes it (slice 17); the preview's sentences never shout.
-      const native = globalThis.KotikoCasing.display({ shape: m.shape, sentenceStart: m.sentenceStart, shouting: false, native: w.native, lang: w.lang });
+      const native = globalThis.KotikoCasing.display({ shape: m.shape, sentenceStart: m.shape === "title" && m.sentenceStart, shouting: false, native: w.native, lang: w.lang });
       out.push({ native, surface: m.surface, word: w, all });
       last = m.end;
     }

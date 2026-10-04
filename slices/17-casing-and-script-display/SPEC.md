@@ -240,6 +240,11 @@ Built 2026-10-04:
 - Right-to-left punctuation is checked by where each character is drawn (Range rects)
   rather than by screenshots, which differ between font versions. Both directions are
   covered, and no bidi control characters are added.
+- Speed (measured, 34,000 calls): the first grapheme comes from the regex, not
+  `Intl.Segmenter`, and root casing uses `toUpperCase()`, not `toLocaleUpperCase("und")`.
+  The two were 83 ms and 43 ms. Title case only runs on cased scripts, where a letter and
+  its combining marks are the whole cluster, and `toUpperCase()` is root casing. Now 2 to
+  9 ms.
 - CI installs Firefox for the stylesheet check. The extension's own tests stay in Chromium.
 
 ## Acceptance criteria

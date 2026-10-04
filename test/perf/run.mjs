@@ -18,7 +18,8 @@ const CI = !!process.env.CI;
 const filter = process.argv[2] ?? "";
 
 const Text = requireExt("lib/text.js");
-const { buildIndex, scan: scanText, matchCase, skipLetter } = requireExt("lib/matcher.js");
+const { buildIndex, scan: scanText, skipLetter } = requireExt("lib/matcher.js");
+const { display } = requireExt("lib/casing.js");
 const BOUNDARIES = JSON.parse(fs.readFileSync(path.join(HERE, "../../spec/lang/_generic/boundaries.json"), "utf8"));
 const { cardFor } = requireExt("lib/word-card.js");
 const { pickVoice } = requireExt("lib/speak.js");
@@ -122,7 +123,8 @@ function scan(index, nodes) {
       const all = m.entry.candidates;
       const turn = turns.get(m.entry) ?? 0;
       turns.set(m.entry, turn + 1);
-      matchCase(m.surface, all[turn % all.length].word.native);
+      const w = all[turn % all.length].word;
+      display({ shape: m.shape, sentenceStart: m.shape === "title" && m.sentenceStart, shouting: false, native: w.native, lang: w.lang });
       swaps++;
     }
   }

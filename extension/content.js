@@ -237,7 +237,8 @@
       const w = choose(node, m, n, all);
       // Written in the target's own capitals (slice 17).
       const { shouting } = rules.flags(text, ctx);
-      const display = Casing.display({ shape: m.shape, sentenceStart: m.sentenceStart, shouting, native: w.native, lang: w.lang });
+      // sentenceStart is worked out lazily; only a capitalised word needs it.
+      const display = Casing.display({ shape: m.shape, sentenceStart: m.shape === "title" && m.sentenceStart, shouting, native: w.native, lang: w.lang });
       items.push({ start: m.start, end: m.end, display, lang: w.lang, info: { surface: m.surface, key: m.key, word: w, all } });
     }
     return items;

@@ -22,10 +22,15 @@
   // Lithuanian dot above.
   const LOCALE_CASING = new Set(["tr", "az", "lt"]);
   const localeFor = (lang) => (LOCALE_CASING.has(primary(lang)) ? primary(lang) : "und");
+  // toUpperCase() is the root casing, about 25 times faster than asking for "und".
+  const toUpper = (s, lang) => {
+    const loc = localeFor(lang);
+    return loc === "und" ? s.toUpperCase() : s.toLocaleUpperCase(loc);
+  };
 
   function hasCase(s) {
-    const first = [...s].find((c) => LETTER.test(c));
-    return !!first && CASED.test(first);
+    const first = LETTER.exec(s);
+    return !!first && CASED.test(first[0]);
   }
 
   // Greek capitals drop accents and breathings, keep the dialytika, and add one where a
@@ -55,7 +60,7 @@
 
   function upper(s, lang) {
     if (primary(lang) === "el") return greekUpper(s);
-    return s.toLocaleUpperCase(localeFor(lang));
+    return toUpper(s, lang);
   }
 
   // Serbo-Croatian digraph letters have their own title-case forms: ǆ -> ǅ, not Ǆ.
@@ -65,11 +70,10 @@
     ["\u01CA", "\u01CB"], ["\u01CB", "\u01CB"], ["\u01CC", "\u01CB"],
     ["\u01F1", "\u01F2"], ["\u01F2", "\u01F2"], ["\u01F3", "\u01F2"],
   ]);
-  const graphemes = typeof Intl?.Segmenter === "function" ? new Intl.Segmenter("und", { granularity: "grapheme" }) : null;
-  function firstGrapheme(s) {
-    if (graphemes) for (const { segment } of graphemes.segment(s)) return segment;
-    return s.match(/^\P{M}\p{M}*/u)?.[0] ?? s.charAt(0);
-  }
+  // The first grapheme: a letter and its combining marks. Title case only runs on cased
+  // scripts, where that is the whole cluster; Intl.Segmenter gave the same answer about 13
+  // times slower.
+  const firstGrapheme = (s) => s.match(/^\P{M}\p{M}*/u)?.[0] ?? s.charAt(0);
 
   function title(s, lang) {
     if (!s) return s;
@@ -77,7 +81,7 @@
     const g = firstGrapheme(s);
     const d = DIGRAPH_TITLE.get(g[0]);
     if (d) return d + g.slice(1) + s.slice(g.length);
-    return g.toLocaleUpperCase(localeFor(lang)) + s.slice(g.length);
+    return toUpper(g, lang) + s.slice(g.length);
   }
 
   // Step 1: which capitals the page's text passes on. Only position and emphasis do: a
