@@ -152,8 +152,10 @@ async function mirrorBaseRules({ force = false } = {}) {
   const out = {};
   for (const b of bases) {
     const own = spec?.lang?.[b]?.stopwords ?? spec?.lang?.[Text.primary(b)]?.stopwords;
+    const casing = spec?.lang?._generic?.casing;
     out[b] = {
       boundaries: Text.rulesFor(spec?.lang?._generic?.boundaries, b),
+      casing: { ...(casing?.default ?? {}), ...(casing?.[b] ?? casing?.[Text.primary(b)] ?? {}) },
       stopwords: own?.length ? own : imported[b] ?? imported[Text.primary(b)] ?? [],
     };
   }

@@ -1,0 +1,126 @@
+{
+  "default": {
+    "nouns_capitalized": false,
+    "title_case_headlines": false,
+    "capitalized_pronouns": [],
+    "honorifics": [],
+    "single_letter_words": []
+  },
+  "en": {
+    "title_case_headlines": true,
+    "capitalized_pronouns": [
+      "I"
+    ],
+    "honorifics": [
+      "Mr",
+      "Mrs",
+      "Ms",
+      "Mx",
+      "Dr",
+      "St",
+      "Prof",
+      "Sir",
+      "Lady",
+      "Lord",
+      "King",
+      "Queen",
+      "President"
+    ],
+    "single_letter_words": [
+      "a"
+    ]
+  },
+  "es": {
+    "honorifics": [
+      "Sr",
+      "Sra",
+      "Srta",
+      "Dr",
+      "Dra",
+      "Don",
+      "Doña",
+      "San",
+      "Santa",
+      "Rey",
+      "Reina",
+      "Presidente"
+    ],
+    "single_letter_words": [
+      "a",
+      "e",
+      "o",
+      "u",
+      "y"
+    ]
+  },
+  "de": {
+    "nouns_capitalized": true,
+    "honorifics": [
+      "Herr",
+      "Frau",
+      "Dr",
+      "Prof",
+      "Sankt"
+    ]
+  },
+  "fr": {
+    "honorifics": [
+      "M",
+      "Mme",
+      "Mlle",
+      "Dr",
+      "Saint",
+      "Sainte",
+      "Roi",
+      "Reine",
+      "Président"
+    ],
+    "single_letter_words": [
+      "a",
+      "à",
+      "y"
+    ]
+  },
+  "it": {
+    "honorifics": [
+      "Sig",
+      "Sig.ra",
+      "Dott",
+      "Prof",
+      "San",
+      "Santa",
+      "Re",
+      "Regina",
+      "Presidente"
+    ],
+    "single_letter_words": [
+      "a",
+      "e",
+      "è",
+      "o"
+    ]
+  },
+  "pt": {
+    "honorifics": [
+      "Sr",
+      "Sra",
+      "Dr",
+      "Dra",
+      "Dom",
+      "Dona",
+      "São",
+      "Santa",
+      "Rei",
+      "Rainha",
+      "Presidente"
+    ],
+    "single_letter_words": [
+      "a",
+      "e",
+      "o"
+    ]
+  },
+  "lb": {
+    "nouns_capitalized": true
+  }
+}

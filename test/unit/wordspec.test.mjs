@@ -146,7 +146,7 @@ describe("spec/ data files", () => {
 
   test("every spec/lang file validates against spec/lang/schema", () => {
     for (const folder of folders) {
-      for (const kind of ["stem", "variants", "respelling", "boundaries"]) {
+      for (const kind of ["stem", "variants", "respelling", "boundaries", "casing"]) {
         const file = path.join(LANG, folder, `${kind}.json`);
         if (!fs.existsSync(file)) continue;
         assert.deepEqual(validate(schema(kind), read(file)), [], `${folder}/${kind}.json`);

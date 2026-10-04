@@ -50,13 +50,17 @@
   // The learner's base that `tag` is written in, or null.
   const baseOf = (tag, bases) => (tag ? (bases ?? []).find((b) => sameBase(tag, b)) ?? null : null);
 
-  function formTexts(w) {
+  // A word's enabled forms as { text, case }: `case` is 07's flag (any, lower, exact,
+  // proper) that slice 16's rules read; a bare string means any.
+  const CASES = new Set(["any", "lower", "exact", "proper"]);
+  function formsOf(w) {
     const forms = (Array.isArray(w.forms) ? w.forms : [])
       .filter((f) => f && (typeof f === "string" || f.enabled !== false))
-      .map((f) => (typeof f === "string" ? f : f.text))
-      .filter((f) => typeof f === "string" && f);
-    return forms.length ? forms : typeof w.gloss === "string" && w.gloss ? [w.gloss] : [];
+      .map((f) => (typeof f === "string" ? { text: f, case: "any" } : { text: f.text, case: CASES.has(f.case) ? f.case : "any" }))
+      .filter((f) => typeof f.text === "string" && f.text);
+    return forms.length ? forms : typeof w.gloss === "string" && w.gloss ? [{ text: w.gloss, case: "any" }] : [];
   }
+  const formTexts = (w) => formsOf(w).map((f) => f.text);
 
   // Where a phrase key can continue, so the scan only extends a phrase that some form
   // starts with: after a space, after an elision's apostrophe (dell'acqua), and, for
@@ -91,7 +95,7 @@
         diag.words++;
         continue;
       }
-      for (const text of formTexts(w)) {
+      for (const { text, case: kase } of formsOf(w)) {
         if (text.length > MAX_FORM) {
           diag.forms++;
           continue;
@@ -105,7 +109,7 @@
             continue;
           }
           const e = symbolic.get(key) ?? symbolic.set(key, { key, candidates: [], symbolic: true }).get(key);
-          e.candidates.push({ word: w, form: text });
+          e.candidates.push({ word: w, form: text, case: kase });
           continue;
         }
         const key = Text.keyOf(text.trim().replace(EDGE, ""), base, rules);
@@ -115,7 +119,7 @@
           continue;
         }
         const e = entries.get(key) ?? entries.set(key, { key, candidates: [], symbolic: false }).get(key);
-        e.candidates.push({ word: w, form: text });
+        e.candidates.push({ word: w, form: text, case: kase });
         addPrefixes(prefixes, key, spaces);
         if (!spaces) firstChars.add(String.fromCodePoint(key.codePointAt(0)));
       }
@@ -361,17 +365,18 @@
     if (next && codeLike(next)) return true;
     if (prev && codeLike(prev) && !(pronounLike && /\d/.test(prev))) return true;
     // A capitalized word before it: "World War I began", "Type I", "Vitamin A". Kept when
-    // that word starts the sentence and a lowercase word follows: "Can I go", "Then I said".
+    // that word starts the sentence and a lowercase word follows ("Can I go", "Then I
+    // said"), or a question ends there ("Can I?", "May I?").
     if (/^\p{Lu}\p{Ll}/u.test(prev)) {
       let q = p;
       while (q >= 0 && SPACE.test(s[q])) q--;
       const midSentence = q >= 0 && /[\p{L}\p{N},;]/u.test(s[q]);
-      if (midSentence || !pronounLike) return true;
+      if (midSentence || !(pronounLike || s[i + 1] === "?")) return true;
     }
     return false;
   }
 
-  const api = { MAX_WORDS, sameBase, baseOf, formTexts, buildIndex, buildIndexes, scan, matchCase, skipLetter };
+  const api = { MAX_WORDS, sameBase, baseOf, formTexts, formsOf, buildIndex, buildIndexes, scan, matchCase, skipLetter };
   globalThis.KotikoMatcher = api;
   if (typeof module === "object" && module.exports) module.exports = api;
 })();

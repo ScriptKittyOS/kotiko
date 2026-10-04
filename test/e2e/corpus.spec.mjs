@@ -37,7 +37,23 @@ test("every corpus page loads offline with the extension running, without page e
 });
 
 test.describe("slice 14: matcher engine", () => {
-  test.fixme("boundaries.html: contractions, hyphens, accents, acronyms and single letters aren't half-swapped", async () => {});
+  test("boundaries.html: contractions, hyphens, accents, addresses, acronyms and single letters aren't half-swapped", async ({ context, server, popup }) => {
+    const w = (id, native, english, lang = "ru") => ({ id, lang, language: null, native, romanization: null, english, forms: [english], note: null });
+    await server.control({
+      words: [w(1, "можно", "can"), w(2, "это", "it"), w(3, "нас", "us"), w(4, "кот", "cat"), w(5, "сумма", "sum"), w(6, "кафе", "café"), w(7, "собака", "dog"), w(8, "хорошо", "well"), w(9, "почта", "mail"), w(10, "команда", "team"), w(11, "ein", "a", "de"), w(12, "yo", "I", "es")],
+    });
+    await popup.connect(server.kotikoUrl, server.token);
+    const page = await context.newPage();
+    await page.goto(server.page("boundaries.html"));
+    const text = (id) => expect(page.locator(`#${id}`));
+    await text("contractions").toHaveText("Yo can't go. Don't. It's late, isn't это? We'd won't.");
+    await text("hyphens").toHaveText("A well-known, well-made e-mail about ein dog-friendly house.");
+    await text("accents").toHaveText("A passé résumé from the кафе. The cafés. A naïve сумма. Über and uber.");
+    await text("urls").toHaveText("See example.invalid/dog and mailto:dog@example.invalid, or #dog and @dog.");
+    await text("wbr").toHaveText("hotdog and ice cream and dog");
+    await text("acronyms").toHaveText("The IT команда in the US asked WHO about это and нас.");
+    await text("letters").toHaveText("Yo think ein кот is ein pet. Vitamin A. Plan B. Grade a.");
+  });
   test.fixme("big.html: the first pass over 100,000 text nodes stays inside the matcher budget", async () => {});
 });
 
@@ -131,8 +147,28 @@ test.describe("slice 15: framework-safe swapping", () => {
 });
 
 test.describe("slice 16: what not to swap", () => {
-  test.fixme("non-english.html: a German page keeps die, Gift and Kind; the lang=en island swaps", async () => {});
-  test.fixme("editors.html: textarea, contenteditable, role=textbox, CodeMirror-like editors and translate=no are untouched", async () => {});
+  test("non-english.html: a German page keeps die, Gift and Kind; the lang=en island swaps", async ({ context, server, popup }) => {
+    const ru = (id, native, english) => ({ id, lang: "ru", language: null, native, romanization: null, english, forms: [english], note: null });
+    await server.control({ words: [ru(1, "подарок", "gift"), ru(2, "добрый", "kind"), ru(3, "ребёнок", "child"), ru(4, "умереть", "die")] });
+    await popup.connect(server.kotikoUrl, server.token);
+    const page = await context.newPage();
+    await page.goto(server.page("non-english.html"));
+    await expect(page.locator("#en-island")).toHaveText("An English island: the подарок for a добрый ребёнок will умереть down.");
+    await expect(page.locator("#de")).toHaveText("Die Katze und das Kind. Das Gift ist gefährlich. Die Kinder spielen im Haus.");
+  });
+
+  test("editors.html: textarea, contenteditable, role=textbox, CodeMirror-like editors and translate=no are untouched", async ({ context, server, popup }) => {
+    const ru = (id, native, english) => ({ id, lang: "ru", language: null, native, romanization: null, english, forms: [english], note: null });
+    await server.control({ words: [ru(1, "дом", "house"), ru(2, "спасибо", "thanks")] });
+    await popup.connect(server.kotikoUrl, server.token);
+    const page = await context.newPage();
+    await page.goto(server.page("editors.html"));
+    await expect(page.locator("#outside")).toHaveText("A дом outside the editors.");
+    await expect(page.locator("#textarea")).toHaveValue("thanks for the house");
+    await expect(page.locator("#input")).toHaveValue("thanks for the house");
+    for (const id of ["ce", "ce-nested", "textbox", "cm", "notranslate"]) await expect(page.locator(`#${id}`)).not.toContainText(/дом|спасибо/);
+    expect(await page.locator("kotiko-w").count()).toBe(1);
+  });
   // Done early after a maintainer report ("AOI I" toggles showed "AOI Я"). The setting
   // "Swap words in buttons and menus" is still to come.
   test("controls.html: buttons, nav, labels, toggles and form fields stay English", async ({ context, server, popup }) => {

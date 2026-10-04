@@ -8,6 +8,7 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { createFakeChrome } from "../helpers/fake-chrome.mjs";
 import { createPage, injectContentScripts, sleep } from "../helpers/load-script.mjs";
+import { baseRulesFor, basesOf } from "../helpers/base-rules.mjs";
 
 let nextId = 1;
 const word = (native, english, forms = [english], lang = "ru", extra = {}) => ({
@@ -32,6 +33,8 @@ const WORDS = [
 const FLUSH_MS = 300; // content.js batches page mutations for 250 ms
 
 async function load(html, { words = WORDS, url = "https://example.com/", beforeInject, lang = "en", detect = null, ...local } = {}) {
+  // As the background writes it: rules for the learner's bases (theirs, else their words').
+  if (!("baseRules" in local)) local.baseRules = baseRulesFor(local.baseLangs ?? basesOf(words));
   const fake = createFakeChrome({
     local: { words, enabled: true, pausedHosts: [], hiddenLangs: [], ...local },
     onSendMessage: () => ({ ok: true }),
@@ -75,9 +78,10 @@ describe("swapping", () => {
     assert.deepEqual(s.getAttributeNames().sort(), ["class", "dir", "lang", "translate"]);
   });
 
-  test("keeps the English casing", async () => {
-    const { $ } = await load(`<p id="p">House. HOUSE! house?</p>`);
-    assert.equal($("p").textContent, "Дом. ДОМ! дом?");
+  test("keeps the English casing; a short all-capitals word is an acronym unless the line shouts (slice 16)", async () => {
+    const { $ } = await load(`<p id="p">House. HOUSE! house?</p><p id="q">THIS HOUSE IS MINE</p>`);
+    assert.equal($("p").textContent, "Дом. HOUSE! дом?");
+    assert.equal($("q").textContent, "THIS ДОМ IS MINE");
   });
 
   test("rotates languages; the original word and the others stay out of the page DOM", async () => {
@@ -478,10 +482,10 @@ describe("pages in the learner's languages", () => {
   test("changing the learner's languages judges the page again", async () => {
     const { $, set } = await load(`<p id="p">Mi perro duerme.</p>`, { lang: "es", words: [...ES, ...EN], baseLangs: ["en"] });
     assert.equal($("p").textContent, "Mi perro duerme.");
-    await set({ baseLangs: ["es"] });
+    await set({ baseLangs: ["es"], baseRules: baseRulesFor(["es"]) });
     await sleep(50); // the page is judged again (an async language check) before the swap
     assert.equal($("p").textContent, "Mi 犬 duerme.");
-    await set({ baseLangs: ["en"] });
+    await set({ baseLangs: ["en"], baseRules: baseRulesFor(["en"]) });
     await sleep(50);
     assert.equal($("p").textContent, "Mi perro duerme.");
   });
@@ -644,5 +648,56 @@ describe("never take the site's nodes (slice 15)", () => {
       const code = fs.readFileSync(path.join(ROOT, rel), "utf8").replace(/\/\/.*$/gm, "");
       assert.doesNotMatch(code, /\.normalize\(\s*\)|\.replaceChild\(|\.replaceWith\(/, rel);
     }
+  });
+});
+
+// Slice 16 §2: places where swapping would corrupt what the user reads or types.
+describe("element rules (slice 16)", () => {
+  test("code editors and views, editable roles, the site's own opt-outs and login forms are left alone", async () => {
+    const { $ } = await load(`
+      <p id="out">A house outside.</p>
+      <div class="cm-editor"><div id="cm" class="cm-line">const house = 1;</div></div>
+      <div class="monaco-editor"><span id="mo">house</span></div>
+      <pre><code id="code">house</code></pre>
+      <div class="highlight"><span id="hl">house</span></div>
+      <code class="language-js" id="lang">house</code>
+      <div role="textbox" id="tb">house</div>
+      <div translate="no" id="tn">house</div>
+      <div class="notranslate" id="nt">house</div>
+      <div data-kotiko-skip id="ks">house</div>
+      <div data-slovo-skip id="ss">house</div> <!-- legacy-name-ok -->
+      <form id="login"><label>house</label><input type="password"><p id="lp">a house</p></form>
+      <form id="pay"><p id="pp">a house</p><input autocomplete="cc-number"></form>`);
+    assert.equal($("out").textContent, "A дом outside.");
+    for (const id of ["cm", "mo", "code", "hl", "lang", "tb", "tn", "nt", "ks", "ss", "lp", "pp"]) assert.match($(id).textContent, /house/, id);
+  });
+
+  test("translate=no on <html> or <body> doesn't stop Kotiko (React sites set it there)", async () => {
+    const { $ } = await load(`<!doctype html><html lang="en" translate="no"><body class="notranslate"><p id="p">my house</p></body></html>`);
+    assert.equal($("p").textContent, "my дом");
+  });
+
+  test("text added later inside a code editor stays as written", async () => {
+    const { doc, $ } = await load(`<div class="cm-editor"><div id="ed"></div></div>`);
+    $("ed").append(doc.createTextNode("let house = 2;"));
+    await sleep(0);
+    assert.equal($("ed").textContent, "let house = 2;");
+  });
+
+  test("a sentence-start capital waits for the rest of the page", async () => {
+    const W = [word("яблоко", "apple", ["apple"])];
+    const proper = await load(`<p id="a">Apple announced a phone.</p><p id="b">We met at Apple today.</p>`, { words: W });
+    assert.equal(proper.$("a").textContent, "Apple announced a phone.", "Apple is a name on this page");
+    const food = await load(`<p id="a">Apple pie is sweet.</p><p id="b">I ate an apple.</p>`, { words: W });
+    assert.equal(food.$("a").textContent, "Яблоко pie is sweet.");
+    assert.equal(food.$("b").textContent, "I ate an яблоко.");
+  });
+});
+
+describe("a page in a language the learner doesn't read (slice 16 §1)", () => {
+  test("a German page is left alone, but its English quote is swapped", async () => {
+    const { $ } = await load(`<p id="de">Das Haus ist groß.</p><p id="en" lang="en">my house</p>`, { lang: "de" });
+    assert.equal($("de").textContent, "Das Haus ist groß.");
+    assert.equal($("en").textContent, "my дом");
   });
 });

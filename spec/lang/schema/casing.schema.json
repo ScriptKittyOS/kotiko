@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "spec/lang/_generic/casing.json: what a capital means in a language",
+  "description": "One shared table (slice 50 section 5; slices 16 and 17). default applies to every base; an entry keyed by a full tag or a primary language overrides it key by key. A language needs an entry only when the default visibly fails for it.",
+  "type": "object",
+  "required": [
+    "default"
+  ],
+  "properties": {
+    "default": {
+      "$ref": "#/$defs/entry"
+    }
+  },
+  "additionalProperties": {
+    "$ref": "#/$defs/entry"
+  },
+  "$defs": {
+    "words": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 16
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nouns_capitalized": {
+          "type": "boolean",
+          "description": "Nouns are written with a capital (German), so a capital mid-sentence isn't evidence of a name."
+        },
+        "title_case_headlines": {
+          "type": "boolean",
+          "description": "Headlines capitalise most words (English), so a capital in a Title Case run is weak evidence."
+        },
+        "capitalized_pronouns": {
+          "$ref": "#/$defs/words",
+          "description": "One-letter pronouns always written as a capital (English I)."
+        },
+        "honorifics": {
+          "$ref": "#/$defs/words",
+          "description": "Titles before a name, without a final period: a word next to one is part of a name (Mr Will, Sr. Rosa, Herr Wolf)."
+        },
+        "single_letter_words": {
+          "$ref": "#/$defs/words",
+          "description": "Ordinary one-letter words of the language (English a; Spanish y, o, a)."
+        }
+      }
+    }
+  }
+}

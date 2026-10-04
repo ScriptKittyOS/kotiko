@@ -21,7 +21,12 @@
     for (const w of records) {
       if (!w || w.deleted_at || !SWAP.has(w.status)) continue;
       if (want.size && !want.has(w.base_lang)) continue;
-      const forms = (w.forms ?? []).filter((f) => f && (typeof f === "string" || f.enabled !== false)).map((f) => (typeof f === "string" ? f : f.text)).filter(Boolean);
+      // Forms as their text, or { text, case } when 07's case flag says more than "any"
+      // (slice 16's rules read it).
+      const forms = (w.forms ?? [])
+        .filter((f) => f && (typeof f === "string" || f.enabled !== false))
+        .map((f) => (typeof f === "string" ? f : f.case && f.case !== "any" ? { text: f.text, case: f.case } : f.text))
+        .filter((f) => (typeof f === "string" ? f : f?.text));
       if (!forms.length) continue;
       const c = { id: w.id, lang: w.lang, native: w.native, base_lang: w.base_lang, gloss: w.gloss, forms, status: w.status, created_at: w.created_at };
       for (const k of OPTIONAL) if (w[k] !== null && w[k] !== undefined && w[k] !== "") c[k] = w[k];
