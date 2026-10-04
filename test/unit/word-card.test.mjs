@@ -87,6 +87,7 @@ describe("the source label (19 §1a, 49 §4a)", () => {
     ["corrected", { pronunciation: "x-Y", pronunciation_source: "model", verification: { pronunciation: { status: "corrected", source: "Wiktionary" } } }, { kind: "checked", source: "Wiktionary" }],
     ["differs", { pronunciation: "x-Y", pronunciation_source: "model", verification: { pronunciation: { status: "differs", source: "Wiktionary" } } }, { kind: "differs", source: "Wiktionary" }],
     ["no_data", { pronunciation: "x-Y", pronunciation_source: "model", verification: { pronunciation: { status: "no_data", source: "Wiktionary" } } }, { kind: "ai" }],
+    ["written from Wiktionary's IPA (49 §4b)", { pronunciation: "EH-ta", pronunciation_source: "wiktionary" }, { kind: "checked", source: "Wiktionary" }],
     ["the learner's own", { pronunciation: "x-Y", pronunciation_source: "user" }, null],
     ["the learner's own, even when it differs", { pronunciation: "x-Y", pronunciation_source: "user", verification: { pronunciation: { status: "differs", source: "W" } } }, null],
     ["no pronunciation", { pronunciation: null, pronunciation_source: null }, null],

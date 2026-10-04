@@ -187,11 +187,11 @@ defmodule Kotiko.Application do
     ]
   end
 
-  # The daily cleanup and the one-time pronunciation refresh (slice 07). Off in tests,
-  # which call them directly.
+  # The daily cleanup, the one-time pronunciation refresh (slice 07) and the Wiktionary
+  # pronunciations pass (slice 49 §4a). Off in tests, which call them directly.
   defp background_children do
     if Application.get_env(:kotiko, :background_jobs, true),
-      do: [Kotiko.Janitor, Kotiko.PronunciationRefresh],
+      do: [Kotiko.Janitor, Kotiko.PronunciationRefresh, Kotiko.WiktionaryPass],
       else: []
   end
 

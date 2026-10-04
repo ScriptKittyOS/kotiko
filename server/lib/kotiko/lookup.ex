@@ -10,7 +10,8 @@ defmodule Kotiko.Lookup do
   While a lookup runs, `busy?/0` is true, so background jobs (the pronunciation refresh)
   wait and the learner's own adds always go first.
   """
-  alias Kotiko.{LLM, Words}
+  require Logger
+  alias Kotiko.{LLM, Pronounce, Words}
 
   @doc """
   Interprets `text`. Options: `:base_langs` (default `["en"]`), `:hint_lang`, `:add` (the
@@ -37,10 +38,31 @@ defmodule Kotiko.Lookup do
     case busy(fn -> LLM.interpret(text, recent, llm_opts) end) do
       {:ok, result} ->
         extra = %{status: opts[:status] || "active", origin: opts[:origin] || "add"}
-        {:ok, %{result | words: Enum.map(result.words, &Map.merge(&1, extra))}}
+        words = result.words |> Enum.map(&Map.merge(&1, extra)) |> pronounce()
+        {:ok, %{result | words: words}}
 
       {:error, _} = e ->
         e
+    end
+  end
+
+  # Slice 49 §4a: pronunciations from Wiktionary for targets with lexical stress. A page
+  # that can't be read in time leaves the model's; the background pass tries it again.
+  defp pronounce(words) do
+    if Application.get_env(:kotiko, :pronounce_enabled, true) do
+      fetch = &Pronounce.fetch_page(&1, max_wait_ms: 2_000)
+
+      Enum.map(words, fn w ->
+        try do
+          w |> Pronounce.enrich(fetch_page: fetch) |> elem(0)
+        rescue
+          e ->
+            Logger.warning("Wiktionary pronunciation failed: #{Exception.message(e)}")
+            w
+        end
+      end)
+    else
+      words
     end
   end
 

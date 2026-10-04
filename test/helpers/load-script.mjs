@@ -68,10 +68,14 @@ export function injectContentScripts(dom) {
 }
 
 // The extension's own files (chrome-extension://<id>/spec/…), served from disk as a browser
-// serves them from the package; anything else goes to `fetch`, the test's network.
+// serves them from the package; Wiktionary (slice 49 §4a) answered by the test's
+// `wiktionary(url)` or offline, so no test ever reaches the real site; anything else goes to
+// `fetch`, the test's network.
 const OWN_FILE = /^(?:chrome|moz)-extension:\/\/[^/]+\/(.+)$/;
-function withOwnFiles(fetch) {
+const WIKTIONARY = /^https:\/\/en\.wiktionary\.org\//;
+function withOwnFiles(fetch, wiktionary) {
   return (url, init) => {
+    if (WIKTIONARY.test(String(url))) return wiktionary ? Promise.resolve(wiktionary(String(url), init)) : Promise.reject(new TypeError("offline (tests never reach Wiktionary)"));
     const own = OWN_FILE.exec(String(url));
     if (!own) return fetch(url, init);
     try {
@@ -112,7 +116,7 @@ export function runInVm(rel, globals = {}) {
     fetch: () => Promise.reject(new TypeError("fetch is not stubbed in this test")),
     ...globals,
   });
-  ctx.fetch = withOwnFiles(ctx.fetch);
+  ctx.fetch = withOwnFiles(ctx.fetch, globals.wiktionary);
   ctx.self = ctx;
   // importScripts, as in a service worker: paths resolve against the script's folder.
   if (!("importScripts" in globals)) {

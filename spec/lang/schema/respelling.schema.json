@@ -78,6 +78,69 @@
     "prompt_summary": {
       "type": "string",
       "maxLength": 800
+    },
+    "ipa": {
+      "description": "Slice 49 section 4a: how Wiktionary's IPA is written for a reader of this base. See the _comment in each file.",
+      "type": "object",
+      "required": [
+        "map",
+        "palatal",
+        "palatal_before",
+        "coda_y",
+        "long_double",
+        "open_syllable"
+      ],
+      "properties": {
+        "_comment": {
+          "type": "string"
+        },
+        "map": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "targets": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "open_syllable": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "palatal": {
+          "type": "string"
+        },
+        "palatal_before": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "long_double": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "coda_y": {
+          "type": "string"
+        },
+        "front_g": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

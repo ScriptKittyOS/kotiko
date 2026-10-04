@@ -1,0 +1,621 @@
+{
+ "_comment": "Slice 49 section 4a: what both runtimes make of Wiktionary's IPA. blocks: the IPA of each Pronunciation section of the target language's part of the page, as blocksFromHtml returns them (transcriptions written for these tests). word: the checked word before; expect: its pronunciation and native_vocalized after, and the status. extension/lib/pronounce.js and server/lib/kotiko/pronounce.ex must both pass every case.",
+ "cases": [
+  {
+   "name": "ru-eto-en",
+   "word": {
+    "lang": "ru",
+    "base_lang": "en",
+    "native": "это",
+    "pronunciation": "eh-TO",
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "[ˈɛtə]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "EH-ta",
+    "native_vocalized": "э́то",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "ru-eto-es",
+   "word": {
+    "lang": "ru",
+    "base_lang": "es",
+    "native": "это",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "[ˈɛtə]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "E-ta",
+    "native_vocalized": "э́то",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "ru-moloko-en",
+   "word": {
+    "lang": "ru",
+    "base_lang": "en",
+    "native": "молоко",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "[məɫɐˈko]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "ma-la-KO",
+    "native_vocalized": "молоко́",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "ru-spasibo-en",
+   "word": {
+    "lang": "ru",
+    "base_lang": "en",
+    "native": "спасибо",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "[spɐˈsʲibə]",
+     "[spaˈsʲibo]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "spa-SEE-ba",
+    "native_vocalized": "спаси́бо",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "ru-spasibo-es",
+   "word": {
+    "lang": "ru",
+    "base_lang": "es",
+    "native": "спасибо",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "[spɐˈsʲibə]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "spa-SI-ba",
+    "native_vocalized": "спаси́бо",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "ru-zdravstvuyte-en",
+   "word": {
+    "lang": "ru",
+    "base_lang": "en",
+    "native": "здравствуйте",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "[ˈzdrastvʊjtʲe]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "ZDRAST-vuy-tyeh",
+    "native_vocalized": "здра́вствуйте",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "ru-pozhaluysta-en",
+   "word": {
+    "lang": "ru",
+    "base_lang": "en",
+    "native": "пожалуйста",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "[pɐˈʐaɫʊstə]",
+     "[pɐˈʐaɫ(ə)stə]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "pa-ZHA-lu-sta",
+    "native_vocalized": "пожа́луйста",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "ru-lyublyu-es",
+   "word": {
+    "lang": "ru",
+    "base_lang": "es",
+    "native": "люблю",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "[lʲʊˈblʲu]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "liu-BLIU",
+    "native_vocalized": "люблю́",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "ru-muzhchina-en",
+   "word": {
+    "lang": "ru",
+    "base_lang": "en",
+    "native": "мужчина",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "[mʊˈɕːinə]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "mu-SHEE-na",
+    "native_vocalized": "мужчи́на",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "ru-malenkiy-en",
+   "word": {
+    "lang": "ru",
+    "base_lang": "en",
+    "native": "маленький",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "[ˈmalʲɪnʲkʲɪj]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "MA-lin-kee",
+    "native_vocalized": "ма́ленький",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "ru-bolshoy-en",
+   "word": {
+    "lang": "ru",
+    "base_lang": "en",
+    "native": "большой",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "[bɐlʲˈʂoj]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "bal-SHOY",
+    "native_vocalized": "большо́й",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "ru-yolka-en-yo-unmarked",
+   "word": {
+    "lang": "ru",
+    "base_lang": "en",
+    "native": "ёлка",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "[ˈjɵɫkə]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "YOL-ka",
+    "native_vocalized": "ёлка",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "ru-zamok-model-agrees-second",
+   "word": {
+    "lang": "ru",
+    "base_lang": "en",
+    "native": "замок",
+    "pronunciation": "za-MOK",
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "[ˈzamək]"
+    ],
+    [
+     "[zɐˈmok]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "za-MOK",
+    "native_vocalized": "замо́к",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "ru-zamok-model-agrees-first",
+   "word": {
+    "lang": "ru",
+    "base_lang": "en",
+    "native": "замок",
+    "pronunciation": "ZA-mok",
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "[ˈzamək]"
+    ],
+    [
+     "[zɐˈmok]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "ZA-mak",
+    "native_vocalized": "за́мок",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "ru-zamok-no-model-keeps-model",
+   "word": {
+    "lang": "ru",
+    "base_lang": "en",
+    "native": "замок",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "[ˈzamək]"
+    ],
+    [
+     "[zɐˈmok]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": null,
+    "native_vocalized": null,
+    "status": "no_data"
+   }
+  },
+  {
+   "name": "ru-two-words",
+   "word": {
+    "lang": "ru",
+    "base_lang": "en",
+    "native": "до свидания",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "[də svʲɪˈdanʲɪjə]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "da svi-DA-ni-ya",
+    "native_vocalized": "до свида́ния",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "uk-dyakuyu-en",
+   "word": {
+    "lang": "uk",
+    "base_lang": "en",
+    "native": "дякую",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "[ˈdʲakʊjʊ]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "DYA-ku-yu",
+    "native_vocalized": "дя́кую",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "es-gracias-en-latin-american",
+   "word": {
+    "lang": "es",
+    "base_lang": "en",
+    "native": "gracias",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "/ˈɡɾaθjas/",
+     "/ˈɡɾasjas/"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "GRA-syas",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "es-perro-en",
+   "word": {
+    "lang": "es",
+    "base_lang": "en",
+    "native": "perro",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "/ˈpero/",
+     "[ˈpe.ro]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "PEH-ro",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "de-strasse-en",
+   "word": {
+    "lang": "de",
+    "base_lang": "en",
+    "native": "Straße",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "/ˈʃtʁaːsə/"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "SHTRA-suh",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "pt-obrigado-en",
+   "word": {
+    "lang": "pt",
+    "base_lang": "en",
+    "native": "obrigado",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "/o.bɾiˈɡa.du/"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "o-bree-GA-doo",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "ar-kitab-en-stress-from-second",
+   "word": {
+    "lang": "ar",
+    "base_lang": "en",
+    "native": "كتاب",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "/ki.taːb/",
+     "[kɪˈtaːb]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "ki-TAB",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "el-efcharisto-en",
+   "word": {
+    "lang": "el",
+    "base_lang": "en",
+    "native": "ευχαριστώ",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "/ef.xa.ɾiˈsto/"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "ef-kha-ree-STO",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "en-hello-es",
+   "word": {
+    "lang": "en",
+    "base_lang": "es",
+    "native": "hello",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "/hɛˈloʊ/"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "je-LOU",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "tr-tesekkur-en",
+   "word": {
+    "lang": "tr",
+    "base_lang": "en",
+    "native": "teşekkür",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "/teʃecˈcyɾ/"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "teh-shek-KEWR",
+    "status": "wiktionary"
+   }
+  },
+  {
+   "name": "user-pronunciation-kept",
+   "word": {
+    "lang": "ru",
+    "base_lang": "en",
+    "native": "это",
+    "pronunciation": "EH-ta",
+    "pronunciation_source": "user"
+   },
+   "blocks": [
+    [
+     "[ˈɛtə]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "EH-ta",
+    "status": "skipped"
+   }
+  },
+  {
+   "name": "no-stress-target-skipped",
+   "word": {
+    "lang": "ja",
+    "base_lang": "en",
+    "native": "犬",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "[inɯ̟]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": null,
+    "status": "skipped"
+   }
+  },
+  {
+   "name": "base-without-table-skipped",
+   "word": {
+    "lang": "ru",
+    "base_lang": "fr",
+    "native": "это",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "[ˈɛtə]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": null,
+    "status": "skipped"
+   }
+  },
+  {
+   "name": "unknown-sound-keeps-model",
+   "word": {
+    "lang": "ru",
+    "base_lang": "en",
+    "native": "это",
+    "pronunciation": "eh-TO",
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "[ˈɛǃə]"
+    ]
+   ],
+   "expect": {
+    "pronunciation": "eh-TO",
+    "status": "no_data"
+   }
+  },
+  {
+   "name": "no-page-keeps-model",
+   "word": {
+    "lang": "ru",
+    "base_lang": "en",
+    "native": "это",
+    "pronunciation": "eh-TO",
+    "pronunciation_source": "model"
+   },
+   "blocks": [],
+   "expect": {
+    "pronunciation": "eh-TO",
+    "status": "no_data"
+   }
+  },
+  {
+   "name": "no-stress-mark-in-a-long-word",
+   "word": {
+    "lang": "pt",
+    "base_lang": "en",
+    "native": "obrigado",
+    "pronunciation": null,
+    "pronunciation_source": "model"
+   },
+   "blocks": [
+    [
+     "/o.bɾi.ɡa.du/"
+    ]
+   ],
+   "expect": {
+    "pronunciation": null,
+    "status": "no_data"
+   }
+  }
+ ]
+}

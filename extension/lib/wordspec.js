@@ -321,7 +321,7 @@
         }
       }
       if (word.pronunciation === null) word.pronunciation_source = null;
-      else if (word.pronunciation_source !== "user") word.pronunciation_source = "model";
+      else if (word.pronunciation_source !== "user" && word.pronunciation_source !== "wiktionary") word.pronunciation_source = "model";
 
       if (word.native_vocalized !== null) {
         if (!facts.vocalization_marks.length) word.native_vocalized = null;

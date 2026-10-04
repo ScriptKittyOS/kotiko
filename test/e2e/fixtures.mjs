@@ -82,7 +82,12 @@ export const test = base.extend({
         ...lang.args,
       ],
     });
+    // Wiktionary (slice 49 §4a) is the one outside site the extension asks on its own, for
+    // pronunciations of words added with the learner's own AI. It's blocked like everything
+    // else (the resolver rule above), so the extension keeps the model's pronunciation, as it
+    // does offline; it just isn't counted as a fixture that left localhost.
     const record = (url) => {
+      if (new URL(url).hostname === "en.wiktionary.org") return;
       if (!blocked.includes(url)) blocked.push(url);
     };
     await context.route("**/*", (route) => {

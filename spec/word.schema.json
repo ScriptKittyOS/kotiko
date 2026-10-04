@@ -85,6 +85,7 @@
       "enum": [
         "model",
         "user",
+        "wiktionary",
         null
       ]
     },

@@ -5,6 +5,13 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Pronunciations are now right. For languages with word stress, Kotiko takes how a word is
+  said from Wiktionary instead of trusting the AI, which got Russian stress wrong on about a
+  quarter of everyday words (это is EH-ta, not eh-TO). Words you already saved are checked
+  once in the background, and the word card says "Checked in Wiktionary". Only the word is
+  sent to Wiktionary, never the page you're reading. A pronunciation you typed yourself is
+  never changed.
+
 - You can now add little words like "it", "the" or "el" by typing the word in the language
   you're learning: "оно" or "это" for "it", "der" for "el". Before, Kotiko threw the answer
   away unless you also typed the English (or Spanish) word.

@@ -126,7 +126,11 @@ defmodule Kotiko.Pronunciation do
 
       true ->
         {careful, dropped} = careful(word[:pronunciation_careful], p, facts, key, dropped)
-        source = if word[:pronunciation_source] == "user", do: "user", else: "model"
+
+        source =
+          if word[:pronunciation_source] in ["user", "wiktionary"],
+            do: word[:pronunciation_source],
+            else: "model"
 
         {Map.merge(word, %{pronunciation_careful: careful, pronunciation_source: source}),
          dropped}

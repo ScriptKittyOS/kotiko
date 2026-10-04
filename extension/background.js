@@ -16,6 +16,7 @@ if (!globalThis.SyncController && typeof importScripts === "function") {
     "spec/spec.js", "lib/text.js", "lib/lang.js", "lib/words-v1.js", "lib/wordspec.js", "lib/word-merge.js", "lib/store.js",
     "lib/projection.js", "lib/llm/policy.js", "lib/llm/catalog.js", "lib/llm/client.js", "lib/add-queue.js",
     "lib/refresh-job.js", "lib/local-mode.js", "lib/pkce.js", "lib/celebrations.js", "lib/welcome-model.js",
+    "lib/pronounce.js", "lib/wiktionary-pass.js",
   );
 }
 
@@ -329,6 +330,62 @@ const client = globalThis.KotikoLLMClient.createClient({
   },
 });
 
+// ── pronunciations from Wiktionary (slice 49 section 4a) ─────────────────────
+
+const Pronounce = globalThis.KotikoPronounce.create(globalThis.KOTIKO_SPEC);
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// A word's page: its HTML, null when there is none, or a thrown error. Waits once when
+// Wikimedia asks for at most `maxWaitMs`.
+async function wiktionaryPage(title, { maxWaitMs = 2000 } = {}) {
+  const W = globalThis.KOTIKO_SPEC.wiktionary;
+  const url = W.endpoint.replace("{title}", encodeURIComponent(title));
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await fetch(url, { headers: { "Api-User-Agent": W.agent }, signal: AbortSignal.timeout(W.timeout_ms) });
+    if (res.ok) return res.text();
+    if (res.status === 404) return null;
+    const after = Number(res.headers.get("retry-after"));
+    if (res.status === 429 && attempt === 0 && Number.isFinite(after) && after * 1000 <= maxWaitMs) {
+      await wait(after * 1000);
+      continue;
+    }
+    throw new Error(`Wiktionary answered ${res.status}`);
+  }
+  throw new Error("Wiktionary is busy");
+}
+
+const pageCache = {
+  get: async (key) => (await getStore()).cache.get(key),
+  put: async (key, value) => (await getStore()).cache.put(key, value, "wiktionary"),
+};
+
+// The model's words (or "native = meaning" words) with Wiktionary's pronunciation where it
+// has one. Never fails an add: a page that can't be read leaves the word as it was, and the
+// background pass tries again.
+async function pronounceWords(words) {
+  const out = [];
+  for (const w of words ?? []) {
+    try {
+      out.push((await Pronounce.enrich(w, { fetchPage: wiktionaryPage, cache: pageCache })).word);
+    } catch {
+      out.push(w);
+    }
+  }
+  return out;
+}
+
+let wiktionaryPass = null;
+async function pronunciationPass() {
+  wiktionaryPass ??= globalThis.KotikoWiktionaryPass.createPass({
+    store: await getStore(),
+    pronounce: Pronounce,
+    fetchPage: (t) => wiktionaryPage(t, { maxWaitMs: 10_000 }),
+    cache: pageCache,
+    enabled: async () => (await home()) === "local",
+  });
+  return wiktionaryPass;
+}
+
 // One lookup for an add job (slice 11 section 5): "native = meaning" never asks a model;
 // otherwise the configured backend.
 async function lookupJob(job, signal) {
@@ -339,10 +396,12 @@ async function lookupJob(job, signal) {
   if (parsed) {
     const lang = Local.manualLang(parsed.native, { hintLang: job.hintLang, recent: await store.recentLangs(5), base });
     const word = lang ? Local.manualWord(parsed, { lang, base, text: job.text }) : null;
-    if (word) return { ok: true, result: { words: [word], rejected: [], missing_bases: [] } };
+    if (word) return { ok: true, result: { words: await pronounceWords([word]), rejected: [], missing_bases: [] } };
   }
   if (s.lookup.kind === "provider") {
-    return client.lookup({ text: job.text, base_langs: job.baseLangs, hint_lang: job.hintLang, recent: await store.recentLangs(5) }, { signal });
+    const res = await client.lookup({ text: job.text, base_langs: job.baseLangs, hint_lang: job.hintLang, recent: await store.recentLangs(5) }, { signal });
+    if (res?.ok && res.result?.words?.length) res.result = { ...res.result, words: await pronounceWords(res.result.words) };
+    return res;
   }
   if (s.lookup.kind === "server") {
     // The server looks up and saves nothing (its preview); the words are saved here.
@@ -655,6 +714,7 @@ ext.alarms.onAlarm.addListener((a) => {
   requestSync({ reason: "alarm" });
   queue.kick();
   refresh.tick().catch(() => {});
+  pronunciationPass().then((p) => p.tick()).catch(() => {});
 });
 globalThis.addEventListener?.("online", () => queue.wake());
 
