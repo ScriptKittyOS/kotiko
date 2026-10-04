@@ -142,7 +142,8 @@ defmodule Kotiko.Config do
       data_dir: data_dir(data_dir_var, data_dir_raw, default_dir, ensure_dir),
       log_level: log_level(vars["LOG_LEVEL"]),
       log_lookups: boolean("LOG_LOOKUPS", vars["LOG_LOOKUPS"]),
-      log_sql: boolean(log_sql_var, log_sql_raw)
+      log_sql: boolean(log_sql_var, log_sql_raw),
+      pronounce_enabled: boolean("KOTIKO_WIKTIONARY", vars["KOTIKO_WIKTIONARY"], true)
     ]
 
     problems = for {_key, {:error, problem}} <- results, do: problem
@@ -179,7 +180,8 @@ defmodule Kotiko.Config do
       data_dir: parsed.data_dir,
       log_level: parsed.log_level,
       log_lookups: parsed.log_lookups,
-      log_sql: parsed.log_sql
+      log_sql: parsed.log_sql,
+      pronounce_enabled: parsed.pronounce_enabled
     ]
   end
 
@@ -458,9 +460,10 @@ defmodule Kotiko.Config do
     end
   end
 
-  defp boolean(_name, nil), do: {:ok, false}
+  defp boolean(name, raw, default \\ false)
+  defp boolean(_name, nil, default), do: {:ok, default}
 
-  defp boolean(name, raw) do
+  defp boolean(name, raw, _default) do
     case String.downcase(raw) do
       v when v in ~w(true yes on 1) -> {:ok, true}
       v when v in ~w(false no off 0) -> {:ok, false}

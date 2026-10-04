@@ -83,6 +83,8 @@ test.describe("full stack", () => {
         TELEGRAM_BOT_TOKEN: "",
         ALLOWED_TELEGRAM_IDS: "",
         TRANSCRIBE_URL: "",
+        // Self-contained: the real server never asks Wiktionary (slice 49 §4b) in tests.
+        KOTIKO_WIKTIONARY: "false",
       },
     });
     child.stdout.on("data", (d) => log.push(String(d)));

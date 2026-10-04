@@ -58,6 +58,7 @@ defmodule Kotiko.ConfigTest do
       assert config[:log_level] == :info
       assert config[:log_lookups] == false
       assert config[:log_sql] == false
+      assert config[:pronounce_enabled] == true
 
       assert warnings == [
                "LLM_API_KEY is empty: adding words won't work until you set LLM_API_KEY."
@@ -92,7 +93,8 @@ defmodule Kotiko.ConfigTest do
           "KOTIKO_DATA_DIR" => "/data/kotiko",
           "LOG_LEVEL" => "DEBUG",
           "LOG_LOOKUPS" => "true",
-          "KOTIKO_LOG_SQL" => "yes"
+          "KOTIKO_LOG_SQL" => "yes",
+          "KOTIKO_WIKTIONARY" => "off"
         })
 
       assert config[:port] == 8080
@@ -111,6 +113,7 @@ defmodule Kotiko.ConfigTest do
       assert config[:log_level] == :debug
       assert config[:log_lookups] == true
       assert config[:log_sql] == true
+      assert config[:pronounce_enabled] == false
     end
 
     test "BIND takes IP literals and names" do
@@ -191,7 +194,8 @@ defmodule Kotiko.ConfigTest do
     {%{"LOG_LEVEL" => "verbose"}, "LOG_LEVEL=verbose",
      ["Use one of: debug, info, warning, error."]},
     {%{"LOG_LOOKUPS" => "maybe"}, "LOG_LOOKUPS=maybe", ["Use true or false."]},
-    {%{"KOTIKO_LOG_SQL" => "2"}, "KOTIKO_LOG_SQL=2", ["Use true or false."]}
+    {%{"KOTIKO_LOG_SQL" => "2"}, "KOTIKO_LOG_SQL=2", ["Use true or false."]},
+    {%{"KOTIKO_WIKTIONARY" => "sometimes"}, "KOTIKO_WIKTIONARY=sometimes", ["Use true or false."]}
   ]
 
   for {{vars, label, lines}, i} <- Enum.with_index(@mistakes) do
