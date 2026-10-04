@@ -691,6 +691,27 @@ function claimMilestone(key) {
   return run;
 }
 
+// Tabs open before an install or update get Kotiko without a reload (slice 15): the same
+// files the manifest injects, top frame only, as it does. On an update the new copy tells
+// the old one to stand down (the handoff in content.js). A tab that can't take scripts (a
+// store page, a browser page) is skipped.
+async function injectOpenTabs() {
+  const cs = ext.runtime.getManifest?.()?.content_scripts?.[0];
+  if (!ext.scripting?.executeScript || !cs) return 0;
+  const tabs = await Promise.resolve(ext.tabs.query({ url: ["http://*/*", "https://*/*"] })).catch(() => []);
+  let n = 0;
+  for (const tab of tabs) {
+    try {
+      if (cs.css?.length) await ext.scripting.insertCSS({ target: { tabId: tab.id }, files: cs.css });
+      await ext.scripting.executeScript({ target: { tabId: tab.id }, files: cs.js });
+      n++;
+    } catch {
+      // not a page Kotiko may run on
+    }
+  }
+  return n;
+}
+
 function onInstalled(details) {
   if (details?.reason === "update") {
     Promise.resolve(ext.alarms.clear(OLD_ALARM)).catch(() => {});
@@ -700,6 +721,7 @@ function onInstalled(details) {
     upgradeOnboarding().catch(() => {}).then(upgradeBases).catch(() => {});
   }
   if (details?.reason === "install") firstInstall().catch((e) => console.warn("Kotiko couldn't open the welcome tab:", e?.message ?? e));
+  if (details?.reason === "install" || details?.reason === "update") injectOpenTabs().catch(() => {});
   ensureAlarm();
   mirrorBaseRules({ force: true }).catch(() => {});
   ready().catch(() => {}).finally(() => requestSync({ reason: "installed" }));
@@ -1108,4 +1130,4 @@ ext.storage.onChanged.addListener((changes, area) => {
 updateAllBadges();
 
 // For tests: the parts a test drives directly.
-globalThis.__kotiko = { ready, getStore, queue, refresh, projector, client, settings, currentBases, mirrorBaseRules, toServer, toLocal, openWelcome, claimMilestone, onInstalled };
+globalThis.__kotiko = { ready, getStore, queue, refresh, projector, client, settings, currentBases, mirrorBaseRules, injectOpenTabs, toServer, toLocal, openWelcome, claimMilestone, onInstalled };

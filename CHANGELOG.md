@@ -5,6 +5,13 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Kotiko no longer interferes with web apps built with React, Vue and the like: it changes
+  words without taking the page's own text away from it. It keeps working after a site
+  navigates without reloading, swaps new posts in a feed before you see them, stops if a
+  page keeps undoing its changes (the popup says so), no longer freezes very large pages,
+  and starts on tabs that were already open when you install or update it. Adding a word
+  only changes the text that has it.
+
 - Pronunciations are now right. For languages with word stress, Kotiko takes how a word is
   said from Wiktionary instead of trusting the AI, which got Russian stress wrong on about a
   quarter of everyday words (это is EH-ta, not eh-TO). Words you already saved are checked

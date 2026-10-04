@@ -17,6 +17,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // learner reads English and Spanish (slice 50's setting), as their words' meanings say.
 async function setup({ server, serviceWorker }, extra = {}) {
   await server.control({ words: POPOVER_WORDS });
+  // The install's own first-run step writes the browser's languages; it must be done before
+  // this test sets its own, or it can overwrite them.
+  await expect.poll(() => serviceWorker.evaluate(async () => !!(await chrome.storage.local.get("onboarding")).onboarding)).toBe(true);
   await serviceWorker.evaluate(async (o) => {
     await chrome.storage.sync.set({ ui: { uiLang: "auto", baseLangs: ["en", "es"], baseLangsConfirmed: true } });
     await chrome.storage.local.set({ serverUrl: o.url, token: o.token, words: o.words, enabled: true, lastSync: Date.now(), ...o.extra });

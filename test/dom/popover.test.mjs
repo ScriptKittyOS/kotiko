@@ -54,6 +54,9 @@ async function load({ html = PAGE, words = WORDS, locale = "en", voices = voiceL
   }
   injectContentScripts(dom);
   await fake.idle();
+  // content.js starts swapping a task after it loads (the segmenter's warm-up, slice 15);
+  // asking the background for a sync is the last thing it does.
+  for (let i = 0; i < 400 && !fake.calls.sendMessage.some((m) => m.type === "sync"); i++) await sleep(5);
   await sleep(0);
   const doc = window.document;
   const shadow = () => roots.at(-1);

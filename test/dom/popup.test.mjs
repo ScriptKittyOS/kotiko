@@ -791,6 +791,12 @@ describe("the page's language", () => {
     assert.ok(!p.visible("#readToo"));
   });
 
+  test("a page that kept undoing Kotiko's changes (slice 15)", async () => {
+    const p = await openPopup({ local: { words: WORDS }, pageStatus: { base: "en", reason: "declared", lang: "en", words: 4, stoodDown: true } });
+    await p.settle();
+    assert.equal(p.text("#pageLangText"), "Kotiko stepped back on this page because the page kept undoing its changes.");
+  });
+
   test("nothing when the page is in their language, unknown, paused, or there is no content script", async () => {
     for (const [pageStatus, local] of [
       [{ base: "en", reason: "declared", lang: "en", words: 12 }, {}],

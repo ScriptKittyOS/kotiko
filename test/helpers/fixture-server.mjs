@@ -5,6 +5,8 @@
 //
 //   /pages/*      static fixture pages (test/fixtures/pages)
 //   /vendor/*     vendored libraries (test/fixtures/vendor)
+//   /npm/react.js, /npm/react-dom.js   React 18's production builds from node_modules
+//                 (devDependencies, MIT), for slice 15's react-list.html
 //   /kotiko/*       a fake Kotiko server: GET /health, GET/POST /api/words, DELETE /api/words/:id,
 //                 and the /api/v1 routes the dashboard uses (slice 07 §5, in memory): words
 //                 (GET, GET :id, POST with preview, POST batch, PATCH, DELETE, restore),
@@ -34,6 +36,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const FIXTURES = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../fixtures");
+const NODE_MODULES = path.resolve(FIXTURES, "../../node_modules");
+const NPM = { "react.js": "react/umd/react.production.min.js", "react-dom.js": "react-dom/umd/react-dom.production.min.js" };
 const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(FIXTURES, rel), "utf8"));
 
 // 43 characters, like a token from `openssl rand -base64 32`.
@@ -431,6 +435,7 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
       if (pathname === "/__control") return await control(req, res);
       if (pathname.startsWith("/pages/")) return serveStatic(res, path.join(FIXTURES, "pages"), pathname.slice(7));
       if (pathname.startsWith("/vendor/")) return serveStatic(res, path.join(FIXTURES, "vendor"), pathname.slice(8));
+      if (pathname.startsWith("/npm/") && NPM[pathname.slice(5)]) return serveStatic(res, NODE_MODULES, NPM[pathname.slice(5)]);
       if (pathname.startsWith("/kotiko/")) {
         state.log.push({ method: req.method, path: pathname, auth: req.headers.authorization ?? null });
         return await kotiko(req, res, pathname.slice("/kotiko".length));
