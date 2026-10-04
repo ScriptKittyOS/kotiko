@@ -7,7 +7,7 @@
 // with a stubbed voice list.
 import { test, expect } from "./fixtures.mjs";
 import { POPOVER_WORDS } from "../helpers/popover-words.mjs";
-import { readCard } from "../helpers/closed-shadow.mjs";
+import { inShadow, readCard } from "../helpers/closed-shadow.mjs";
 import { stubSpeech, voiceLists } from "../helpers/speech-stub.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -58,7 +58,7 @@ test("hovering a word opens the card in the top layer, above hostile page CSS, w
   await sleep(150);
   expect((await readCard(page))?.open ?? false, "not before 300 ms").toBe(false);
   const card = await waitCard(page);
-  expect(card.lines).toEqual(["пожа́луйста", "pa-ZHAL-sta", "Slowly: pa-ZHA-lu-sta", "pozhaluysta · AI-generated", "Russian · русский", "please"]);
+  expect(card.lines).toEqual(["пожа́луйста", "pa-ZHAL-sta", "Slowly: pa-ZHA-lu-sta", "pozhaluysta · AI-generated", "Russian · русский", "please", "Don't swap this word"]);
   expect(card.rect.width).toBeGreaterThanOrEqual(220);
   expect(card.rect.width).toBeLessThanOrEqual(320);
   expect(card.dark).toBe(false);
@@ -165,7 +165,9 @@ test("the keyboard command opens the selected word with focus inside; Esc closes
   await expect.poll(async () => (await readCard(page)).focused).toBe("k-speak");
   expect(await page.evaluate(() => document.activeElement?.localName)).toBe("kotiko-popover");
   await page.keyboard.press("Tab");
-  expect((await readCard(page)).focused).toBe("k-speak");
+  expect((await readCard(page)).focused, "then the card's action (slice 16 §5)").toBe("k-action");
+  await page.keyboard.press("Tab");
+  expect((await readCard(page)).focused, "and round again").toBe("k-speak");
   await page.keyboard.press("Escape");
   await waitCard(page, false);
   expect(await page.evaluate(() => getSelection().toString())).toBe("犬");
@@ -243,4 +245,25 @@ test.describe("with the browser in Spanish", () => {
     expect(card.text("k-lang")).toBe("chino · 中文");
     expect(card.text("k-also")).toBe("También: спасибо (spasibo)");
   });
+});
+
+test("Don't swap this word: the page shows the site's word again, everywhere, with an undo (slice 16 §5)", async ({ context, server, serviceWorker }) => {
+  await setup({ server, serviceWorker });
+  const page = await openPage(context, server);
+  await word(page, "хорошо").click();
+  await waitCard(page);
+  await inShadow(page, function () {
+    this.querySelector("[data-action=never-swap]").click();
+  });
+  await expect(page.locator("#p3")).toContainText("It is a good ");
+  expect(await serviceWorker.evaluate(async () => (await chrome.storage.local.get("prefs")).prefs.neverSwap)).toEqual(["good"]);
+  const other = await openPage(context, server);
+  await expect(other.locator("#p3")).toContainText("It is a good ");
+  await other.close();
+  // The toast's Undo puts it back.
+  await inShadow(page, function () {
+    this.querySelector(".k-toast-action").click();
+  });
+  await expect(page.locator("#p3 kotiko-w", { hasText: "хорошо" })).toBeVisible();
+  expect(await serviceWorker.evaluate(async () => (await chrome.storage.local.get("prefs")).prefs.neverSwap)).toEqual([]);
 });

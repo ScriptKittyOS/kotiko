@@ -157,6 +157,16 @@ test.describe("slice 16: what not to swap", () => {
     await expect(page.locator("#de")).toHaveText("Die Katze und das Kind. Das Gift ist gefährlich. Die Kinder spielen im Haus.");
   });
 
+  test("bank-login.html: login and payment forms stay as written; the rest of the page swaps", async ({ context, server, popup }) => {
+    const ru = (id, native, english) => ({ id, lang: "ru", language: null, native, romanization: null, english, forms: [english], note: null });
+    await server.control({ words: [ru(1, "дом", "home"), ru(2, "спасибо", "thanks"), ru(3, "домик", "house")] });
+    await popup.connect(server.kotikoUrl, server.token);
+    const page = await context.newPage();
+    await page.goto(server.page("bank-login.html"));
+    await expect(page.locator("#intro")).toHaveText("Welcome дом. Спасибо for banking with us.");
+    for (const id of ["login-title", "login-help", "pay-help"]) await expect(page.locator(`#${id}`)).not.toContainText(/дом|спасибо/);
+  });
+
   test("editors.html: textarea, contenteditable, role=textbox, CodeMirror-like editors and translate=no are untouched", async ({ context, server, popup }) => {
     const ru = (id, native, english) => ({ id, lang: "ru", language: null, native, romanization: null, english, forms: [english], note: null });
     await server.control({ words: [ru(1, "дом", "house"), ru(2, "спасибо", "thanks")] });

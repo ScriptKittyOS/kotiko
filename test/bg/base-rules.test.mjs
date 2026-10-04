@@ -63,3 +63,23 @@ describe("base rules for content scripts", () => {
     assert.ok(bg.store.baseRules.en.stopwords.includes("the"));
   });
 });
+
+// Slice 16 §4: the sensitive-sites list shipped with the extension, for content scripts.
+describe("sensitive sites for content scripts", () => {
+  const CONTENT = { id: "fake-extension-id", url: "https://example.com/", tab: { id: 1, url: "https://example.com/" } };
+
+  test("copied to storage with the language rules, from the extension's own file", async () => {
+    const bg = loadBackground({ sync: { ui: { baseLangs: ["en"], baseLangsConfirmed: true } } });
+    await bg.until(() => bg.store.sensitiveSites);
+    assert.ok(bg.store.sensitiveSites.some((s) => s.pattern === "chase.com" && s.category === "banking"));
+    assert.deepEqual(bg.fetches, [], "never fetched from the network");
+  });
+
+  test("a page that opened first can ask for it; other pages and senders can't", async () => {
+    const bg = loadBackground({ sync: { ui: { baseLangs: ["en"], baseLangsConfirmed: true } } });
+    const r = await bg.fake.deliver({ type: "sensitiveSites" }, CONTENT);
+    assert.ok(r.sites.length > 50);
+    const other = await bg.fake.deliver({ type: "sensitiveSites" }, { id: "another-extension", url: "https://example.com/", tab: { id: 2 } });
+    assert.ok(!other?.sites, "another extension gets nothing");
+  });
+});

@@ -1,0 +1,609 @@
+{
+ "$comment": "Sites Kotiko leaves alone by default (slice 16 §4). Public, changed by pull request, shipped with the extension and never fetched. Patterns (lib/sensitive.js): example.com matches it and its subdomains; *.bank a suffix; name.* a host label; name*.* a host label starting with name; host/path* also matches the path, query and fragment, * being anything.",
+ "sites": [
+  {
+   "pattern": "*.bank",
+   "category": "banking"
+  },
+  {
+   "pattern": "banking*.*",
+   "category": "banking"
+  },
+  {
+   "pattern": "onlinebanking*.*",
+   "category": "banking"
+  },
+  {
+   "pattern": "ebanking*.*",
+   "category": "banking"
+  },
+  {
+   "pattern": "netbanking*.*",
+   "category": "banking"
+  },
+  {
+   "pattern": "chase.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "bankofamerica.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "wellsfargo.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "citi.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "citibank.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "usbank.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "capitalone.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "pnc.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "tdbank.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "td.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "truist.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "schwab.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "fidelity.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "vanguard.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "ally.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "discover.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "americanexpress.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "navyfederal.org",
+   "category": "banking"
+  },
+  {
+   "pattern": "usaa.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "popular.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "bancopopular.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "firstbankpr.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "orientalbank.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "rbc.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "royalbank.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "scotiabank.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "bmo.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "cibc.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "hsbc.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "hsbc.co.uk",
+   "category": "banking"
+  },
+  {
+   "pattern": "barclays.co.uk",
+   "category": "banking"
+  },
+  {
+   "pattern": "natwest.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "lloydsbank.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "halifax.co.uk",
+   "category": "banking"
+  },
+  {
+   "pattern": "santander.co.uk",
+   "category": "banking"
+  },
+  {
+   "pattern": "nationwide.co.uk",
+   "category": "banking"
+  },
+  {
+   "pattern": "monzo.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "revolut.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "n26.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "wise.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "chime.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "santander.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "bancosantander.es",
+   "category": "banking"
+  },
+  {
+   "pattern": "bbva.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "bbva.es",
+   "category": "banking"
+  },
+  {
+   "pattern": "bbva.mx",
+   "category": "banking"
+  },
+  {
+   "pattern": "caixabank.es",
+   "category": "banking"
+  },
+  {
+   "pattern": "ing.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "ing.nl",
+   "category": "banking"
+  },
+  {
+   "pattern": "ing.de",
+   "category": "banking"
+  },
+  {
+   "pattern": "ing.es",
+   "category": "banking"
+  },
+  {
+   "pattern": "deutsche-bank.de",
+   "category": "banking"
+  },
+  {
+   "pattern": "commerzbank.de",
+   "category": "banking"
+  },
+  {
+   "pattern": "sparkasse.de",
+   "category": "banking"
+  },
+  {
+   "pattern": "dkb.de",
+   "category": "banking"
+  },
+  {
+   "pattern": "postbank.de",
+   "category": "banking"
+  },
+  {
+   "pattern": "*.bnpparibas",
+   "category": "banking"
+  },
+  {
+   "pattern": "credit-agricole.fr",
+   "category": "banking"
+  },
+  {
+   "pattern": "societegenerale.fr",
+   "category": "banking"
+  },
+  {
+   "pattern": "labanquepostale.fr",
+   "category": "banking"
+  },
+  {
+   "pattern": "unicredit.it",
+   "category": "banking"
+  },
+  {
+   "pattern": "intesasanpaolo.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "commbank.com.au",
+   "category": "banking"
+  },
+  {
+   "pattern": "westpac.com.au",
+   "category": "banking"
+  },
+  {
+   "pattern": "anz.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "nab.com.au",
+   "category": "banking"
+  },
+  {
+   "pattern": "itau.com.br",
+   "category": "banking"
+  },
+  {
+   "pattern": "bradesco.com.br",
+   "category": "banking"
+  },
+  {
+   "pattern": "bb.com.br",
+   "category": "banking"
+  },
+  {
+   "pattern": "caixa.gov.br",
+   "category": "banking"
+  },
+  {
+   "pattern": "nubank.com.br",
+   "category": "banking"
+  },
+  {
+   "pattern": "banamex.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "banorte.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "bancolombia.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "sberbank.ru",
+   "category": "banking"
+  },
+  {
+   "pattern": "tbank.ru",
+   "category": "banking"
+  },
+  {
+   "pattern": "tinkoff.ru",
+   "category": "banking"
+  },
+  {
+   "pattern": "vtb.ru",
+   "category": "banking"
+  },
+  {
+   "pattern": "privatbank.ua",
+   "category": "banking"
+  },
+  {
+   "pattern": "monobank.ua",
+   "category": "banking"
+  },
+  {
+   "pattern": "icicibank.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "hdfcbank.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "sbi.co.in",
+   "category": "banking"
+  },
+  {
+   "pattern": "axisbank.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "mufg.jp",
+   "category": "banking"
+  },
+  {
+   "pattern": "smbc.co.jp",
+   "category": "banking"
+  },
+  {
+   "pattern": "mizuhobank.co.jp",
+   "category": "banking"
+  },
+  {
+   "pattern": "kbstar.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "shinhan.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "icbc.com.cn",
+   "category": "banking"
+  },
+  {
+   "pattern": "boc.cn",
+   "category": "banking"
+  },
+  {
+   "pattern": "ccb.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "dbs.com.sg",
+   "category": "banking"
+  },
+  {
+   "pattern": "ocbc.com",
+   "category": "banking"
+  },
+  {
+   "pattern": "maybank2u.com.my",
+   "category": "banking"
+  },
+  {
+   "pattern": "paypal.com",
+   "category": "payments"
+  },
+  {
+   "pattern": "venmo.com",
+   "category": "payments"
+  },
+  {
+   "pattern": "cash.app",
+   "category": "payments"
+  },
+  {
+   "pattern": "zellepay.com",
+   "category": "payments"
+  },
+  {
+   "pattern": "stripe.com",
+   "category": "payments"
+  },
+  {
+   "pattern": "squareup.com",
+   "category": "payments"
+  },
+  {
+   "pattern": "klarna.com",
+   "category": "payments"
+  },
+  {
+   "pattern": "afterpay.com",
+   "category": "payments"
+  },
+  {
+   "pattern": "affirm.com",
+   "category": "payments"
+  },
+  {
+   "pattern": "westernunion.com",
+   "category": "payments"
+  },
+  {
+   "pattern": "remitly.com",
+   "category": "payments"
+  },
+  {
+   "pattern": "payoneer.com",
+   "category": "payments"
+  },
+  {
+   "pattern": "mercadopago.com",
+   "category": "payments"
+  },
+  {
+   "pattern": "alipay.com",
+   "category": "payments"
+  },
+  {
+   "pattern": "pay.google.com",
+   "category": "payments"
+  },
+  {
+   "pattern": "coinbase.com",
+   "category": "payments"
+  },
+  {
+   "pattern": "kraken.com",
+   "category": "payments"
+  },
+  {
+   "pattern": "binance.com",
+   "category": "payments"
+  },
+  {
+   "pattern": "mychart.*",
+   "category": "health"
+  },
+  {
+   "pattern": "patientportal*.*",
+   "category": "health"
+  },
+  {
+   "pattern": "followmyhealth.com",
+   "category": "health"
+  },
+  {
+   "pattern": "kp.org",
+   "category": "health"
+  },
+  {
+   "pattern": "myuhc.com",
+   "category": "health"
+  },
+  {
+   "pattern": "patient.labcorp.com",
+   "category": "health"
+  },
+  {
+   "pattern": "myquest.questdiagnostics.com",
+   "category": "health"
+  },
+  {
+   "pattern": "healow.com",
+   "category": "health"
+  },
+  {
+   "pattern": "nhsapp.service.nhs.uk",
+   "category": "health"
+  },
+  {
+   "pattern": "irs.gov",
+   "category": "government"
+  },
+  {
+   "pattern": "ssa.gov",
+   "category": "government"
+  },
+  {
+   "pattern": "login.gov",
+   "category": "government"
+  },
+  {
+   "pattern": "id.me",
+   "category": "government"
+  },
+  {
+   "pattern": "healthcare.gov",
+   "category": "government"
+  },
+  {
+   "pattern": "suri.hacienda.pr.gov",
+   "category": "government"
+  },
+  {
+   "pattern": "tax.service.gov.uk",
+   "category": "government"
+  },
+  {
+   "pattern": "account.gov.uk",
+   "category": "government"
+  },
+  {
+   "pattern": "sede.agenciatributaria.gob.es",
+   "category": "government"
+  },
+  {
+   "pattern": "sat.gob.mx",
+   "category": "government"
+  },
+  {
+   "pattern": "elster.de",
+   "category": "government"
+  },
+  {
+   "pattern": "impots.gouv.fr",
+   "category": "government"
+  },
+  {
+   "pattern": "ato.gov.au",
+   "category": "government"
+  },
+  {
+   "pattern": "my.gov.au",
+   "category": "government"
+  },
+  {
+   "pattern": "acesso.gov.br",
+   "category": "government"
+  },
+  {
+   "pattern": "gosuslugi.ru",
+   "category": "government"
+  },
+  {
+   "pattern": "nalog.gov.ru",
+   "category": "government"
+  },
+  {
+   "pattern": "e-tax.nta.go.jp",
+   "category": "government"
+  },
+  {
+   "pattern": "mail.google.com/*compose=*",
+   "category": "email"
+  },
+  {
+   "pattern": "outlook.live.com/mail/*compose*",
+   "category": "email"
+  },
+  {
+   "pattern": "outlook.office.com/mail/*compose*",
+   "category": "email"
+  },
+  {
+   "pattern": "outlook.office365.com/mail/*compose*",
+   "category": "email"
+  },
+  {
+   "pattern": "mail.yahoo.com/*compose*",
+   "category": "email"
+  },
+  {
+   "pattern": "mail.proton.me/*compose*",
+   "category": "email"
+  }
+ ]
+}

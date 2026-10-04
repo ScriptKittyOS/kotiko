@@ -35,6 +35,8 @@ const FLUSH_MS = 300; // content.js batches page mutations for 250 ms
 async function load(html, { words = WORDS, url = "https://example.com/", beforeInject, lang = "en", detect = null, ...local } = {}) {
   // As the background writes it: rules for the learner's bases (theirs, else their words').
   if (!("baseRules" in local)) local.baseRules = baseRulesFor(local.baseLangs ?? basesOf(words));
+  // As the background copies it: the sensitive-sites list (none, unless a test gives one).
+  if (!("sensitiveSites" in local)) local.sensitiveSites = [];
   const fake = createFakeChrome({
     local: { words, enabled: true, pausedHosts: [], hiddenLangs: [], ...local },
     onSendMessage: () => ({ ok: true }),
@@ -699,5 +701,57 @@ describe("a page in a language the learner doesn't read (slice 16 §1)", () => {
     const { $ } = await load(`<p id="de">Das Haus ist groß.</p><p id="en" lang="en">my house</p>`, { lang: "de" });
     assert.equal($("de").textContent, "Das Haus ist groß.");
     assert.equal($("en").textContent, "my дом");
+  });
+});
+
+// Slice 16 §§4-5: sensitive sites, the two settings and the never-swap list.
+describe("sensitive sites and page settings (slice 16)", () => {
+  const POPUP = { id: "fake-extension-id", url: "chrome-extension://fake-extension-id/popup.html" };
+  const SITES = [{ pattern: "chase.com", category: "banking" }, { pattern: "mail.google.com/*compose=*", category: "email" }];
+  const PAGE = `<p id="p">my house</p>`;
+
+  test("a sensitive site is left alone, and the popup can say why", async () => {
+    const { $, fake } = await load(PAGE, { url: "https://secure.chase.com/", sensitiveSites: SITES });
+    assert.equal($("p").textContent, "my house");
+    assert.equal((await fake.deliver({ type: "page-status" }, POPUP)).sensitive, "banking");
+  });
+
+  test("turning the setting off, or running on that site anyway, swaps again", async () => {
+    const off = await load(PAGE, { url: "https://secure.chase.com/", sensitiveSites: SITES, prefs: { sensitiveSites: false } });
+    assert.equal(off.$("p").textContent, "my дом");
+    const allowed = await load(PAGE, { url: "https://secure.chase.com/", sensitiveSites: SITES });
+    await allowed.set({ prefs: { sensitiveAllowed: ["secure.chase.com"] } });
+    assert.equal(allowed.$("p").textContent, "my дом");
+    assert.equal((await allowed.fake.deliver({ type: "page-status" }, POPUP)).sensitive, undefined);
+  });
+
+  test("other sites, and the list arriving late from the background", async () => {
+    const other = await load(PAGE, { url: "https://example.com/", sensitiveSites: SITES });
+    assert.equal(other.$("p").textContent, "my дом");
+    const asked = await load(PAGE, { url: "https://www.chase.com/", sensitiveSites: undefined });
+    assert.ok(asked.fake.calls.sendMessage.some((m) => m.type === "sensitiveSites"), "no list in storage: asks the background");
+  });
+
+  test("buttons and menus stay as the site wrote them unless the setting is on", async () => {
+    const html = `<p id="p">my house</p><button id="b">house</button><nav id="n">house</nav><div role="menuitem" id="m">house</div>`;
+    const { $, set } = await load(html);
+    assert.equal($("p").textContent, "my дом");
+    for (const id of ["b", "n", "m"]) assert.equal($(id).textContent, "house", id);
+    await set({ prefs: { swapControls: true } });
+    for (const id of ["b", "n", "m"]) assert.equal($(id).textContent, "дом", id);
+  });
+
+  test("a word on the never-swap list stays, on every page, until it is taken off", async () => {
+    const { $, set } = await load(`<p id="p">my house, thanks</p>`, { prefs: { neverSwap: ["house"] } });
+    assert.equal($("p").textContent, "my house, спасибо");
+    await set({ prefs: { neverSwap: [] } });
+    assert.equal($("p").textContent, "my дом, спасибо");
+  });
+
+  test("a theme change in prefs doesn't re-swap the page", async () => {
+    const { $, set } = await load(PAGE);
+    const before = $("p").querySelector("kotiko-w");
+    await set({ prefs: { theme: "dark" } });
+    assert.equal($("p").querySelector("kotiko-w"), before);
   });
 });

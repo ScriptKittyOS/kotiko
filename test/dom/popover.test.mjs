@@ -101,7 +101,8 @@ async function load({ html = PAGE, words = WORDS, locale = "en", voices = voiceL
 // screen-reader-only text left out).
 function visibleLines(shadow) {
   const lines = [];
-  for (const el of shadow.querySelectorAll(".k-scroll > div")) {
+  // The card's text; the actions row has its own tests.
+  for (const el of shadow.querySelectorAll(".k-scroll > div:not(.k-actions)")) {
     const clone = el.cloneNode(true);
     clone.querySelectorAll(".sr, .k-speak").forEach((n) => n.remove());
     const t = clone.textContent.replace(/\s+/g, " ").trim();
@@ -387,6 +388,8 @@ describe("keyboard (19 §3, §7; 27; 33's reveal-word)", () => {
     assert.ok(sh.activeElement, "focus moved into the card");
     assert.equal(sh.activeElement.className, "k-speak", "the first action");
     p.key(sh.activeElement, "Tab");
+    assert.equal(sh.activeElement.className, "k-action", "then the card's action");
+    p.key(sh.activeElement, "Tab");
     assert.equal(sh.activeElement.className, "k-speak", "Tab cycles inside");
     p.key(p.doc.body, "Escape");
     assert.equal(p.isOpen(), false);
@@ -537,10 +540,10 @@ describe("words changing while the card is open (19 §10)", () => {
 });
 
 describe("the actions slot (19 §2)", () => {
-  test("no actions today: Edit, Pause word and Wrong meaning wait for their backends", async () => {
+  test("one action today, Don't swap this word (16 §5); Edit, Pause word and Wrong meaning wait for their backends", async () => {
     const p = await load();
     p.click(p.word("пожалуйста"));
-    assert.equal(p.shadow().querySelector(".k-actions"), null);
+    assert.deepEqual([...p.shadow().querySelectorAll(".k-actions button")].map((b) => [b.dataset.action, b.textContent]), [["never-swap", "Don't swap this word"]]);
   });
 
   test("an action plugged into the slot renders as a button and runs with the swap's info", async () => {

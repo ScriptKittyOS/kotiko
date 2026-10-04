@@ -3254,5 +3254,96 @@
         "content": "{provider}"
       }
     }
+  },
+  "popover_never_swap": {
+    "message": "No cambiar esta palabra",
+    "description": "Word card action (slice 16 §5): adds the word to the never-swap list, on every page. Spanish pending native review (slice 50 §9)."
+  },
+  "toast_never_swap": {
+    "message": "Kotiko ya no cambiará «$WORD$».",
+    "description": "Short message on the page after \"Don't swap this word\", with an Undo button. $WORD$ is the word as the page wrote it. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "word": {
+        "content": "{word}"
+      }
+    }
+  },
+  "popup_sensitive_banking": {
+    "message": "Parece el sitio de un banco, así que Kotiko lo deja como está.",
+    "description": "Popup, on a site from the sensitive-sites list (slice 16 §4), category banking. Spanish pending native review (slice 50 §9)."
+  },
+  "popup_sensitive_payments": {
+    "message": "Parece un sitio de pagos, así que Kotiko lo deja como está.",
+    "description": "Popup, on a sensitive site, category payments. Spanish pending native review (slice 50 §9)."
+  },
+  "popup_sensitive_health": {
+    "message": "Parece un portal de salud, así que Kotiko lo deja como está.",
+    "description": "Popup, on a sensitive site, category health. Spanish pending native review (slice 50 §9)."
+  },
+  "popup_sensitive_government": {
+    "message": "Parece un sitio del gobierno o de impuestos, así que Kotiko lo deja como está.",
+    "description": "Popup, on a sensitive site, category government. Spanish pending native review (slice 50 §9)."
+  },
+  "popup_sensitive_email": {
+    "message": "Kotiko no toca el correo que estás escribiendo.",
+    "description": "Popup, on a webmail compose page (slice 16 §4). Spanish pending native review (slice 50 §9)."
+  },
+  "popup_sensitive_run": {
+    "message": "Cambiar palabras aquí de todos modos",
+    "description": "Popup link under the sensitive-site message: lets Kotiko run on this site. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_set_pages": {
+    "message": "Páginas",
+    "description": "Settings section title: where Kotiko swaps words and where it doesn't (slice 16). Spanish pending native review (slice 50 §9)."
+  },
+  "dash_sensitive_sites": {
+    "message": "No tocar sitios delicados",
+    "description": "Settings switch (slice 16 §4), on by default. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_sensitive_sites_help": {
+    "message": "Bancos, pagos, portales de salud, sitios del gobierno y de impuestos, y el correo que escribes. La lista viene con Kotiko y nunca se descarga.",
+    "description": "Help under the sensitive-sites switch. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_sensitive_allowed": {
+    "message": "Sitios delicados donde Kotiko funciona de todos modos",
+    "description": "Settings: the list of sensitive sites the learner let Kotiko run on. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_sensitive_allowed_remove": {
+    "message": "Volver a dejar $HOST$ como está",
+    "description": "Settings, for screen readers: the button that takes a site off the run-anyway list. $HOST$ is a site name. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "host": {
+        "content": "{host}"
+      }
+    }
+  },
+  "dash_swap_controls": {
+    "message": "Cambiar palabras en botones y menús",
+    "description": "Settings switch (slice 16 §2), off by default. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_swap_controls_help": {
+    "message": "Si está apagado, los botones, menús, pestañas y etiquetas quedan como los escribió el sitio, para que sean fáciles de encontrar.",
+    "description": "Help under the buttons-and-menus switch. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_never_swap": {
+    "message": "Palabras que nunca se cambian",
+    "description": "Settings: the never-swap list (slice 16 §5). Spanish pending native review (slice 50 §9)."
+  },
+  "dash_never_swap_help": {
+    "message": "Kotiko las deja como están en todas las páginas. Añade una desde la tarjeta de una palabra con «No cambiar esta palabra».",
+    "description": "Help under the never-swap list. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_never_swap_empty": {
+    "message": "Ninguna todavía.",
+    "description": "Settings: shown when the never-swap list is empty. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_never_swap_remove": {
+    "message": "Volver a cambiar $WORD$",
+    "description": "Settings, for screen readers: the button that takes a word off the never-swap list. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "word": {
+        "content": "{word}"
+      }
+    }
   }
 }

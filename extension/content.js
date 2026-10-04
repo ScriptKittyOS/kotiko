@@ -37,7 +37,7 @@
   const host = location.hostname;
   const isMark = (n) => n?.nodeType === 1 && n.localName === MARK;
 
-  let state = { words: [], enabled: true, pausedHosts: [], hiddenLangs: [], speech: null, baseLangs: null, baseRules: null };
+  let state = { words: [], enabled: true, pausedHosts: [], hiddenLangs: [], speech: null, baseLangs: null, baseRules: null, prefs: null, sensitiveSites: null };
   let indexes = null;
   // The page's base (or null) and why, from lib/page-lang.js.
   let page = { base: null, reason: "unknown", lang: null };
@@ -63,6 +63,25 @@
 
   // Buttons, toggles, menus and forms stay as the site wrote them (lib/controls.js).
   const controls = createControlCheck((el) => getComputedStyle(el).cursor);
+
+  // The settings slice 16 reads from prefs: whether sensitive sites are left alone (on by
+  // default) and which ones the learner let Kotiko run on anyway, whether words in buttons
+  // and menus are swapped (off by default), and the words never to swap.
+  const prefs = () => (state.prefs && typeof state.prefs === "object" ? state.prefs : {});
+  const PAGE_PREFS = ["sensitiveSites", "sensitiveAllowed", "swapControls", "neverSwap"];
+  const pagePrefs = (p) => JSON.stringify(PAGE_PREFS.map((k) => p?.[k] ?? null));
+  let neverSwap = new Set();
+
+  // The category of a sensitive site Kotiko leaves alone here (slice 16 §4), or null.
+  function sensitive() {
+    const p = prefs();
+    if (p.sensitiveSites === false) return null;
+    if (Array.isArray(p.sensitiveAllowed) && p.sensitiveAllowed.includes(host)) return null;
+    return globalThis.KotikoSensitive.match(state.sensitiveSites, location);
+  }
+
+  // Whether Kotiko swaps on this page at all.
+  const active = () => state.enabled && !(state.pausedHosts || []).includes(host) && !sensitive();
 
   // False once the extension was updated, reloaded or removed under this page (06 F15).
   function contextValid() {
@@ -201,12 +220,13 @@
     const index = base && indexes.get(base);
     if (!index?.size) return [];
     if (!scan(text, { base }, index).matches.length) return [];
-    if (controls.inControl(node.parentElement)) return [];
+    if (prefs().swapControls !== true && controls.inControl(node.parentElement)) return [];
     const ctx = { base, ...edges() };
     const items = [];
     const ordinals = new Map();
     for (const m of scan(text, ctx, index).matches) {
       if (m.surface.length === 1 && skipLetter(ctx.before + text + ctx.after, ctx.before.length + m.start)) continue;
+      if (neverSwap.has(m.key)) continue;
       const cands = allowed(m, text, ctx, node);
       if (!cands?.length) continue;
       const all = choices(cands);
@@ -214,7 +234,7 @@
       const n = ordinals.get(m.key) ?? 0;
       ordinals.set(m.key, n + 1);
       const w = choose(node, m, n, all);
-      items.push({ start: m.start, end: m.end, display: matchCase(m.surface, w.native), lang: w.lang, info: { surface: m.surface, word: w, all } });
+      items.push({ start: m.start, end: m.end, display: matchCase(m.surface, w.native), lang: w.lang, info: { surface: m.surface, key: m.key, word: w, all } });
     }
     return items;
   }
@@ -247,8 +267,33 @@
     const base = w.base_lang ?? "en";
     // The same target word saved for the learner's other base languages (50 §3).
     const others = (state.words || []).filter((x) => x !== w && x.lang === w.lang && x.native === w.native && (x.base_lang ?? "en") !== base);
-    return { surface: i.surface, word: w, all: i.all, others };
+    return { surface: i.surface, key: i.key, word: w, all: i.all, others };
   }
+
+  // "Don't swap this word" (slice 16 §5): the form's key joins the never-swap list, with an
+  // undo. The storage change re-applies every page.
+  async function setNeverSwap(key, on) {
+    const { prefs: p = {} } = await ext.storage.local.get({ prefs: {} });
+    const list = new Set(Array.isArray(p.neverSwap) ? p.neverSwap : []);
+    if (on) list.add(key);
+    else list.delete(key);
+    await ext.storage.local.set({ prefs: { ...p, neverSwap: [...list] } });
+  }
+
+  const popoverActions = [
+    {
+      id: "never-swap",
+      label: () => globalThis.KotikoI18n.t("popover_never_swap"),
+      visible: (info) => typeof info?.key === "string",
+      run: (info, pop) => {
+        const { key, surface } = info;
+        pop.close();
+        setNeverSwap(key, true)
+          .then(() => pop.toast(globalThis.KotikoI18n.t("toast_never_swap", { word: surface }), { actionLabel: globalThis.KotikoI18n.t("add_undo"), onAction: () => setNeverSwap(key, false).catch(() => {}) }))
+          .catch(() => {});
+      },
+    },
+  ];
 
   // Rebuilds the indexes and brings the page up to date: only swaps whose word changed are
   // rewritten (slice 15). `fresh` starts over (the page's language changed).
@@ -259,9 +304,9 @@
     controls.reset();
     baseCache = new WeakMap();
     skipCache = new WeakMap();
-    const on = state.enabled && !(state.pausedHosts || []).includes(host);
+    neverSwap = new Set(Array.isArray(prefs().neverSwap) ? prefs().neverSwap : []);
     const hidden = new Set(state.hiddenLangs || []);
-    indexes = on ? buildIndexes((state.words || []).filter((w) => !hidden.has(w.lang)), bases(), { rules: rulesOf }) : null;
+    indexes = active() ? buildIndexes((state.words || []).filter((w) => !hidden.has(w.lang)), bases(), { rules: rulesOf }) : null;
     if (indexes && ![...indexes.values()].some((i) => i.size)) indexes = null;
     if (fresh || !indexes) {
       engine.reset();
@@ -299,6 +344,8 @@
     const index = page.base ? indexes?.get(page.base) ?? null : null;
     const out = { base: page.base, reason: page.reason, lang: page.lang, words: index ? index.size : 0 };
     if (engine?.status() === "stood-down") out.stoodDown = true;
+    const category = sensitive();
+    if (category) out.sensitive = category;
     return out;
   }
 
@@ -333,7 +380,13 @@
       configureSpeech();
     }
     let dirty = false;
-    for (const k of ["words", "enabled", "pausedHosts", "hiddenLangs"]) {
+    // Only the page's own settings in prefs (not the theme, say) re-apply.
+    if (changes.prefs) {
+      const next = changes.prefs.newValue ?? null;
+      if (pagePrefs(next) !== pagePrefs(state.prefs)) dirty = true;
+      state.prefs = next;
+    }
+    for (const k of ["words", "enabled", "pausedHosts", "hiddenLangs", "sensitiveSites"]) {
       if (changes[k]) {
         state[k] = changes[k].newValue ?? state[k];
         dirty = true;
@@ -402,15 +455,21 @@
     state = await ext.storage.local.get(state);
     if (torn) return;
     configureSpeech();
-    popover = globalThis.KotikoPopover.createPopover({ infoFor });
+    popover = globalThis.KotikoPopover.createPopover({ infoFor, actions: popoverActions });
     popover.install();
     engine = globalThis.KotikoEngine.create({ plan, skip, afterSlice: () => rules.settle(), contextValid });
     ext.runtime.onMessage.addListener(onMessage);
+    // Installed a moment ago: the background may not have copied the list yet.
+    if (!Array.isArray(state.sensitiveSites)) {
+      const r = await ext.runtime.sendMessage({ type: "sensitiveSites" }).catch(() => null);
+      if (torn) return;
+      state.sensitiveSites = Array.isArray(r?.sites) ? r.sites : [];
+    }
     await decidePage();
     if (torn) return;
-    const on = state.enabled && !(state.pausedHosts || []).includes(host);
+    neverSwap = new Set(Array.isArray(prefs().neverSwap) ? prefs().neverSwap : []);
     const hidden = new Set(state.hiddenLangs || []);
-    indexes = on ? buildIndexes((state.words || []).filter((w) => !hidden.has(w.lang)), bases(), { rules: rulesOf }) : null;
+    indexes = active() ? buildIndexes((state.words || []).filter((w) => !hidden.has(w.lang)), bases(), { rules: rulesOf }) : null;
     if (indexes && ![...indexes.values()].some((i) => i.size)) indexes = null;
     // The word segmenter loads its data on first use: pay for that in a task of its own, not
     // in the first slice of swapping (no task over 50 ms, slice 15).
