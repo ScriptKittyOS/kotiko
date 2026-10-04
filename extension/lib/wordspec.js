@@ -500,6 +500,13 @@
         ? RULES.min_form_graphemes_unspaced
         : RULES.min_form_graphemes;
       const inputTokens = new Set(tokens(fold(ctx.text ?? "", base)));
+      // The learner named this very word: they typed its base-language word (checked per
+      // form below) or the target word itself ("это", "der", "犬"). Its gloss may then be a
+      // function word ("it", "el"); extra function words the model adds still go.
+      const typed = fold(ctx.text ?? "", lang);
+      const nativeTyped = RULES.unspaced_scripts.includes(baseScript(lang))
+        ? typed.includes(fold(native, lang))
+        : new Set(tokens(typed)).has(fold(native, lang));
       const kept = [];
       for (const f of forms) {
         const n = graphemes(f.text).length;
@@ -507,7 +514,7 @@
         else if (!related(f.text, gloss, base, data)) dropForm(f, "unrelated_form");
         else if (
           data.stopwords.has(fold(f.text, base)) &&
-          !(inputTokens.has(fold(f.text, base)) && fold(gloss, base) === fold(f.text, base))
+          !((inputTokens.has(fold(f.text, base)) || nativeTyped) && fold(gloss, base) === fold(f.text, base))
         ) {
           dropForm(f, "stopword");
         } else kept.push(f);

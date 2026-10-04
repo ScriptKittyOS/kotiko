@@ -436,7 +436,7 @@ survives if any form is left):
 | length 1-`max_form_chars` graphemes (2 minimum for bases whose script has spaces; 1 allowed for CJK and Thai bases, where 犬 is a whole word), letters, marks, digits, spaces, `'`, `’`, `-`, `.`, `+`, `#`, `·` only | 40 | `bad_form` |
 | at most `max_forms` per word entry, in model order | 10 | `too_many_forms` |
 | **related to `gloss`** (the как lesson): the form, or each of its words (split with slice 14's tokenizer for the base), reduces to the same stem as a word in `gloss`. Stem = `toLocaleLowerCase(base)`, look up the base's `stem.json` irregulars and `variants.json`, then strip one suffix from `stem.json`'s ordered suffix rules (with its restorations). The `_generic` rule, for bases without `stem.json`: the form equals the gloss or shares its first 3 graphemes (or the whole gloss when it is shorter). | | `unrelated_form` |
-| not in the base's `stopwords.txt`, **unless** the user's input text contains that stopword as a token and `gloss` equals it ("the in german", "el en alemán"). Slices 16 and 31 handle function words that pass. | | `stopword` |
+| not in the base's `stopwords.txt`, **unless** `gloss` equals it and the learner named this word: their input contains the stopword as a token ("the in german", "el en alemán") or contains the target word itself ("der", "оно"; as a token, or anywhere in the text for scripts without spaces). Extra function words the model adds beside the gloss still go. Slices 16 and 31 handle function words that pass. | | `stopword` |
 
 `stem.json` examples. **English**: irregulars `{"saw": "see", "children": "child",
 "went": "go"}`, suffixes `-'s`, `-s`, `-es`, `-ies`→`-y`, `-ed`, `-d`, `-ing` (with
