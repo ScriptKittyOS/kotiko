@@ -340,6 +340,32 @@ The lookup service, answered from memory (no model call).
 - `last_result`: how the last lookup ended: `ok`, an error code from [Errors](#errors), or
   another outcome code such as `no_word_found`; `null` before the first lookup.
 
+### GET /api/v1/profile
+
+The learner's languages, which the Telegram bot uses (slice 41 section 9): the base
+languages it looks meanings up in, primary first, and the interface language the learner
+chose in the extension.
+
+`200`: `{"base_langs": ["es", "en"], "ui_lang": null, "updated_at": "2026-10-05T21:23:47.123Z"}`.
+`ui_lang` is `null` when the learner left the interface language on automatic. A server
+that was never told answers `{"base_langs": [], "ui_lang": null, "updated_at": null}`; its
+bot then uses the language of the learner's Telegram app.
+
+### PUT /api/v1/profile
+
+Sets the learner's languages. The extension sends this whenever the languages you read in
+or Kotiko's interface language change while a server is connected; the bot's `/bases`
+command sets `base_langs` too.
+
+Body: `{"base_langs": ["es-PR", "en"], "ui_lang": "es"}`.
+
+- `base_langs` (required): 1 to 4 language tags, primary first. Each is stored as its base
+  tag (`es-PR` → `es`, `zh-TW` → `zh-Hant`, `pt-BR` stays); duplicates are dropped.
+- `ui_lang` (optional): a language tag, or `"auto"`, `null` or nothing for none chosen.
+
+`200`: the profile, as `GET` returns it. Errors: `400 invalid_request` (`details.field`:
+`base_langs`, with `details.max`, or `ui_lang`). The profile is kept as it was.
+
 ### GET /api/v1/jobs/pronunciation-refresh
 
 The one-time background job that adds pronunciations to words saved before they existed.

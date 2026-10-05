@@ -67,7 +67,19 @@ defmodule Kotiko.I18n do
     end
   end
 
+  @doc """
+  The shipped locale for one language tag, by the exact tag, then its primary language
+  (`es-419` -> `es`), or nil when none is shipped.
+  """
+  def shipped(tag, available \\ locales())
+
+  def shipped(tag, available) when is_binary(tag),
+    do: match(tag |> String.trim() |> String.downcase() |> String.replace("_", "-"), available)
+
+  def shipped(_tag, _available), do: nil
+
   defp match("*", _available), do: nil
+  defp match("", _available), do: nil
 
   defp match(tag, available) do
     primary = tag |> String.split("-") |> hd()

@@ -1,0 +1,213 @@
+{
+  "_comment": "Slice 41 section 9: golden Telegram cards. Each case is a learner (their Telegram app's language_code and the server's profile, or none), what they send, the model's answer, the base languages the lookup must ask for, the exact card the bot sends (in English, the one shipped locale, with the one-time notes), and the records Add saves. Run by server/test/kotiko/bot_test.exs.",
+  "cases": [
+    {
+      "name": "a Spanish reader asks for a Japanese word",
+      "user": 5001,
+      "language_code": "es",
+      "profile": [
+        "es"
+      ],
+      "text": "¿cómo se dice perro en japonés?",
+      "answer": {
+        "intent": "lookup",
+        "words": [
+          {
+            "lang": "ja",
+            "native": "犬",
+            "romanization": "inu",
+            "pronunciation": "i-nu",
+            "base_lang": "es",
+            "gloss": "perro",
+            "forms": [
+              "perro"
+            ]
+          }
+        ]
+      },
+      "asked_bases": "es",
+      "card": "Kotiko isn't translated into español yet.\n\n犬 · Japanese\ni-nu\ninu · AI-generated\n= perro",
+      "buttons": [
+        "✅ Add",
+        "Skip"
+      ],
+      "saved": [
+        {
+          "lang": "ja",
+          "native": "犬",
+          "base_lang": "es",
+          "gloss": "perro",
+          "pronunciation": "i-nu",
+          "pronunciation_source": "model",
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "a Japanese reader with no profile asks for a Spanish word",
+      "user": 5002,
+      "language_code": "ja",
+      "profile": null,
+      "text": "スペイン語で犬は何と言いますか",
+      "answer": {
+        "intent": "lookup",
+        "words": [
+          {
+            "lang": "es",
+            "native": "perro",
+            "base_lang": "ja",
+            "gloss": "犬",
+            "forms": [
+              "犬"
+            ]
+          }
+        ]
+      },
+      "asked_bases": "ja",
+      "card": "Kotiko isn't translated into 日本語 yet.\n\nperro · Spanish\n= 犬\n\nMeanings in 日本語. Change with /bases.",
+      "buttons": [
+        "✅ Add",
+        "Skip"
+      ],
+      "saved": [
+        {
+          "lang": "es",
+          "native": "perro",
+          "base_lang": "ja",
+          "gloss": "犬",
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "a Spanish and English reader with a Spanish Telegram app sees the Spanish-key pronunciation",
+      "user": 5003,
+      "language_code": "es-419",
+      "profile": [
+        "es",
+        "en"
+      ],
+      "text": "¿cómo se dice por favor en ruso?",
+      "answer": {
+        "intent": "lookup",
+        "words": [
+          {
+            "lang": "ru",
+            "native": "пожалуйста",
+            "native_vocalized": "пожа́луйста",
+            "romanization": "pozhaluysta",
+            "pronunciation": "pa-SHAL-sta",
+            "pronunciation_careful": "pa-SHA-lu-sta",
+            "base_lang": "es",
+            "gloss": "por favor",
+            "forms": [
+              "por favor"
+            ]
+          },
+          {
+            "lang": "ru",
+            "native": "пожалуйста",
+            "native_vocalized": "пожа́луйста",
+            "romanization": "pozhaluysta",
+            "pronunciation": "pa-ZHAL-sta",
+            "pronunciation_careful": "pa-ZHA-lu-sta",
+            "base_lang": "en",
+            "gloss": "please",
+            "forms": [
+              "please"
+            ]
+          }
+        ]
+      },
+      "asked_bases": "es, en",
+      "card": "Kotiko isn't translated into español yet.\n\nпожа́луйста · Russian\npa-SHAL-sta\nSlowly: pa-SHA-lu-sta\npozhaluysta · AI-generated\n= por favor\n= please",
+      "buttons": [
+        "✅ Add",
+        "Skip"
+      ],
+      "saved": [
+        {
+          "lang": "ru",
+          "native": "пожалуйста",
+          "base_lang": "es",
+          "gloss": "por favor",
+          "pronunciation": "pa-SHAL-sta",
+          "pronunciation_source": "model",
+          "status": "active"
+        },
+        {
+          "lang": "ru",
+          "native": "пожалуйста",
+          "base_lang": "en",
+          "gloss": "please",
+          "pronunciation": "pa-ZHAL-sta",
+          "pronunciation_source": "model",
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "the same reader with an English Telegram app sees the English-key pronunciation",
+      "user": 5004,
+      "language_code": "en-US",
+      "profile": [
+        "es",
+        "en"
+      ],
+      "text": "how do you say please in russian",
+      "answer": {
+        "intent": "lookup",
+        "words": [
+          {
+            "lang": "ru",
+            "native": "пожалуйста",
+            "native_vocalized": "пожа́луйста",
+            "romanization": "pozhaluysta",
+            "pronunciation": "pa-SHAL-sta",
+            "pronunciation_careful": "pa-SHA-lu-sta",
+            "base_lang": "es",
+            "gloss": "por favor",
+            "forms": [
+              "por favor"
+            ]
+          },
+          {
+            "lang": "ru",
+            "native": "пожалуйста",
+            "native_vocalized": "пожа́луйста",
+            "romanization": "pozhaluysta",
+            "pronunciation": "pa-ZHAL-sta",
+            "pronunciation_careful": "pa-ZHA-lu-sta",
+            "base_lang": "en",
+            "gloss": "please",
+            "forms": [
+              "please"
+            ]
+          }
+        ]
+      },
+      "asked_bases": "es, en",
+      "card": "пожа́луйста · Russian\npa-ZHAL-sta\nSlowly: pa-ZHA-lu-sta\npozhaluysta · AI-generated\n= por favor\n= please",
+      "buttons": [
+        "✅ Add",
+        "Skip"
+      ],
+      "saved": [
+        {
+          "lang": "ru",
+          "native": "пожалуйста",
+          "base_lang": "es",
+          "gloss": "por favor",
+          "status": "active"
+        },
+        {
+          "lang": "ru",
+          "native": "пожалуйста",
+          "base_lang": "en",
+          "gloss": "please",
+          "status": "active"
+        }
+      ]
+    }
+  ]
+}

@@ -136,6 +136,13 @@ Lets you add words from your phone, including by voice.
 | `/list arabic` | Newest words in one language |
 | `/languages` | How many words you know in each language |
 | `/remove да` | Stops replacing that word |
+| `/bases es en` | The languages meanings are in, the one you read most first (the extension sets them too) |
+| `/language es` | The language the bot writes in; `/language auto` follows your Telegram app |
+
+The bot gives meanings in the languages you read: the ones you chose in the extension,
+which it sends to your connected server, or else your Telegram app's language. It writes
+in your language where Kotiko has a translation (English today) and says so once when it
+doesn't.
 
 ### Voice notes
 
@@ -306,6 +313,7 @@ reference, with every field, limit and error, is
 | `GET /api/v1/export` | Every word as a Kotiko JSON backup (`spec/export.schema.json`); `?include=pending` adds Telegram lookups never added, `?download=1` makes it a file |
 | `DELETE /api/v1/words` `{"confirm": "delete-all-words"}` | Deletes every word, pending lookup and deleted word; returns `{"deleted", "reset_epoch"}`. Without the confirmation: 400, nothing deleted |
 | `GET`/`POST /api/v1/jobs/pronunciation-refresh` | The one-time job adding pronunciations to saved words; `{"action": "pause"}` or `"resume"` |
+| `GET`/`PUT /api/v1/profile` `{"base_langs": ["es", "en"], "ui_lang": null}` | The languages you read (up to 4, primary first) and Kotiko's interface language, which the Telegram bot uses; the extension keeps them current |
 | `GET /api/v1/llm/status` | The lookup service: `provider`, the `models` an add asks now, and `quota` (`used`, `limit`, `remaining`, `resets_at`; OpenRouter only, else `null`) |
 | `GET /api/words`, `POST /api/words`, `DELETE /api/words/:id` | The routes the 0.2 extension uses (words for English pages only); removed one minor version after `/api/v1` ships |
 | `GET /health` | `{"ok", "name", "version", "api", "db"}`, no token needed; 503 when the database fails |

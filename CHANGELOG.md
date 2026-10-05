@@ -5,6 +5,19 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- The Telegram bot no longer assumes you read English. It gives meanings in the languages
+  you read: the extension now tells your connected server which ones (and Kotiko's
+  interface language, if you chose one), and until it does, the bot uses your Telegram
+  app's language and says so on the first card. `/bases es en` sets them from Telegram.
+  A word you read in two languages gets one card with both meanings, and Add saves both.
+  Cards show the pronunciation written for your language, the slow form and where the
+  pronunciation came from, like the word card on pages. Everything the bot says now comes
+  from the server's message file, ready for translations; `/language` picks the bot's
+  language, and it tells you once when yours isn't translated yet. When something breaks,
+  the chat gets a short reference to look up in the server log instead of the error's
+  text, and buttons carry the word's public id instead of an internal number. New routes:
+  `GET` and `PUT /api/v1/profile`.
+
 - Kotiko's pages and word card work with keyboards and screen readers, and respect reduced
   motion. Every control in the popup, the dashboard, the welcome tab and the word card can
   be reached with Tab and shows a focus ring that nothing covers; dialogs keep Tab inside

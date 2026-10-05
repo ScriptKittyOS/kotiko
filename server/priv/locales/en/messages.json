@@ -126,5 +126,221 @@
   "provider_unknown": {
     "message": "The lookup service",
     "description": "Stands in for PROVIDER when the provider isn't known."
+  },
+  "bot_help": {
+    "message": "Kotiko: send me a word and it starts appearing on your web pages in place of the word you'd normally read there.\n\nSend me a word any way you like, typed or as a voice note:\n\n• \"what's da\" or \"what does shukran mean\"\n• \"how do you say dog in japanese\"\n• \"add sobaka\" (saves it straight away)\n\nAny language works, and a new one starts the moment you add its first word. If I pick the wrong language, say which: \"da in serbian\".\n\nTap Add on a card and that word starts appearing on pages in the languages you read. Choose which languages show up in the extension's popup.\n\n/list  your newest words\n/list arabic  newest words in one language\n/languages  how many words you know in each\n/remove <word>  stop replacing a word\n/bases  the languages meanings are in\n/language  the language I write in",
+    "description": "Telegram bot: the reply to /help and /start. The quoted examples are things to send the bot; translate them into requests in your language. Keep the /commands as they are."
+  },
+  "bot_setup_your_id": {
+    "message": "Almost set up. Your Telegram ID is {id}.\n\nPut ALLOWED_TELEGRAM_IDS={id} in .env and restart the server.",
+    "description": "Telegram bot: the reply to anyone while ALLOWED_TELEGRAM_IDS is empty. ID is their numeric Telegram user id."
+  },
+  "bot_command_list": {
+    "message": "your newest words",
+    "description": "Telegram bot: the command menu's description of /list."
+  },
+  "bot_command_languages": {
+    "message": "how many words you know in each language",
+    "description": "Telegram bot: the command menu's description of /languages."
+  },
+  "bot_command_remove": {
+    "message": "stop replacing a word",
+    "description": "Telegram bot: the command menu's description of /remove."
+  },
+  "bot_command_bases": {
+    "message": "the languages meanings are in",
+    "description": "Telegram bot: the command menu's description of /bases."
+  },
+  "bot_command_language": {
+    "message": "the language I write in",
+    "description": "Telegram bot: the command menu's description of /language."
+  },
+  "bot_command_help": {
+    "message": "how to use Kotiko",
+    "description": "Telegram bot: the command menu's description of /help."
+  },
+  "bot_list_header": {
+    "message": "Your words: {count}. Newest first:",
+    "description": "Telegram bot: above /list. COUNT is how many words the learner has."
+  },
+  "bot_list_line": {
+    "message": "{word}  =  {gloss}  · {language}",
+    "description": "Telegram bot: one line of /list. WORD is the saved word, GLOSS its meaning, LANGUAGE the word's language name."
+  },
+  "bot_list_none": {
+    "message": "No words yet. Send me one.",
+    "description": "Telegram bot: /list when there are no words."
+  },
+  "bot_list_none_in": {
+    "message": "No words in \"{term}\" yet. /languages shows what you have.",
+    "description": "Telegram bot: /list <language> when no word is in that language. TERM is what the learner typed."
+  },
+  "bot_languages_line": {
+    "message": "{language}  {count}",
+    "description": "Telegram bot: one line of /languages. LANGUAGE is a language name, COUNT how many words are in it."
+  },
+  "bot_languages_none": {
+    "message": "No words yet. Send me one in any language.",
+    "description": "Telegram bot: /languages when there are no words."
+  },
+  "bot_remove_which": {
+    "message": "Which word? For example: /remove да",
+    "description": "Telegram bot: /remove without a word."
+  },
+  "bot_remove_none": {
+    "message": "No saved word matches \"{term}\".",
+    "description": "Telegram bot: /remove when nothing matches. TERM is what the learner typed."
+  },
+  "bot_removed": {
+    "message": "Removed {words}. They no longer appear on your pages.",
+    "description": "Telegram bot: after /remove. WORDS lists the removed words with their meanings."
+  },
+  "bot_voice_off": {
+    "message": "Voice notes aren't switched on yet (TRANSCRIBE_URL is empty). Type it, or use your keyboard's mic button to dictate a text message.",
+    "description": "Telegram bot: a voice note when the server has no speech-to-text service."
+  },
+  "bot_voice_failed": {
+    "message": "I couldn't make out that voice note. Try again, or type it.",
+    "description": "Telegram bot: a voice note the speech-to-text service couldn't transcribe. The cause is in the server log."
+  },
+  "bot_voice_heard": {
+    "message": "🎙 \"{text}\"",
+    "description": "Telegram bot: echoes what the speech-to-text service heard. TEXT is the transcript."
+  },
+  "bot_no_word": {
+    "message": "I couldn't find a word in that. Try \"what's da\" or \"add sobaka\".",
+    "description": "Telegram bot: a message the model found no word in. The quoted examples are things to send the bot."
+  },
+  "bot_rejected_intro": {
+    "message": "I couldn't use that:",
+    "description": "Telegram bot: above one line per word the checks refused."
+  },
+  "bot_rejected_line": {
+    "message": "• {word}: {reason}",
+    "description": "Telegram bot: one refused word. WORD is the word, REASON one of the bot_rejected_* reasons."
+  },
+  "bot_rejected_script_mismatch": {
+    "message": "that isn't written in the language's own script",
+    "description": "Telegram bot: reason a word was refused (slice 25 code script_mismatch), e.g. Russian written in Latin letters."
+  },
+  "bot_rejected_same_as_gloss": {
+    "message": "that's already a word in a language you read",
+    "description": "Telegram bot: reason a word was refused (same_as_gloss, target_is_base)."
+  },
+  "bot_rejected_invalid_lang": {
+    "message": "I couldn't tell which language that is",
+    "description": "Telegram bot: reason a word was refused (invalid_lang)."
+  },
+  "bot_rejected_sign_language_unsupported": {
+    "message": "sign languages can't be swapped into text",
+    "description": "Telegram bot: reason a word was refused (sign_language_unsupported)."
+  },
+  "bot_rejected_too_many_words": {
+    "message": "only {max} words at a time",
+    "description": "Telegram bot: reason a word was refused (too_many_words). MAX is the limit."
+  },
+  "bot_rejected_other": {
+    "message": "the answer didn't pass Kotiko's checks",
+    "description": "Telegram bot: reason a word was refused, for any other check."
+  },
+  "bot_card_added": {
+    "message": "✅ Added. It shows up on pages now.",
+    "description": "Telegram bot: under a word card once the word is saved."
+  },
+  "bot_card_already": {
+    "message": "✓ Already in your list.",
+    "description": "Telegram bot: under a word card for a word the learner already has."
+  },
+  "bot_card_skipped": {
+    "message": "Skipped.",
+    "description": "Telegram bot: under a word card after Skip."
+  },
+  "bot_card_removed": {
+    "message": "🗑 Removed.",
+    "description": "Telegram bot: under a word card after Remove or Undo."
+  },
+  "bot_card_careful": {
+    "message": "Slowly: {pronunciation}",
+    "description": "Telegram bot: word card, how the word sounds said slowly and clearly, e.g. \"Slowly: pa-ZHA-lu-sta\". The capitals mark the stressed syllable. Same wording as the extension's popover_careful."
+  },
+  "bot_pron_ai": {
+    "message": "AI-generated",
+    "description": "Telegram bot: word card, after the romanization: the pronunciation was written by the AI model. Same wording as the extension's popover_pron_ai."
+  },
+  "bot_pron_checked": {
+    "message": "Checked in {source}",
+    "description": "Telegram bot: word card, the pronunciation comes from a dictionary. SOURCE is its name, e.g. Wiktionary. Same wording as the extension's popover_pron_checked."
+  },
+  "bot_button_add": {
+    "message": "✅ Add",
+    "description": "Telegram bot: button on a word card that saves the word."
+  },
+  "bot_button_skip": {
+    "message": "Skip",
+    "description": "Telegram bot: button on a word card that drops the lookup."
+  },
+  "bot_button_remove": {
+    "message": "Remove",
+    "description": "Telegram bot: button on a word card that removes a saved word."
+  },
+  "bot_button_undo": {
+    "message": "Undo",
+    "description": "Telegram bot: button on a word card that removes the word just added."
+  },
+  "bot_toast_added": {
+    "message": "Added",
+    "description": "Telegram bot: short pop-up after tapping Add."
+  },
+  "bot_toast_removed": {
+    "message": "Removed",
+    "description": "Telegram bot: short pop-up after tapping Remove or Undo."
+  },
+  "bot_toast_gone": {
+    "message": "That word is already gone.",
+    "description": "Telegram bot: short pop-up after tapping a button on a card whose word no longer exists."
+  },
+  "bot_meanings_in": {
+    "message": "Meanings in {languages}. Change with /bases.",
+    "description": "Telegram bot: shown once on the first card when the server doesn't know the learner's languages yet and guessed them. LANGUAGES lists them, each in its own language (español, English)."
+  },
+  "bot_untranslated": {
+    "message": "Kotiko isn't translated into {language} yet.",
+    "description": "Telegram bot: shown once when the learner's language has no translation and the bot writes in this one. LANGUAGE is the learner's language, in itself (español)."
+  },
+  "bot_bases_show": {
+    "message": "Meanings are in {languages}. To change them, send /bases and up to {max} language codes, the one you read most first: /bases es en",
+    "description": "Telegram bot: /bases without languages. LANGUAGES lists the current ones, MAX the limit."
+  },
+  "bot_bases_set": {
+    "message": "Meanings are now in {languages}.",
+    "description": "Telegram bot: after /bases. LANGUAGES lists them, each in its own language."
+  },
+  "bot_bases_invalid": {
+    "message": "I couldn't read those as languages. Send up to {max} language codes, the one you read most first: /bases es en",
+    "description": "Telegram bot: /bases with something that isn't a list of languages. MAX is the limit."
+  },
+  "bot_language_show": {
+    "message": "I write in {language}. To change it, send /language and a language code, like /language es. /language auto follows your Telegram app.",
+    "description": "Telegram bot: /language without a code. LANGUAGE is the bot's current language, in itself."
+  },
+  "bot_language_set": {
+    "message": "I'll write in {language} from now on.",
+    "description": "Telegram bot: after /language <code>. LANGUAGE is the chosen language, in itself."
+  },
+  "bot_language_auto": {
+    "message": "I'll follow your Telegram app's language.",
+    "description": "Telegram bot: after /language auto."
+  },
+  "bot_language_invalid": {
+    "message": "I don't know that language code. Try /language es, or /language auto.",
+    "description": "Telegram bot: /language with something that isn't a language code."
+  },
+  "error_invalid_request_base_langs": {
+    "message": "Send {\"base_langs\": [...]} with 1 to {max} language tags, the primary first.",
+    "description": "400: base_langs is missing, empty, too long or has something that isn't a language tag. MAX is the limit."
+  },
+  "error_invalid_request_ui_lang": {
+    "message": "Send \"ui_lang\" as a language tag, \"auto\" or null.",
+    "description": "400: PUT /api/v1/profile with a ui_lang that isn't a language tag."
   }
 }

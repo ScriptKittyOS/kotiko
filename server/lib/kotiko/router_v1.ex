@@ -17,6 +17,7 @@ defmodule Kotiko.RouterV1 do
     I18n,
     Lang,
     Lookup,
+    Profile,
     PronunciationRefresh,
     Spec,
     UUID7,
@@ -373,6 +374,21 @@ defmodule Kotiko.RouterV1 do
   get "/llm/status" do
     Kotiko.LLM.Quota.maybe_refresh()
     json(conn, 200, Kotiko.LLM.status())
+  end
+
+  # ── the learner's languages (slice 41 section 9) ─────────────────────
+
+  # The base languages the Telegram bot looks meanings up in, and the interface language
+  # the learner chose in the extension. Empty until the extension (or /bases) sets them.
+  get "/profile" do
+    json(conn, 200, Profile.to_api(Profile.get()))
+  end
+
+  put "/profile" do
+    case Profile.put(conn.body_params) do
+      {:ok, profile} -> json(conn, 200, Profile.to_api(profile))
+      {:error, details} -> invalid(conn, details)
+    end
   end
 
   # ── the one-time pronunciation refresh (section 8) ───────────────────

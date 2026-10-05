@@ -127,6 +127,34 @@ defmodule Kotiko.Words do
     |> Repo.all()
   end
 
+  @doc """
+  The base languages of saved words (active or paused), most words first: the bot's
+  guess at the learner's bases when no profile says (slice 41 section 9).
+  """
+  def base_langs_in_use(limit \\ 4) do
+    from(w in live(),
+      where: w.status in ["active", "paused"],
+      group_by: w.base_lang,
+      select: w.base_lang,
+      order_by: [desc: count(w.id), asc: min(w.id)],
+      limit: ^limit
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  The live records of one target word in every base (slice 07: one record per base): the
+  words sharing `word`'s language, `native_key` and sense, `word` included, oldest first.
+  """
+  def group(%Word{} = word) do
+    Repo.all(
+      from w in live(),
+        where:
+          w.lang == ^word.lang and w.native_key == ^word.native_key and w.sense == ^word.sense,
+        order_by: [asc: w.id]
+    )
+  end
+
   @doc "Languages of the most recently touched words, newest first. Hints for the model."
   def recent_languages(limit \\ 5) do
     from(w in live(),

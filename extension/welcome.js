@@ -192,6 +192,8 @@
       // no storage.sync: the local copy below still works
     }
     await ext.storage.local.set({ baseLangs: bases });
+    // A connected server's Telegram bot follows them (slice 41 §9).
+    call({ type: "profile.sync" });
   }
 
   async function toggleBase(tag, on) {

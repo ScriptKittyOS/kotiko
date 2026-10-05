@@ -17,14 +17,22 @@ const WORDS = [
 const json = (status, body) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
-// A fetch stub that records requests and answers with `handler(url, init)`.
-function stubFetch(handler) {
+// A fetch stub that records requests and answers with `handler(url, init)`. The profile
+// the background sends after a sync (slice 41 §9) is recorded apart, in `profile`, and
+// answered by `onProfile` (an echo by default), so the sync tests count only their own.
+function stubFetch(handler, { onProfile = (init) => json(200, JSON.parse(init.body)) } = {}) {
   const requests = [];
+  const profile = [];
   const fetch = async (url, init = {}) => {
-    requests.push({ url: String(url), method: init.method ?? "GET", headers: { ...init.headers }, body: init.body, cache: init.cache });
+    const r = { url: String(url), method: init.method ?? "GET", headers: { ...init.headers }, body: init.body, cache: init.cache };
+    if (r.url.endsWith("/api/v1/profile")) {
+      profile.push(r);
+      return onProfile(init);
+    }
+    requests.push(r);
     return handler(String(url), init);
   };
-  return { fetch, requests };
+  return { fetch, requests, profile };
 }
 
 const EXT_ID = "fake-extension-id";
@@ -206,6 +214,75 @@ describe("a profile with no token (slice 11: words in this browser)", () => {
     assert.equal(store.wordsHome, "local");
     assert.deepEqual(store.words.map((w) => w.native), WORDS.map((w) => w.native));
     assert.deepEqual(store.words.map((w) => w.forms), WORDS.map((w) => w.forms));
+  });
+});
+
+// Slice 41 §9: the connected server's Telegram bot looks meanings up in the learner's
+// base languages and speaks their language, so the background tells it both.
+describe("the learner's languages on the server (slice 41 §9)", () => {
+  const PAGE = SENDERS.pageInTab;
+  const sentProfiles = (profile) => profile.map((r) => [r.method, r.url, JSON.parse(r.body)]);
+  async function settle(fake) {
+    for (let i = 0; i < 5; i++) {
+      await fake.idle();
+      await sleep(10);
+    }
+  }
+
+  test("a sync sends the bases and the interface language once; a page's change sends them again", async () => {
+    const { fetch, profile } = serverWith(WORDS);
+    const { send, fake } = loadBackground({ fetch });
+    await fake.chrome.storage.sync.set({ ui: { uiLang: "auto", baseLangs: ["es", "en"] } });
+    await send({ type: "sync", force: true });
+    await settle(fake);
+    assert.deepEqual(sentProfiles(profile), [["PUT", "http://127.0.0.1:4999/api/v1/profile", { base_langs: ["es", "en"], ui_lang: null }]]);
+    assert.equal(profile[0].headers.Authorization, "Bearer good-token");
+
+    // Nothing changed: the next sync sends nothing.
+    fake.clock.advance(60_000);
+    await send({ type: "sync", force: true });
+    await settle(fake);
+    assert.equal(profile.length, 1);
+
+    // The dashboard changed them: it asks, and the new ones go out.
+    await fake.chrome.storage.sync.set({ ui: { uiLang: "es", baseLangs: ["ja"] } });
+    assert.deepEqual(await send({ type: "profile.sync" }, PAGE), { ok: true });
+    assert.deepEqual(JSON.parse(profile[1].body), { base_langs: ["ja"], ui_lang: "es" });
+    assert.deepEqual(await send({ type: "profile.sync" }, PAGE), { ok: true, unchanged: true });
+    assert.equal(profile.length, 2);
+  });
+
+  test("only Kotiko's pages can ask; a content script can't", async () => {
+    const { fetch, profile } = serverWith(WORDS);
+    const { send } = loadBackground({ fetch });
+    assert.deepEqual(await send({ type: "profile.sync" }, SENDERS.content), { error: { code: "forbidden" } });
+    assert.equal(profile.length, 0);
+  });
+
+  test("a send that fails is tried again at the next sync; an older server isn't asked again", async () => {
+    let answer = () => json(500, { error: { code: "internal", message: "x", details: {} } });
+    const { fetch, profile } = stubFetch((url, init) => ((init.method ?? "GET") === "GET" ? json(200, { words: WORDS }) : json(404, {})), { onProfile: () => answer() });
+    const { send, fake } = loadBackground({ fetch });
+    assert.deepEqual(await send({ type: "profile.sync" }, PAGE), { ok: false, code: "internal" });
+    answer = () => json(200, {});
+    await send({ type: "sync", force: true });
+    await settle(fake);
+    assert.equal(profile.length, 2, "tried again after the sync");
+
+    // A server without the route (404): told nothing more until the languages change.
+    const old = stubFetch(() => json(200, { words: WORDS }), { onProfile: () => json(404, { error: "No such route." }) });
+    const bg = loadBackground({ fetch: old.fetch });
+    assert.deepEqual(await bg.send({ type: "profile.sync" }, PAGE), { ok: true });
+    await bg.send({ type: "sync", force: true });
+    await settle(bg.fake);
+    assert.equal(old.profile.length, 1);
+  });
+
+  test("without a server nothing is sent", async () => {
+    const { fetch, profile, requests } = serverWith([]);
+    const { send } = loadBackground({ fetch, local: { token: "" } });
+    assert.deepEqual(await send({ type: "profile.sync" }, PAGE), { ok: true, skipped: "no_server" });
+    assert.equal(profile.length + requests.length, 0);
   });
 });
 
@@ -582,6 +659,8 @@ describe("sync correctness (slice 26)", () => {
   test("F11: the old request is aborted and its 401 never shows", async () => {
     const seen = [];
     const fetch = (url, init) => {
+      // The profile sent after connecting (slice 41 §9) isn't the sync this test watches.
+      if (String(url).endsWith("/api/v1/profile")) return Promise.resolve(json(200, {}));
       const token = init.headers.Authorization.slice("Bearer ".length);
       const entry = { token, aborted: false };
       seen.push(entry);
