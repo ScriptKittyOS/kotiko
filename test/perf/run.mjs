@@ -286,6 +286,21 @@ benchmarks["precedence.pick.100k"] = {
   },
 };
 
+// Slice 13: a 5,000-row list read and oriented, the work before the review table shows
+// (spec: under 1 s with its first rows rendered).
+benchmarks["bulk.parse.5k"] = {
+  setup: () => {
+    const P = requireExt("bulk/parse.js");
+    const langs = JSON.parse(fs.readFileSync(new URL("../../extension/spec/languages.json", import.meta.url), "utf8")).languages;
+    const text = Array.from({ length: 5000 }, (_, i) => `палабра${i} (palabra${i}) = word${i}, meaning${i} # note ${i}`).join("\n");
+    return { P, langs, text };
+  },
+  run: async ({ P, langs, text }) => {
+    const r = await P.build(P.read(text), { base: "en", target: "ru", langs });
+    return `${r.rows.length} rows`;
+  },
+};
+
 // Median of several runs after warm-up. A benchmark that takes over a second (today's
 // matcher with 10k forms) gets three runs and no warm-up, so the job stays short.
 async function measure(bench) {

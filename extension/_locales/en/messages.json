@@ -3698,5 +3698,563 @@
   "lang_none": {
     "message": "No language matches.",
     "description": "The language picker, when the search finds nothing."
+  },
+  "bulk_title": {
+    "message": "Add a list of words",
+    "description": "Bulk add (slice 13): the paste and drop area, for screen readers."
+  },
+  "bulk_paste": {
+    "message": "Paste a list here, one word per line. For example:",
+    "description": "Bulk add (slice 13): the paste area's first placeholder line."
+  },
+  "bulk_example_1": {
+    "message": "gato = cat",
+    "description": "Bulk add (slice 13): an example line, a word and its meaning in the interface language's readers' base."
+  },
+  "bulk_example_2": {
+    "message": "perro - dog",
+    "description": "Bulk add (slice 13): an example line with a dash."
+  },
+  "bulk_example_3": {
+    "message": "спасибо (spasibo) = thanks",
+    "description": "Bulk add (slice 13): an example with a romanization in parentheses."
+  },
+  "bulk_example_4": {
+    "message": "mariposa",
+    "description": "Bulk add (slice 13): a word alone, which Kotiko looks up."
+  },
+  "bulk_drop_hint": {
+    "message": "Or drop a .txt, .csv, .tsv or .json file.",
+    "description": "Bulk add (slice 13): under the paste area."
+  },
+  "bulk_choose_file": {
+    "message": "Choose a file",
+    "description": "Bulk add (slice 13): opens the file picker (the keyboard way to drop a file)."
+  },
+  "bulk_drop_here": {
+    "message": "Drop to add the words in this file",
+    "description": "Bulk add (slice 13): shown over the dashboard while a file is dragged over it."
+  },
+  "bulk_replace_confirm": {
+    "message": "Replace the rows you edited with this file?",
+    "description": "Bulk add (slice 13): dropping a second file after editing rows."
+  },
+  "bulk_too_big": {
+    "message": "This file is bigger than 5 MB.",
+    "description": "Bulk add (slice 13): a file too big to read."
+  },
+  "bulk_unreadable": {
+    "message": "Kotiko can't read this file. Use a .txt, .csv, .tsv or .json file.",
+    "description": "Bulk add (slice 13): a binary or unknown file."
+  },
+  "bulk_spreadsheet": {
+    "message": "Kotiko reads .csv files. In your spreadsheet app choose Save as → CSV, then drop that file.",
+    "description": "Bulk add (slice 13): an .xlsx or similar file."
+  },
+  "bulk_apkg": {
+    "message": "Kotiko reads Anki's text export. In Anki choose File → Export → Notes in Plain Text, then drop that file.",
+    "description": "Bulk add (slice 13): an Anki .apkg package."
+  },
+  "bulk_backup": {
+    "message": "This is a Kotiko backup. Restoring backups comes in a later version.",
+    "description": "Bulk add (slice 13): Kotiko's own JSON backup (slice 12 restores it)."
+  },
+  "bulk_not_utf8": {
+    "message": "Some characters may be wrong. Save the file as UTF-8 and try again.",
+    "description": "Bulk add (slice 13): a file that isn't UTF-8."
+  },
+  "bulk_over_limit": {
+    "message": "Kotiko can add 5,000 words at a time. The first 5,000 are below; add the rest after.",
+    "description": "Bulk add (slice 13): a list over the limit."
+  },
+  "bulk_learning": {
+    "message": "Learning",
+    "description": "Bulk add (slice 13): the language the list's words are in."
+  },
+  "bulk_meanings_in": {
+    "message": "Meanings in",
+    "description": "Bulk add (slice 13): which of the learner's languages the meanings are in."
+  },
+  "bulk_script_hint": {
+    "message": "These look like $LANG$.",
+    "description": "Bulk add (slice 13): most words are in a script the chosen language isn't written in.",
+    "placeholders": {
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "bulk_script_use": {
+    "message": "Change to $LANG$",
+    "description": "Bulk add (slice 13): accepts the language guessed from the script.",
+    "placeholders": {
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "bulk_which": {
+    "message": "Are you learning $A$ or $B$?",
+    "description": "Bulk add (slice 13): when Kotiko can't tell which side of the list is the word being learned. $A$ and $B$ are the two sides of the first line.",
+    "placeholders": {
+      "a": {
+        "content": "{a}"
+      },
+      "b": {
+        "content": "{b}"
+      }
+    }
+  },
+  "bulk_count_words_one": {
+    "message": "$COUNT$ word",
+    "description": "Bulk add (slice 13): the review's count.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_count_words_other": {
+    "message": "$COUNT$ words",
+    "description": "Bulk add (slice 13): the review's count.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_swap": {
+    "message": "Swap",
+    "description": "Bulk add (slice 13): swaps the word and meaning columns."
+  },
+  "bulk_column": {
+    "message": "Column $N$",
+    "description": "Bulk add (slice 13): a column of a table, by number.",
+    "placeholders": {
+      "n": {
+        "content": "{n}"
+      }
+    }
+  },
+  "bulk_role_word": {
+    "message": "Word",
+    "description": "Bulk add (slice 13): column role."
+  },
+  "bulk_role_meaning": {
+    "message": "Meaning",
+    "description": "Bulk add (slice 13): column role."
+  },
+  "bulk_role_romanization": {
+    "message": "Romanization",
+    "description": "Bulk add (slice 13): column role."
+  },
+  "bulk_role_pronunciation": {
+    "message": "Pronunciation",
+    "description": "Bulk add (slice 13): column role."
+  },
+  "bulk_role_note": {
+    "message": "Note",
+    "description": "Bulk add (slice 13): column role."
+  },
+  "bulk_role_lang": {
+    "message": "Language",
+    "description": "Bulk add (slice 13): column role."
+  },
+  "bulk_role_ignore": {
+    "message": "Ignore",
+    "description": "Bulk add (slice 13): column role."
+  },
+  "bulk_col_add": {
+    "message": "Add",
+    "description": "Bulk add (slice 13): the tick column, for screen readers."
+  },
+  "bulk_col_word": {
+    "message": "Word",
+    "description": "Bulk add (slice 13): table column."
+  },
+  "bulk_col_meaning": {
+    "message": "Meaning",
+    "description": "Bulk add (slice 13): table column."
+  },
+  "bulk_col_romanization": {
+    "message": "Romanization",
+    "description": "Bulk add (slice 13): a row's romanization, for screen readers."
+  },
+  "bulk_col_pronunciation": {
+    "message": "Pronunciation",
+    "description": "Bulk add (slice 13): a row's pronunciation, for screen readers."
+  },
+  "bulk_col_status": {
+    "message": "Status",
+    "description": "Bulk add (slice 13): table column."
+  },
+  "bulk_status_ready": {
+    "message": "Ready",
+    "description": "Bulk add (slice 13): a row that can be saved."
+  },
+  "bulk_status_needs": {
+    "message": "Needs a meaning",
+    "description": "Bulk add (slice 13): a word with no meaning yet."
+  },
+  "bulk_status_find": {
+    "message": "Kotiko will find the $LANG$ word",
+    "description": "Bulk add (slice 13): a word in the learner's own language; Kotiko finds the word to learn.",
+    "placeholders": {
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "bulk_status_looking": {
+    "message": "Looking up…",
+    "description": "Bulk add (slice 13): a row being looked up."
+  },
+  "bulk_status_known": {
+    "message": "Already in your list",
+    "description": "Bulk add (slice 13): nothing would change."
+  },
+  "bulk_status_adds_one": {
+    "message": "Adds $COUNT$ meaning to your word",
+    "description": "Bulk add (slice 13): an existing word gains meanings.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_status_adds_other": {
+    "message": "Adds $COUNT$ meanings to your word",
+    "description": "Bulk add (slice 13): an existing word gains meanings.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_status_duplicate": {
+    "message": "Duplicate in this list",
+    "description": "Bulk add (slice 13): the same word appears earlier."
+  },
+  "bulk_status_same": {
+    "message": "Same as the meaning",
+    "description": "Bulk add (slice 13): the word is spelled like its meaning (hotel = hotel)."
+  },
+  "bulk_status_problem": {
+    "message": "Problem: $REASON$",
+    "description": "Bulk add (slice 13): a row that can't be saved until fixed.",
+    "placeholders": {
+      "reason": {
+        "content": "{reason}"
+      }
+    }
+  },
+  "bulk_status_queued": {
+    "message": "Will be added when lookups are back",
+    "description": "Bulk add (slice 13): saved for later as an add job."
+  },
+  "bulk_problem_empty": {
+    "message": "no word",
+    "description": "Bulk add (slice 13): problem reason."
+  },
+  "bulk_problem_too_long": {
+    "message": "too long for a word",
+    "description": "Bulk add (slice 13): problem reason."
+  },
+  "bulk_problem_base": {
+    "message": "a word in a language you read",
+    "description": "Bulk add (slice 13): problem reason."
+  },
+  "bulk_problem_meaning_long": {
+    "message": "the meaning is too long",
+    "description": "Bulk add (slice 13): problem reason."
+  },
+  "bulk_problem_short": {
+    "message": "a meaning is too short",
+    "description": "Bulk add (slice 13): problem reason."
+  },
+  "bulk_problem_unclear": {
+    "message": "the lookup came back unclear",
+    "description": "Bulk add (slice 13): problem reason."
+  },
+  "bulk_split": {
+    "message": "Split into words",
+    "description": "Bulk add (slice 13): replaces a sentence row with one row per word."
+  },
+  "bulk_read_as": {
+    "message": "Kotiko read “$FROM$” as $TO$",
+    "description": "Bulk add (slice 13): the lookup corrected the spelling.",
+    "placeholders": {
+      "from": {
+        "content": "{from}"
+      },
+      "to": {
+        "content": "{to}"
+      }
+    }
+  },
+  "bulk_show_more": {
+    "message": "Show $COUNT$ more",
+    "description": "Bulk add (slice 13): more rows of a long list.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_need_meaning_one": {
+    "message": "$COUNT$ word needs a meaning.",
+    "description": "Bulk add (slice 13): rows without a meaning.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_need_meaning_other": {
+    "message": "$COUNT$ words need a meaning.",
+    "description": "Bulk add (slice 13): rows without a meaning.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_look_up": {
+    "message": "Look them up",
+    "description": "Bulk add (slice 13): looks up the rows without a meaning."
+  },
+  "bulk_cost_one": {
+    "message": "uses about $COUNT$ lookup",
+    "description": "Bulk add (slice 13): the cost of looking them up.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_cost_other": {
+    "message": "uses about $COUNT$ lookups",
+    "description": "Bulk add (slice 13): the cost of looking them up.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_cost_left_one": {
+    "message": "uses about $COUNT$ of your $LEFT$ lookups left",
+    "description": "Bulk add (slice 13): the cost, with the free lookups left today.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "left": {
+        "content": "{left}"
+      }
+    }
+  },
+  "bulk_cost_left_other": {
+    "message": "uses about $COUNT$ of your $LEFT$ lookups left",
+    "description": "Bulk add (slice 13): the cost, with the free lookups left today.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "left": {
+        "content": "{left}"
+      }
+    }
+  },
+  "bulk_quota_out": {
+    "message": "You've used today's free lookups. Add meanings yourself, or save these $COUNT$ words for later.",
+    "description": "Bulk add (slice 13): lookups ran out mid-list.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_lookups_busy": {
+    "message": "Lookups aren't answering right now. Add meanings yourself, or save these $COUNT$ words for later.",
+    "description": "Bulk add (slice 13): lookups unreachable mid-list.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_save_later_one": {
+    "message": "Save $COUNT$ word for later",
+    "description": "Bulk add (slice 13): queues the rest as add jobs that resume when lookups come back.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_save_later_other": {
+    "message": "Save $COUNT$ words for later",
+    "description": "Bulk add (slice 13): queues the rest as add jobs that resume when lookups come back.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_saved_for_later_one": {
+    "message": "$COUNT$ word will be added when lookups are back.",
+    "description": "Bulk add (slice 13): after saving for later.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_saved_for_later_other": {
+    "message": "$COUNT$ words will be added when lookups are back.",
+    "description": "Bulk add (slice 13): after saving for later.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_pronunciations": {
+    "message": "Add pronunciations",
+    "description": "Bulk add (slice 13): writes a pronunciation for saved words that have none, as a background job."
+  },
+  "bulk_add_one": {
+    "message": "Add $COUNT$ word",
+    "description": "Bulk add (slice 13): saves the ticked rows.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_add_other": {
+    "message": "Add $COUNT$ words",
+    "description": "Bulk add (slice 13): saves the ticked rows.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_added_one": {
+    "message": "Added $COUNT$ word to $LANG$.",
+    "description": "Bulk add (slice 13): the summary's first line.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "bulk_added_other": {
+    "message": "Added $COUNT$ words to $LANG$.",
+    "description": "Bulk add (slice 13): the summary's first line.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "bulk_added_known_one": {
+    "message": "$COUNT$ was already in your list.",
+    "description": "Bulk add (slice 13): summary.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_added_known_other": {
+    "message": "$COUNT$ were already in your list.",
+    "description": "Bulk add (slice 13): summary.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_added_updated_one": {
+    "message": "$COUNT$ got a new meaning.",
+    "description": "Bulk add (slice 13): summary.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_added_updated_other": {
+    "message": "$COUNT$ got new meanings.",
+    "description": "Bulk add (slice 13): summary.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_added_pending_one": {
+    "message": "$COUNT$ is still being looked up.",
+    "description": "Bulk add (slice 13): summary.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_added_pending_other": {
+    "message": "$COUNT$ are still being looked up.",
+    "description": "Bulk add (slice 13): summary.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_save_failed": {
+    "message": "Some words couldn't be saved. Try again.",
+    "description": "Bulk add (slice 13): the batch save failed partway."
+  },
+  "bulk_see": {
+    "message": "See them",
+    "description": "Bulk add (slice 13): filters the dashboard's list to the words just added."
+  },
+  "bulk_add_more": {
+    "message": "Add more",
+    "description": "Bulk add (slice 13): back to an empty paste area."
+  },
+  "bulk_undone": {
+    "message": "Removed the words this list added, and put changed ones back.",
+    "description": "Bulk add (slice 13): after Undo."
+  },
+  "bulk_undo_partly_one": {
+    "message": "Undone, except $COUNT$ word that changed since.",
+    "description": "Bulk add (slice 13): Undo with conflicts.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_undo_partly_other": {
+    "message": "Undone, except $COUNT$ words that changed since.",
+    "description": "Bulk add (slice 13): Undo with conflicts.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "popup_bulk_open": {
+    "message": "Open bulk add",
+    "description": "Popup (slice 13 §1): text with line breaks was pasted; opens the dashboard's bulk add with it."
   }
 }

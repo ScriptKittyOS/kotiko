@@ -89,5 +89,10 @@
     "budget_ms": 500,
     "ci_factor": 3,
     "note": "Slice 18: 100,000 picks with no memo hits (100 pages of 1,000 distinct concepts, a 20,000-word vocabulary), each with cleanup, the concept, the language and the word. About 290 to 310 ms locally on a quiet machine (up to 460 under load), or about 3 µs a pick; the spec's 140 ms covered the language draw alone. A page makes one pick per distinct form, typically a few hundred: well under 1 ms."
+  },
+  "bulk.parse.5k": {
+    "budget_ms": 200,
+    "ci_factor": 3,
+    "note": "Slice 13: reading and orienting a 5,000-row list before the review table shows (the spec's 1 s includes rendering its first rows). About 39 ms locally."
   }
 }

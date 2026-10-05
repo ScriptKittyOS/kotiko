@@ -235,7 +235,9 @@
     const filtered = deleted
       ? state.sorted.filter((g) => !p.lang || g.lang === p.lang)
       : M.filterGroups(state.sorted, { lang: p.lang, status: p.status ?? "live", added: p.added, source: p.source, missingIn: p.missing }, { now: Date.now() });
-    const ids = filtered.map((g) => g.id);
+    // 13's "See them": the words of the last bulk add.
+    const batch = p.batch && state.batchIds ? filtered.filter((g) => g.records.some((r) => state.batchIds.has(r.id))) : filtered;
+    const ids = batch.map((g) => g.id);
     state.view = p.q ? (deleted ? deletedIndex : index).search(p.q, ids) : ids;
     for (const id of [...state.selected]) if (!groupById(id)) state.selected.delete(id);
     state.active = Math.min(state.active, Math.max(0, state.view.length - 1));
@@ -2087,6 +2089,35 @@
   // the learner says so; one to three words are saved at once with Undo, four or more
   // wait for a choice).
 
+  // Bulk add (13): its own sheet under the add box, made once.
+  let bulk = null;
+  function bulkSheet() {
+    bulk ??= globalThis.KotikoBulkSheet.create({
+      el,
+      t,
+      icon,
+      I18n,
+      langName: (l) => languageName(l),
+      source,
+      send,
+      ext,
+      bases: () => bases(),
+      records: () => state.records.values(),
+      // The language the list is in by default: the add box's hint, else Focus, else the
+      // most recently added word's language (13 §3).
+      defaultLang: () => state.hint ?? (state.s.mixing?.focus?.length === 1 ? state.s.mixing.focus[0] : null) ?? [...state.records.values()].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0]?.lang ?? null,
+      pickLanguage,
+      lookupStatus: () => state.lookupStatus,
+      seeBatch: (ids) => {
+        state.batchIds = new Set(ids);
+        closeAdd();
+        go("#words?batch=1");
+      },
+    });
+    if (!bulk.node.isConnected) $("bulkHost").replaceChildren(bulk.node);
+    return bulk;
+  }
+
   function openAdd() {
     $("addSheet").hidden = false;
     $("addBackdrop").hidden = false;
@@ -2100,6 +2131,14 @@
     renderQuota();
     refreshQuota();
     $("addText").focus();
+    // A list handed over from the popup (13 §1), once.
+    const sheet = bulkSheet();
+    Promise.resolve(ext.storage.session?.get({ bulkDraft: "" }))
+      .then((s) => {
+        sheet.open({ text: s?.bulkDraft ?? "" });
+        if (s?.bulkDraft) return ext.storage.session.remove("bulkDraft");
+      })
+      .catch(() => sheet.open());
   }
 
   // "12 free lookups left today" under the add box (slice 10 §3), from the server.
@@ -3105,6 +3144,20 @@
     $("inspector").addEventListener("keydown", onInspectorKey);
     $("scrim").addEventListener("click", () => closeInspector({ focusList: true }));
     $("addWords").addEventListener("click", () => go("#add"));
+    // A file dragged over the dashboard (13 §2); "Choose a file" in the sheet is the other way.
+    const hasFiles = (e) => [...(e.dataTransfer?.types ?? [])].includes("Files");
+    let dragging = 0;
+    document.addEventListener("dragenter", (e) => hasFiles(e) && (dragging++, ($("dropOverlay").hidden = false)));
+    document.addEventListener("dragleave", (e) => hasFiles(e) && --dragging <= 0 && ((dragging = 0), ($("dropOverlay").hidden = true)));
+    document.addEventListener("dragover", (e) => hasFiles(e) && e.preventDefault());
+    document.addEventListener("drop", (e) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragging = 0;
+      $("dropOverlay").hidden = true;
+      go("#add");
+      bulkSheet().files(e.dataTransfer.files);
+    });
     $("addBaseLang").addEventListener("click", addBase);
     $("closeAdd").addEventListener("click", closeAdd);
     $("addBackdrop").addEventListener("click", closeAdd);

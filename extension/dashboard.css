@@ -2383,3 +2383,132 @@ kbd {
   justify-content: space-between;
   gap: var(--s-3);
 }
+
+/* Slice 13: bulk add under the add box: a dotted paste area, the review table, the summary,
+   and the overlay while a file is dragged over the dashboard. */
+.bulk {
+  display: grid;
+  gap: var(--s-3);
+  margin-top: var(--s-5);
+}
+
+.bulk-text {
+  min-height: 0;
+  border-style: dashed;
+  font: var(--t-body) var(--font-ui);
+  resize: vertical;
+}
+
+.bulk-hint,
+.bulk-counts,
+.bulk-cost,
+.bulk-row-note {
+  color: var(--ink-2);
+  font: var(--t-small) var(--font-ui);
+}
+
+.bulk-controls,
+.bulk-mapping,
+.bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  align-items: center;
+  margin: 0;
+}
+
+.bulk-control {
+  display: inline-flex;
+  gap: var(--s-2);
+  align-items: center;
+}
+
+.bulk-note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  align-items: center;
+  margin: 0;
+}
+
+.bulk-error {
+  color: var(--danger);
+}
+
+.bulk-scroll {
+  max-height: 50vh;
+  overflow: auto;
+}
+
+.bulk-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.bulk-table th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  color: var(--ink-2);
+  font: var(--t-small) var(--font-ui);
+  text-align: start;
+}
+
+.bulk-table td,
+.bulk-table th {
+  padding: var(--s-1) var(--s-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.bulk-table .field {
+  width: 100%;
+  min-width: 6rem;
+}
+
+.bulk-table tr[data-status="problem"] .bulk-status {
+  color: var(--danger);
+}
+
+.bulk-status {
+  white-space: nowrap;
+}
+
+.bulk-row-note {
+  display: block;
+  white-space: normal;
+}
+
+.bulk-summary {
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+
+.bulk-summary p {
+  margin: 0;
+}
+
+.bulk-summary-title {
+  display: flex;
+  gap: var(--s-2);
+  align-items: center;
+  font: var(--t-body-strong) var(--font-ui);
+}
+
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  border: 3px dashed var(--primary);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  font: var(--t-title) var(--font-ui);
+  pointer-events: none;
+}
+
+.drop-overlay[hidden] {
+  display: none;
+}

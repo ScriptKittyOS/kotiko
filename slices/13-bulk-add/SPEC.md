@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Built (2026-10-05); see Implementation notes |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
 | **Depends on** | [09-shared-word-spec-and-prompt](../09-shared-word-spec-and-prompt/SPEC.md), [24-add-flow-safety](../24-add-flow-safety/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages); uses [14](../14-matcher-engine/SPEC.md)'s tokenizer; lives in [21-dashboard](../21-dashboard/SPEC.md) |
@@ -430,6 +430,45 @@ word and restores every updated word from this batch (per-word rules from
 Files are read in the page with `File.text()` and never uploaded anywhere; only the "Needs a
 meaning" words are sent, and only to the learner's configured lookup service. The paste draft
 lives in `storage.session` and is cleared after saving or cancelling.
+
+## Implementation notes
+
+Built 2026-10-05:
+
+- **Parsing.** `extension/bulk/parse.js` is pure: decoding, format detection, columns, one
+  line, orientation. The dashboard passes in the language data, the base's common words,
+  `i18n.detectLanguage` and an inert `DOMParser` for Anki HTML.
+  - Orientation runs rules 1-4 as written. The common-words rule needs at least two hits
+    and twice the other side's.
+  - A CSV is recognised by commas only on lines with no line-list separator, so
+    "perro = dog, hound" stays a line list.
+  - The add box's inline parser (`lib/local-mode.js`) isn't merged into this module yet.
+    The two agree on the separators the add box accepts.
+- **The sheet.** `extension/bulk/sheet.js` sits under the add box, with the columns,
+  statuses, counts, filters, Swap and "Are you learning A or B?" as specified. It renders
+  100 rows at a time with "Show more", rather than virtualizing. A 5,000-row list parses
+  in about 39 ms (benchmark `bulk.parse.5k`, budget 200 ms).
+- **Lookups.** The batch prompt (`prompt-batch.md`) isn't written: the spec ships it only
+  after 09's batch evaluation, which hasn't been run. Until then:
+  - Each row is looked up through the server's preview, two at a time, while the
+    dashboard is open, so the learner sees "Kotiko read X as Y" before anything is saved.
+  - Rows still looking up when "Add {n} words" is pressed become add jobs (24), as do
+    "Save these {k} words for later" after the quota runs out.
+  - The cost line counts one lookup per word.
+- **Saving.** `words.save` in chunks of 500, each with its own `client_request_id`;
+  `origin: "bulk"` or `"import"`, with `source_text`. The batch record (`bulkBatch` in
+  `storage.local`) backs Undo and "See them" (`#words?batch=1`). "Add pronunciations"
+  starts the pronunciation refresh job after saving, rather than 09's `respell` in groups
+  of 20.
+- **The popup.** Pasting two lines or more keeps the list whole in `storage.session`
+  (`bulkDraft`) and offers "Open bulk add". The one-line box would drop the line breaks.
+- **Not yet:**
+  - Kotiko's own backup JSON (12) and Anki exports written by Kotiko (12 §4) are only
+    recognised;
+  - the dashboard's ⋯ "Import a list or file" entry;
+  - the welcome page's entry;
+  - "Also add meanings in {base}";
+  - the needs_choice step for a spelling correction that arrives after saving.
 
 ## Acceptance criteria
 

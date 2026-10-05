@@ -978,6 +978,26 @@ describe("the add box's language controls (24 §6-§9)", () => {
   });
 });
 
+describe("a pasted list (13 §1)", () => {
+  test("two lines or more open bulk add, the list kept whole for the session", async () => {
+    const p = await openPopup({ local: { ...CONNECTED, words: WORDS } });
+    const paste = (text) => {
+      const e = new p.win.Event("paste", { bubbles: true, cancelable: true });
+      e.clipboardData = { getData: () => text };
+      p.$("#addText").dispatchEvent(e);
+      return e;
+    };
+    assert.equal(paste("gato").defaultPrevented, false, "one word: an ordinary paste");
+    assert.equal(p.visible("#bulkOffer"), false);
+    assert.equal(paste("gato = cat\nperro = dog").defaultPrevented, true);
+    await p.settle();
+    assert.equal(p.session.bulkDraft, "gato = cat\nperro = dog");
+    p.$("#openBulk").click();
+    await p.settle();
+    assert.deepEqual(p.opened, ["chrome-extension://fake-extension-id/dashboard.html#add"]);
+  });
+});
+
 describe("size (20 §8)", () => {
   // §8's goal is a first paint within 100 ms on a mid-range device, measured in
   // test/e2e/popup.spec.mjs. The popup starts from scratch on every open, so what it loads

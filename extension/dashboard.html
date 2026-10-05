@@ -343,11 +343,15 @@
       <!-- Slice 10: free lookups left today, at 20 or fewer. -->
       <p class="add-hint" id="addQuota" hidden></p>
       <ul class="add-jobs" id="addJobs" aria-live="polite"></ul>
-      <!-- 13: "Paste a list or drop a file" and "Import a list or file" open here. -->
+      <!-- 13: paste a list or drop a file, review, save in one batch. -->
+      <div id="bulkHost"></div>
     </section>
 
     <!-- Bulk actions (§6). -->
     <div class="selbar" id="selbar" role="toolbar" hidden data-i18n-aria-label="dash_selection_label"></div>
+
+    <!-- 13 §2: dropping a file anywhere on the dashboard adds its words. -->
+    <div class="drop-overlay" id="dropOverlay" hidden><p data-i18n="bulk_drop_here"></p></div>
 
     <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
     <div class="layer" id="layer"></div>
@@ -365,6 +369,9 @@
   <script src="lib/dashboard-model.js"></script>
   <script src="lib/precedence.js"></script>
   <script src="lib/word-source.js"></script>
+  <script src="lib/text.js"></script>
+  <script src="bulk/parse.js"></script>
+  <script src="bulk/sheet.js"></script>
   <script src="lib/lookup-status.js"></script>
   <script src="lib/story.js"></script>
   <script src="dashboard.js"></script>
