@@ -22,6 +22,32 @@ Please include:
 We acknowledge reports within 7 days and send a fix or a plan within 30. If you'd like
 credit, we'll name you in the release notes.
 
+## What happens after you report
+
+1. **Acknowledge** within 7 days, from a maintainer named in
+   [MAINTAINERS.md](MAINTAINERS.md).
+2. **Triage**: we reproduce the problem, decide whether it is in scope, and rate it with
+   [CVSS v4.0](https://www.first.org/cvss/v4.0/). We tell you the rating and the plan.
+3. **Fix privately** in a GitHub draft security advisory with a temporary private fork.
+   You can be added to the advisory to review the fix.
+4. **Targets** from triage to a released fix: critical 7 days, high 30 days, medium 60
+   days, low in the next planned release. If we will miss a target, we tell you why.
+5. **CVE**: for medium severity and above, we request a CVE through GitHub when we
+   publish the advisory.
+6. **Release**: a patch release whose notes have a "Security" section listing the
+   advisory, the CVE, the severity and, unless you ask otherwise, your name.
+7. **Disclose**: the advisory is published with the release. We ask reporters to keep
+   details private until then or for 90 days from the report, whichever comes first.
+8. **Afterwards**: the fix includes a regression test, and the
+   [assurance case](docs/security/assurance-case.md) is updated if the problem crossed a
+   trust boundary.
+
+If the problem is in a dependency, we report it upstream and ship a pinned or patched
+version in the meantime.
+
+The security response lead named in [MAINTAINERS.md](MAINTAINERS.md) runs this process;
+[GOVERNANCE.md](GOVERNANCE.md) describes the role.
+
 ## Scope
 
 In scope:

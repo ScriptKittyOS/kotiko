@@ -116,6 +116,20 @@ defmodule Kotiko.ConfigTest do
       assert config[:pronounce_enabled] == false
     end
 
+    # KOTIKO_WIKTIONARY=false used to work but also logged that it was ignored.
+    test "every documented setting is known: none is warned about as unknown" do
+      vars =
+        Map.new(Config.documented_vars(), fn
+          "KOTIKO_WIKTIONARY" -> {"KOTIKO_WIKTIONARY", "false"}
+          name -> {name, "x"}
+        end)
+
+      assert {_, _, warnings} = parse(vars)
+      assert Enum.filter(warnings, &(&1 =~ "isn't a setting")) == []
+      assert {:ok, config, []} = parse(%{"KOTIKO_WIKTIONARY" => "false", "LLM_API_KEY" => "k"})
+      assert config[:pronounce_enabled] == false
+    end
+
     test "BIND takes IP literals and names" do
       assert ok!(%{"BIND" => "localhost"})[:bind_ip] == {127, 0, 0, 1}
       assert ok!(%{"BIND" => "laptop.tail1234.ts.net"})[:bind_ip] == {100, 101, 102, 103}

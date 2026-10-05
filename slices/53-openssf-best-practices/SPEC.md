@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | In progress (2026-10-05): the passing answers, §4.1, §4.2 and the documents of §4.3 to §4.11 are written; registering waits for the repository to go public; see Implementation notes |
 | **Priority** | P1 (soon after release) for silver. Inside this slice, §4.1, §4.2 and registering for the passing badge (§7) are P0: they ship with the public release |
 | **Size** | M (about a week), spread over several months because some criteria need history (coverage, response times, a second person) |
 | **Depends on** | [02](../02-test-harness-and-ci/SPEC.md), [03](../03-oss-foundations/SPEC.md), [30](../30-release-pipeline/SPEC.md); for silver also [27](../27-accessibility-baseline/SPEC.md), [50](../50-ui-localization-and-base-language/SPEC.md), [40](../40-server-packaging-docker/SPEC.md), [44](../44-docs-site/SPEC.md) |
@@ -808,6 +808,90 @@ time, people and an outside review:
 | `hardening` (MUST) | Likely met after 28 §5 and the 01 addition | Keep the assurance case's hardening list current |
 | `dynamic_analysis` (MUST) | Not met | Property-based tests (StreamData for the server's parsers, `fast-check` as a dev dependency for `url.js`, `validate-words.js` and the matcher) that run in CI; or an OWASP ZAP baseline scan against the test server |
 | `dynamic_analysis_enable_assertions` (SHOULD) | Partly | Run the property tests and end-to-end suites with assertion-heavy checks enabled (for example invariants in the matcher behind a test-only flag) |
+
+## Implementation notes
+
+Built 2026-10-05, against the passing criteria as published on 2026-10-05 (read from
+<https://www.bestpractices.dev/en/criteria/0> and the badge's `criteria/criteria.yml`):
+
+- **The criteria.** Still 67 for passing (43 MUST, 10 SHOULD, 14 SUGGESTED) and 55 for
+  silver, none obsolete; ids, keywords and the form's "Met URL", "Met justification" and
+  "N/A justification" flags match §2. What differs from this spec:
+  - the badge's repository moved from `coreinfrastructure/best-practices-badge` to
+    `ossf/best-practices-badge` (organization renamed 2026-06-25); the old URLs redirect;
+  - the form has no "Partly met": every answer is Met, Unmet or N/A, so the answer sheet
+    resolves each "Partly met" of §2 (`test_most` Met, `warnings_strict`,
+    `dynamic_analysis` and `dynamic_analysis_enable_assertions` Unmet,
+    `static_analysis_common_vulnerabilities` Met);
+  - `version_semver` now also accepts Calendar Versioning; `dynamic_analysis` also counts
+    a test suite with at least 80 % branch coverage (the extension measures 78.6 %).
+- **The answer sheet** is [`docs/best-practices.md`](../../docs/best-practices.md): all 67
+  passing criteria with status, the text for the form, evidence (path and line, or a
+  command) and who must act. Tally: 41 Met, 16 Met† (true in the repository, counted once
+  it is public), 5 Unmet, 5 N/A. The only MUST left is `repo_public`; the unmet SUGGESTED
+  ones are `version_tags` (slice 30), `warnings_strict` (02 addition), `dynamic_analysis`
+  and `dynamic_analysis_enable_assertions` (§8). Before registering, the maintainer also
+  turns on private vulnerability reporting and Discussions and makes `security@` reach two
+  people. A silver table follows, for planning.
+- **Corrections to §2 and §3**, measured on this branch:
+  - coverage: server 86.7 % of executable lines (`mix test --cover`, test helpers
+    excluded), extension 91.6 % of lines and 78.6 % of branches of the files the unit, DOM
+    and background suites load (Node's built-in coverage; only `ui/theme.js` isn't
+    loaded). `popup.js` is now covered by the DOM tests;
+  - gitleaks (8.16) over the full history finds eight placeholder keys in tests, not two;
+  - `scripts/regression-audit.mjs` finds 8 of the 12 `fix` commits of the last six months
+    changed a test in the same commit (67 %). 4705cb0, 091c05b and 633453a got their tests
+    in later commits, so §3's "all four fixes have tests" holds only across commits;
+  - Discussions are off and the repository is private (`ScriptKittyOS/kotiko`, already
+    renamed); the organization already requires two-factor authentication.
+- **§4.1.** [`docs/reference/http-api.md`](../../docs/reference/http-api.md) and
+  [`docs/reference/configuration.md`](../../docs/reference/configuration.md).
+  `server/test/kotiko/docs_test.exs` reads the routes from the router sources (`get`,
+  `post`, `patch`, `delete`, `match … via:` and `forward`), not from
+  `router_auth_test.exs`'s list, which has no methods and lacks most `/api/v1` routes; it
+  fails on a route missing from the reference and on a documented route that no longer
+  exists. `Kotiko.Config.documented_vars/0` lists every setting; the test checks that each
+  is in `configuration.md`, that the parser reads nothing outside the list, and that
+  `config/runtime.exs` passes each one on. README's API section links the reference.
+- **A bug found on the way:** `KOTIKO_WIKTIONARY` was read but missing from the known
+  `KOTIKO_` names, so setting it logged "isn't a setting this server knows, so it's
+  ignored" although it worked. Fixed, with a test that no documented setting is reported
+  unknown.
+- **§4.2** is in `SECURITY.md` as written.
+- **§4.3 to §4.11.** `GOVERNANCE.md` (adds the two-factor ask from §8), `MAINTAINERS.md`,
+  `.github/CODEOWNERS`, `ROADMAP.md`, `docs/ARCHITECTURE.md`,
+  `docs/governance/continuity.md`, `docs/security/requirements.md`,
+  `docs/security/assurance-case.md`, `docs/CODING_STANDARDS.md`, the "Tests" section and
+  coding-standards line in `CONTRIBUTING.md`, the regression-test and docs boxes in the
+  PR template, `scripts/regression-audit.mjs` with its test over a temporary repository
+  ("2 of 3"), and the two going-public checklist items. Differences:
+  - `CODEOWNERS` names `@HackTuah`: the `kotiko-maintainers` team doesn't exist and
+    creating it is an organization setting;
+  - CONTRIBUTING's "Tests" leaves out the 80 % coverage gate: it doesn't exist until 02's
+    addition, and the policy must not claim it;
+  - CODING_STANDARDS says what CI enforces today (`mix credo`, not `--strict`; no
+    JavaScript formatter, open question 4) and names the planned additions;
+  - `continuity.md` has the inventory with "Not yet" where no account or person exists;
+    the steward (open question 2), the private record, the legal instruction and the first
+    yearly check are the maintainer's;
+  - the security documents claim only what the code does today. They record gaps the spec
+    didn't know about: `kotiko.db` and a new data folder follow the umask (the unit sets no
+    `UMask`), so the word list may be readable by other accounts on a shared computer (no
+    slice owns this yet; 29 or 40 fit); the 200-character input cap applies only to
+    `POST /api/v1/words`, not to the 0.2 route or Telegram text; and no hardening headers
+    or explicit extension CSP yet (28, 01 addition);
+  - `regression-audit.mjs` counts the shared golden cases in `spec/fixtures/` as tests;
+  - README and CONTRIBUTING were edited now, since slice 04's rename has landed.
+- **Also found:** a request body sent with a non-JSON content type (`curl -d` alone sends
+  `application/x-www-form-urlencoded`) makes the body routes answer `500 internal`
+  instead of `400`, because the parser passes such bodies through unread; `GET /health`
+  reports `"api": []` although `/api/v1` exists; and the extension still syncs pages
+  through the 0.2 route `GET /api/words`, so that route can't be removed yet. The
+  reference documents all three as they are.
+- **Not done:** registering and the README badge (§7, the maintainer, on going public);
+  the additions to slices 02, 30, 40, 44 and 01 (§5) are not written into those specs,
+  because slice 30 is being built in parallel and the rest are P1; the OpenSSF Scorecard
+  workflow (Future work, not added).
 
 ## Acceptance criteria
 

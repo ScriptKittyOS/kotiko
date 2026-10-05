@@ -5,6 +5,10 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Turning off Wiktionary pronunciations with `KOTIKO_WIKTIONARY=false` no longer makes the
+  server warn at start that the setting is unknown and ignored. It always worked; only
+  the warning was wrong.
+
 - Add a whole list at once: paste it into "Add words" in your word list, or drop a .txt,
   .csv, .tsv, .json or Anki text export on it. Lines that already have a meaning are saved
   with no lookup ("gato = cat", "dog - perro", "고양이：猫"), and Kotiko works out which side

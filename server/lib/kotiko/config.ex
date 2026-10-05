@@ -22,13 +22,17 @@ defmodule Kotiko.Config do
   # shipped list (spec/models.json `fallback`) is used until the first fetch or a cache.
   @default_models Kotiko.Spec.models()["fallback"]
   @log_levels ~w(debug info warning error)
-  @prefixed_vars ~w(KOTIKO_DATA_DIR KOTIKO_LOG_SQL)
+  @prefixed_vars ~w(KOTIKO_DATA_DIR KOTIKO_LOG_SQL KOTIKO_WIKTIONARY)
   # The old names still work, with a warning, until a later release removes them.
   # legacy-name-ok
   @renamed %{"KOTIKO_DATA_DIR" => "SLOVO_DATA_DIR", "KOTIKO_LOG_SQL" => "SLOVO_LOG_SQL"}
   # legacy-name-ok
   @prefixes ~w(KOTIKO_ SLOVO_)
   @secret_vars ~w(API_TOKEN LLM_API_KEY TELEGRAM_BOT_TOKEN TRANSCRIBE_API_KEY)
+  # The other settings, without the KOTIKO_ prefix. config/runtime.exs copies them into
+  # the app env by name or by their LLM_ and TRANSCRIBE_ prefixes.
+  @plain_vars ~w(PORT BIND ALLOWED_HOSTS PUBLIC_URL ALLOWED_TELEGRAM_IDS LLM_URL LLM_MODEL
+                 TRANSCRIBE_URL TRANSCRIBE_MODEL LOG_LEVEL LOG_LOOKUPS)
   @wrap_at 84
 
   @typedoc "A label (`BIND=kotiko.local`) and the lines that explain it."
@@ -36,6 +40,12 @@ defmodule Kotiko.Config do
 
   def default_models, do: @default_models
   def secret_vars, do: @secret_vars
+
+  @doc """
+  Every setting this module reads, by its current name: what
+  `docs/reference/configuration.md` must describe (`Kotiko.DocsTest` checks both).
+  """
+  def documented_vars, do: Enum.sort(@plain_vars ++ @secret_vars ++ @prefixed_vars)
 
   @doc """
   Parses and applies the settings in the app env's `:env`. Problems print one block to
