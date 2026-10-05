@@ -1,0 +1,104 @@
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Slice 30 §4: once a day, the Chrome Web Store review status of the latest release, written
+# into that release's notes (one line, replaced in place; edited only when it changes). Stops
+# asking once the release's version is live. Uses the `store-status` environment, whose
+# refresh token is read-only (docs/stores.md); skips with a notice when it has no secrets.
+name: Store status
+
+on:
+  schedule:
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: store-status
+  cancel-in-progress: false
+
+jobs:
+  check:
+    if: github.repository == 'ScriptKittyOS/kotiko'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.latest.outputs.tag }}
+    steps:
+      - id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag="$(gh release list --exclude-drafts --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName // ""')"
+          if [ -z "$tag" ]; then
+            echo "::notice::No release yet."
+            exit 0
+          fi
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::warning::Latest release $tag isn't a vX.Y.Z tag; skipping."
+            exit 0
+          fi
+          if gh release view "$tag" --json body --jq .body | grep -q "): ${tag#v} is live\."; then
+            echo "$tag is already live in the Chrome Web Store."
+            exit 0
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+  chrome:
+    needs: check
+    if: needs.check.outputs.tag != ''
+    runs-on: ubuntu-24.04
+    environment: store-status
+    permissions:
+      contents: write # edit the release notes
+    steps:
+      - id: creds
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+        run: |
+          missing=()
+          for n in CWS_CLIENT_ID CWS_CLIENT_SECRET CWS_REFRESH_TOKEN CWS_PUBLISHER_ID CWS_EXTENSION_ID; do
+            [ -n "${!n}" ] || missing+=("$n")
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::notice title=Store status skipped::The store-status environment has no ${missing[*]} (docs/stores.md)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.creds.outputs.ready == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - if: steps.creds.outputs.ready == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - if: steps.creds.outputs.ready == 'true'
+        run: npm ci --ignore-scripts
+      - if: steps.creds.outputs.ready == 'true'
+        name: Read the status and update the release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.check.outputs.tag }}
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+        run: |
+          gh release view "$TAG" --json body --jq .body > "$RUNNER_TEMP/body.md"
+          result="$(node scripts/cws-status.mjs --version "${TAG#v}" --body "$RUNNER_TEMP/body.md" --out "$RUNNER_TEMP/new.md")"
+          grep -F -A1 '<!-- cws-status -->' "$RUNNER_TEMP/new.md" | tail -n 1
+          if [ "$result" = changed ]; then
+            gh release edit "$TAG" --notes-file "$RUNNER_TEMP/new.md"
+          fi

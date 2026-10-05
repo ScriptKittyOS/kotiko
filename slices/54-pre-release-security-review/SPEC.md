@@ -159,7 +159,10 @@ are summarised without exploit steps (SECURITY.md's disclosure rules, 03).
   with a reason, and as issues.
 - A fourth reviewer, fresh and independent like the first three, reruns every confirmed
   finding's proof against `-rc.2` and confirms it no longer works, then the lead closes the
-  gate with a line in the report and a box on 30's release checklist.
+  gate with a line in the report and a box on 30's release checklist. The line starts
+  `Gate: closed` (for example `Gate: closed 2026-11-02 by <lead>, fixes confirmed on
+  v0.3.0-rc.2`): 30's release workflow looks for it before any store upload
+  (`scripts/check-security-gate.mjs`).
 - Confirmed findings feed 53 §4.7's assurance case and, for issues in shipped code, 53
   §4.2's vulnerability process.
 

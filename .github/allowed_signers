@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
+# SPDX-License-Identifier: Apache-2.0
+#
+# SSH keys allowed to sign release tags (slice 30 §11). The release workflow verifies every
+# v* tag against the copy of this file on main; a tag signed by any other key, or not signed,
+# stops the release before anything is built. GPG keys go in .github/release-keys.asc instead.
+#
+# One line per key, the same keys as in MAINTAINERS.md. Adding or removing a key is a reviewed
+# pull request. Format (see "ALLOWED SIGNERS" in `man ssh-keygen`):
+#
+#   you@example.com namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA...
+#
+# Empty until the release manager adds their key (docs/stores.md, "Signing keys"); until then
+# every release tag is refused.
