@@ -283,7 +283,10 @@ access to all websites. Temporary add-ons are removed when Firefox restarts.
 
 ## API
 
-Every route except `GET /health` needs `Authorization: Bearer <API token>`.
+Every route except `GET /health` needs `Authorization: Bearer <API token>`. The full
+reference, with every field, limit and error, is
+[docs/reference/http-api.md](docs/reference/http-api.md); every server setting is in
+[docs/reference/configuration.md](docs/reference/configuration.md).
 
 | Route | Does |
 |---|---|

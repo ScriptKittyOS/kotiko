@@ -45,8 +45,22 @@ the server.
   from before Kotiko outside history, research and the code that moves old data; mark a
   line that must name them with a `legacy-name-ok` comment.
 
+## Tests
+
+- Every pull request that adds or changes behaviour adds or updates automated tests in
+  the same pull request. Major new functionality is not merged without tests.
+- Every bug fix adds a regression test that fails without the fix. If that isn't
+  practical, say why in the pull request; a maintainer has to agree.
+- Tests never use the network: the server stubs HTTP with `Req.Test`, and the extension
+  tests serve their own pages.
+- How to run them is under [Setup](#setup); CI runs them on every pull request.
+
 ## Commits and pull requests
 
+- Code follows [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md); CI checks formatting
+  and lint, so run `mix format`, `mix credo` and `npm run lint` before pushing.
+- Maintainers review every pull request; how decisions are made and who maintains what is
+  in [GOVERNANCE.md](GOVERNANCE.md) and [MAINTAINERS.md](MAINTAINERS.md).
 - Commit messages and pull request titles follow
   [Conventional Commits](https://www.conventionalcommits.org/): `feat(extension): ...`,
   `fix(server): ...`. Scopes: `server`, `extension`, `spec`, `docs`, `ci`, `release`.

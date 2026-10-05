@@ -16,3 +16,8 @@ release, slice 30).
 6. [ ] A pull-request title check (`amannn/action-semantic-pull-request`, pinned by SHA)
    keeps squash commits conventional.
 7. [ ] `security@scriptkittyos.com` reaches at least two people.
+8. [ ] Register on bestpractices.dev and add the badge
+   ([slice 53](../slices/53-openssf-best-practices/SPEC.md) section 7; answers in
+   [best-practices.md](best-practices.md)).
+9. [ ] Organization owners: at least two; two-factor authentication required for the
+   organization.
