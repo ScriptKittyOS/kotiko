@@ -252,6 +252,36 @@ entry has `index`, its position in `words`.
 Errors: `400 invalid_request` with `details.field` `words` (not a list, or more than 500, with
 `details.max`) or `client_request_id`; `413 request_too_large`.
 
+### GET /api/v1/export
+
+The whole word list as a backup file: the JSON document of
+[`spec/export.schema.json`](../../spec/export.schema.json), the same one the extension writes,
+with `app.source` `server`. Streamed in id order, 500 words at a time; deleted words are left
+out. Sent with `Cache-Control: no-store`.
+
+| Query | Meaning |
+|---|---|
+| `include=pending` | Also include Telegram lookups that were never added (status `pending`) |
+| `download=1` | Send it as a file download, `kotiko-backup-YYYY-MM-DD.json` |
+
+`200`: the backup document. `mix kotiko.export` writes the same file from the server's
+computer.
+
+### DELETE /api/v1/words
+
+Deletes every word: live words, pending Telegram lookups and deleted words kept for undo,
+plus the saved add answers and the lookup cache. Other devices start their sync over
+(`reset_epoch` goes up by one). It can't be undone; export first.
+
+| Field | Meaning |
+|---|---|
+| `confirm` | Required: the string `delete-all-words` |
+
+`200`: `{"deleted": n, "reset_epoch": e}`; `deleted` counts the words that weren't already
+deleted or pending. Errors: `400 invalid_request` (`details.field`: `confirm`) without the
+confirmation, and nothing is deleted. `mix kotiko.reset` does the same from the server's
+computer.
+
 ### PATCH /api/v1/words/:id
 
 Changes the fields you send and nothing else.

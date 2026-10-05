@@ -10,3 +10,7 @@ trim_trailing_whitespace = true
 
 [*.md]
 trim_trailing_whitespace = false
+
+[spec/fixtures/export/*.csv]
+end_of_line = crlf
+insert_final_newline = true

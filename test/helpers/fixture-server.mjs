@@ -9,7 +9,8 @@
 //                 (devDependencies, MIT), for slice 15's react-list.html
 //   /kotiko/*       a fake Kotiko server: GET /health, GET/POST /api/words, DELETE /api/words/:id,
 //                 and the /api/v1 routes the dashboard uses (slice 07 §5, in memory): words
-//                 (GET, GET :id, POST with preview, POST batch, PATCH, DELETE, restore),
+//                 (GET, GET :id, POST with preview, POST batch, PATCH, DELETE, restore,
+//                 and slice 12's DELETE /words with its confirmation),
 //                 jobs/pronunciation-refresh (GET, POST pause/resume) and llm/status
 //                 (slice 10: the quota is `llmRemaining` of 50; each add uses one)
 //   /llm/v1/*     a fake OpenAI-compatible model: /models, /key, /chat/completions
@@ -131,8 +132,10 @@ function send(res, status, body, headers = {}) {
 }
 
 async function readBody(req) {
-  let raw = "";
-  for await (const chunk of req) raw += chunk;
+  // Buffers joined before decoding: a character split across two chunks stays whole.
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  const raw = Buffer.concat(chunks).toString("utf8");
   if (!raw) return {};
   try {
     return JSON.parse(raw);
@@ -173,7 +176,7 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
   };
   state.v1 = state.words.map(fromLegacy);
   const reset = () => {
-    Object.assign(state, { token, kotiko: null, llm: null, delayMs: 1500, words: seed(), nextId: 1000, job: { state: "done", done: 0, total: 0 }, failNext: null, llmRemaining: null, llmDelayMs: 0 });
+    Object.assign(state, { token, kotiko: null, llm: null, delayMs: 1500, words: seed(), nextId: 1000, job: { state: "done", done: 0, total: 0 }, failNext: null, llmRemaining: null, llmDelayMs: 0, resetEpoch: 0 });
     state.v1 = state.words.map(fromLegacy);
     state.log.length = 0;
   };
@@ -199,7 +202,9 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
     if (existing) return { result: "unchanged", word: api(existing) };
     const now = stamp();
     const r = record({ ...w, id: undefined, origin: w.origin ?? origin, created_at: now, updated_at: now, legacy_id: state.nextId++ });
-    r.id = `0190${Date.now().toString(16).slice(-4)}-${String(state.nextId).padStart(4, "0")}-7000-8000-${Math.random().toString(16).slice(2, 14).padEnd(12, "0")}`;
+    // The client's id when it is a UUID no record has (07, as the real server does).
+    const free = typeof w.id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(w.id) && !state.v1.some((x) => x.id === w.id);
+    r.id = free ? w.id : `0190${Date.now().toString(16).slice(-4)}-${String(state.nextId).padStart(4, "0")}-7000-8000-${Math.random().toString(16).slice(2, 14).padEnd(12, "0")}`;
     state.v1.unshift(r);
     return { result: "created", word: api(r) };
   }
@@ -263,9 +268,20 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
     if (route === "/words/batch" && req.method === "POST") {
       const body = await readBody(req);
       if (!Array.isArray(body.words)) return v1Error(res, 400, "invalid_request", "Send words.", { field: "words" });
+      if (body.words.length > 500) return v1Error(res, 400, "invalid_request", "At most 500 words at a time.", { field: "words", max: 500 });
       const results = body.words.map((w, index) => ({ ...saveWord(w, "bulk"), index }));
       syncLegacy();
       return send(res, 200, { results, rejected: [], dropped_fields: [] });
+    }
+    // Slice 12: every word, pending row and tombstone, only with the confirmation.
+    if (route === "/words" && req.method === "DELETE") {
+      const body = await readBody(req);
+      if (body.confirm !== "delete-all-words") return v1Error(res, 400, "invalid_request", "Send the confirmation.", { field: "confirm" });
+      const deleted = state.v1.filter((r) => live(r) && r.status !== "pending").length;
+      state.v1 = [];
+      state.resetEpoch = (state.resetEpoch ?? 0) + 1;
+      syncLegacy();
+      return send(res, 200, { deleted, reset_epoch: state.resetEpoch });
     }
     const m = route.match(/^\/words\/([^/]+)(\/restore)?$/);
     const r = m ? state.v1.find((x) => x.id === decodeURIComponent(m[1])) : null;

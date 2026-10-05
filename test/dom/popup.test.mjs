@@ -1152,3 +1152,37 @@ describe("the page's language", () => {
     }
   });
 });
+
+describe("the backup reminder (slice 12 §8)", () => {
+  const DAY = 86_400_000;
+  const many = (n) => Array.from({ length: n }, (_, i) => ({ id: `id-${i}`, lang: "ru", native: `дом${i}`, base_lang: "en", gloss: `word${i}`, forms: [`word${i}`], status: "active" }));
+  const LOCAL = { wordsHome: "local", lookup: { kind: "provider", provider: "openrouter" }, keys: { server: false, providers: { openrouter: true } }, onboarding: { completedAt: 1, skipped: false, version: 2 } };
+
+  test("words only in this browser, 20 or more, no backup for 30 days: one quiet line; Back up now; Not now", async () => {
+    const p = await openPopup({ local: { ...LOCAL, words: many(25), backupSince: Date.now() - 40 * DAY } });
+    await p.settle();
+    assert.equal(p.$("#bannerBackup").dataset.severity, "info");
+    assert.equal(p.text("#bannerBackup .banner-body"), "Your 25 words are only in this browser.");
+    p.$("#bannerBackup [data-action=backup-now]").click();
+    await p.settle();
+    assert.deepEqual(p.opened, ["chrome-extension://fake-extension-id/dashboard.html#settings/data/backup"]);
+    p.$("#bannerBackup [data-action=not-now]").click();
+    await p.settle();
+    assert.ok(p.store.backupSnooze > Date.now() + 29 * DAY);
+    assert.equal(p.$("#bannerBackup"), null, "hidden for 30 days");
+  });
+
+  test("not shown: a recent backup, fewer than 20 words, words on a server, the setting off, or no clock yet", async () => {
+    for (const local of [
+      { ...LOCAL, words: many(25), backupSince: Date.now() - 40 * DAY, lastBackupAt: Date.now() - 2 * DAY },
+      { ...LOCAL, words: many(19), backupSince: Date.now() - 40 * DAY },
+      { ...LOCAL, words: many(25), backupSince: Date.now() - 40 * DAY, prefs: { backupReminder: false } },
+      { ...LOCAL, words: many(25) },
+      { ...CONNECTED, words: many(25), backupSince: Date.now() - 40 * DAY },
+    ]) {
+      const p = await openPopup({ local });
+      await p.settle();
+      assert.equal(p.$("#bannerBackup"), null, JSON.stringify({ ...local, words: local.words.length }));
+    }
+  });
+});

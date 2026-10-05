@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kotiko.org/spec/export.schema.json",
+  "title": "Kotiko backup (schema version 2)",
+  "description": "The JSON backup of slice 12 section 2, written by the extension and by the server (GET /api/v1/export, mix kotiko.export). `words` are word records (word.schema.json), every one that isn't deleted. Version 1 is the shape before base languages, read as slice 12 section 2 says (its meanings were for English pages). A newer Kotiko reads every older version; an older one refuses a newer file. Never holds a key or a token.",
+  "type": "object",
+  "required": ["format", "schemaVersion", "exportedAt", "app", "words"],
+  "properties": {
+    "format": { "const": "kotiko.words" },
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "exportedAt": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+    },
+    "app": {
+      "type": "object",
+      "required": ["name", "version", "source"],
+      "properties": {
+        "name": { "const": "Kotiko" },
+        "version": { "type": "string", "maxLength": 64 },
+        "source": { "enum": ["extension", "server"] }
+      }
+    },
+    "words": {
+      "type": "array",
+      "maxItems": 20000,
+      "items": { "$ref": "word.schema.json" }
+    },
+    "settings": {
+      "type": "object",
+      "description": "Optional. Non-secret settings (slice 39's list): enabled, pausedHosts, hiddenLangs, prefs, mixing, speech, seedSalt, lookup (provider, baseUrl, model, dataCollection; never a key), server (url; never the token), ui (uiLang, baseLangs)."
+    },
+    "stats": {
+      "type": "object",
+      "description": "Optional. Slice 46's daily counters, when that slice ships."
+    }
+  }
+}

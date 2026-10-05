@@ -22,7 +22,8 @@
   const formText = (f) => (typeof f === "string" ? f : f?.text);
 
   // ctx: { el, t, icon, I18n, langName, source, send, ext, bases(), records(), defaultLang(),
-  //        pickLanguage({title, exclude}), toast({text}), seeBatch(ids), lookupStatus() }
+  //        pickLanguage({title, exclude}), toast({text}), seeBatch(ids), lookupStatus(),
+  //        restoreBackup({text, filename}) }
   function create(ctx) {
     const { el, t, icon, langName } = ctx;
     const st = { text: "", filename: null, decoded: null, built: null, rows: [], base: null, target: null, swap: null, roles: null, shown: SHOWN, filter: null, saving: false, summary: null, message: null, pron: true, lookups: 0 };
@@ -81,7 +82,15 @@
       }
       const read = P().read(text, { filename: filename ?? "" });
       if (read.error) return fail(t({ spreadsheet: "bulk_spreadsheet", apkg: "bulk_apkg" }[read.error] ?? "bulk_unreadable"));
-      if (read.format === "kotiko-backup") return fail(t("bulk_backup"));
+      // Kotiko's own backup is restored, not reviewed as a list (slice 12 section 5).
+      if (read.format === "kotiko-backup") {
+        if (!ctx.restoreBackup) return fail(t("bulk_backup"));
+        area.value = "";
+        st.text = "";
+        st.rows = [];
+        render();
+        return ctx.restoreBackup({ text, filename });
+      }
       st.read = read;
       st.message = null;
       st.roles = null;
@@ -102,6 +111,8 @@
         htmlToText: (html) => new DOMParser().parseFromString(html, "text/html").body.textContent ?? "",
         roles: st.roles,
         swap: st.swap,
+        // Kotiko's CSV headers in the interface language (slice 12 §3).
+        headers: ctx.csvHeaders?.() ?? null,
       });
       if (n !== seq) return;
       st.built = built;
@@ -246,13 +257,16 @@
       return {
         lang: langOf(r),
         native: r.native,
-        base_lang: st.base,
+        // A Kotiko CSV says which base each row's meaning is in (12 §3).
+        base_lang: r.base_lang || st.base,
         sense: "",
         gloss: forms[0].text,
         forms,
         romanization: r.romanization || null,
+        native_vocalized: r.native_vocalized || null,
         pronunciation: r.pronunciation || null,
-        pronunciation_source: r.pronunciation ? (r.found ? "model" : "user") : null,
+        pronunciation_careful: r.pronunciation ? r.pronunciation_careful || null : null,
+        pronunciation_source: r.pronunciation ? r.pronunciation_source || (r.found ? "model" : "user") : null,
         note: r.note || null,
         origin: st.filename ? "import" : "bulk",
         source_text: r.source_text ?? null,

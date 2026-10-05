@@ -69,6 +69,16 @@ async function load(html, { words = WORDS, url = "https://example.com/", beforeI
 }
 
 describe("swapping", () => {
+  test("clearing storage (slice 12's delete everything) puts the page's own words back", async () => {
+    const { $, fake, spans } = await load(`<p id="p">My house is your house.</p>`);
+    assert.equal($("p").textContent, "My дом is your дом.");
+    await fake.chrome.storage.local.clear();
+    await fake.idle();
+    await sleep(FLUSH_MS);
+    assert.equal($("p").textContent, "My house is your house.");
+    assert.equal(spans().length, 0);
+  });
+
   test("swaps known words into <kotiko-w> elements that carry no word data (slice 15)", async () => {
     const { $, spans } = await load(`<p id="p">My house is your house.</p>`);
     assert.equal($("p").textContent, "My дом is your дом.");

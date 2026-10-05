@@ -1,0 +1,169 @@
+{
+  "format": "kotiko.words",
+  "schemaVersion": 2,
+  "exportedAt": "2026-09-30T12:00:00.000Z",
+  "app": {
+    "name": "Kotiko",
+    "version": "0.3.0",
+    "source": "extension"
+  },
+  "words": [
+    {
+      "id": "0199a000-0000-7000-8000-000000000065",
+      "lang": "ja",
+      "native": "犬",
+      "base_lang": "es",
+      "sense": "",
+      "gloss": "perro",
+      "forms": [
+        {
+          "text": "perro",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        },
+        {
+          "text": "perros",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        }
+      ],
+      "romanization": "inu",
+      "native_vocalized": null,
+      "pronunciation": "i-nu",
+      "pronunciation_careful": null,
+      "pronunciation_source": "model",
+      "note": null,
+      "status": "active",
+      "origin": "add",
+      "source_text": null,
+      "created_at": "2026-09-17T12:00:00.000Z",
+      "updated_at": "2026-09-17T12:00:00.000Z",
+      "deleted_at": null,
+      "merged_into": null
+    },
+    {
+      "id": "0199a000-0000-7000-8000-000000000066",
+      "lang": "ja",
+      "native": "犬",
+      "base_lang": "en",
+      "sense": "",
+      "gloss": "dog",
+      "forms": [
+        {
+          "text": "dog",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        },
+        {
+          "text": "dogs",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        }
+      ],
+      "romanization": "inu",
+      "native_vocalized": null,
+      "pronunciation": "ee-noo",
+      "pronunciation_careful": null,
+      "pronunciation_source": "model",
+      "note": null,
+      "status": "active",
+      "origin": "add",
+      "source_text": null,
+      "created_at": "2026-09-18T12:00:00.000Z",
+      "updated_at": "2026-09-18T12:00:00.000Z",
+      "deleted_at": null,
+      "merged_into": null
+    },
+    {
+      "id": "0199a000-0000-7000-8000-000000000067",
+      "lang": "ru",
+      "native": "спасибо",
+      "base_lang": "es",
+      "sense": "",
+      "gloss": "gracias",
+      "forms": [
+        {
+          "text": "gracias",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        }
+      ],
+      "romanization": "spasibo",
+      "native_vocalized": "спаси́бо",
+      "pronunciation": "spa-SI-ba",
+      "pronunciation_careful": null,
+      "pronunciation_source": "model",
+      "note": null,
+      "status": "active",
+      "origin": "add",
+      "source_text": null,
+      "created_at": "2026-09-19T12:00:00.000Z",
+      "updated_at": "2026-09-19T12:00:00.000Z",
+      "deleted_at": null,
+      "merged_into": null
+    },
+    {
+      "id": "0199a000-0000-7000-8000-000000000068",
+      "lang": "ru",
+      "native": "спасибо",
+      "base_lang": "en",
+      "sense": "",
+      "gloss": "thanks",
+      "forms": [
+        {
+          "text": "thanks",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        }
+      ],
+      "romanization": "spasibo",
+      "native_vocalized": "спаси́бо",
+      "pronunciation": "spa-SEE-ba",
+      "pronunciation_careful": null,
+      "pronunciation_source": "model",
+      "note": null,
+      "status": "active",
+      "origin": "add",
+      "source_text": null,
+      "created_at": "2026-09-20T12:00:00.000Z",
+      "updated_at": "2026-09-20T12:00:00.000Z",
+      "deleted_at": null,
+      "merged_into": null
+    },
+    {
+      "id": "0199a000-0000-7000-8000-000000000069",
+      "lang": "en",
+      "native": "dog",
+      "base_lang": "es",
+      "sense": "",
+      "gloss": "perro",
+      "forms": [
+        {
+          "text": "perro",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        }
+      ],
+      "romanization": null,
+      "native_vocalized": null,
+      "pronunciation": null,
+      "pronunciation_careful": null,
+      "pronunciation_source": null,
+      "note": null,
+      "status": "active",
+      "origin": "add",
+      "source_text": null,
+      "created_at": "2026-09-21T12:00:00.000Z",
+      "updated_at": "2026-09-21T12:00:00.000Z",
+      "deleted_at": null,
+      "merged_into": null
+    }
+  ]
+}

@@ -1,0 +1,423 @@
+{
+  "format": "kotiko.words",
+  "schemaVersion": 2,
+  "exportedAt": "2026-09-30T12:00:00.000Z",
+  "app": {
+    "name": "Kotiko",
+    "version": "0.3.0",
+    "source": "extension"
+  },
+  "words": [
+    {
+      "id": "0199a000-0000-7000-8000-000000000001",
+      "lang": "ru",
+      "native": "пожалуйста",
+      "base_lang": "en",
+      "sense": "",
+      "gloss": "please",
+      "forms": [
+        {
+          "text": "please",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        }
+      ],
+      "romanization": "pozhaluysta",
+      "native_vocalized": "пожа́луйста",
+      "pronunciation": "pa-ZHAL-sta",
+      "pronunciation_careful": "pa-ZHA-lu-sta",
+      "pronunciation_source": "model",
+      "note": null,
+      "status": "active",
+      "origin": "add",
+      "source_text": null,
+      "created_at": "2026-09-01T12:00:00.000Z",
+      "updated_at": "2026-09-01T12:00:00.000Z",
+      "deleted_at": null,
+      "merged_into": null
+    },
+    {
+      "id": "0199a000-0000-7000-8000-000000000002",
+      "lang": "ru",
+      "native": "спасибо",
+      "base_lang": "en",
+      "sense": "",
+      "gloss": "thanks",
+      "forms": [
+        {
+          "text": "thanks",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        },
+        {
+          "text": "thank you",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        }
+      ],
+      "romanization": "spasibo",
+      "native_vocalized": "спаси́бо",
+      "pronunciation": "spa-SEE-ba",
+      "pronunciation_careful": null,
+      "pronunciation_source": "user",
+      "note": "=1+1 is how a formula starts",
+      "status": "active",
+      "origin": "add",
+      "source_text": null,
+      "created_at": "2026-09-02T12:00:00.000Z",
+      "updated_at": "2026-09-02T12:00:00.000Z",
+      "deleted_at": null,
+      "merged_into": null
+    },
+    {
+      "id": "0199a000-0000-7000-8000-000000000003",
+      "lang": "es",
+      "native": "gato",
+      "base_lang": "en",
+      "sense": "",
+      "gloss": "cat",
+      "forms": [
+        {
+          "text": "cat",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        },
+        {
+          "text": "cats",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        }
+      ],
+      "romanization": null,
+      "native_vocalized": null,
+      "pronunciation": "GAH-toh",
+      "pronunciation_careful": null,
+      "pronunciation_source": "wiktionary",
+      "note": "He said \"miau\", then left,\nquietly",
+      "status": "active",
+      "origin": "add",
+      "source_text": null,
+      "created_at": "2026-09-03T12:00:00.000Z",
+      "updated_at": "2026-09-03T12:00:00.000Z",
+      "deleted_at": null,
+      "merged_into": null
+    },
+    {
+      "id": "0199a000-0000-7000-8000-000000000004",
+      "lang": "ja",
+      "native": "犬",
+      "base_lang": "en",
+      "sense": "",
+      "gloss": "dog",
+      "forms": [
+        {
+          "text": "dog",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        }
+      ],
+      "romanization": "inu",
+      "native_vocalized": null,
+      "pronunciation": "ee-noo",
+      "pronunciation_careful": null,
+      "pronunciation_source": "model",
+      "note": null,
+      "status": "active",
+      "origin": "add",
+      "source_text": null,
+      "created_at": "2026-09-04T12:00:00.000Z",
+      "updated_at": "2026-09-04T12:00:00.000Z",
+      "deleted_at": null,
+      "merged_into": null
+    },
+    {
+      "id": "0199a000-0000-7000-8000-000000000005",
+      "lang": "zh",
+      "native": "猫",
+      "base_lang": "en",
+      "sense": "",
+      "gloss": "cat",
+      "forms": [
+        {
+          "text": "cat",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        }
+      ],
+      "romanization": "māo",
+      "native_vocalized": null,
+      "pronunciation": null,
+      "pronunciation_careful": null,
+      "pronunciation_source": null,
+      "note": null,
+      "status": "paused",
+      "origin": "add",
+      "source_text": null,
+      "created_at": "2026-09-05T12:00:00.000Z",
+      "updated_at": "2026-09-05T12:00:00.000Z",
+      "deleted_at": null,
+      "merged_into": null
+    },
+    {
+      "id": "0199a000-0000-7000-8000-000000000006",
+      "lang": "ko",
+      "native": "고양이",
+      "base_lang": "en",
+      "sense": "",
+      "gloss": "cat",
+      "forms": [
+        {
+          "text": "cat",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        }
+      ],
+      "romanization": "goyangi",
+      "native_vocalized": null,
+      "pronunciation": null,
+      "pronunciation_careful": null,
+      "pronunciation_source": null,
+      "note": null,
+      "status": "active",
+      "origin": "bulk",
+      "source_text": null,
+      "created_at": "2026-09-06T12:00:00.000Z",
+      "updated_at": "2026-09-06T12:00:00.000Z",
+      "deleted_at": null,
+      "merged_into": null
+    },
+    {
+      "id": "0199a000-0000-7000-8000-000000000007",
+      "lang": "ar",
+      "native": "شكرا",
+      "base_lang": "en",
+      "sense": "",
+      "gloss": "thanks",
+      "forms": [
+        {
+          "text": "thanks",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        }
+      ],
+      "romanization": "shukran",
+      "native_vocalized": null,
+      "pronunciation": null,
+      "pronunciation_careful": null,
+      "pronunciation_source": null,
+      "note": "+ said everywhere",
+      "status": "active",
+      "origin": "add",
+      "source_text": null,
+      "created_at": "2026-09-07T12:00:00.000Z",
+      "updated_at": "2026-09-07T12:00:00.000Z",
+      "deleted_at": null,
+      "merged_into": null
+    },
+    {
+      "id": "0199a000-0000-7000-8000-000000000008",
+      "lang": "hi",
+      "native": "पानी",
+      "base_lang": "en",
+      "sense": "",
+      "gloss": "water",
+      "forms": [
+        {
+          "text": "water",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        }
+      ],
+      "romanization": "pānī",
+      "native_vocalized": null,
+      "pronunciation": null,
+      "pronunciation_careful": null,
+      "pronunciation_source": null,
+      "note": null,
+      "status": "active",
+      "origin": "telegram",
+      "source_text": "how do you say water in hindi",
+      "created_at": "2026-09-08T12:00:00.000Z",
+      "updated_at": "2026-09-08T12:00:00.000Z",
+      "deleted_at": null,
+      "merged_into": null
+    },
+    {
+      "id": "0199a000-0000-7000-8000-000000000009",
+      "lang": "el",
+      "native": "νερό",
+      "base_lang": "en",
+      "sense": "",
+      "gloss": "water",
+      "forms": [
+        {
+          "text": "water",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        }
+      ],
+      "romanization": "neró",
+      "native_vocalized": null,
+      "pronunciation": null,
+      "pronunciation_careful": null,
+      "pronunciation_source": null,
+      "note": "-ό takes the stress",
+      "status": "active",
+      "origin": "add",
+      "source_text": null,
+      "created_at": "2026-09-09T12:00:00.000Z",
+      "updated_at": "2026-09-09T12:00:00.000Z",
+      "deleted_at": null,
+      "merged_into": null
+    },
+    {
+      "id": "0199a000-0000-7000-8000-00000000000a",
+      "lang": "he",
+      "native": "שלום",
+      "base_lang": "en",
+      "sense": "",
+      "gloss": "hello",
+      "forms": [
+        {
+          "text": "hello",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        },
+        {
+          "text": "peace",
+          "enabled": false,
+          "case": "any",
+          "ambiguous": false
+        }
+      ],
+      "romanization": "shalom",
+      "native_vocalized": null,
+      "pronunciation": null,
+      "pronunciation_careful": null,
+      "pronunciation_source": null,
+      "note": "@ the door, too",
+      "status": "active",
+      "origin": "add",
+      "source_text": null,
+      "created_at": "2026-09-10T12:00:00.000Z",
+      "updated_at": "2026-09-10T12:00:00.000Z",
+      "deleted_at": null,
+      "merged_into": null
+    },
+    {
+      "id": "0199a000-0000-7000-8000-00000000000b",
+      "lang": "th",
+      "native": "น้ำ",
+      "base_lang": "en",
+      "sense": "",
+      "gloss": "water",
+      "forms": [
+        {
+          "text": "water",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        }
+      ],
+      "romanization": "nam",
+      "native_vocalized": null,
+      "pronunciation": null,
+      "pronunciation_careful": null,
+      "pronunciation_source": null,
+      "note": null,
+      "status": "active",
+      "origin": "manual",
+      "source_text": null,
+      "created_at": "2026-09-11T12:00:00.000Z",
+      "updated_at": "2026-09-11T12:00:00.000Z",
+      "deleted_at": null,
+      "merged_into": null
+    },
+    {
+      "id": "0199a000-0000-7000-8000-00000000000c",
+      "lang": "ka",
+      "native": "წყალი",
+      "base_lang": "en",
+      "sense": "",
+      "gloss": "water",
+      "forms": [
+        {
+          "text": "water",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        }
+      ],
+      "romanization": "ts'q'ali",
+      "native_vocalized": null,
+      "pronunciation": null,
+      "pronunciation_careful": null,
+      "pronunciation_source": null,
+      "note": null,
+      "status": "active",
+      "origin": "import",
+      "source_text": null,
+      "created_at": "2026-09-12T12:00:00.000Z",
+      "updated_at": "2026-09-12T12:00:00.000Z",
+      "deleted_at": null,
+      "merged_into": null
+    },
+    {
+      "id": "0199a000-0000-7000-8000-00000000000d",
+      "lang": "hy",
+      "native": "ջուր",
+      "base_lang": "en",
+      "sense": "",
+      "gloss": "water",
+      "forms": [
+        {
+          "text": "water",
+          "enabled": true,
+          "case": "any",
+          "ambiguous": false
+        }
+      ],
+      "romanization": "jur",
+      "native_vocalized": null,
+      "pronunciation": null,
+      "pronunciation_careful": null,
+      "pronunciation_source": null,
+      "note": null,
+      "status": "active",
+      "origin": "migrated",
+      "source_text": null,
+      "created_at": "2026-09-13T12:00:00.000Z",
+      "updated_at": "2026-09-13T12:00:00.000Z",
+      "deleted_at": null,
+      "merged_into": null
+    }
+  ],
+  "settings": {
+    "enabled": true,
+    "hiddenLangs": [
+      "hy"
+    ],
+    "prefs": {
+      "theme": "dark",
+      "celebrations": false
+    },
+    "ui": {
+      "uiLang": "auto",
+      "baseLangs": [
+        "en"
+      ]
+    }
+  }
+}

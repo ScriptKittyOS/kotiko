@@ -218,6 +218,8 @@
     if (view === "settings" && rest[1] === "add" && /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$/.test(rest[2] ?? "")) {
       return { view, section: rest[0] || null, params: {}, add: rest[2] };
     }
+    // "#settings/data/backup" (the popup's "Back up now", slice 12 §8).
+    if (view === "settings" && rest[0] === "data" && rest[1] === "backup") return { view, section: "data", params: {}, backup: true };
     if (view === "settings") return { view, section: rest[0] || null, params: {} };
     if (view === "add") return { view, params: {} };
     return { view: "words", id: view === "words" && rest[0] ? rest[0] : null, params };

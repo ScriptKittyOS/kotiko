@@ -38,7 +38,11 @@
   const host = location.hostname;
   const isMark = (n) => n?.nodeType === 1 && n.localName === MARK;
 
-  let state = { words: [], enabled: true, pausedHosts: [], hiddenLangs: [], speech: null, baseLangs: null, baseRules: null, prefs: null, sensitiveSites: null, mixing: null, seedSalt: null };
+  const DEFAULTS = { words: [], enabled: true, pausedHosts: [], hiddenLangs: [], speech: null, baseLangs: null, baseRules: null, prefs: null, sensitiveSites: null, mixing: null, seedSalt: null };
+  let state = { ...DEFAULTS };
+  // A key removed from storage (slice 12's "delete everything" clears it all) is back to
+  // its default, so the page puts its original words back.
+  const changed = (c, k) => (c.newValue === undefined ? DEFAULTS[k] : c.newValue);
   let indexes = null;
   // The page's base (or null) and why, from lib/page-lang.js.
   let page = { base: null, reason: "unknown", lang: null };
@@ -388,7 +392,7 @@
     if (torn || area !== "local") return;
     if (!contextValid()) return teardown();
     if (!ready) {
-      for (const k of Object.keys(state)) if (changes[k]) state[k] = changes[k].newValue ?? state[k];
+      for (const k of Object.keys(state)) if (changes[k]) state[k] = changed(changes[k], k);
       missed = { languages: missed?.languages || !!(changes.baseLangs || changes.baseRules) };
       return;
     }
@@ -405,7 +409,7 @@
     }
     for (const k of ["words", "enabled", "pausedHosts", "hiddenLangs", "sensitiveSites", "mixing", "seedSalt"]) {
       if (changes[k]) {
-        state[k] = changes[k].newValue ?? state[k];
+        state[k] = changed(changes[k], k);
         dirty = true;
       }
     }

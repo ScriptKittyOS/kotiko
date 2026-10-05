@@ -800,7 +800,7 @@ describe("settings (§9)", () => {
   test("every built section, each saving on change", async () => {
     const d = await openDashboard({ hash: "#settings" });
     assert.equal(d.$("#settingsView").hidden, false);
-    assert.deepEqual(d.$$("#settingsIndex a").map((a) => a.textContent), ["Languages you read in", "Kotiko’s language", "Word lookups", "Your Kotiko server", "Voices", "Learning", "Your languages on a page", "Pages", "Appearance", "About"]);
+    assert.deepEqual(d.$$("#settingsIndex a").map((a) => a.textContent), ["Languages you read in", "Kotiko’s language", "Word lookups", "Your Kotiko server", "Voices", "Learning", "Your languages on a page", "Pages", "Appearance", "Your data", "About"]);
     assert.equal(d.$("#accessKey").type, "password", "the key is typed here, hidden by default");
     assert.equal(d.$("#accessKey").value, "", "a saved token is never read back (slice 11)");
     d.$("#serverUrl").value = "http://127.0.0.1:5000";

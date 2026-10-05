@@ -48,11 +48,18 @@
 
   const ROLE_NAMES = {
     native: ["native", "word", "front", "term", "palabra", "término", "anverso"],
+    // Slice 12's export columns (stable ids, and the English headers); `headers` adds the
+    // interface language's own (export_csv_col_*).
+    native_vocalized: ["native_vocalized", "word_with_marks"],
+    forms: ["forms"],
+    lang_code: ["language_code"],
+    base_code: ["base_language_code"],
+    pronunciation_source: ["pronunciation_source"],
     // base-neutral-ok: "english" names the meaning in 0.2's exported lists
     gloss: ["gloss", "meaning", "back", "translation", "definition", "english", "significado", "traducción", "definición", "reverso"],
     romanization: ["romanization", "transliteration", "translit", "pinyin", "romaji", "jyutping", "romanización", "transliteración"],
     pronunciation: ["pronunciation", "respelling", "pronunciación"],
-    pronunciation_careful: ["pronunciation_careful", "careful", "pronunciación cuidada"],
+    pronunciation_careful: ["pronunciation_careful", "pronunciation_slow", "careful", "pronunciación cuidada"],
     note: ["note", "notes", "nota", "notas"],
     lang: ["lang", "language", "idioma", "lengua"],
     base_lang: ["base_lang", "base_language", "base language", "idioma base"],
@@ -297,15 +304,16 @@
 
   // Roles from a header row, or null when the first row isn't one: a known name, or a
   // language (the base's column is the meaning, another language's the word).
-  function headerRoles(header, { base, langs }) {
+  function headerRoles(header, { base, langs, headers = null }) {
     if (!header?.length) return null;
+    const extra = new Map(Object.entries(headers ?? {}).flatMap(([role, names]) => [names].flat().filter(Boolean).map((n) => [norm(n), role])));
     let known = 0;
     // A language's name first: "English" over a base-Spanish list is the word's column,
     // though 0.2's lists named the meaning `english`.
     const roles = header.map((h) => {
       const named = languageNamed(h, langs);
       if (named) return known++, primary(named) === primary(base) ? "gloss" : `native:${named}`;
-      const r = ROLE_OF.get(norm(h).replace(/^'/, ""));
+      const r = ROLE_OF.get(norm(h).replace(/^'/, "")) ?? extra.get(norm(h).replace(/^'/, ""));
       if (r) return known++, r;
       return "ignore";
     });
@@ -337,7 +345,7 @@
 
   // Everything read, as rows ready for the review table. `roles` (optional) is the column
   // mapping the learner chose; `swap` flips the two sides.
-  async function build(r, { base, target = null, langs, stopwords = null, detect = null, htmlToText = null, roles: chosen = null, swap = null } = {}) {
+  async function build(r, { base, target = null, langs, stopwords = null, detect = null, htmlToText = null, roles: chosen = null, swap = null, headers = null } = {}) {
     if (r.error || r.format === "kotiko-backup") return { rows: [], ...r };
     const notes = [];
     let items;
@@ -347,25 +355,33 @@
       items = r.rows.map(([l]) => line(l, langs)).filter(Boolean);
     } else {
       let rows = r.rows.map((cells) => cells.map((c) => (r.format === "anki" ? ankiText(c, r.html, htmlToText) : c.trim())));
-      const fromHeader = headerRoles(r.header ?? rows[0], { base, langs });
+      const fromHeader = headerRoles(r.header ?? rows[0], { base, langs, headers });
       if (fromHeader && !r.header) {
         header = rows[0];
         rows = rows.slice(1);
-        if (header.some((h) => /^'?(word|native|palabra)$/i.test(h.trim()))) rows = rows.map((cells) => cells.map(unguard));
+        if (fromHeader.some((x) => x === "native")) rows = rows.map((cells) => cells.map(unguard));
       } else header = r.header ?? null;
       roles = chosen ?? fromHeader ?? defaultRoles(rows);
       items = rows.map((cells) => {
         const pick = (role) => cells[roles.indexOf(role)] ?? "";
         const nativeCol = roles.findIndex((x) => x === "native" || x.startsWith("native:") || x === "side0");
         const glossCol = roles.findIndex((x) => x === "gloss" || x === "side1");
-        const lang = roles[nativeCol]?.startsWith("native:") ? roles[nativeCol].slice(7) : pick("lang") ? languageNamed(pick("lang"), langs) ?? pick("lang").trim() : null;
+        const lang = roles[nativeCol]?.startsWith("native:") ? roles[nativeCol].slice(7) : pick("lang_code") ? pick("lang_code").trim() : pick("lang") ? languageNamed(pick("lang"), langs) ?? pick("lang").trim() : null;
         const a = side(cells[nativeCol] ?? "");
         const b = glossCol >= 0 ? side(cells[glossCol] ?? "") : null;
         a.romanization = pick("romanization") || a.romanization;
         a.pronunciation = pick("pronunciation") || a.pronunciation;
         const reading = pick("reading");
         if (reading && scriptOf(reading) === "Latn" && !a.romanization) a.romanization = reading;
-        return { sides: b?.text ? [a, b] : [a], note: pick("note") || null, lang, source: cells.join(" · "), fixed: roles.some((x) => x === "native" || x === "gloss" || x.startsWith("native:")) };
+        // A Kotiko export's own columns come back as they were (slice 12 §3).
+        const kept = {
+          native_vocalized: pick("native_vocalized") || null,
+          pronunciation_careful: pick("pronunciation_careful") || null,
+          pronunciation_source: ["model", "user", "wiktionary"].includes(pick("pronunciation_source")) ? pick("pronunciation_source") : null,
+          base_lang: pick("base_code").trim() || null,
+          forms: pick("forms") ? pick("forms").split(" | ").map((f) => f.trim()).filter(Boolean) : null,
+        };
+        return { sides: b?.text ? [a, b] : [a], note: pick("note") || null, lang, kept, source: cells.join(" · "), fixed: roles.some((x) => x === "native" || x === "gloss" || x.startsWith("native:")) };
       });
     }
     if (items.length > MAX_ROWS) {
@@ -398,8 +414,10 @@
       }
       const w = x.sides[wordSide];
       const m = x.sides[1 - wordSide];
-      const forms = m.text.split(FORM_SEP).map(unmark).filter(Boolean);
-      return { native: w.text, gloss: forms[0] ?? "", forms, romanization: w.romanization ?? m.romanization, pronunciation: w.pronunciation ?? m.pronunciation, note: x.note, lang: x.lang, source_text: x.source, lookup: null };
+      const forms = x.kept?.forms?.length && wordSide === 0 ? [m.text, ...x.kept.forms.filter((f) => f !== m.text)] : m.text.split(FORM_SEP).map(unmark).filter(Boolean);
+      const kept = x.kept && wordSide === 0 ? { ...x.kept } : {};
+      delete kept.forms;
+      return { native: w.text, gloss: forms[0] ?? "", forms, romanization: w.romanization ?? m.romanization, pronunciation: w.pronunciation ?? m.pronunciation, note: x.note, lang: x.lang, source_text: x.source, lookup: null, ...kept };
     });
     return { rows, wordSide, decidedBy: swap === null ? o.by : "learner", question: swap === null ? o.question ?? null : null, roles, header, notes, format: r.format };
   }

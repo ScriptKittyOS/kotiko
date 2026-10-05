@@ -5,6 +5,17 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Back up your words to a file and restore them, export to a spreadsheet or Anki, and
+  delete everything with one button. In Settings, "Your data": a backup file holds every
+  word (and your settings, never your keys); restoring one shows what it will add or merge
+  first, never duplicates a word or undoes an edit you made since, and can be undone for a
+  day. The spreadsheet opens with every script intact, and Kotiko's bulk add reads it
+  back. The Anki file gives each language its own deck, and importing a newer one updates
+  the same cards. "Delete everything…" clears all Kotiko keeps in this browser (open pages
+  get their own words back), and can empty your Kotiko server too. On the server:
+  `mix kotiko.export`, `mix kotiko.import` and `mix kotiko.reset`. When your words are only
+  in this browser, the popup reminds you to back up once a month.
+
 - Kotiko is ready to ship to the Chrome Web Store and Firefox Add-ons. Each release on
   GitHub carries both store packages, a checksum list, a list of the server's dependencies,
   and a signed record of how each file was built. Anyone can rebuild the packages from the

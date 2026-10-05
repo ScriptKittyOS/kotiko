@@ -14,7 +14,7 @@ if (!globalThis.SyncController && typeof importScripts === "function") {
   importScripts(
     "lib/url.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js", "lib/i18n.js", "lib/badge.js",
     "spec/spec.js", "lib/text.js", "lib/lang.js", "lib/words-v1.js", "lib/wordspec.js", "lib/word-merge.js", "lib/store.js",
-    "lib/projection.js", "lib/llm/policy.js", "lib/llm/catalog.js", "lib/llm/client.js", "lib/add-queue.js",
+    "lib/backup.js", "lib/projection.js", "lib/llm/policy.js", "lib/llm/catalog.js", "lib/llm/client.js", "lib/add-queue.js",
     "lib/refresh-job.js", "lib/local-mode.js", "lib/pkce.js", "lib/celebrations.js", "lib/welcome-model.js",
     "lib/pronounce.js", "lib/wiktionary-pass.js",
   );
@@ -52,7 +52,14 @@ const uiLanguage = () => {
 // ── the store, the one-time upgrade and secrets ─────────────────────────────
 
 let storeP = null;
+// Slice 12's "delete everything": `deleting` while it deletes the database, `wiped` from
+// then until an extension page asks for something again. Meanwhile nothing may recreate the
+// store or write a storage area.
+let deleting = false;
+let wiped = false;
+let wipedAt = 0;
 function getStore() {
+  if (deleting || wiped) return Promise.reject(codedError("storage_full", "Everything Kotiko kept was deleted.", { reason: deleting ? "deleting" : "deleted" }));
   storeP ??= globalThis.KotikoStore.open({ indexedDB: globalThis.indexedDB, now }).catch((e) => {
     storeP = null;
     throw e;
@@ -331,7 +338,7 @@ const projector = globalThis.KotikoProjection.createProjector({
   list: async () => (await getStore()).list(),
   storage: ext.storage.local,
   bases: currentBases,
-  enabled: async () => (await home()) === "local",
+  enabled: async () => !wiped && (await home()) === "local",
   onError: (e) => console.warn("Kotiko couldn't update the page word list:", e?.message ?? e),
 });
 let lastBases = null;
@@ -588,6 +595,223 @@ async function toLocal({ forget = false, serverLookups = false } = {}) {
   return { ok: true, total: n };
 }
 
+// ── backups and "delete everything" (slice 12) ─────────────────────────────
+
+const Backup = globalThis.KotikoBackup;
+const RESTORE_OPS = 1000; // words.write's limit per call
+// What the dashboard may change on a word when a backup or an undo patches it on a server.
+const PATCHABLE = Backup.CONTENT.filter((f) => f !== "base_lang");
+
+// What pages ask for on their own, to show something. Pages left open react to the cleared
+// storage at once; for a moment after the delete those requests fail rather than set
+// Kotiko up again. After that, or for anything a person asked for, Kotiko starts afresh.
+const PASSIVE = new Set(["sync", "sensitiveSites", "llmStatus", "backend.get", "secrets.describe", "words.list", "words.deleted", "jobs.seen", "backup.status", "data.describe", "job.refresh", "celebrations.claim", "data.deleteAll"]);
+const SETTLE_MS = 2000;
+
+function checkBackupWords(m) {
+  if (!Array.isArray(m.words) || m.words.length > Backup.MAX_WORDS || m.words.some((w) => !w || typeof w !== "object" || Array.isArray(w))) return `words must list up to ${Backup.MAX_WORDS} words`;
+  if (m.restoreDeleted !== undefined && m.restoreDeleted !== null && typeof m.restoreDeleted !== "boolean") return "restoreDeleted must be true, false or null";
+  return null;
+}
+
+// The page checked the file (lib/backup.js); the words are checked again here, so nothing
+// a page sends can put a malformed record in the store.
+function recheck(words) {
+  const out = [];
+  for (const w of words) {
+    const r = Backup.checkWord(w, { version: Backup.SCHEMA_VERSION });
+    if (r.word) out.push({ ...r.word, created_at: r.word.created_at ?? new Date(now()).toISOString(), updated_at: r.word.updated_at ?? r.word.created_at ?? new Date(now()).toISOString() });
+  }
+  return out;
+}
+
+// Every record the restore compares against: the store's, tombstones too; on a server, its
+// live words and the deletes this browser remembers (the server lists no tombstones).
+async function existingRecords() {
+  if ((await home()) === "local") return (await getStore()).all();
+  const live = await serverWords();
+  const ids = new Set(live.map((w) => w.id));
+  const { recentlyDeleted = [] } = await ext.storage.local.get({ recentlyDeleted: [] });
+  const gone = (Array.isArray(recentlyDeleted) ? recentlyDeleted : [])
+    .filter((e) => e?.word?.id && !ids.has(e.word.id))
+    .map((e) => ({ ...e.word, deleted_at: e.word.deleted_at ?? new Date(e.at ?? now()).toISOString() }));
+  return [...live, ...gone];
+}
+
+async function backupPreview(m) {
+  const words = recheck(m.words);
+  const p = Backup.plan(words, await existingRecords(), { restoreDeleted: m.restoreDeleted ?? null, now: now() });
+  return { ok: true, home: await home(), counts: p.counts, restoreDeleted: p.restoreDeleted, total: words.length };
+}
+
+const patchOf = (record, from) => Object.fromEntries(PATCHABLE.filter((f) => JSON.stringify(record[f] ?? null) !== JSON.stringify(from?.[f] ?? null)).map((f) => [f, record[f] ?? null]));
+
+async function serverWriteOps(ops) {
+  const results = [];
+  for (let i = 0; i < ops.length; i += RESTORE_OPS) results.push(...(await serverHandlers["words.write"].run({ ops: ops.slice(i, i + RESTORE_OPS) })).results);
+  return results;
+}
+
+// Server mode (section 5 step 3, section 7): new words through slice 07's batch route, 500
+// at a time with their ids; restored deletes and merges as edits, each checked against the
+// version the plan read. Counts are combined; what changed is kept for Undo.
+async function restoreToServer(words, restoreDeleted) {
+  const p = Backup.plan(words, await existingRecords(), { restoreDeleted, now: now() });
+  const counts = { ...p.counts, created: 0, updated: 0, unchanged: 0, failed: 0 };
+  const writes = [];
+  const creates = p.writes.filter((x) => !x.previous);
+  // A delete this browser remembers: restore it on the server, or, when the server no
+  // longer has it, send the word as new.
+  const revive = p.writes.filter((x) => x.previous?.deleted_at);
+  const revived = [];
+  (await serverWriteOps(revive.map((x) => ({ op: "restore", id: x.record.id })))).forEach((r, i) => {
+    if (r.ok) revived.push(revive[i]);
+    else if (r.code === "word_gone") creates.push(revive[i]);
+    else counts.failed++;
+  });
+  for (let i = 0; i < creates.length; i += BATCH) {
+    const chunk = creates.slice(i, i + BATCH).map((x) => forServer(x.record));
+    const res = await apiV1("/api/v1/words/batch", { method: "POST", body: { words: chunk, client_request_id: globalThis.KotikoStore.uuid7(now()) }, timeoutMs: 60_000 });
+    for (const r of res.results ?? []) {
+      if (counts[r.result] !== undefined) counts[r.result]++;
+      if (r.result === "created" && r.word?.id) writes.push({ id: r.word.id, updated_at: r.word.updated_at, previous: null });
+      if (r.result === "updated" && r.word?.id) writes.push({ id: r.word.id, updated_at: r.word.updated_at, previous: r.previous ?? null });
+    }
+    counts.failed += Array.isArray(res.rejected) ? res.rejected.length : 0;
+  }
+  const edits = [...revived, ...p.writes.filter((x) => x.previous && !x.previous.deleted_at)];
+  const patches = edits.map((x) => ({ x, op: { op: "patch", id: x.record.id, patch: patchOf(x.record, x.previous), ...(x.previous.deleted_at ? {} : { if_updated_at: x.previous.updated_at }) } }));
+  const results = await serverWriteOps(patches.filter((e) => Object.keys(e.op.patch).length).map((e) => e.op));
+  let k = 0;
+  for (const { x, op } of patches) {
+    const r = Object.keys(op.patch).length ? results[k++] : { ok: true, word: null };
+    if (r.ok) {
+      counts.updated++;
+      writes.push({ id: x.record.id, updated_at: r.word?.updated_at ?? null, previous: x.previous });
+    } else counts.failed++;
+  }
+  return { counts, writes, restoreDeleted: p.restoreDeleted };
+}
+
+async function backupRestore(m) {
+  const words = recheck(m.words);
+  const store = await getStore();
+  let out;
+  if ((await home()) === "local") {
+    const r = await store.importWords(words, { restoreDeleted: m.restoreDeleted ?? null, label: typeof m.label === "string" ? m.label.slice(0, 200) : null });
+    out = { ok: true, home: "local", counts: r.counts, restoreDeleted: r.restoreDeleted };
+    if (m.pronunciations !== false && words.some((w) => !w.pronunciation)) refresh.nudge().catch(() => {});
+  } else {
+    const r = await restoreToServer(words, m.restoreDeleted ?? null);
+    if (r.writes.length) await store.meta.set("lastImport", { at: now(), home: "server", label: typeof m.label === "string" ? m.label.slice(0, 200) : null, counts: r.counts, writes: r.writes });
+    sync.request({ reason: "edit", force: true }).catch?.(() => {});
+    out = { ok: true, home: "server", counts: r.counts, restoreDeleted: r.restoreDeleted };
+  }
+  await ext.storage.local.set({ lastBackupAt: now() });
+  return out;
+}
+
+async function backupUndo() {
+  const store = await getStore();
+  const last = await store.meta.get("lastImport");
+  if (!last || now() - last.at > 86_400_000) return { ok: false, code: "nothing_to_undo", undone: 0, changed: 0 };
+  if (last.home !== "server") {
+    if ((await home()) !== "local") return { ok: false, code: "nothing_to_undo", undone: 0, changed: 0 };
+    return store.undoImport();
+  }
+  const ops = last.writes.map((w) =>
+    !w.previous || w.previous.deleted_at
+      ? { op: "delete", id: w.id }
+      : { op: "patch", id: w.id, patch: Object.fromEntries(PATCHABLE.map((f) => [f, w.previous[f] ?? null])), ...(w.updated_at ? { if_updated_at: w.updated_at } : {}) },
+  );
+  const results = await serverWriteOps(ops);
+  await store.meta.remove("lastImport");
+  const undone = results.filter((r) => r.ok).length;
+  return { ok: true, undone, changed: results.length - undone };
+}
+
+async function backupStatus() {
+  const { lastBackupAt = null } = await ext.storage.local.get({ lastBackupAt: null });
+  const last = await (await getStore()).meta.get("lastImport").catch(() => null);
+  const fresh = last && now() - last.at <= 86_400_000;
+  return { lastBackupAt, lastImport: fresh ? { at: last.at, label: last.label ?? null, counts: last.counts ?? null, home: last.home ?? "local" } : null };
+}
+
+// Whether storage.sync really syncs here (not Firefox for Android or Safari, per MDN's
+// browser-compat-data), for "Also clear settings synced to your other browsers".
+async function syncReal() {
+  try {
+    if ((await ext.runtime.getPlatformInfo?.())?.os === "android") return false;
+  } catch {
+    // no platform info: assume a desktop browser
+  }
+  const ua = String(globalThis.navigator?.userAgent ?? "");
+  return !(/Safari\//.test(ua) && !/Chrom(e|ium)\/|Firefox\//.test(ua));
+}
+
+// What the "Delete everything" dialog names (section 6).
+async function dataDescribe() {
+  await ready().catch(() => {});
+  const s = await settings();
+  const store = await getStore();
+  const ids = await store.secrets.ids().catch(() => []);
+  const words = s.wordsHome === "local" ? await store.count() : ((await ext.storage.local.get({ words: [] })).words ?? []).length;
+  let serverCount = null;
+  if (s.keys.server) {
+    try {
+      serverCount = (await serverWords()).length;
+    } catch {
+      serverCount = null;
+    }
+  }
+  return {
+    wordsHome: s.wordsHome ?? "local",
+    words,
+    providerKey: ids.some((id) => String(id).startsWith("provider:")),
+    server: s.keys.server ? { url: s.server.url, words: serverCount } : null,
+    syncReal: await syncReal(),
+  };
+}
+
+// "Delete everything" (section 6), in the spec's order after the page downloaded the
+// backup: the server's words when asked (stop if that fails), every job and alarm, the
+// whole database, every storage area this browser holds (storage.sync only when asked), and
+// the pages' words, so open tabs put the original text back.
+async function deleteEverything(m) {
+  let server = null;
+  if (m.server === true) {
+    server = await apiV1("/api/v1/words", { method: "DELETE", body: { confirm: "delete-all-words" }, timeoutMs: 60_000 });
+  }
+  wiped = true;
+  wipedAt = now();
+  deleting = true;
+  try {
+    await wipeEverything(m);
+  } finally {
+    deleting = false;
+  }
+  updateAllBadges();
+  return { ok: true, server: server ? { deleted: server.deleted ?? null, reset_epoch: server.reset_epoch ?? null } : null };
+}
+
+async function wipeEverything(m) {
+  queue.abortRunning();
+  for (let i = 0; i < 50 && queue.running(); i++) await new Promise((r) => setTimeout(r, 20));
+  await Promise.resolve(ext.alarms.clearAll?.()).catch(() => {});
+  await Promise.resolve(ext.contextMenus?.removeAll?.()).catch(() => {});
+  const store = await storeP?.catch(() => null);
+  store?.close();
+  storeP = null;
+  readyP = null;
+  secretCache.clear();
+  client.reset();
+  await globalThis.KotikoStore.wipe({ indexedDB: globalThis.indexedDB });
+  await ext.storage.local.set({ words: [] });
+  await ext.storage.local.clear();
+  await Promise.resolve(ext.storage.session?.clear?.()).catch(() => {});
+  if (m.sync === true) await Promise.resolve(ext.storage.sync.clear()).catch(() => {});
+}
+
 // ── triggers ───────────────────────────────────────────────────────────────
 
 // Runs at every worker start, including after the extension is re-enabled, when neither
@@ -616,6 +840,15 @@ async function ensureSeedSalt() {
   if (salt !== local) await ext.storage.local.set({ seedSalt: salt });
 }
 ensureSeedSalt().catch(() => {});
+
+// Slice 12 §8: the backup reminder counts from the first start of a version that has it,
+// so nobody is reminded on day one.
+async function ensureBackupClock() {
+  if (wiped) return;
+  const { backupSince } = await ext.storage.local.get({ backupSince: null });
+  if (typeof backupSince !== "number") await ext.storage.local.set({ backupSince: now() });
+}
+ensureBackupClock().catch(() => {});
 
 // Slice 08: languages hidden under an old code stay hidden under the canonical one, so a
 // hidden "cmn" is a hidden "zh" once the server re-tags its words.
@@ -807,7 +1040,7 @@ ext.runtime.onStartup.addListener(() => {
   requestSync({ reason: "startup" });
 });
 ext.alarms.onAlarm.addListener((a) => {
-  if (a.name !== ALARM) return;
+  if (a.name !== ALARM || wiped) return;
   requestSync({ reason: "alarm" });
   queue.kick();
   refresh.tick().catch(() => {});
@@ -873,13 +1106,25 @@ const wordRoutes = Object.fromEntries(
   }]),
 );
 
+// After "delete everything", a request from an extension page (the welcome tab's "Start
+// again", say) lets the background work again; content scripts' requests don't.
+function wakeAfterWipe(router) {
+  const onMessage = (msg, sender, sendResponse) => {
+    if (wiped && globalThis.MessageRouter.senderKinds(sender, ext.runtime).has("page") && (!PASSIVE.has(msg?.type) || now() - wipedAt > SETTLE_MS)) wiped = false;
+    return router(msg, sender, sendResponse);
+  };
+  // The router's list of routes, for audits that read it from the listener.
+  if (router.routes) onMessage.routes = router.routes;
+  return onMessage;
+}
+
 // Content scripts ask for a sync on every page load; the popup asks with force. Adds go
 // to the add queue (or, with a server that looks words up and keeps them, straight to
 // it as before). Only extension pages may add, delete, read secrets' descriptions or
 // change settings (research 03 E3, slice 26); content scripts may only sync, and the docs
 // site's callback page may send `oauth.code`.
 ext.runtime.onMessage.addListener(
-  createMessageRouter({
+  wakeAfterWipe(createMessageRouter({
     runtime: ext.runtime,
     docsOrigin: globalThis.KotikoPKCE.DOCS_ORIGIN,
     handlers: {
@@ -1073,6 +1318,26 @@ ext.runtime.onMessage.addListener(
         },
       },
 
+      // Backups, restores and delete everything (slice 12).
+      "backup.status": { from: ["page"], run: () => backupStatus() },
+      "backup.preview": { from: ["page"], check: checkBackupWords, run: backupPreview },
+      "backup.restore": { from: ["page"], check: checkBackupWords, run: backupRestore },
+      "backup.undo": { from: ["page"], run: () => backupUndo() },
+      // The page saved a backup file (the reminder counts from it, section 8).
+      "backup.saved": {
+        from: ["page"],
+        async run() {
+          await ext.storage.local.set({ lastBackupAt: now() });
+          return { ok: true };
+        },
+      },
+      "data.describe": { from: ["page"], run: () => dataDescribe() },
+      "data.deleteAll": {
+        from: ["page"],
+        check: (m) => (m.confirm !== "delete-everything" ? "confirm must be delete-everything" : [m.server, m.sync].some((v) => v !== undefined && typeof v !== "boolean") ? "server and sync must be true or false" : null),
+        run: deleteEverything,
+      },
+
       // Connect OpenRouter (slice 11 section 4). The button waits for the docs site's
       // callback page (slice 44); these routes are its hooks.
       "oauth.start": {
@@ -1105,7 +1370,7 @@ ext.runtime.onMessage.addListener(
         },
       },
     },
-  }),
+  })),
 );
 
 // "Wrong language" (24 §6): the same text as a new job with that language as its hint.
@@ -1276,6 +1541,7 @@ async function adoptLegacy() {
 }
 
 ext.storage.onChanged.addListener((changes, area) => {
+  if (wiped) return;
   if (area === "sync" && changes.ui) {
     projector.schedule();
     mirrorBaseRules().catch(() => {});
