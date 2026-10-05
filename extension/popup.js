@@ -31,6 +31,8 @@
     hiddenLangs: [],
     prefs: {},
     mixing: null,
+    // The languages the learner reads (50), mirrored by the background.
+    baseLangs: null,
     words: [],
     lastSync: null,
     syncError: null,
@@ -194,6 +196,10 @@
     undos: new Map(),
     doneAtOpen: new Set(),
     rendered: new Set(),
+    // 24 §8: the language hint, and the bases unticked for the next add only.
+    hint: null,
+    narrow: new Set(),
+    voices: new Map(),
     maskedToken: null,
   };
 
@@ -545,6 +551,62 @@
     renderPage();
   }
 
+  // --- What loads later -----------------------------------------------------------------
+  // The popup starts from scratch on every open, so what the first view doesn't need loads
+  // after the first frame (the voice library) or on first use (the manual form, the full
+  // language list, popup-more.js), as Chrome's and V8's guidance for popups advises.
+  const loads = new Map();
+  const load = (src) => loads.get(src) ?? loads.set(src, new Promise((resolve, reject) => document.head.append(el("script", { src, onload: resolve, onerror: reject })))).get(src);
+  const more = () => load("popup-more.js").then(() => globalThis.KotikoPopupMore.create({ el, t, icon, send, langName, I18n, ext }));
+  // Languages to offer first: the learner's own, by name.
+  const myLangs = () => languages(state.s?.words ?? []).map((l) => l.lang);
+
+  // Voices for the speak button (34), once the first frame is up: lang -> true | false.
+  function loadVoices() {
+    load("lib/speak.js").then(() => {
+      globalThis.KotikoSpeak.configure({ ...globalThis.KotikoSpeak.DEFAULTS, ...state.s?.speech });
+      renderJobs();
+    }).catch(() => {});
+  }
+  function checkVoices(jobs) {
+    const S = globalThis.KotikoSpeak;
+    if (!S) return;
+    for (const l of new Set(jobs.flatMap((j) => j.words.map((w) => w.word.lang)))) {
+      if (state.voices.has(l)) continue;
+      state.voices.set(l, false);
+      S.canSpeak(l).then((ok) => ok && (state.voices.set(l, true), renderJobs())).catch(() => {});
+    }
+  }
+
+  // The language hint (24 §8): Auto, or the Focus language, else one picked; kept for the
+  // browser session.
+  function renderHint() {
+    const sel = $("hintLang");
+    const focus = focusOf(state.s);
+    const langs = [...new Set([...myLangs(), ...(state.hint ? [state.hint] : [])])];
+    const auto = focus?.length === 1 ? langName(focus[0]) : t("popup_hint_auto");
+    sel.replaceChildren(el("option", { value: "" }, auto), ...langs.map((l) => el("option", { value: l }, langName(l))), el("option", { value: "*" }, t("popup_hint_more")));
+    sel.value = state.hint ?? "";
+  }
+
+  async function setHint(value) {
+    if (value === "*") value = (await (await more()).pickLanguage({ anchor: $("hintLang"), first: myLangs() })) ?? state.hint;
+    state.hint = value || null;
+    renderHint();
+    ext.storage.session?.set({ addHint: state.hint }).catch(() => {});
+  }
+
+  // "For pages in" (24 §8): one chip per language read, all ticked; unticking narrows the
+  // next add only, and one always stays ticked.
+  function renderPagesIn() {
+    const bases = Array.isArray(state.s?.baseLangs) ? state.s.baseLangs : [];
+    $("pagesIn").hidden = bases.length < 2;
+    const on = bases.filter((b) => !state.narrow.has(b));
+    $("pagesInChips").replaceChildren(...(bases.length < 2 ? [] : bases.map((b) => el("label", { class: "page-chip" },
+      el("input", { type: "checkbox", value: b, checked: on.includes(b) ? "" : null, disabled: on.length === 1 && on[0] === b ? "" : null, onchange: (e) => (e.target.checked ? state.narrow.delete(b) : state.narrow.add(b), renderPagesIn()) }),
+      langName(b)))));
+  }
+
   // --- Recent adds -------------------------------------------------------------------
   // Add jobs live in `addJobs`, the background's, and finish with the popup closed (24 §1).
   // One line per target word, whatever the number of bases it has a record for (24 §4).
@@ -588,7 +650,8 @@
   // shown since the popup opened.
   function currentJobs() {
     if (!state.s) return [];
-    const stored = (state.s.addJobs ?? []).filter((j) => j?.id && j.state !== "cancelled");
+    // A job re-added in another language (24 §6) gives way to the new one.
+    const stored = (state.s.addJobs ?? []).filter((j) => j?.id && j.state !== "cancelled" && !j.replacedBy);
     const list = [...[...state.optimistic.values()].reverse().filter((o) => !stored.some((j) => j.id === o.id)), ...stored]
       .filter((j) => !/done|failed/.test(j.state) || !j.seen || state.shownJobs.has(j.id))
       .sort((a, b) => b.createdAt - a.createdAt)
@@ -626,6 +689,8 @@
       return added.length ? I18n.parts("add_updated", { ...params, changes: t("add_updated_forms", { forms: added.join(", ") }) }) : I18n.parts("add_updated_plain", params);
     }
     if (pron) params.pronunciation = el("span", { class: "job-pron", lang: `${w.lang}-Latn` }, pron);
+    // The wrong language, fixed in two clicks (24 §6): this chip, then a language.
+    params.lang = el("button", { class: "lang-chip", type: "button", "data-action": "relang", "aria-haspopup": "dialog", "aria-label": t("add_change_lang", { native: w.native, lang: params.lang }), onclick: (e) => relang(entry, e.currentTarget) }, params.lang, icon("chevron", 12));
     return I18n.parts(pron ? "add_created" : "add_created_plain", params);
   }
 
@@ -633,11 +698,11 @@
   function waitingLine(job) {
     const { code, text } = job;
     const at = Date.parse(job.details.retry_at ?? "");
-    if (code === "lookup_not_set_up") return { text: t("add_waiting_setup", { text }), actions: ["setupLookups", "cancel"] };
+    if (code === "lookup_not_set_up") return { text: t("add_waiting_setup", { text }), actions: ["setupLookups", "manual", "cancel"] };
     if (code === "quota_exhausted" && at) return { text: t("add_waiting_quota", { text, time: new Intl.DateTimeFormat(I18n.locale(), { timeStyle: "short" }).format(at) }), actions: ["cancel"] };
-    if (code === "offline") return { text: t("add_waiting_offline", { text }), actions: ["cancel"] };
-    if (RETRYABLE.has(code)) return { text: t("add_waiting_busy", { text }), actions: ["retry", "cancel"] };
-    return { text: t("add_waiting", { text, reason: problem(job).text }), actions: ["retry", "cancel"] };
+    if (code === "offline") return { text: t("add_waiting_offline", { text }), actions: ["manual", "cancel"] };
+    if (RETRYABLE.has(code)) return { text: t("add_waiting_busy", { text }), actions: ["retry", "manual", "cancel"] };
+    return { text: t("add_waiting", { text, reason: problem(job).text }), actions: ["retry", "manual", "cancel"] };
   }
 
   const openWord = (id) => openDashboardAt(`#words/${encodeURIComponent(id)}`);
@@ -672,7 +737,7 @@
     if (line.kind === "missing") return [icon("info", 18), el("span", { class: "job-text" }, t("add_missing_base", { base: job.missing.map(langName).join(", ") }))];
     if (line.kind === "waiting") {
       const w = waitingLine(job);
-      const actions = w.actions.map((a) => actionLink(a, () => retryJob(job), () => cancelJob(job))).filter(Boolean);
+      const actions = w.actions.map((a) => (a === "manual" ? manualLink(job) : actionLink(a, () => retryJob(job), () => cancelJob(job)))).filter(Boolean);
       return [
         icon("info", 18),
         el("div", { class: "job-text" }, el("p", {}, w.text), el("div", { class: "job-more" }, actions)),
@@ -680,7 +745,7 @@
     }
     if (line.kind === "failed") {
       const e = job.error;
-      const actions = e.actions.map((a) => actionLink(a, () => retryJob(job))).filter(Boolean);
+      const actions = [...e.actions.map((a) => actionLink(a, () => retryJob(job))), job.local ? null : manualLink(job)].filter(Boolean);
       const details = e.details ? el("details", { class: "details" }, el("summary", {}, t("error_details")), el("pre", {}, e.details)) : null;
       return [
         icon("error", 18),
@@ -705,30 +770,35 @@
     }
     const fresh = entry.fresh;
     entry.fresh = false;
+    // Say it, when the device has a voice for it (34); voices load after the first frame.
+    const speak = state.voices.get(w.lang) ? smallButton("speak", icon("speaker", 16), () => globalThis.KotikoSpeak.say(w), { "aria-label": t("speak_label", { word: w.native, lang: langName(w.lang) }) }) : null;
     const action = entry.result === "unchanged"
       ? smallButton("open", t("add_open"), () => openWord(w.id), { "aria-label": t("add_open_label", { native: w.native }) })
       : smallButton("undo", [icon("undo", 16), t("add_undo")], () => entry.undo !== "pending" && undo(job, entry), { "aria-label": t("add_undo_label", { native: w.native }), "aria-disabled": entry.undo === "pending" ? "true" : null });
-    return [el("span", { class: "job-text" }, wordText(entry, fresh)), el("span", { class: "job-actions" }, action)];
+    return [el("span", { class: "job-text" }, wordText(entry, fresh)), el("span", { class: "job-actions" }, speak, action)];
   }
 
   function signature(line) {
-    if (line.kind === "word") return `word:${line.entry.result}:${line.entry.undo ?? ""}`;
+    if (line.kind === "word") return `word:${line.entry.result}:${line.entry.undo ?? ""}:${state.voices.get(line.entry.word.lang) ?? ""}`;
     if (line.kind === "waiting") return `waiting:${line.job.code ?? ""}`;
     if (line.kind === "failed") return `failed:${line.job.error?.text ?? ""}`;
     if (line.kind === "choose") return `choose:${line.job.candidates.length}`;
     return line.kind;
   }
 
-  function renderJobs() {
+  function renderJobs(force = false) {
     const list = $("jobs");
     const existing = new Map([...list.children].map((li) => [li.dataset.key, li]));
+    // A manual form being filled stays until it's saved or cancelled.
+    const keep = new Set(force ? [] : [...existing].filter(([, li]) => li.dataset.sig === "manual").map(([k]) => k));
     const jobs = currentJobs();
+    checkVoices(jobs);
     const lines = jobs.flatMap(jobLines);
     // Finished while the popup was closed: says so once, above those lines (24 §9).
     const away = jobs.some((j) => j.away && j.status === "done");
     const next = lines.map((line) => {
       const old = existing.get(line.key);
-      if (old && old.dataset.sig === signature(line)) return old;
+      if (old && (old.dataset.sig === signature(line) || keep.has(line.key))) return old;
       const focused = old?.contains(document.activeElement);
       const li = el("li", {
         class: `job${line.kind === "failed" || line.entry?.undo === "failed" ? " job-failed" : ""}${line.kind === "word" && line.entry.fresh ? " row-new" : ""}`,
@@ -749,7 +819,8 @@
     const job = { id, text, state: "queued", createdAt: Date.now() };
     state.optimistic.set(id, job);
     renderJobs();
-    const res = await send({ type: "add", id, text });
+    const bases = (state.s?.baseLangs ?? []).filter((b) => !state.narrow.has(b));
+    const res = await send({ type: "add", id, text, ...(state.hint ? { hintLang: state.hint } : {}), ...(state.narrow.size && bases.length ? { baseLangs: bases } : {}) });
     // Refused (too long): a line of its own, dismissed locally.
     if (res?.error) job.view = { id, local: true, text, status: "failed", words: [], missing: [], candidates: [], error: addProblem(res) };
     renderJobs();
@@ -763,6 +834,44 @@
     input.value = "";
     input.focus();
     queueJob(text);
+    // The narrowing is for this add only; the draft is spent (24 §8, §9).
+    state.narrow.clear();
+    renderPagesIn();
+    saveDraft("");
+  }
+
+  // The add box's text, kept for the session 300 ms after typing stops (24 §9).
+  let draftTimer = 0;
+  function saveDraft(text) {
+    clearTimeout(draftTimer);
+    draftTimer = setTimeout(() => ext.storage.session?.set({ addDraft: text }).catch(() => {}), text ? 300 : 0);
+  }
+
+  // "Add it yourself" (24 §7), on a job that waits or failed: the form in its line.
+  const manualLink = (job) => el("button", { class: "link link-quiet", type: "button", "data-action": "manual", onclick: (e) => manualForm(job, e.currentTarget.closest("li")) }, t("add_manual"));
+  async function manualForm(job, li) {
+    const m = await more();
+    li.replaceChildren(m.manualForm({
+      text: job.text,
+      lang: state.hint,
+      first: myLangs(),
+      bases: (state.s?.baseLangs?.length ? state.s.baseLangs : job.baseLangs) ?? ["en"],
+      onSave: async (fields) => {
+        const res = await send({ type: "jobs.addManual", id: globalThis.crypto.randomUUID(), surface: "popup", ...fields });
+        if (!res?.error) send({ type: "jobs.cancel", id: job.id });
+        return res;
+      },
+      onCancel: () => renderJobs(true),
+    }));
+    li.dataset.sig = "manual";
+    li.querySelector("input")?.focus();
+  }
+
+  // Another language for a created word (24 §6): the picker, then the same text again.
+  async function relang(entry, anchor) {
+    const job = (state.s.addJobs ?? []).find((j) => j.results?.some((r) => r.word && keyOf(r.word) === entry.key));
+    const lang = await (await more()).pickLanguage({ anchor, first: myLangs().filter((l) => l !== entry.word.lang) });
+    if (lang && job) send({ type: "jobs.relang", id: job.id, key: entry.key, lang });
   }
 
   function retryJob(job) {
@@ -1033,9 +1142,10 @@
   // Wiring.
 
   const RENDER_BY_KEY = {
-    words: [renderLangs, renderSections, renderBanners, renderSettingsStatus],
+    words: [renderLangs, renderSections, renderBanners, renderSettingsStatus, renderHint],
     hiddenLangs: [renderLangs],
-    mixing: [renderLangs],
+    mixing: [renderLangs, renderHint],
+    baseLangs: [renderPagesIn],
     lastSync: [renderLangs, renderSettingsStatus],
     syncError: [renderBanners, renderSettingsStatus],
     enabled: [renderHeader, renderBanners],
@@ -1065,6 +1175,8 @@
     renderPage();
     renderJobs();
     renderQuota();
+    renderHint();
+    renderPagesIn();
   }
 
   function onChipKeys(e) {
@@ -1097,7 +1209,7 @@
       $("addText").focus();
     }
     if (e.key === "ArrowDown" && target === $("addText")) {
-      const first = $("jobs").querySelector("button");
+      const first = $("jobs").querySelector(".job-actions button") ?? $("jobs").querySelector("button");
       if (first) {
         e.preventDefault();
         first.focus();
@@ -1115,6 +1227,8 @@
     $("addText").focus();
 
     $("addForm").addEventListener("submit", submit);
+    $("addText").addEventListener("input", (e) => saveDraft(e.target.value));
+    $("hintLang").addEventListener("change", (e) => setHint(e.target.value));
     $("enabled").addEventListener("click", () => setEnabled(!(state.s?.enabled !== false)));
     $("pauseRow").addEventListener("click", () => setPaused(true));
     $("resume").addEventListener("click", () => setPaused(false));
@@ -1174,7 +1288,11 @@
       if (keys.length) renderFor(keys);
     });
 
-    const [s] = await Promise.all([ext.storage.local.get(DEFAULTS), tabQuery, checkPermission()]);
+    // The session's hint and draft (24 §8, §9) come with the first read.
+    const session = Promise.resolve(ext.storage.session?.get({ addHint: null, addDraft: "" })).catch(() => null);
+    const [s, , , kept] = await Promise.all([ext.storage.local.get(DEFAULTS), tabQuery, checkPermission(), session]);
+    state.hint = typeof kept?.addHint === "string" ? kept.addHint : null;
+    if (kept?.addDraft && !$("addText").value) $("addText").value = kept.addDraft;
     clearTimeout(loading);
     $("chips").removeAttribute("aria-label");
     state.s = s;
@@ -1191,6 +1309,7 @@
     send({ type: "sync" });
     if (lookupReady(s)) send({ type: "llmStatus" });
     askPage();
+    requestAnimationFrame(() => setTimeout(loadVoices, 0));
   }
 
   globalThis.KotikoPopup = { wordGroups, wordTotal, languages, hostOf, syncProblem, addProblem, mode, lookupReady, state, ready: init() };

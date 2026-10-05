@@ -406,12 +406,17 @@ async function pronunciationPass() {
 // One lookup for an add job (slice 11 section 5): "native = meaning" never asks a model;
 // otherwise the configured backend.
 async function lookupJob(job, signal) {
+  // The manual form (24 §7): the words were checked when the job was made; no model.
+  if (Array.isArray(job.manual?.words) && job.manual.words.length) return { ok: true, result: { words: await pronounceWords(job.manual.words), rejected: [], missing_bases: [] } };
   const s = await settings();
   const store = await getStore();
   const parsed = Local.parseManual(job.text);
   const base = job.baseLangs[0] ?? (await currentBases())[0];
   if (parsed) {
-    const lang = Local.manualLang(parsed.native, { hintLang: job.hintLang, recent: await store.recentLangs(5), base });
+    // The hint, else Focus on one language (18), else the recent languages (24 §7).
+    const { mixing } = await ext.storage.local.get({ mixing: null });
+    const focus = Array.isArray(mixing?.focus) && mixing.focus.length === 1 ? mixing.focus[0] : null;
+    const lang = Local.manualLang(parsed.native, { hintLang: job.hintLang ?? focus, recent: await store.recentLangs(5), base });
     const word = lang ? Local.manualWord(parsed, { lang, base, text: job.text }) : null;
     if (word) return { ok: true, result: { words: await pronounceWords([word]), rejected: [], missing_bases: [] } };
   }
@@ -490,9 +495,10 @@ const queue = globalThis.KotikoAddQueue.createAddQueue({
   save: saveOrOffline,
   isFunctionWord,
   now,
-  onSettled: () => {
+  onSettled: (job) => {
     lookupStatus().catch(() => {});
     refresh.tick().catch(() => {});
+    if (job?.replaces && job.state === "done") retireReplaced(job).catch((e) => console.warn("Kotiko re-add:", e?.message ?? e));
   },
   onError: (e) => console.warn("Kotiko add job:", e?.message ?? e),
 });
@@ -957,6 +963,9 @@ ext.runtime.onMessage.addListener(
         check: (m) => (!isUuid(m.id) ? "id must be a job id" : !Array.isArray(m.keys) || m.keys.length > 10 || m.keys.some((k) => typeof k !== "string" || k.length > 200) ? "keys must list up to 10 words" : null),
         run: (m) => queue.choose(m.id, m.keys).then(() => ({ ok: true })),
       },
+      // The same text again in another language (24 §6), and the manual form (24 §7).
+      "jobs.relang": { from: ["page"], check: (m) => checkJobWord(m) ?? (typeof m.lang === "string" && globalThis.KotikoLang.canonical(m.lang).ok ? null : "lang must be a language tag"), run: relang },
+      "jobs.addManual": { from: ["page"], check: checkManual, run: addManual },
       // Undo one word of an add, and "Add it back" (24 §5).
       "jobs.undo": { from: ["page"], check: checkJobWord, run: (m) => undoWord(m.id, m.key) },
       "jobs.redo": { from: ["page"], check: checkJobWord, run: (m) => redoWord(m.id, m.key) },
@@ -1099,6 +1108,59 @@ ext.runtime.onMessage.addListener(
   }),
 );
 
+// "Wrong language" (24 §6): the same text as a new job with that language as its hint.
+// When it succeeds, the old job's word is removed (retireReplaced); undoing the new one
+// brings the old one back.
+async function relang(m) {
+  const { addJobs = [] } = await ext.storage.local.get({ addJobs: [] });
+  const old = addJobs.find((j) => j.id === m.id);
+  if (!old) return { error: "That add is gone.", code: "job_gone" };
+  const id = globalThis.KotikoStore.uuid7(now());
+  await queue.add({ id, text: old.text, hintLang: globalThis.KotikoLang.canonical(m.lang).tag, baseLangs: old.baseLangs, surface: old.surface, replaces: { id: old.id, key: m.key } });
+  return { ok: true, newId: id };
+}
+
+async function retireReplaced(job) {
+  const { id, key } = job.replaces;
+  const res = await undoWord(id, key);
+  if (res.ok) await queue.patch(id, { replacedBy: job.id });
+}
+
+// The manual form (24 §7): one record per filled meaning, checked here as on the page,
+// saved as a job that never asks a model. The typed pronunciation goes on the primary
+// base's record.
+function checkManual(m) {
+  const Lang = globalThis.KotikoLang;
+  if (!isUuid(m.id)) return "id must be a job id";
+  if (typeof m.native !== "string" || !m.native.trim() || [...m.native.trim()].length > 64 || /[\r\n]/.test(m.native)) return "native must be 1 to 64 characters on one line";
+  if (typeof m.lang !== "string" || !Lang.canonical(m.lang).ok) return "lang must be a language tag";
+  if (!Array.isArray(m.meanings) || !m.meanings.length || m.meanings.length > 4) return "meanings must list 1 to 4 bases";
+  for (const x of m.meanings) {
+    if (!x || typeof x.base_lang !== "string" || !Lang.canonical(x.base_lang).ok) return "each meaning needs its base";
+    if (Lang.sameBase(m.lang, x.base_lang)) return "a word can't be in its meaning's own language";
+    if (typeof x.gloss !== "string" || !x.gloss.trim() || [...x.gloss].length > 64) return "each meaning must be 1 to 64 characters";
+  }
+  for (const k of ["romanization", "pronunciation", "note"]) if (m[k] != null && (typeof m[k] !== "string" || [...m[k]].length > 200)) return `${k} must be text`;
+  return null;
+}
+
+async function addManual(m) {
+  const lang = globalThis.KotikoLang.canonical(m.lang).tag;
+  const words = [];
+  m.meanings.forEach((x, i) => {
+    // "dog, hound" (or 、，for Japanese and Chinese bases): the first is the meaning.
+    const forms = x.gloss.split(/\s*[,、，]\s*/u).filter(Boolean);
+    const w = Local.manualWord({ native: m.native.trim(), gloss: forms[0], romanization: m.romanization?.trim() || null, pronunciation: i === 0 ? m.pronunciation?.trim() || null : null }, { lang, base: x.base_lang, text: m.native.trim() });
+    if (!w) return;
+    w.forms = forms.map((text) => ({ text, enabled: true, case: "any", ambiguous: false }));
+    if (m.note?.trim()) w.note = m.note.trim();
+    words.push(w);
+  });
+  if (!words.length) return { error: "Nothing to save.", code: "invalid_message", details: {} };
+  await queue.add({ id: m.id, text: m.native.trim(), hintLang: lang, baseLangs: m.meanings.map((x) => x.base_lang), surface: typeof m.surface === "string" ? m.surface : "popup", manual: { words } });
+  return { ok: true };
+}
+
 // A v1 record in the shape the server mode's cache holds (the 0.2 list's), and a change
 // to that cache keyed by word (a v1 id and a 0.2 number name the same word).
 const sameWord = (a, b) => a.lang === b.lang && a.native === b.native && (a.base_lang ?? "en") === (b.base_lang ?? "en");
@@ -1151,6 +1213,13 @@ async function undoWord(id, key) {
   const removed = records.filter((r, i) => r.result === "created" && (results[i].ok || results[i].code === "word_gone")).map((r) => r.word);
   if (removed.length && (await home()) === "server") await sync.update(() => replaceCached(removed), { reason: "remove" });
   await queue.setUndo(id, key, bad ? { undo: "failed", undoError: { code: bad.code, details: bad.details ?? {} } } : { undo: "done", undoError: null });
+  // Undoing a re-add in another language brings back the word it replaced (24 §6).
+  const { addJobs = [] } = await ext.storage.local.get({ addJobs: [] });
+  const job = addJobs.find((j) => j.id === id);
+  if (!bad && job?.replaces) {
+    await redoWord(job.replaces.id, job.replaces.key);
+    await queue.patch(job.replaces.id, { replacedBy: null });
+  }
   return bad ? { error: bad.message ?? bad.code, code: bad.code, details: bad.details ?? {} } : { ok: true };
 }
 

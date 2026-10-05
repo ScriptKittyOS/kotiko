@@ -112,6 +112,28 @@ test("with no provider at all, 'word = meaning' adds and swaps with no network r
   await expect(page.locator("#p1")).toHaveText(P1);
 });
 
+// Slice 24 §7: with no lookups at all, a word that needs one waits; "Add it yourself" saves
+// it from a small form, with the language from the picker (a real <dialog> here).
+test("Add it yourself: the form in the line, the language picker, saved with no lookup", async ({ server, popup }) => {
+  const line = await popup.add("gatto");
+  await expect(line.locator(".job-text p")).toHaveText("gatto will be looked up once lookups are set up.");
+  await line.locator('[data-action="manual"]').click();
+  const form = line.locator("form.manual-form");
+  await expect(form.locator('[name="native"]')).toHaveValue("gatto");
+  await form.locator('[name="meaning-en"]').fill("cat");
+  await form.locator('[data-action="language"]').click();
+  const picker = (await popup.page()).locator("dialog.picker");
+  await expect(picker).toBeVisible();
+  await picker.locator("input[type=search]").fill("ital");
+  await picker.locator('[data-lang="it"]').click();
+  await expect(picker).toHaveCount(0);
+  await expect(form.locator('[data-action="language"]')).toHaveText("Italian");
+  await form.locator('[data-action="save"]').click();
+  const p = await popup.page();
+  await expect(p.locator('#jobs [data-kind="word"] .job-text').first()).toHaveText("Added gatto = cat · Italian");
+  expect((await server.state()).log).toEqual([], "no request from the extension");
+});
+
 test("closing the popup during a lookup still saves the word; reopening shows the result", async ({ context, extensionId, server, popup }) => {
   await setUpLookups(context, extensionId, server.llmUrl);
   await server.control({ llmDelayMs: 1500 });

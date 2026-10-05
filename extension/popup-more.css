@@ -1,0 +1,72 @@
+/* SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/* The popup's parts that load on first use (popup-more.js): the language picker and the
+   manual form. */
+.picker {
+  width: min(320px, calc(100vw - 32px));
+  max-height: min(420px, calc(100vh - 32px));
+  padding: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.picker::backdrop {
+  background: rgb(0 0 0 / 0.2);
+}
+
+.picker-list {
+  max-height: 320px;
+  margin: var(--s-2) 0 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.picker-option {
+  display: flex;
+  gap: var(--s-2);
+  justify-content: space-between;
+  width: 100%;
+  min-height: 36px;
+  padding: var(--s-1) var(--s-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: inherit;
+  font: var(--t-body) var(--font-ui);
+  text-align: start;
+  cursor: pointer;
+}
+
+.picker-option:hover,
+.picker-option:focus-visible {
+  background: var(--sunken);
+}
+
+.picker-endonym,
+.picker-none {
+  color: var(--ink-3);
+}
+
+.manual-form {
+  display: grid;
+  gap: var(--s-2);
+  width: 100%;
+}
+
+.manual-field {
+  display: grid;
+  gap: var(--s-1);
+}
+
+.manual-error {
+  margin: 0;
+  color: var(--danger);
+}
+
+.manual-error:empty {
+  display: none;
+}

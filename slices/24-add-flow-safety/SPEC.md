@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Partly built (2026-10-05): the job, its lifecycle, idempotency, results and Undo (§§1-5); §§6-9 (language chip, manual form, hint and "For pages in" chips, draft) are next. See Implementation notes |
+| **Status** | Built (2026-10-05); see Implementation notes |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
 | **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages, `t()`) |
@@ -427,16 +427,51 @@ Built 2026-10-05 (§§1-5, from slice 11's queue):
   - Cancel on a lookup.
 
   The direct path (`state.jobs`, `runJob`) is gone.
-- **Not yet (next PR):**
-  - §6, the language chip and `relang`;
-  - §7, the manual form ("Add it yourself", "Add it");
-  - §8, the hint and "For pages in" chips;
-  - §9, the draft;
-  - the speak button and stress styling on the line;
-  - the dashboard showing pending jobs.
+Built 2026-10-05 (§§6-9):
 
-  The resume rule ("startedAt older than the deadline plus 5 s") isn't used: at worker
-  start nothing is running, so every `looking_up` job is retried at once with the same id.
+- **Wrong language (§6).** The language on a created line is a chip. It opens the picker:
+  the learner's languages first, then every language in `spec/languages.json` by name,
+  own name or code. `jobs.relang {id, key, lang}` makes a new job with that hint
+  (`replaces: {id, key}`). Once it's done, the old word is undone and its job marked
+  `replacedBy`, so the popup shows only the new line. Undoing the new word brings the old
+  one back.
+- **Manual form (§7).** "Add it yourself" on waiting and failed lines opens the form in the
+  line. `jobs.addManual` makes one record per filled meaning, through the queue with the
+  words already made, so the model is never asked:
+  - several forms separated by `,`, `、` or `，`;
+  - the pronunciation only on the primary base's record, and the field shown only when
+    that base has a respelling key;
+  - the same checks in the form and in the background;
+  - the same-spelling question asked once.
+
+  The add box's own menu entry and the dashboard's entry for the form aren't built.
+- **Inline syntax.** Focus on a single language is now the fallback after the hint. When
+  the fallbacks would pick the base, the model is asked instead of opening the picker;
+  the language chip then fixes it in two clicks.
+- **Hint and "For pages in" (§8)** as specified, in `storage.session` (`addHint`).
+  Unticking narrows the next add only.
+- **Draft (§9)** in `storage.session` (`addDraft`), 300 ms after typing stops.
+- **Speak button** on created lines when the device has a voice (34).
+- **Loading (decided 2026-10-05, from research).** The popup starts from scratch on every
+  open, so it loads only what the first view needs:
+  - the voice library after the first frame;
+  - `popup-more.js` (the picker and the form) on first use.
+
+  Sources for this: Chrome's and V8's guidance on popups and script cost, web.dev on
+  budgets, and Lighthouse's 4× CPU standard for mid-tier devices. First paint is the
+  guard, with byte caps as a backstop:
+  - 100 ms at 4× CPU locally, and 200 ms on CI's runners, which are about that slow;
+  - a low-end guard at 6×, 150 ms;
+  - caps: own files 80 KB, everything at open 128 KB, `popup-more` 32 KB.
+
+  Measured: 34 ms at 1×, 80 ms at 4×, 120-124 ms at 6×, about the same as before this
+  slice. A trace at 6× shows the popup's scripts are about 17 ms of the 120. The rest is
+  the page's own start-up: navigation about 40 ms, HTML 25, styles 19, storage reads 14.
+  Getting a low-end device under 100 ms is a separate change to that start-up: paint a
+  shell before the scripts, merge the stylesheets.
+- **Not yet:**
+  - the dashboard showing pending jobs and offering "Add it yourself";
+  - the add box's own menu.
 
 ## Acceptance criteria
 

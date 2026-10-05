@@ -83,6 +83,59 @@ describe("a fresh install keeps words in this browser (slice 11)", () => {
     assert.deepEqual(requests, [], "no network request at all");
   });
 
+  // Slice 24 §7: the manual form, with no model and no network.
+  test("the manual form saves one record per meaning, forms split, the pronunciation on the primary base only", async () => {
+    const requests = [];
+    const bg = loadBackground({ local: { baseLangs: ["es", "en"] }, fetch: (url) => (requests.push(String(url)), Promise.reject(new TypeError("offline"))) });
+    await bg.k.ready();
+    const id = "01900000-0000-7000-8000-00000000e001";
+    const res = await bg.send({ type: "jobs.addManual", id, native: "犬", lang: "ja", meanings: [{ base_lang: "es", gloss: "perro, can" }, { base_lang: "en", gloss: "dog" }], pronunciation: "i-nu", note: "a dog" }, POPUP);
+    assert.deepEqual(res, { ok: true });
+    const job = await bg.until(() => bg.store.addJobs?.find((j) => j.id === id && j.state === "done"));
+    const words = job.results.map((r) => plain(r.word));
+    assert.deepEqual(words.map((w) => [w.base_lang, w.gloss, w.forms.map((f) => f.text), w.pronunciation, w.origin, w.note]), [
+      ["es", "perro", ["perro", "can"], "i-nu", "manual", "a dog"],
+      ["en", "dog", ["dog"], null, "manual", "a dog"],
+    ]);
+    assert.deepEqual(requests, [], "no network request at all");
+  });
+
+  test("the manual form refuses a word in its meaning's own language, and bad fields", async () => {
+    const bg = loadBackground({ local: { baseLangs: ["es"] } });
+    await bg.k.ready();
+    const base = { type: "jobs.addManual", id: "01900000-0000-7000-8000-00000000e002", native: "perro", lang: "es", meanings: [{ base_lang: "es", gloss: "perro" }] };
+    assert.match((await bg.send(base, POPUP)).error.message, /own language/);
+    assert.match((await bg.send({ ...base, lang: "en", meanings: [] }, POPUP)).error.message, /meanings/);
+    assert.match((await bg.send({ ...base, lang: "en", native: "a\nb" }, POPUP)).error.message, /one line/);
+  });
+
+  // Slice 24 §6: the wrong language, fixed in two clicks.
+  test("another language: a new job with that hint; once it's saved the old word goes; undoing it brings the old one back", async () => {
+    const bg = loadBackground({ local: { baseLangs: ["en"] } });
+    await bg.k.ready();
+    const first = await bg.send({ type: "add", text: "gato = cat", hintLang: "es" }, POPUP);
+    await bg.until(() => bg.store.addJobs?.find((j) => j.id === first.job.id && j.state === "done"));
+    const relang = await bg.send({ type: "jobs.relang", id: first.job.id, key: "es\u001fgato", lang: "pt" }, POPUP);
+    assert.equal(relang.ok, true);
+    const next = await bg.until(() => bg.store.addJobs?.find((j) => j.id === relang.newId && j.state === "done"));
+    assert.equal(next.results[0].word.lang, "pt");
+    const old = await bg.until(() => bg.store.addJobs?.find((j) => j.id === first.job.id && j.replacedBy === relang.newId));
+    assert.equal(old.results[0].undo, "done", "the Spanish one is removed");
+    const active = async () => (await bg.k.getStore()).list().then((ws) => ws.map((w) => `${w.lang}:${w.native}`).sort());
+    assert.deepEqual(await bg.until(async () => ((await active()).length === 1 ? active() : null)), ["pt:gato"]);
+    await bg.send({ type: "jobs.undo", id: relang.newId, key: "pt\u001fgato" }, POPUP);
+    assert.deepEqual(await bg.until(async () => ((await active()).includes("es:gato") ? active() : null)), ["es:gato"]);
+    assert.equal(bg.store.addJobs.find((j) => j.id === first.job.id).replacedBy, null);
+  });
+
+  test("Focus on one language decides a 'native = meaning' word's language", async () => {
+    const bg = loadBackground({ local: { baseLangs: ["en"], mixing: { focus: ["it"] } } });
+    await bg.k.ready();
+    const res = await bg.send({ type: "add", text: "gatto = cat" }, POPUP);
+    const job = await bg.until(() => bg.store.addJobs?.find((j) => j.id === res.job.id && j.state === "done"));
+    assert.equal(job.results[0].word.lang, "it");
+  });
+
   test("a word that needs a lookup waits for one to be set up, then completes once a key is saved", async () => {
     const bg = loadBackground({ local: { baseLangs: ["en"] } });
     await bg.k.ready();

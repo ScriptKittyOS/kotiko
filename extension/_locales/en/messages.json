@@ -3569,5 +3569,134 @@
         "content": "{text}"
       }
     }
+  },
+  "popup_hint_label": {
+    "message": "Language of the word",
+    "description": "The add box's language chip (slice 24 §8): Auto, or the language the next word is in."
+  },
+  "popup_hint_auto": {
+    "message": "Auto",
+    "description": "Language chip: Kotiko works out the word's language."
+  },
+  "popup_hint_more": {
+    "message": "Other language…",
+    "description": "Language chip: opens a search of every language."
+  },
+  "popup_pages_in": {
+    "message": "For pages in:",
+    "description": "Under the add box, with two or more languages read: which ones the next word gets a meaning in."
+  },
+  "add_change_lang": {
+    "message": "$NATIVE$ is in $LANG$. Choose another language",
+    "description": "For screen readers: the language chip on a saved word, which re-adds it in another language (slice 24 §6).",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      },
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "add_manual": {
+    "message": "Add it yourself",
+    "description": "Opens a small form to save the word without a lookup (slice 24 §7)."
+  },
+  "manual_native": {
+    "message": "Word",
+    "description": "Manual form: the word in the language being learned."
+  },
+  "manual_meaning": {
+    "message": "Meaning in $BASE$",
+    "description": "Manual form: the meaning in one of the learner's languages; several separated by commas.",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "manual_language": {
+    "message": "Language",
+    "description": "Manual form: the word's language."
+  },
+  "manual_choose_language": {
+    "message": "Choose a language",
+    "description": "Manual form: the language button before one is chosen."
+  },
+  "manual_romanization": {
+    "message": "Romanization",
+    "description": "Manual form, optional: the word in Latin letters."
+  },
+  "manual_pronunciation": {
+    "message": "Pronunciation",
+    "description": "Manual form, optional: how to say it, with the stressed syllable in capitals."
+  },
+  "manual_note": {
+    "message": "Note",
+    "description": "Manual form, optional."
+  },
+  "manual_save": {
+    "message": "Save",
+    "description": "Manual form: saves the word."
+  },
+  "manual_save_anyway": {
+    "message": "Save anyway",
+    "description": "Manual form, after the same-spelling warning."
+  },
+  "manual_need_native": {
+    "message": "Type the word.",
+    "description": "Manual form: the word is empty."
+  },
+  "manual_need_meaning": {
+    "message": "Type its meaning in $BASE$.",
+    "description": "Manual form: the first meaning is empty.",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "manual_need_language": {
+    "message": "Choose the word's language.",
+    "description": "Manual form: no language chosen."
+  },
+  "manual_same_base": {
+    "message": "A word can't be in $BASE$, the language of its meaning.",
+    "description": "Manual form: the chosen language is one the learner reads the meaning in.",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "manual_too_short": {
+    "message": "“$FORM$” is too short for a meaning.",
+    "description": "Manual form: a meaning of one letter (allowed only for Chinese and Japanese).",
+    "placeholders": {
+      "form": {
+        "content": "{form}"
+      }
+    }
+  },
+  "manual_same_spelling": {
+    "message": "This is spelled the same as the $BASE$ word. Save anyway?",
+    "description": "Manual form: the word equals its meaning, as with loanwords.",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "lang_picker_title": {
+    "message": "Choose a language",
+    "description": "The language picker's name, for screen readers."
+  },
+  "lang_search": {
+    "message": "Search languages",
+    "description": "The language picker's search box."
+  },
+  "lang_none": {
+    "message": "No language matches.",
+    "description": "The language picker, when the search finds nothing."
   }
 }
