@@ -599,11 +599,35 @@ describe("sync correctness (slice 26)", () => {
     send({ type: "sync", force: true });
     for (let i = 0; i < 200 && requests.length === 0; i++) await sleep(5);
     assert.equal(requests.length, 1, "the first sync started");
-    await fake.chrome.storage.local.set({ serverUrl: "http://127.0.0.1:5000" });
+    // A Kotiko page names the new address (slice 28 §7: only a page can move the token).
+    await send({ type: "server.connect", url: "http://127.0.0.1:5000" }, POPUP);
     await fake.idle();
     await sleep(150);
     assert.deepEqual(requests.map((r) => r.url), ["http://127.0.0.1:4999/api/words", "http://127.0.0.1:5000/api/words"]);
+    assert.equal(requests[1].headers.Authorization, "Bearer good-token");
     assert.deepEqual(store.words, WORDS);
+  });
+
+  test("slice 28 §7: an address written straight to storage.local (as a content script can) never gets the stored token", async () => {
+    const { fetch, requests } = stubFetch(async () => json(200, { words: WORDS }));
+    const { send, store, fake } = loadBackground({ fetch });
+    await send({ type: "sync", force: true });
+    assert.equal(requests.length, 1);
+    for (const patch of [{ serverUrl: "http://127.0.0.1:6666" }, { server: { url: "http://127.0.0.1:6666" } }]) {
+      await fake.chrome.storage.local.set(patch);
+      await fake.idle();
+      await send({ type: "sync", force: true });
+      await fake.idle();
+      assert.ok(requests.every((r) => !r.url.includes(":6666")), JSON.stringify(patch));
+      assert.equal(store.syncError.code, "server_key_rejected");
+      assert.equal(store.syncError.details.reason, "address_changed");
+    }
+    // A Kotiko page that names the address moves the token there.
+    await send({ type: "server.connect", url: "http://127.0.0.1:6666" }, POPUP);
+    await send({ type: "sync", force: true });
+    await fake.idle();
+    assert.equal(requests.at(-1).url, "http://127.0.0.1:6666/api/words");
+    assert.equal(requests.at(-1).headers.Authorization, "Bearer good-token");
   });
 
   test("F31: the fixture server's captive portal is not a word list", async () => {

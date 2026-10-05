@@ -52,6 +52,15 @@ body {
   font-weight: 500;
 }
 
+/* --- Footer: the privacy policy (slice 28 §2) ------------------------------------------ */
+.w-foot {
+  max-width: 704px;
+  margin: 0 auto;
+  padding: var(--s-8) var(--s-8) var(--s-10);
+  color: var(--ink-2);
+  font: var(--t-body) var(--font-ui);
+}
+
 /* --- The conversation ----------------------------------------------------------------- */
 .w-main {
   display: flex;

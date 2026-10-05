@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Built (2026-10-05), in English; §6 partly, §9 and the artwork wait for the maintainer and the artist; see Implementation notes |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
 | **Depends on** | [11-local-first-mode](../11-local-first-mode/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (`_locales`, the Weblate `store-listing` component, the glossary); uses [05-brand-identity](../05-brand-identity/SPEC.md) artwork, [12-export-import-and-delete](../12-export-import-and-delete/SPEC.md) deletion, [19-word-popover](../19-word-popover/SPEC.md) DOM changes |
@@ -398,6 +398,132 @@ trades. If ScriptKittyOS is a registered business that sells other products or s
 the declaration should be checked against that before submitting.
 
 **Edge Add-ons**: optional, same package and contact, decided in slice 30.
+
+## Implementation notes
+
+Built 2026-10-05, in English only ([DECISIONS 2026-10-05](../DECISIONS.md) overrides the
+Spanish copy, screenshots and acceptance criteria above). Files are laid out so
+translations drop in later: `docs/privacy/<locale>.md`, `store/listing/<locale>.json`,
+`extStoreName`/`extDescription` per locale.
+
+Primary sources, checked 2026-10-05: Chrome Web Store
+[program policies](https://developer.chrome.com/docs/webstore/program-policies),
+[Limited Use](https://developer.chrome.com/docs/webstore/program-policies/limited-use),
+[user data FAQ](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq)
+(handling includes data processed only on the device),
+[privacy practices tab](https://developer.chrome.com/docs/webstore/cws-dashboard-privacy),
+[images](https://developer.chrome.com/docs/webstore/images),
+[manifest `name`](https://developer.chrome.com/docs/extensions/reference/manifest/name)
+(75 characters); Chrome's [storage API](https://developer.chrome.com/docs/extensions/reference/api/storage)
+(`local` and `sync` are open to content scripts, `session` isn't); Firefox
+[add-on policies](https://extensionworkshop.com/documentation/publish/add-on-policies/),
+[built-in data consent](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/)
+(required for new add-ons from 3 November 2025; Firefox 140 desktop, 142 Android),
+[MDN `browser_specific_settings`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/browser_specific_settings),
+[MDN extension CSP](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_Security_Policy)
+(Firefox's MV3 default is `script-src 'self'; upgrade-insecure-requests;`),
+[AMO listing guide](https://extensionworkshop.com/documentation/develop/create-an-appealing-listing/)
+(summary 250 characters); AMO's 50-character name limit from
+[mozilla/addons#7487](https://github.com/mozilla/addons/issues/7487); Google's
+[Gemini API terms](https://ai.google.dev/gemini-api/terms) for the policy's Gemini line.
+
+**§1 Inventory.** `docs/privacy/inventory.md`, written from the code (every `fetch`,
+host and storage key was traced; each row names its code). It differs from the table
+above where the code does:
+
+- Added: the background pronunciation refresh, which sends saved words without a
+  pronunciation (word, meaning, sense, base) to the learner's provider; the model list
+  (`/models`) for every provider and OpenRouter's `/key`; the Test button's "hello"; the
+  recent-languages names sent with each lookup; `seedSalt` in `storage.sync`; the paused
+  host names and add jobs (typed text, 7 days) in `storage.local`; the welcome page's
+  "Try it on a page" Wikipedia link; the server's 30-day lookup cache and 24-hour add
+  answers; OpenRouter's `HTTP-Referer`/`X-Title` and Wiktionary's `Api-User-Agent`.
+- Left out because they aren't built: "Learn this in…" (33) and learning stats (46).
+- `test/unit/store-readiness.test.mjs` counts network primitives per file and every host
+  named anywhere in the package against the inventory's §4 and §5 tables, so a new
+  request or host fails CI until the inventory says what it is.
+
+**§2 Policy.** `docs/privacy/en.md`, version 1, 5 October 2026, following the outline.
+`scripts/sync-privacy.mjs` copies each `docs/privacy/<locale>.md` into
+`extension/privacy/`; `extension/privacy.html` renders the copy for Kotiko's interface
+language (its own setting, else the browser's) with English as the fallback, through
+`lib/policy.js` (headings, paragraphs, lists, bold, code, `<https://…>` links, all as text
+nodes). Linked from the dashboard's Settings → About and the welcome page's footer
+(`privacy_link`). The copy check runs inside `npm test`, so it needs no workflow change;
+slice 30 may add `node scripts/sync-privacy.mjs --check` to CI's list.
+
+**§3 Chrome.** `store/chrome-web-store.md`: listing fields, single purpose (as written),
+a permissions table that the test checks both ways against the manifest (permissions,
+optional ones, hosts, content-script matches), remote code, data usage, certifications,
+distribution, reviewer notes. The manifest has no `contextMenus` or `identity` yet, so
+neither has a row. The listing name is the new `extStoreName` ("Kotiko: learn languages
+while you browse", 40 characters, under Edge's 45); `short_name` and the toolbar title stay
+"Kotiko". `extDescription` is the short description above.
+
+**§4 Firefox.** `strict_min_version` 140, `gecko_android` 142 and
+`data_collection_permissions: {required: ["none"]}`; `store/firefox-amo.md` explains each
+and has the reviewer notes, which ask AMO about open question 2.
+
+**§5 CSP.** `content_security_policy.extension_pages` is `script-src 'self'; object-src
+'self'`. The http warning is `ServerUrl.sendsInClear()` in `lib/url.js`, shown under the
+server address in the dashboard, the welcome page and the popup's Connection settings
+(the popup loads `lib/url.js` on first use, keeping it out of the first paint).
+
+**§7 Audit.** `test/e2e/privacy.spec.mjs` (Chromium) sets a key and a token through the
+dashboard and popup, then, inside Kotiko's content-script world through the DevTools
+protocol: reads `storage.local`, `storage.sync` and `storage.session` (refused) and the
+IndexedDB it can open (the page's, with none of Kotiko's stores), finding neither secret;
+sends every privileged message type (enumerated from the router, `onMessage.routes` in
+`lib/messages.js`) and gets `forbidden` for each; rewrites the provider address and checks
+the key never follows. Page scripts on an English and a Spanish page see the swaps with
+only `class,dir,lang,translate` and none of the original words. The unit test checks: no
+`externally_connectable`, no `web_accessible_resources`, no `setUninstallURL`, no
+`console.log`, and no `console.*` call mentioning a key or token.
+
+**A finding, fixed here.** Content scripts couldn't read the secrets, but they could send
+them anywhere: the server address and the provider's `baseUrl` live in `storage.local`,
+which content scripts can write, and the background sent the token or key to whatever was
+there (`connection()` even preferred a legacy `serverUrl` written there). A subverted
+content script could have collected both. Now each secret is bound to the origin it was
+saved for (`secretOrigin:<id>` in the store's `meta`, beside the secret): a Kotiko page
+that saves a secret or names an address (`secrets.set`, `server.connect`, `backend.set`
+with a `baseUrl`, the OpenRouter sign-in) moves the binding; an address changed any other
+way gets no secret (`server_key_rejected` with `reason: "address_changed"`, whose banner
+says to paste the key again; for a provider the key isn't sent, and a preset that needs
+one waits as not set up). An
+upgrade binds existing secrets to their current addresses once. `test/bg/privacy.test.mjs`
+and the e2e fail without the fix. The 0.2-era test in `background.test.mjs` that changed
+the address through `storage.local` now does it through `server.connect`.
+
+**Known limit (not fixed).** The other settings are still in `storage.local`, so a
+subverted content script can still point lookups at another address (without the key),
+so text typed afterwards would go there, switch Kotiko off, or set a server address with a
+token of its own. Fixing that means moving the settings that route requests into the
+store, a change to slice 11's design; recorded in the inventory (§3) for slice 54's
+reviewers.
+
+**§8 Listing and assets.** `store/listing/en.json` (description opening with slice 05's
+short listing line, five captions, promo text); `store/assets.md` (sizes, what exists,
+what waits for the artist); `test/visual/store-screenshots.mjs` makes the five 1280x800
+captioned screenshots from the real extension on `test/fixtures/pages/store-article.html`
+(an original text, so no attribution or third-party logos), checking caption contrast
+(15.7:1). Screenshots aren't committed: they wait for the final artwork.
+
+**Not built.**
+
+- §6 beyond what existed: the popup already shows a blocking banner with "Allow" when
+  `<all_urls>` is missing, and the welcome page a step 0. Not built: the per-site check
+  (Chrome's "on click"), "Allow only here", injecting when access arrives, the badge on
+  `permissions.onRemoved`, and the provider-origin check before a lookup.
+- §9: the publisher accounts, two-step sign-in and the trader declaration are the
+  maintainer's; the docs site (44) must serve `https://kotiko.org/privacy/` before the
+  first submission.
+- The policy describes slice 12's export and "Delete everything", built in parallel; it
+  must merge before release, or the policy's "Keeping and deleting" section changes.
+- Firefox runs: the CSP case on a non-loopback `http://` server and the AMO validator
+  upload are manual (the e2e runs Chromium only). `web-ext lint` shows one warning,
+  `BACKGROUND_SERVICE_WORKER_IGNORED`, which slice 30's Firefox build can clear.
+- Artwork (05) and uploads (30).
 
 ## Acceptance criteria
 

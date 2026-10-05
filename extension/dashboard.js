@@ -2746,8 +2746,14 @@
   function renderConnection() {
     const url = $("serverUrl");
     if (document.activeElement !== url && !dirty.has("serverUrl")) url.value = state.s.server?.url ?? state.s.serverUrl ?? "";
+    warnHttp();
     // The token is never read back (slice 11 §3): a saved one shows only masked.
     $("accessKey").placeholder = state.masked.server ? t("settings_key_saved", { masked: state.masked.server }) : "";
+  }
+
+  // Slice 28 §5: plain http:// beyond this computer or a Tailscale address says so.
+  function warnHttp() {
+    $("serverUrlWarn").hidden = !globalThis.ServerUrl?.sendsInClear($("serverUrl").value);
   }
 
   // The address and token go to the background, which keeps the token where pages can't
@@ -3327,6 +3333,7 @@
       $("toggleKey").setAttribute("aria-pressed", String(show));
       $("toggleKey").textContent = show ? t("settings_hide_key") : t("settings_show_key");
     });
+    $("serverUrl").addEventListener("input", warnHttp);
     for (const id of ["serverUrl", "accessKey"]) {
       $(id).addEventListener("input", () => dirty.add(id));
       $(id).addEventListener("change", () => saveConnection(id));

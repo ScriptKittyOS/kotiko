@@ -117,7 +117,8 @@
           <form class="panel" id="serverPanel" hidden autocomplete="off">
             <div class="set-field">
               <label class="field-label" for="serverUrl" data-i18n="settings_server_address"></label>
-              <input class="field" id="serverUrl" type="text" inputmode="url" spellcheck="false" placeholder="http://localhost:4747" />
+              <input class="field" id="serverUrl" type="text" inputmode="url" spellcheck="false" placeholder="http://localhost:4747" aria-describedby="serverUrlWarn" />
+              <p class="field-help" id="serverUrlWarn" data-i18n="server_url_unencrypted" hidden></p>
             </div>
             <div class="set-field">
               <label class="field-label" for="serverKey" data-i18n="settings_access_key"></label>
@@ -207,6 +208,10 @@
     <div class="sr-only" id="log" role="log" aria-live="polite" data-i18n-aria-label="welcome_log_label"></div>
   </main>
 
+  <footer class="w-foot">
+    <a class="link link-quiet" id="privacyLink" href="privacy.html" target="_blank" data-i18n="privacy_link"></a>
+  </footer>
+
   <script src="spec/spec.js"></script>
   <script src="lib/lang.js"></script>
   <script src="lib/wordspec.js"></script>
@@ -224,6 +229,7 @@
   <script src="content/popover.js"></script>
   <script src="ui/confetti.js"></script>
   <script src="lib/welcome-model.js"></script>
+  <script src="lib/url.js"></script>
   <script src="welcome.js"></script>
 </body>
 </html>

@@ -15,10 +15,11 @@
 //   await client.status()                  {provider, quota, models, models_source, skipped}
 //   await client.quotaLow()                 the reset time when 10 or fewer are left, else null
 //
-// `settings()` resolves to {provider, baseUrl, model, dataCollection}; `key(providerId)`
-// to the stored key or null (the background reads it from the store's secrets; nothing
-// here logs or keeps it). Failures carry slice 25's codes: lookup_not_set_up, key_rejected,
-// quota_exhausted, rate_limited, model_unavailable, lookup_timeout, bad_lookup_result.
+// `settings()` resolves to {provider, baseUrl, model, dataCollection}; `key(providerId,
+// baseUrl)` to the stored key, or null (also when the key wasn't saved for that address;
+// the background reads it from the store's secrets; nothing here logs or keeps it).
+// Failures carry slice 25's codes: lookup_not_set_up, key_rejected, quota_exhausted,
+// rate_limited, model_unavailable, lookup_timeout, bad_lookup_result.
 (() => {
   const S = () => globalThis.KOTIKO_SPEC;
   const Policy = () => globalThis.KotikoLLMPolicy;
@@ -34,6 +35,12 @@
   function preset(id) {
     const p = S().providers;
     return p.providers.find((x) => x.id === id) ?? p.providers.find((x) => x.id === p.default);
+  }
+
+  // Where lookups with these settings go: the preset and the address its key is sent to.
+  function endpoint(s) {
+    const p = preset(s?.provider);
+    return { preset: p, baseUrl: String(s?.baseUrl || p.baseUrl || "").trim().replace(/\/+$/, "") };
   }
 
   async function sha256(text) {
@@ -69,9 +76,10 @@
 
     async function config() {
       const s = (await settings()) ?? {};
-      const p = preset(s.provider);
-      const baseUrl = String(s.baseUrl || p.baseUrl || "").trim().replace(/\/+$/, "");
-      const k = await key(p.id);
+      const { preset: p, baseUrl } = endpoint(s);
+      // The address goes with the question, so the key's owner can refuse an address it
+      // wasn't saved for (slice 28 §7).
+      const k = await key(p.id, baseUrl);
       return {
         preset: p,
         baseUrl,
@@ -490,7 +498,7 @@
     };
   }
 
-  const api = { createClient, preset, sha256 };
+  const api = { createClient, preset, endpoint, sha256 };
   globalThis.KotikoLLMClient = api;
   if (typeof module === "object" && module.exports) module.exports = api;
 })();

@@ -76,6 +76,7 @@ function ready() {
     const r = await Local.migrate({ store, storage: ext.storage.local, uiLanguage: uiLanguage() });
     if (r.migrated && r.home === "local" && r.seeded) projector.schedule();
     if (r.migrated) refresh.nudge().catch(() => {});
+    await bindUnbound(store);
   })().catch((e) => {
     readyP = null;
     console.warn("Kotiko couldn't open its word store:", e?.message ?? e);
@@ -94,16 +95,75 @@ async function secret(id) {
   return value;
 }
 
-async function setSecret(id, value) {
+// `url`: the address this secret may be sent to; by default where the settings send it now.
+async function setSecret(id, value, url) {
   const store = await getStore();
   if (value) await store.secrets.set(id, value);
   else await store.secrets.remove(id);
   secretCache.set(id, value || null);
+  await bindSecret(id, value ? ((url === undefined ? await destination(id) : url) ?? "") : null);
   const s = await Local.readSettings(ext.storage.local);
   const keys = { server: s.keys.server, providers: { ...s.keys.providers } };
   if (id === "server") keys.server = !!value;
   else keys.providers[id.slice("provider:".length)] = !!value;
   await ext.storage.local.set({ keys });
+}
+
+// Each secret goes only to the address it was saved for (slice 28 §7). The settings that
+// say where requests go live in storage.local, which content scripts can write as well as
+// read; so the origin each secret belongs to is kept beside it in the store, out of their
+// reach, and changes only when a Kotiko page saves the secret or names a new address. An
+// address changed any other way gets no secret: the learner pastes it again.
+const originOf = (url) => {
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:" ? u.origin : null;
+  } catch {
+    return null;
+  }
+};
+const boundCache = new Map();
+const boundKey = (id) => `secretOrigin:${id}`;
+
+// Where the settings send a secret now: the server's address, or the provider's.
+async function destination(id) {
+  const s = await Local.readSettings(ext.storage.local);
+  if (id === "server") {
+    const n = normalizeServerUrl(s.server.url);
+    return n.ok ? n.url : null;
+  }
+  const provider = id.slice("provider:".length);
+  return globalThis.KotikoLLMClient.endpoint({ provider, baseUrl: s.lookup.provider === provider ? s.lookup.baseUrl : null }).baseUrl;
+}
+
+// `url` null forgets the binding (the secret is gone); an address that isn't one binds to
+// "none", so the secret goes nowhere until a page saves it again.
+async function bindSecret(id, url) {
+  const origin = url === null ? null : originOf(url) ?? "none";
+  await (await getStore()).meta.set(boundKey(id), origin);
+  boundCache.set(id, origin);
+}
+
+async function boundOrigin(id) {
+  if (!boundCache.has(id)) boundCache.set(id, await (await getStore()).meta.get(boundKey(id)));
+  return boundCache.get(id);
+}
+
+// The secret, only when `url` is on the origin it belongs to; otherwise null.
+async function secretFor(id, url) {
+  const value = await secret(id);
+  if (!value) return null;
+  const origin = originOf(url);
+  return origin && (await boundOrigin(id)) === origin ? value : null;
+}
+
+// Secrets saved before bindings existed (an upgrade) belong where the settings send them
+// at that moment, once.
+async function bindUnbound(store) {
+  for (const id of await store.secrets.ids()) {
+    if (!SECRET_IDS.test(id) || (await store.meta.get(boundKey(id))) !== null) continue;
+    await bindSecret(id, (await destination(id)) ?? "");
+  }
 }
 
 // "sk-or-…a1b2": the first six and last four characters, never the whole key.
@@ -191,11 +251,14 @@ async function connection() {
   await ready().catch(() => {});
   // A page from before the upgrade may still have written these; they win until moved.
   const legacy = await ext.storage.local.get({ token: "", serverUrl: null });
-  const stored = await secret("server").catch(() => null);
-  const token = String(legacy.token || stored || "").trim();
-  if (!token) throw codedError("server_key_rejected", "Paste your API token to connect.", { reason: "no_token" });
+  const typed = String(legacy.token || "").trim();
+  const stored = typed ? null : await secret("server").catch(() => null);
+  if (!typed && !stored) throw codedError("server_key_rejected", "Paste your API token to connect.", { reason: "no_token" });
   const n = normalizeServerUrl(legacy.serverUrl ?? (await Local.readSettings(ext.storage.local)).server.url);
   if (!n.ok) throw codedError(n.code, n.hint, { hint: n.hint });
+  // A token written beside the address goes to that address; the stored one only to its own.
+  const token = typed || (await secretFor("server", n.url).catch(() => null));
+  if (!token) throw codedError("server_key_rejected", "The server address changed outside Kotiko's settings. Paste your API token again.", { reason: "address_changed" });
   return { base: n.url, token };
 }
 
@@ -347,7 +410,7 @@ const client = globalThis.KotikoLLMClient.createClient({
   fetch: (...a) => fetch(...a),
   store: { meta: { get: async (k) => (await getStore()).meta.get(k), set: async (k, v) => (await getStore()).meta.set(k, v) }, cache: { get: async (k) => (await getStore()).cache.get(k), put: async (k, v, m) => (await getStore()).cache.put(k, v, m) } },
   settings: async () => (await settings()).lookup,
-  key: (providerId) => secret(`provider:${providerId}`).catch(() => null),
+  key: (providerId, baseUrl) => secretFor(`provider:${providerId}`, baseUrl).catch(() => null),
   now,
   onQuota: (quota) => {
     settings().then((s) => s.lookup.kind === "provider" && ext.storage.local.set({ lookupStatus: { provider: s.lookup.provider, quota, ready: true, at: Date.now() } })).catch(() => {});
@@ -1266,6 +1329,10 @@ ext.runtime.onMessage.addListener(
           for (const k of ["kind", "provider", "baseUrl", "model", "dataCollection"]) if (m.lookup[k] !== undefined) next[k] = typeof m.lookup[k] === "string" ? m.lookup[k].trim() || null : m.lookup[k];
           if (next.kind === "server" && !s.keys.server) throw codedError("server_key_rejected", "Connect a server first.", { reason: "no_token" });
           await ext.storage.local.set({ lookup: next });
+          // A page that names the address moves the provider's key there with it.
+          if (m.lookup.baseUrl !== undefined && next.provider && (await secret(`provider:${next.provider}`).catch(() => null))) {
+            await bindSecret(`provider:${next.provider}`, globalThis.KotikoLLMClient.endpoint(next).baseUrl);
+          }
           lookupChanged();
           return { ok: true, lookup: next };
         },
@@ -1292,6 +1359,7 @@ ext.runtime.onMessage.addListener(
           await ready();
           if (typeof m.url === "string") await ext.storage.local.set({ server: { url: m.url.trim() || Local.DEFAULT_SERVER } });
           if (typeof m.token === "string") await setSecret("server", m.token.trim() || null);
+          else if (typeof m.url === "string" && (await secret("server").catch(() => null))) await bindSecret("server", (await destination("server")) ?? "");
           const s = await settings();
           if (s.wordsHome === "local") {
             const count = await (await getStore()).count();
@@ -1362,7 +1430,7 @@ ext.runtime.onMessage.addListener(
           const pending = raw ? JSON.parse(raw) : null;
           if (!pending || pending.expires < now()) throw codedError("key_rejected", "That sign-in has expired.", { reason: "expired", provider: "openrouter" });
           const key = await globalThis.KotikoPKCE.exchange({ fetch: (...a) => fetch(...a), code: m.code, verifier: pending.verifier });
-          await setSecret("provider:openrouter", key);
+          await setSecret("provider:openrouter", key, globalThis.KotikoLLMClient.endpoint({ provider: "openrouter" }).baseUrl);
           const s = await settings();
           await ext.storage.local.set({ lookup: { ...s.lookup, kind: "provider", provider: "openrouter", baseUrl: null } });
           lookupChanged();
@@ -1530,7 +1598,10 @@ async function adoptLegacy() {
   if (legacy.serverUrl !== null) patch.server = { url: String(legacy.serverUrl).trim() || Local.DEFAULT_SERVER };
   const token = String(legacy.token ?? "").trim();
   if (legacy.token !== null) {
-    await setSecret("server", token || null);
+    // The token goes where the address written with it says; an address written alone
+    // (below) never takes the stored token with it.
+    const url = legacy.serverUrl !== null ? normalizeServerUrl(String(legacy.serverUrl).trim() || Local.DEFAULT_SERVER) : null;
+    await setSecret("server", token || null, url ? (url.ok ? url.url : "") : undefined);
     if (token && s.wordsHome !== "server") {
       patch.wordsHome = "server";
       patch.lookup = { ...s.lookup, kind: s.lookup.kind === "provider" ? "provider" : "server" };

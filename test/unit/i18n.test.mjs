@@ -90,12 +90,18 @@ describe("locale files", () => {
 
   test("the manifest's name and description come from the locale files", () => {
     const m = manifest();
-    assert.equal(m.name, "__MSG_extName__");
+    // The full name with its descriptor (slice 28 §8); the short name where space is tight.
+    assert.equal(m.name, "__MSG_extStoreName__");
+    assert.equal(m.short_name, "__MSG_extName__");
     assert.equal(m.description, "__MSG_extDescription__");
+    assert.ok(readMessages("en").extStoreName, "en/extStoreName");
     for (const l of LOCALES) {
       const msgs = readMessages(l);
       assert.ok(msgs.extName && msgs.extDescription, l);
+      // Edge's 45 characters is the tightest name limit (AMO 50, Chrome 75); 132 is Chrome's
+      // for the description.
       assert.ok(msgs.extName.message.length <= 45 && msgs.extDescription.message.length <= 132, `${l}: store limits`);
+      if (msgs.extStoreName) assert.ok(msgs.extStoreName.message.length <= 45, `${l}/extStoreName: store limits`);
     }
   });
 

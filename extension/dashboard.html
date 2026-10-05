@@ -196,8 +196,9 @@
             <p class="set-help" data-i18n="settings_connection_help"></p>
             <div class="set-field">
               <label class="field-label" for="serverUrl" data-i18n="settings_server_address"></label>
-              <input class="field" id="serverUrl" type="text" inputmode="url" spellcheck="false" autocomplete="off" placeholder="http://localhost:4747" aria-describedby="serverUrlError" />
+              <input class="field" id="serverUrl" type="text" inputmode="url" spellcheck="false" autocomplete="off" placeholder="http://localhost:4747" aria-describedby="serverUrlError serverUrlWarn" />
               <p class="field-error" id="serverUrlError" hidden></p>
+              <p class="field-help" id="serverUrlWarn" data-i18n="server_url_unencrypted" hidden></p>
             </div>
             <div class="set-field">
               <label class="field-label" for="accessKey" data-i18n="settings_access_key"></label>
@@ -345,6 +346,7 @@
             <p class="about-links">
               <a class="link" href="https://github.com/ScriptKittyOS/kotiko" target="_blank" rel="noopener noreferrer" data-i18n="dash_set_source"></a>
               <a class="link" href="https://github.com/ScriptKittyOS/kotiko/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" data-i18n="dash_set_license"></a>
+              <a class="link" id="privacyLink" href="privacy.html" target="_blank" data-i18n="privacy_link"></a>
             </p>
             <div class="set-actions">
               <button class="btn btn-secondary" id="showWelcome" type="button" data-i18n="dash_show_welcome"></button>
@@ -412,6 +414,7 @@
   <script src="bulk/sheet.js"></script>
   <script src="lib/lookup-status.js"></script>
   <script src="lib/story.js"></script>
+  <script src="lib/url.js"></script>
   <script src="dashboard.js"></script>
 </body>
 </html>

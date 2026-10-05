@@ -1050,6 +1050,12 @@
     renderSettingsStatus();
     renderVoices();
     $("serverUrl").focus();
+    load("lib/url.js").then(warnHttp, () => {});
+  }
+
+  // Slice 28 §5: plain http:// beyond this computer or a Tailscale address says so.
+  function warnHttp() {
+    $("serverUrlWarn").hidden = !globalThis.ServerUrl?.sendsInClear($("serverUrl").value);
   }
 
   function closeSettings() {
@@ -1077,6 +1083,7 @@
     const input = $("serverUrl");
     // Never overwrite a field being edited (research 06 F16).
     if (document.activeElement !== input && !state.dirty.has("serverUrl")) input.value = state.s.server?.url ?? state.s.serverUrl ?? "";
+    warnHttp();
     const key = $("accessKey");
     key.placeholder = state.maskedToken ? t("settings_key_saved", { masked: state.maskedToken }) : "";
   }
@@ -1285,6 +1292,7 @@
       $("toggleKey").textContent = show ? t("settings_hide_key") : t("settings_show_key");
     });
     for (const id of ["serverUrl", "accessKey"]) $(id).addEventListener("input", () => state.dirty.add(id));
+    $("serverUrl").addEventListener("input", warnHttp);
     document.addEventListener("keydown", onGlobalKeys);
     addEventListener("online", () => {
       state.online = true;

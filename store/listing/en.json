@@ -1,0 +1,34 @@
+{
+  "_comment": "Store listing text for this locale (slice 28 §8). The name and the short description are not here: they come from the manifest's __MSG_extStoreName__ and __MSG_extDescription__ in extension/_locales/<locale>/messages.json, so the browser and both stores show the same words. Slice 30's upload reads this file per locale; a locale whose file is missing a key isn't uploaded and the store falls back to English. The description is plain text (the Chrome Web Store shows no formatting). Captions are drawn into the screenshots by test/visual/store-screenshots.mjs. Don't name the mascot here (DECISIONS 2026-10-01), and don't assume which language the reader reads.",
+  "locale": "en",
+  "description": "Kotiko slips the words you've learned into the pages you read, one at a time, until a foreign language stops feeling foreign.\n\nKotiko swaps words on the web pages you read for the words you are learning, in any language. Read the news, a recipe or a forum as you always do, and here and there a word appears in the language you are learning: perro, 猫, спасибо. Hover over it, or tap it, to see what it means and hear how it sounds. Kotiko works on pages written in the languages you read, which it picks up from your browser, and you can add more.\n\nEvery word is one you chose. Nothing is added for you.\n\nTHREE WAYS TO START\n- Type a word with its meaning, like \"perro = dog\". No account and no key needed.\n- Connect a free OpenRouter key, then ask in your own words: \"how do you say cat in Japanese\".\n- Or use another AI service, a model on your own computer, or your own Kotiko server.\n\nWHAT LEAVES YOUR COMPUTER\n- The pages you read: never.\n- A word you add: only to the AI service you chose, and, for languages with word stress, the word alone to Wiktionary for its pronunciation.\n- Kotiko has no servers of its own, no accounts, no ads and no tracking.\n\nKEYBOARD AND ACCESSIBILITY\n- Select a swapped word and press Alt+Shift+R to open its card; Tab moves through it and Esc closes it.\n- Kotiko follows your light or dark theme and your reduced-motion setting.\n- Buttons and menus on websites are left alone by default, so controls read as you expect.\n\nWHY KOTIKO ASKS TO READ AND CHANGE ALL SITES\nKotiko's job is to swap words on whatever page you are reading, and it can't know in advance which sites those are. It reads page text inside your browser and never sends it anywhere. You can pause it on any site from its toolbar button.\n\nFree and open source (Apache-2.0), from ScriptKittyOS.\nHelp and guides: https://kotiko.org/\nPrivacy policy: https://kotiko.org/privacy/\nSource code: https://github.com/ScriptKittyOS/kotiko\nReport a problem: https://github.com/ScriptKittyOS/kotiko/issues",
+  "screenshots": [
+    {
+      "id": "page",
+      "caption": "Your words, right in the pages you read"
+    },
+    {
+      "id": "popup",
+      "caption": "Add any word, in your own words"
+    },
+    {
+      "id": "dashboard",
+      "caption": "Every word you chose, in one place"
+    },
+    {
+      "id": "welcome",
+      "caption": "Start with the word you want most"
+    },
+    {
+      "id": "dark",
+      "caption": "Easy on the eyes, day and night"
+    }
+  ],
+  "promo_small": {
+    "headline": "Learn words as you browse"
+  },
+  "promo_marquee": {
+    "headline": "Learn words as you browse",
+    "subline": "Any language. Free, open source, private by design."
+  }
+}

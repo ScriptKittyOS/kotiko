@@ -335,6 +335,14 @@ extension/
   _locales/                  every interface string, English and Spanish
 ```
 
+## Privacy
+
+Page text never leaves your browser; a word you add goes to the AI service you chose, or
+your own server. The full policy is [docs/privacy/en.md](docs/privacy/en.md) (also inside
+the extension: Settings, About, Privacy policy), and
+[docs/privacy/inventory.md](docs/privacy/inventory.md) lists everything Kotiko keeps and
+sends, with the code that does it.
+
 ## License
 
 The code is licensed under [Apache-2.0](LICENSE). The name, logo and illustrations in

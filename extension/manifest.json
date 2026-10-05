@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "__MSG_extName__",
+  "name": "__MSG_extStoreName__",
   "short_name": "__MSG_extName__",
   "version": "0.2.0",
   "description": "__MSG_extDescription__",
@@ -38,5 +38,13 @@
     "reveal-word": { "suggested_key": { "default": "Alt+Shift+R" }, "description": "__MSG_cmd_reveal_word__" }
   },
   "icons": { "16": "icon16.png", "32": "icon32.png", "48": "icon48.png", "128": "icon128.png" },
-  "browser_specific_settings": { "gecko": { "id": "kotiko@scriptkittyos.com" } }
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'self'" },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "kotiko@scriptkittyos.com",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": { "required": ["none"] }
+    },
+    "gecko_android": { "strict_min_version": "142.0" }
+  }
 }
