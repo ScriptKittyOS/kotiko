@@ -5,6 +5,11 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Kotiko is ready to ship to the Chrome Web Store and Firefox Add-ons. Each release on
+  GitHub carries both store packages, a checksum list, a list of the server's dependencies,
+  and a signed record of how each file was built. Anyone can rebuild the packages from the
+  release's tag and get the same bytes; docs/verify.md shows how to check a download.
+
 - Turning off Wiktionary pronunciations with `KOTIKO_WIKTIONARY=false` no longer makes the
   server warn at start that the setting is unknown and ignored. It always worked; only
   the warning was wrong.

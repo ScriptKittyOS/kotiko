@@ -5,7 +5,7 @@ ticked in the release pull request for the first public release and for any rele
 changes the word card ([19](../../slices/19-word-popover/SPEC.md)), audio (34), the
 respelling keys or the pronunciation prompt ([07](../../slices/07-word-model-v2/SPEC.md),
 [09](../../slices/09-shared-word-spec-and-prompt/SPEC.md)). It belongs to slice 30's
-release checklist (`docs/stores.md`, not written yet), which links here.
+release checklist ([`docs/stores.md`](../stores.md#release-checklist)), which links here.
 
 Automated tests cover voice choice against recorded voice lists and a stubbed engine. This
 check covers what they can't: real voices, and whether a voice's stress agrees with the

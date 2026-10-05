@@ -21,3 +21,8 @@ release, slice 30).
    [best-practices.md](best-practices.md)).
 9. [ ] Organization owners: at least two; two-factor authentication required for the
    organization.
+10. [ ] Release setup from [docs/stores.md](stores.md#one-time-setup): the `release` and
+    `store-status` environments, the `v*` tag ruleset, a signing key in
+    `.github/allowed_signers`, and "Allow GitHub Actions to create and approve pull requests".
+    Artifact attestations need the repository to be public, so the first release tag goes out
+    after the flip.

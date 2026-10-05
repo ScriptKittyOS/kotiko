@@ -1,0 +1,353 @@
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Slice 30: releases. docs/stores.md is the maintainer's guide; in short:
+#
+# 1. Every push to main: release-please keeps a "chore(main): release X.Y.Z" pull request
+#    with the version bumps and the CHANGELOG entry. It never tags or releases on its own.
+# 2. A maintainer merges that PR, then pushes a signed tag (scripts/tag-release.sh).
+# 3. The tag push: verify-tag (signature against .github/allowed_signers on main, commit on
+#    main, versions match) -> build (tests, lint, both zips built twice and compared, SBOM,
+#    SHA256SUMS) -> attest (Sigstore build provenance for every file) -> github-release.
+# 4. For a release (not an -rc.N candidate): store-gate (slice 54's security review is
+#    closed) -> publish-chrome and publish-firefox, each waiting for approval in the
+#    `release` environment. Without the store secrets they skip with a notice.
+#
+# A manual run (workflow_dispatch) on any branch is a dry run: it builds and uploads the
+# files as a workflow artifact, and creates, attests and publishes nothing.
+name: Release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'ScriptKittyOS/kotiko'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # the release branch and its commits
+      pull-requests: write # open and update the release PR
+      issues: write # create the autorelease labels
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          # Optional: a token that isn't GITHUB_TOKEN makes CI run on the release PR (docs/stores.md).
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          # Tags are signed by a maintainer (slice 30 §11), so release-please only keeps the PR.
+          skip-github-release: true
+
+  verify-tag:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.verify.outputs.version }}
+      prerelease: ${{ steps.verify.outputs.prerelease }}
+    steps:
+      # The checking script and the allowed signers come from main, never from the tag being
+      # checked, so a tag can't vouch for itself.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch the tag object and the release branch
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          git fetch --no-tags --force origin "+refs/tags/$TAG:refs/tags/$TAG"
+          git fetch --no-tags origin "+refs/heads/release-please--branches--main:refs/remotes/origin/release-please--branches--main" || true
+      - id: verify
+        env:
+          TAG: ${{ github.ref_name }}
+        run: bash scripts/verify-tag.sh "$TAG" --signers .github/allowed_signers --keys .github/release-keys.asc
+
+  build:
+    needs: verify-tag
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.verify-tag.result == 'success') }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      # The tag on a tag push; the chosen branch on a manual run. No caches in this workflow,
+      # so nothing a pull request wrote can reach a release.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          otp-version: "28.1"
+          elixir-version: "1.19.2"
+      - id: version
+        env:
+          TAG_VERSION: ${{ needs.verify-tag.outputs.version }}
+        run: |
+          if [ -n "$TAG_VERSION" ]; then v="$TAG_VERSION"; else v="$(node -p 'require("./extension/manifest.json").version')"; fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Building $v with Node $(node --version)"
+      - run: node scripts/check-versions.mjs
+      - run: npm ci
+      # The same checks as CI, on the tree being released.
+      - run: npm run lint
+      - run: npm test
+      - name: Build the zips twice and compare
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          node scripts/build-extension.mjs --version "$VERSION" --out dist
+          node scripts/build-extension.mjs --version "$VERSION" --out "$RUNNER_TEMP/rebuild" --skip-lint
+          for f in dist/*.zip; do cmp "$f" "$RUNNER_TEMP/rebuild/$(basename "$f")"; done
+          echo "Both builds are byte-identical."
+      - name: Server SBOM (CycloneDX)
+        working-directory: server
+        env:
+          MIX_ENV: dev
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mix deps.get
+          mix compile
+          mix sbom.cyclonedx --only prod --format json --output "../dist/kotiko-server-$VERSION.cdx.json" --force
+      - name: Checksums
+        working-directory: dist
+        run: |
+          sha256sum -- * > SHA256SUMS
+          cat SHA256SUMS
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-files
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+  attest:
+    needs: [verify-tag, build]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write # a short-lived Sigstore certificate for this workflow run
+      attestations: write # store the attestations on the repository
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-files
+          path: dist
+      - name: Check the files against their checksums
+        working-directory: dist
+        run: sha256sum -c SHA256SUMS
+      # SLSA build provenance for both zips, the SBOM and SHA256SUMS itself (slice 30 §7, §11).
+      # Attestations need a public repository; while it's private, a release candidate (for
+      # slice 54's review) goes out without them. A release never does.
+      - id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        continue-on-error: ${{ github.event.repository.private && needs.verify-tag.outputs.prerelease == 'true' }}
+        with:
+          subject-path: dist/*
+      - if: steps.attest.outcome == 'failure'
+        run: echo "::warning title=No attestations::This private repository can't store attestations; the release candidate is published without them."
+
+  github-release:
+    needs: [verify-tag, build, attest]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # create the release and upload its files
+      pull-requests: write # move the release PR's label
+      issues: write # labels live on the issues API
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-files
+          path: dist
+      - name: Check the files against their checksums
+        working-directory: dist
+        run: sha256sum -c SHA256SUMS
+      - name: Release notes
+        env:
+          VERSION: ${{ needs.verify-tag.outputs.version }}
+          CHROME_STORE_URL: ${{ vars.CHROME_STORE_URL }}
+          FIREFOX_STORE_URL: ${{ vars.FIREFOX_STORE_URL }}
+        run: node scripts/release-notes.mjs --version "$VERSION" --out "$RUNNER_TEMP/notes.md"
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.verify-tag.outputs.version }}
+          PRERELEASE: ${{ needs.verify-tag.outputs.prerelease }}
+        run: |
+          flags=()
+          if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
+          gh release create "$TAG" --verify-tag --title "Kotiko $VERSION" --notes-file "$RUNNER_TEMP/notes.md" "${flags[@]}" dist/*
+      # release-please opens the next release PR only once the merged one is labelled tagged.
+      - name: Mark the release PR as tagged
+        if: needs.verify-tag.outputs.prerelease == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.verify-tag.outputs.version }}
+        run: |
+          pr="$(gh pr list --state merged --label 'autorelease: pending' --limit 20 --json number,title \
+            --jq ".[] | select(.title | endswith(\" release $VERSION\")) | .number" | head -n 1)"
+          if [ -z "$pr" ]; then
+            echo "::warning title=Release PR not found::No merged PR labelled 'autorelease: pending' for $VERSION. Move its label to 'autorelease: tagged' by hand, or release-please won't open the next release PR."
+            exit 0
+          fi
+          gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$pr/labels" -f 'labels[]=autorelease: tagged' > /dev/null
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/issues/$pr/labels/autorelease:%20pending" > /dev/null
+          echo "PR #$pr is now 'autorelease: tagged'."
+
+  # Slice 54: no store upload before the pre-release security review is closed. Runs before
+  # the approval is requested, so nobody is asked to approve an upload that must not happen.
+  store-gate:
+    needs: [verify-tag, github-release]
+    if: needs.verify-tag.outputs.prerelease == 'false'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: node scripts/check-security-gate.mjs
+
+  publish-chrome:
+    needs: [verify-tag, store-gate]
+    if: github.repository == 'ScriptKittyOS/kotiko'
+    runs-on: ubuntu-24.04
+    environment: release # required reviewers; only v* tags may deploy (docs/stores.md)
+    permissions:
+      contents: read
+    steps:
+      - id: creds
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+        run: |
+          missing=()
+          for n in CWS_CLIENT_ID CWS_CLIENT_SECRET CWS_REFRESH_TOKEN CWS_PUBLISHER_ID CWS_EXTENSION_ID; do
+            [ -n "${!n}" ] || missing+=("$n")
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::notice title=Chrome Web Store upload skipped::The release environment has no ${missing[*]}. Upload the zip from the GitHub release by hand, or add the secrets (docs/stores.md)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.creds.outputs.ready == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - if: steps.creds.outputs.ready == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      # Locked versions, and no install scripts in a job that holds store credentials.
+      - if: steps.creds.outputs.ready == 'true'
+        run: npm ci --ignore-scripts
+      - if: steps.creds.outputs.ready == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-files
+          path: dist
+      - if: steps.creds.outputs.ready == 'true'
+        name: Check the zip against its checksum
+        working-directory: dist
+        run: sha256sum -c SHA256SUMS
+      - if: steps.creds.outputs.ready == 'true'
+        name: Upload and submit for review
+        env:
+          CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+          EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+          VERSION: ${{ needs.verify-tag.outputs.version }}
+          DEPLOY_PERCENTAGE: ${{ vars.CWS_DEPLOY_PERCENTAGE }}
+        run: |
+          args=(--source "dist/kotiko-chrome-$VERSION.zip")
+          # Optional staged rollout (off by default): a whole number from 1 to 100.
+          if [ -n "$DEPLOY_PERCENTAGE" ]; then
+            [[ "$DEPLOY_PERCENTAGE" =~ ^([1-9][0-9]?|100)$ ]] || { echo "::error::CWS_DEPLOY_PERCENTAGE must be 1 to 100"; exit 1; }
+            args+=(--deploy-percentage "$DEPLOY_PERCENTAGE")
+          fi
+          npx --no-install chrome-webstore-upload "${args[@]}"
+
+  publish-firefox:
+    needs: [verify-tag, store-gate]
+    if: github.repository == 'ScriptKittyOS/kotiko'
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: read
+    steps:
+      - id: creds
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          missing=()
+          for n in AMO_JWT_ISSUER AMO_JWT_SECRET; do
+            [ -n "${!n}" ] || missing+=("$n")
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::notice title=Firefox Add-ons submission skipped::The release environment has no ${missing[*]}. Submit the zip from the GitHub release by hand, or add the secrets (docs/stores.md)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.creds.outputs.ready == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - if: steps.creds.outputs.ready == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - if: steps.creds.outputs.ready == 'true'
+        run: npm ci --ignore-scripts
+      - if: steps.creds.outputs.ready == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-files
+          path: dist
+      - if: steps.creds.outputs.ready == 'true'
+        name: Check the zip and unpack it
+        env:
+          VERSION: ${{ needs.verify-tag.outputs.version }}
+        run: |
+          (cd dist && sha256sum -c SHA256SUMS)
+          unzip -q "dist/kotiko-firefox-$VERSION.zip" -d "$RUNNER_TEMP/firefox"
+      # Listed on addons.mozilla.org: submit and don't wait for review. AMO signs the version
+      # after review and sends it to users itself.
+      - if: steps.creds.outputs.ready == 'true'
+        name: Submit to Firefox Add-ons
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: >-
+          npx --no-install web-ext sign --no-config-discovery --channel listed
+          --source-dir "$RUNNER_TEMP/firefox" --artifacts-dir "$RUNNER_TEMP/signed" --approval-timeout 0

@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Files under extension/ that stay out of the store zips (slice 30 §3). One pattern per
+# line, relative to extension/: a trailing "/" means a whole folder, "*" matches within one
+# path segment and "**" across segments. Dotfiles, *.map and editor files are always left
+# out (scripts/build-extension.mjs).
+
+# Developer tools that generate or check the design tokens; the extension never loads them.
+ui/tools/

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Built (2026-10-05); store uploads untested until the maintainer adds the store accounts and secrets; see Implementation notes |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
 | **Depends on** | [02-test-harness-and-ci](../02-test-harness-and-ci/SPEC.md), [03-oss-foundations](../03-oss-foundations/SPEC.md); the release checklist checks [50](../50-ui-localization-and-base-language/SPEC.md)'s launch locales, [34](../34-pronunciation-audio/SPEC.md)'s manual voice check and [54](../54-pre-release-security-review/SPEC.md)'s security gate (the first store upload waits on it) |
@@ -323,6 +323,164 @@ question 3 confirms the tag-signing method.
   `node scripts/build-extension.mjs --version X.Y.Z --out dist/`, `sha256sum` against
   `SHA256SUMS`; what is fixed (entry order, timestamps from the tag's commit, permissions);
   slice 40's notes for the server tarball and image.
+
+## Implementation notes
+
+Built 2026-10-05. What runs where:
+
+| Piece | File |
+|---|---|
+| release-please config (§1) | `release-please-config.json` |
+| Release workflow (§2, §11) | `.github/workflows/release.yml` |
+| Daily Chrome Web Store status (§4) | `.github/workflows/store-status.yml`, `scripts/cws-status.mjs` |
+| Store zips (§3) | `scripts/build-extension.mjs`, `extension/.buildignore` |
+| Signed tags (§11) | `scripts/tag-release.sh`, `scripts/verify-tag.sh`, `.github/allowed_signers` |
+| Release notes and their checks (§8, §11) | `scripts/release-notes.mjs` |
+| Security-review gate (54) | `scripts/check-security-gate.mjs` |
+| Server SBOM (§11) | `{:sbom, "~> 0.11", only: :dev}` in `server/mix.exs` |
+| Guides | `docs/stores.md` (setup, secrets, checklist, rollback), `docs/verify.md`, `docs/reproducible-builds.md` |
+| Tests | `test/unit/build-extension.test.mjs`, `release-notes.test.mjs`, `release-tags.test.mjs`, `cws-status.test.mjs` |
+
+- **Release-please (§1).** `googleapis/release-please-action` **v5.0.0**, not v4: v5's only
+  breaking change is the Node 24 runtime (GitHub is retiring Node 20 actions), and it ships
+  release-please 17.6. It runs with `skip-github-release: true` (§11), so it only keeps the
+  release PR. Checked locally with release-please 17.6.0's own code: the config passes its
+  JSON schema; its updaters set 0.3.0 in `extension/manifest.json` and `server/mix.exs`;
+  `fix` gives 0.2.1, `feat` and `!` give 0.3.0 (`bump-minor-pre-major`); the new CHANGELOG
+  entry goes between `## Unreleased` and `## 0.2.0`. Two things the spec's config didn't
+  say:
+  - Hidden sections need a `section` name (the schema requires it). `build`, `refactor` and
+    `style` are listed as hidden too.
+  - `bootstrap-sha` is the 0.2.0 commit (dbcbd1a), so the first release PR lists only
+    commits since 0.2.0, not the whole history.
+
+  The JSON updater rewrites `extension/manifest.json` with one array item per line on the
+  first release PR. That's release-please's JSON writer; reformatting the manifest now would
+  collide with slices changing it in parallel.
+- **Release notes and `## Unreleased`.** Each slice adds a plain-language entry under
+  `## Unreleased`. The release manager moves those into the version's section on the release
+  PR's branch, above release-please's commit list. `tag-release.sh` refuses to tag while
+  `## Unreleased` has entries, or while a section with `BREAKING CHANGES` has no
+  `### Upgrade notes`. The GitHub release body is the CHANGELOG section plus the §8 footer.
+  It isn't the release PR's description, because release-please doesn't carry edits there
+  into the CHANGELOG. Store links in the footer come from the repository variables
+  `CHROME_STORE_URL` and `FIREFOX_STORE_URL` once the items exist.
+- **Tags (§11).** `verify-tag` checks out `main`, not the tag, and verifies with main's
+  `.github/allowed_signers` (SSH) or `.github/release-keys.asc` (GPG, imported into an empty
+  keyring). A tag can't vouch for itself, and an unknown key fails. It also requires the
+  tagged commit to be on `main` and the three version files to match the tag.
+  - A release candidate may instead sit on release-please's branch, whose version is
+    already bumped. That's how slice 54 can freeze `vX.Y.Z-rc.1` before the release PR merges.
+  - `tag-release.sh` verifies the new tag the same way before pushing, and deletes it if
+    that fails.
+  - `allowed_signers` is empty (comments only) until the maintainer adds their key, so
+    every tag is refused until then.
+- **Order of jobs.** `verify-tag`, then `build`, `attest`, `github-release`, `store-gate`,
+  then `publish-chrome` and `publish-firefox`. The GitHub release is created after the build
+  and attestations, rather than first, so a failed build leaves no empty release. It's
+  created with `gh release create --verify-tag` and all files at once. The merged release
+  PR's label then moves from `autorelease: pending` to `autorelease: tagged` (REST labels
+  API).
+- **Build (§3).** The zips are written with **fflate** (pure JavaScript), not yazl:
+  - yazl compresses with Node's zlib. Node bundles Chromium's zlib, whose deflate picks its
+    hash function by CPU features, so its output isn't canonical and can differ between
+    machines ([Chromium zlib](https://chromium.googlesource.com/chromium/src/third_party/zlib/+/27c2f474b71d0d20764f86f60ef8b00da1a16cda)).
+    fflate's output depends only on the input and fflate's version, which is pinned in the
+    lockfile.
+  - Timestamps: the commit time, written in UTC whatever the time zone. The test builds in
+    UTC, Los Angeles and Kolkata and compares.
+  - Mode 0644 from Unix, no directory entries, sorted by code unit.
+  - `LICENSE`, `NOTICE` and `LICENSES/` go into both zips, because Apache-2.0 §4 asks that
+    recipients get the license. That's a small addition to "only files from `extension/`".
+  - `extension/ui/tools/` (the design-token generators) is left out through `.buildignore`.
+  - `web-ext lint` runs on the Firefox tree without `--self-hosted` (listed rules): 0 errors,
+    1 warning, `MISSING_DATA_COLLECTION_PERMISSIONS`. Slice 28 adds that key; AMO requires
+    it for new add-ons, so the first submission waits on 28.
+  - A release candidate `X.Y.Z-rc.N` builds from a manifest saying `X.Y.Z` (browsers only
+    accept dotted numbers) and is named `kotiko-chrome-X.Y.Z-rc.N.zip`.
+- **Reproducibility in CI.** The release job builds twice and compares with `cmp`. The unit
+  tests build the real extension twice and compare SHA-256. Locally: built in four time
+  zones (UTC, Los Angeles, Tokyo, Auckland); every pair of zips was byte-identical.
+- **Attestations (§7).** `actions/attest` v4.2.2 (upstream now recommends it over
+  `attest-build-provenance`, which became a wrapper) attests both zips, the SBOM and
+  `SHA256SUMS` in one provenance statement. It runs in its own job, after the build, so the
+  job that runs `npm test` never holds `id-token: write`. Manual runs never attest.
+  Attestations need a public repository (or Enterprise Cloud). While the repository is
+  private, a release candidate goes out without them, with a warning. A real release fails
+  at that step, and nothing is published.
+- **Stores (§4, §5, §6).**
+  - `chrome-webstore-upload-cli` 4.0.2 and `chrome-webstore-upload` 6.0.1, pinned exactly
+    in `package.json` and locked. 4.x uses the Chrome Web Store API v2, which needs one more
+    value than the spec lists: **`CWS_PUBLISHER_ID`**. 4.0.2 is a day old; its only change
+    from 4.0.1 removes a broken `--trusted-testers` flag.
+  - Firefox uses the `web-ext` already in the lockfile. Secrets go in as `WEB_EXT_API_KEY`
+    and `WEB_EXT_API_SECRET`, not on the command line. It signs the unpacked attested zip
+    after checking its checksum.
+  - Both store jobs run `npm ci --ignore-scripts`, use no caches, and skip with a notice when
+    their secrets are missing.
+  - The `release` environment must allow the **tag** pattern `v*`, not the branch `main` the
+    spec says: the jobs run on the tag (§11 changed the trigger). A tag ruleset limits who
+    can create `v*` tags.
+  - Staged rollout is the optional variable `CWS_DEPLOY_PERCENTAGE`, off by default.
+- **Security gate (54).** `store-gate` runs before the approval request. It needs a
+  `docs/security/review-v*.md` with a line starting `Gate: closed` in the tagged tree, so no
+  store upload can happen before the first review closes. One sentence in slice 54 §6 names
+  the line. Later reviews, for releases touching permissions, messaging, secrets, the API or
+  the bot, are the checklist box: no script can tell which releases need one.
+- **Daily status (§4).** It edits the release notes rather than commenting, because GitHub
+  releases have no comments. It updates one marked line, only when the status changes, and
+  stops once the version is live.
+  - It uses its own `store-status` environment, with a refresh token minted for the
+    **read-only** scope `chromewebstore.readonly`. The approval-gated `release` environment
+    would stop a scheduled job every day, and an ungated copy of the publishing token would
+    weaken that gate.
+- **Dry run.** A manual run is always a dry run: build, SBOM and checksums as a workflow
+  artifact; no release, attestation or upload. The spec's `dry_run` input is gone, because a
+  manual run that publishes would only be a second way around the signed tag.
+- **SBOM.** `sbom` 0.11 as a dev-only dependency, as the spec says; its README now
+  recommends the dependency over the Mix archive. `mix sbom.cyclonedx --only prod` lists 29
+  components: the runtime dependencies plus Erlang/OTP and Elixir. The maintainer's server runs with `MIX_ENV=prod` and
+  `mix deps.get --only prod`, so it never fetches it.
+  `sbom` 0.11 itself needs Elixir 1.17+, while the server supports 1.15+. CI's 1.15 job
+  runs in the test environment and never compiles it; a contributor on 1.15 or 1.16 working
+  in the dev environment may see Mix warn about it. A Mix archive install was tried in its
+  place (lead review) and fails: the archive lacks `hex_core`.
+- **English only.** Per DECISIONS 2026-10-05, the release notes, listings and checklist are
+  English. The Spanish release-notes file (§8) and the Spanish listing boxes are dropped. The
+  Spanish respelling-key sign-off stays as a checklist box: it's reader support, not the
+  interface.
+- **Also changed.** CI's `shell` job shellchecks `scripts/*.sh`. `docs/release/voice-check.md`
+  links the checklist. `docs/PUBLIC_CHECKLIST.md` gains the release setup.
+- **Not verified here (needs the maintainer's accounts):** a real tag push, the store
+  uploads, `gh attestation verify` on a real release, release-please opening its PR, and
+  Chrome's dashboard warnings on the first manual upload.
+  - Locally, the built Chrome tree loads in Playwright's Chromium, its service worker
+    starts, and `developerPrivate` reports no install warnings or manifest errors. The
+    unmodified source manifest reports none in that Chromium either, so this doesn't stand
+    in for the store's check.
+- **Sources.**
+  - release-please: the [action's README](https://github.com/googleapis/release-please-action)
+    (inputs, `skip-github-release`, token caveat), the
+    [manifest config schema](https://github.com/googleapis/release-please/blob/main/schemas/config.json)
+    and its `simple` strategy and `changelog` updater source.
+  - Chrome Web Store: [API v2 setup](https://developer.chrome.com/docs/webstore/using-api)
+    and [fetchStatus](https://developer.chrome.com/docs/webstore/api/reference/rest/v2/publishers.items/fetchStatus)
+    (scopes `chromewebstore` and `chromewebstore.readonly`);
+    [chrome-webstore-upload](https://github.com/fregante/chrome-webstore-upload) and its CLI's
+    4.0 notes (publisher id).
+  - Firefox: the [web-ext command reference](https://extensionworkshop.com/documentation/develop/web-ext-command-reference/)
+    (`sign`, `--channel listed`, `--approval-timeout 0`, `WEB_EXT_*`).
+  - Attestations: the [actions/attest README](https://github.com/actions/attest) (permissions,
+    globs, private repositories) and `gh attestation verify`'s flags; SLSA
+    [build provenance](https://slsa.dev/spec/v1.0/provenance).
+  - Tags: `git verify-tag` with `gpg.ssh.allowedSignersFile`, and `ssh-keygen(1)`
+    "ALLOWED SIGNERS".
+  - Reproducible zips: [reproducible-builds.org on SOURCE_DATE_EPOCH](https://reproducible-builds.org/docs/source-date-epoch/)
+    and on [archives](https://reproducible-builds.org/docs/archives/).
+  - Every action is pinned to the commit its release tag points at, checked with
+    `gh api repos/<action>/git/ref/tags/<tag>`: release-please-action v5.0.0 `45996ed`,
+    attest v4.2.2 `1e69f48`, download-artifact v8.0.1 `3e5f45b`. Checkout, setup-node,
+    setup-beam and upload-artifact use CI's existing pins.
 
 ## Acceptance criteria
 
