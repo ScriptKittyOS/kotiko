@@ -25,12 +25,6 @@ const WORDS = [
 ];
 const CONNECTED = { serverUrl: "http://127.0.0.1:4999", token: "t0ken", lastSync: Date.UTC(2026, 9, 1, 11, 58), syncError: null };
 
-// A promise with its resolve function, for answers that arrive later.
-function deferred() {
-  let resolve;
-  const promise = new Promise((r) => (resolve = r));
-  return { promise, resolve };
-}
 
 async function openPopup({ local = {}, locale = "en", tabUrl = `https://${HOST}/wiki/Cat`, permission = true, answer = () => ({ ok: true }), pageStatus = null } = {}) {
   const fake = createFakeChrome({
@@ -294,124 +288,213 @@ describe("server problems (slice 25 codes)", () => {
   });
 });
 
-describe("adding words (D)", () => {
-  test("Enter clears and refocuses the box at once, the line says Looking up, then Added with Undo", async () => {
-    const add = deferred();
-    const p = await openPopup({
-      local: { ...CONNECTED, words: WORDS },
-      answer: (msg) => (msg.type === "add" ? add.promise : { ok: true }),
-    });
+describe("adding words (D, slice 24)", () => {
+  // The background in miniature: an add becomes a job in storage, finished as `outcome`
+  // says; Undo, "Add it back" and a pick write their outcome on the job, as it does.
+  function background(outcome = () => ({})) {
+    const ref = {};
+    const jobs = () => ref.p.fake.chrome.storage.local.get({ addJobs: [] }).then((s) => s.addJobs);
+    const put = async (id, fn) => ref.p.fake.chrome.storage.local.set({ addJobs: (await jobs()).map((j) => (j.id === id ? fn(j) : j)) });
+    const keyOf = (w) => `${w.lang}\u001f${w.native}`;
+    const answer = (msg) => {
+      if (msg.type === "add") {
+        const r = outcome(msg);
+        // Refused before it became a job (text too long).
+        if (r?.refuse) return r.refuse;
+        const job = { id: msg.id, text: msg.text, state: "looking_up", createdAt: Date.now(), seen: false, results: [], baseLangs: ["en"], ...r };
+        queueMicrotask(async () => ref.p.fake.chrome.storage.local.set({ addJobs: [job, ...(await jobs()).filter((j) => j.id !== job.id)] }));
+        return { ok: true, job: { id: msg.id, state: "queued" } };
+      }
+      if (msg.type === "jobs.undo" || msg.type === "jobs.redo") {
+        const undo = msg.type === "jobs.undo" ? ref.undo ?? { undo: "done" } : { undo: null };
+        return put(msg.id, (j) => ({ ...j, results: j.results.map((x) => (keyOf(x.word) === msg.key ? { ...x, ...undo } : x)) })).then(() => ({ ok: true }));
+      }
+      if (msg.type === "jobs.retry") return put(msg.id, (j) => ({ ...j, ...(ref.retry ?? {}) })).then(() => ({ ok: true }));
+      return { ok: true };
+    };
+    return { answer, ref };
+  }
+  const word = (id, lang, native, gloss, extra = {}) => ({ id, lang, native, gloss, base_lang: "en", forms: [gloss], ...extra });
+  const rec = (w, result = "created", extra = {}) => ({ wordId: w.id, baseLang: w.base_lang, result, word: w, previous: null, undo: null, ...extra });
+  async function add(text, outcome, local = {}) {
+    const bg = background(outcome);
+    const p = await openPopup({ local: { ...CONNECTED, words: WORDS, ...local }, answer: bg.answer });
+    bg.ref.p = p;
+    p.$("#addText").value = text;
+    p.$("#addForm").dispatchEvent(new p.win.Event("submit", { cancelable: true }));
+    await p.settle();
+    return { p, bg, sent: p.fake.calls.sendMessage.find((m) => m.type === "add") };
+  }
+
+  test("Enter clears and refocuses the box at once; the line follows the job to Added, with Undo and Add it back", async () => {
+    const sobaka = word("01900000-0000-7000-8000-0000000000a1", "ru", "собака", "dog", { romanization: "sobaka", pronunciation: "sa-BA-ka" });
+    const bg = background(() => ({}));
+    const p = await openPopup({ local: { ...CONNECTED, words: WORDS }, answer: bg.answer });
+    bg.ref.p = p;
     const input = p.$("#addText");
     input.value = "sobaka";
     p.$("#addForm").dispatchEvent(new p.win.Event("submit", { cancelable: true }));
     assert.equal(input.value, "", "cleared before any answer");
     assert.equal(p.doc.activeElement, input);
-    assert.equal(p.text("#jobs"), "Looking up sobaka…");
-    assert.deepEqual(p.fake.calls.sendMessage.filter((m) => m.type === "add"), [{ type: "add", text: "sobaka" }]);
-
-    add.resolve({ words: [{ id: 42, lang: "ru", language: "Russian", native: "собака", romanization: "sobaka", english: "dog", forms: ["dog"] }] });
+    assert.match(p.text("#jobs"), /^Looking up sobaka…/);
+    const sent = p.fake.calls.sendMessage.find((m) => m.type === "add");
+    assert.match(sent.id, /^[0-9a-f-]{36}$/, "every add is a job with its own id, server mode included");
+    await p.settle();
+    const jobs = (await p.fake.chrome.storage.local.get("addJobs")).addJobs;
+    await p.fake.chrome.storage.local.set({ addJobs: jobs.map((j) => ({ ...j, state: "done", results: [rec(sobaka)] })) });
     await p.settle();
     const line = p.$('#jobs [data-kind="word"]');
-    assert.equal(line.querySelector(".job-text").textContent, "Added собака (sobaka) = dog · Russian");
+    assert.equal(line.querySelector(".job-text").textContent, "Added собака (sa-BA-ka) = dog · Russian", "the pronunciation, else the romanization");
     assert.equal(line.querySelector(".word").lang, "ru");
     assert.equal(line.querySelector('[data-action="undo"]').getAttribute("aria-label"), "Undo adding собака");
-
     line.querySelector('[data-action="undo"]').click();
     await p.settle();
-    assert.deepEqual(p.fake.calls.sendMessage.filter((m) => m.type === "remove"), [{ type: "remove", id: 42 }]);
-    assert.equal(p.text("#jobs"), "Removed собака.");
+    assert.deepEqual(p.fake.calls.sendMessage.find((m) => m.type === "jobs.undo"), { type: "jobs.undo", id: sent.id, key: "ru\u001fсобака" });
+    assert.equal(p.text('#jobs [data-kind="word"] .job-text'), "Removed собака.");
+    p.$('#jobs [data-action="redo"]').click();
+    await p.settle();
+    assert.ok(p.fake.calls.sendMessage.some((m) => m.type === "jobs.redo"));
+    assert.match(p.text("#jobs"), /^Added собака/);
   });
 
   test("three adds in a row each get their line, newest first, and only three are kept", async () => {
-    const p = await openPopup({
-      local: { ...CONNECTED, words: WORDS },
-      answer: (msg) => (msg.type === "add" ? new Promise(() => {}) : { ok: true }),
-    });
+    const p = await openPopup({ local: { ...CONNECTED, words: WORDS }, answer: (msg) => (msg.type === "add" ? new Promise(() => {}) : { ok: true }) });
     for (const text of ["uno", "dos", "tres", "cuatro"]) {
       p.$("#addText").value = text;
       p.$("#addForm").dispatchEvent(new p.win.Event("submit", { cancelable: true }));
     }
-    assert.deepEqual([...p.doc.querySelectorAll("#jobs li")].map((li) => li.textContent), ["Looking up cuatro…", "Looking up tres…", "Looking up dos…"]);
+    assert.deepEqual([...p.doc.querySelectorAll("#jobs li .job-text")].map((li) => li.textContent), ["Looking up cuatro…", "Looking up tres…", "Looking up dos…"]);
   });
 
   test("each word in a multi-word add has its own Undo", async () => {
-    const p = await openPopup({
-      local: { ...CONNECTED, words: WORDS },
-      answer: (msg) => (msg.type === "add" ? { words: [w(50, "es", "gato", "cat"), w(51, "es", "perro", "dog")] } : { ok: true }),
-    });
-    p.$("#addText").value = "cat and dog in spanish";
-    p.$("#addForm").dispatchEvent(new p.win.Event("submit", { cancelable: true }));
-    await p.settle();
+    const gato = word("01900000-0000-7000-8000-0000000000b1", "es", "gato", "cat");
+    const perro = word("01900000-0000-7000-8000-0000000000b2", "es", "perro", "dog");
+    const { p } = await add("cat and dog in spanish", () => ({ state: "done", results: [rec(gato), rec(perro)] }));
     const undos = p.doc.querySelectorAll('#jobs [data-action="undo"]');
     assert.equal(undos.length, 2);
     undos[1].click();
     await p.settle();
-    assert.deepEqual(p.fake.calls.sendMessage.filter((m) => m.type === "remove"), [{ type: "remove", id: 51 }]);
+    assert.equal(p.fake.calls.sendMessage.find((m) => m.type === "jobs.undo").key, "es\u001fperro");
     assert.match(p.text("#jobs"), /Added gato = cat · Spanish.*Removed perro\./);
   });
 
-  test("a word already in the list is named calmly, with no Undo that could delete it", async () => {
-    const p = await openPopup({
-      local: { ...CONNECTED, words: WORDS },
-      answer: (msg) =>
-        msg.type === "add"
-          ? { words: [w(52, "es", "gato", "cat")], known: ["спасибо"], reply: "Already in your list: спасибо" }
-          : { ok: true },
-    });
-    p.$("#addText").value = "gato and spasibo";
-    p.$("#addForm").dispatchEvent(new p.win.Event("submit", { cancelable: true }));
-    await p.settle();
-    const known = p.$('#jobs [data-kind="known"]');
-    assert.equal(known.textContent, "Already in your list: спасибо");
-    assert.equal(known.querySelectorAll("button").length, 0);
+  test("a word already in the list: named calmly with Open, never an Undo that could delete it", async () => {
+    const spasibo = word("01900000-0000-7000-8000-0000000000c1", "ru", "спасибо", "thanks");
+    const gato = word("01900000-0000-7000-8000-0000000000c2", "es", "gato", "cat");
+    const { p } = await add("gato and spasibo", () => ({ state: "done", results: [rec(gato), rec(spasibo, "unchanged")] }));
+    const lines = [...p.doc.querySelectorAll('#jobs [data-kind="word"]')];
+    assert.equal(lines[1].querySelector(".job-text").textContent, "Already in your list: спасибо = thanks · Russian");
+    assert.equal(lines[1].querySelector('[data-action="undo"]'), null);
+    assert.equal(lines[1].querySelector('[data-action="open"]').getAttribute("aria-label"), "Open спасибо");
     assert.equal(p.doc.querySelectorAll('#jobs [data-action="undo"]').length, 1, "only the new word has Undo");
-    assert.equal(p.$('#jobs [data-kind="failed"]'), null);
+  });
+
+  test("an update names the new forms; Undo puts the word back as it was", async () => {
+    const before = word("01900000-0000-7000-8000-0000000000d1", "es", "casa", "house", { forms: ["house"] });
+    const after = { ...before, forms: ["house", "home"], updated_at: "2026-10-05T10:00:00Z" };
+    const { p } = await add("casa", () => ({ state: "done", results: [rec(after, "updated", { previous: before })] }));
+    assert.equal(p.text('#jobs [data-kind="word"] .job-text'), "Updated casa = house · Spanish: new forms: home");
+    p.$('#jobs [data-action="undo"]').click();
+    await p.settle();
+    assert.equal(p.text('#jobs [data-kind="word"] .job-text'), "Put casa back as it was.");
+    assert.equal(p.$('#jobs [data-action="redo"]'), null);
+  });
+
+  test("one word for two bases is one line, perro · dog, whose Undo covers both", async () => {
+    const es = word("01900000-0000-7000-8000-0000000000e1", "ja", "犬", "perro", { base_lang: "es", pronunciation: "i-nu" });
+    const en = word("01900000-0000-7000-8000-0000000000e2", "ja", "犬", "dog", { base_lang: "en", pronunciation: "ee-noo" });
+    const { p } = await add("犬", () => ({ state: "done", baseLangs: ["es", "en"], results: [rec(en), rec(es)] }));
+    const lines = p.doc.querySelectorAll('#jobs [data-kind="word"]');
+    assert.equal(lines.length, 1);
+    assert.equal(lines[0].querySelector(".job-text").textContent, "Added 犬 (i-nu) = perro · dog · Japanese", "base order; the primary base's pronunciation");
+    lines[0].querySelector('[data-action="undo"]').click();
+    await p.settle();
+    assert.equal(p.fake.calls.sendMessage.filter((m) => m.type === "jobs.undo").length, 1);
+    assert.equal(p.text('#jobs [data-kind="word"] .job-text'), "Removed 犬.");
+  });
+
+  test("a meaning missing for one base is said under the line", async () => {
+    const es = word("01900000-0000-7000-8000-0000000000f1", "ja", "犬", "perro", { base_lang: "es" });
+    const { p } = await add("犬", () => ({ state: "done", baseLangs: ["es", "de"], missingBases: ["de"], results: [rec(es)] }));
+    assert.equal(p.text('#jobs [data-kind="missing"]'), "No meaning in German yet.");
+  });
+
+  test("four or more words: a checklist, function words unticked; Add 3 words sends exactly the ticked ones", async () => {
+    const c = (native, gloss, unticked = false) => ({ lang: "es", native, gloss, base_lang: "en", unticked });
+    const candidates = [c("gato", "cat"), c("sentarse", "sat"), c("estera", "mat"), c("en", "on", true), c("mi", "my", true)];
+    const { p, sent } = await add("the cat sat on my mat", () => ({ state: "needs_choice", candidates }));
+    assert.match(p.text('#jobs [data-kind="choose"] p'), /^Found 5 words in “the cat sat on my mat”\.$/);
+    const boxes = [...p.doc.querySelectorAll('#jobs [data-kind="choose"] input[type="checkbox"]')];
+    assert.deepEqual(boxes.map((b) => b.checked), [true, true, true, false, false]);
+    const button = p.$('#jobs [data-action="choose"]');
+    assert.equal(button.textContent, "Add 3 words");
+    boxes[2].checked = false;
+    boxes[2].dispatchEvent(new p.win.Event("change"));
+    assert.equal(button.textContent, "Add 2 words");
+    button.click();
+    await p.settle();
+    assert.deepEqual(p.fake.calls.sendMessage.find((m) => m.type === "jobs.choose"), { type: "jobs.choose", id: sent.id, keys: ["es\u001fgato", "es\u001fsentarse"] });
+  });
+
+  test("an Undo that fails says so and can be tried again; one refused because the word changed since says to open it", async () => {
+    const gato = word("01900000-0000-7000-8000-0000000000a9", "es", "gato", "cat");
+    const failing = await add("gato", () => ({ state: "done", results: [rec(gato)] }));
+    failing.bg.ref.undo = { undo: "failed", undoError: { code: "server_unreachable", details: {} } };
+    failing.p.$('#jobs [data-action="undo"]').click();
+    await failing.p.settle();
+    assert.match(failing.p.text('#jobs [data-kind="word"] p'), /^Couldn't undo: Can't reach your Kotiko server\./);
+    assert.ok(failing.p.$('#jobs [data-kind="word"] [data-action="retry"]'), "the Undo stays");
+    const stale = await add("gato", () => ({ state: "done", results: [rec(gato, "updated", { previous: gato })] }));
+    stale.bg.ref.undo = { undo: "failed", undoError: { code: "word_conflict", details: { reason: "stale" } } };
+    stale.p.$('#jobs [data-action="undo"]').click();
+    await stale.p.settle();
+    assert.equal(stale.p.text('#jobs [data-kind="word"] p'), "This word changed since. Open it to fix.");
+    assert.ok(stale.p.$('#jobs [data-kind="word"] [data-action="open"]'));
   });
 
   test("failures read in plain language, with the right next step", async () => {
     const cases = [
-      [{ error: "Can't reach http://x.", code: "server_unreachable" }, CONNECTED, /^Can't reach your Kotiko server\./, "retry"],
-      [{ error: "The language model failed: 429", code: "http_error", details: { status: 502 } }, CONNECTED, /^Word lookup didn't answer\. Try again in a moment\.$/, "retry"],
-      [{ error: "Couldn't save", code: "http_error", details: { status: 422 } }, CONNECTED, /^Your Kotiko server couldn't save that word\./, "retry"],
-      [{ error: "The server rejected that API token.", code: "server_key_rejected" }, CONNECTED, /^Your Kotiko server didn't accept the access key\./, "settings"],
-      [{ error: { code: "invalid_message", message: "text must be 1 to 200 characters" } }, CONNECTED, /^That's a lot of text for one word\./, null],
-      [{ words: [], reply: "I couldn't find a word in that." }, CONNECTED, /^Couldn't find a word in “zzz”\. Try the word on its own\.$/, null],
+      [{ code: "http_error", details: { status: 422 } }, /^Your Kotiko server couldn't save that word\./, "retry"],
+      [{ code: "server_key_rejected", details: {} }, /^Your Kotiko server didn't accept the access key\./, "settings"],
+      [{ code: "no_word_found", details: { reply: "I couldn't find a word in that." } }, /^Couldn't find a word in “zzz”\. Try the word on its own\.$/, null],
+      [{ code: "rejected_same_as_gloss", details: {} }, /^“zzz” is already a word in English\. Try naming the language you want it in\.$/, null],
+      [{ code: "bad_lookup_result", details: { status: 502 } }, /^The lookup came back garbled\./, "retry"],
+      [{ code: "key_rejected", details: { provider: "openrouter", status: 502 } }, /^OpenRouter didn't accept your Kotiko server's key\./, null],
     ];
-    for (const [res, local, expected, action] of cases) {
-      const p = await openPopup({ local: { ...local, words: WORDS }, answer: (msg) => (msg.type === "add" ? res : { ok: true }) });
-      p.$("#addText").value = "zzz";
-      p.$("#addForm").dispatchEvent(new p.win.Event("submit", { cancelable: true }));
-      await p.settle();
+    for (const [error, expected, action] of cases) {
+      const { p } = await add("zzz", () => ({ state: "failed", error }));
       const line = p.$('#jobs [data-kind="failed"]');
-      assert.match(line.querySelector(".job-text > p").textContent, expected);
+      assert.match(line?.querySelector(".job-text > p").textContent ?? p.text("#jobs"), expected, JSON.stringify(error));
       assert.ok(line.querySelector(".icon-error"), "an icon, not color alone");
       if (action) assert.ok(line.querySelector(`[data-action="${action}"]`), `${expected}: ${action}`);
       assert.doesNotMatch(line.querySelector(".job-text > p").textContent, /token|API|model/i);
     }
   });
 
-  test("a failed lookup's code (slice 10) reads in plain language, never 'Word lookup didn't answer'", async () => {
-    const tomorrow = new Date(Date.now() + 6 * 3600_000).toISOString();
+  test("a job that waits says why: busy, out of lookups, unreachable, offline", async () => {
+    const later = new Date(Date.now() + 6 * 3600_000).toISOString();
     const cases = [
-      [{ code: "rate_limited", details: { status: 429, retry_at: tomorrow } }, /^Word lookup is busy\. Try again in a minute\.$/, "retry"],
-      [{ code: "quota_exhausted", details: { reason: "daily_limit", retry_at: tomorrow, provider: "openrouter" } }, /^You've used today's free lookups\. Try again after \d{1,2}:\d{2}/, null],
-      [{ code: "quota_exhausted", details: { reason: "payment_required", provider: "openrouter", status: 402 } }, /^OpenRouter needs credit on your account/, null],
-      [{ code: "model_unavailable", details: { status: 502 } }, /^Word lookup isn't answering right now\./, "retry"],
-      [{ code: "lookup_timeout", details: { status: 503 } }, /^That lookup took too long\. Try again\.$/, "retry"],
-      [{ code: "bad_lookup_result", details: { status: 502 } }, /^The lookup came back garbled\./, "retry"],
-      [{ code: "key_rejected", details: { provider: "openrouter", status: 502 } }, /^OpenRouter didn't accept your Kotiko server's key\./, null],
-      [{ code: "lookup_not_set_up", details: { status: 503 } }, /^Word lookup isn’t set up on your Kotiko server yet\.$/, null],
+      [{ code: "rate_limited", details: { retry_at: later } }, /^Waiting to look up zzz: the AI is busy\. It runs again by itself in a moment\.$/],
+      [{ code: "quota_exhausted", details: { retry_at: later } }, /^Waiting to look up zzz: today's free lookups are used up\./],
+      [{ code: "server_unreachable", details: {} }, /^Waiting to look up zzz: Can't reach your Kotiko server\./],
+      [{ code: "offline", details: {} }, /^Waiting to look up zzz: you're offline\. It continues when you're back online\.$/],
     ];
-    for (const [res, expected, action] of cases) {
-      const p = await openPopup({ local: { ...CONNECTED, words: WORDS }, answer: (msg) => (msg.type === "add" ? { error: "x", ...res } : { ok: true }) });
-      p.$("#addText").value = "zzz";
-      p.$("#addForm").dispatchEvent(new p.win.Event("submit", { cancelable: true }));
-      await p.settle();
-      const line = p.$('#jobs [data-kind="failed"]');
-      assert.match(line.querySelector(".job-text > p").textContent, expected);
-      if (action) assert.ok(line.querySelector(`[data-action="${action}"]`), `${expected}: ${action}`);
-      else assert.equal(line.querySelector('[data-action="retry"]'), null, `${expected}: no retry`);
+    for (const [error, expected] of cases) {
+      const { p } = await add("zzz", () => ({ state: "waiting", error }));
+      assert.match(p.text('#jobs [data-kind="waiting"] p') ?? p.text("#jobs"), expected, JSON.stringify(error));
+      assert.ok(p.$('#jobs [data-kind="waiting"] [data-action="cancel"]'));
     }
+  });
+
+  test("text too long is refused at once; Try again on a failed line asks the background", async () => {
+    const { p } = await add("x".repeat(201), () => ({ refuse: { error: { code: "invalid_message", message: "text must be 1 to 200 characters" } } }));
+    assert.match(p.text('#jobs [data-kind="failed"] p'), /^That's a lot of text for one word\./);
+    p.$('#jobs [data-action="dismiss"]').click();
+    assert.equal(p.doc.querySelectorAll("#jobs li").length, 0);
+    const failed = await add("sobaka", () => ({ state: "failed", error: { code: "http_error", details: { status: 422 } } }));
+    failed.p.$('#jobs [data-action="retry"]').click();
+    await failed.p.settle();
+    assert.ok(failed.p.fake.calls.sendMessage.some((m) => m.type === "jobs.retry"));
   });
 
   test("free lookups left today: shown at 20 or fewer, asked for on open, live", async () => {
@@ -460,23 +543,6 @@ describe("adding words (D)", () => {
     assert.ok(!q.visible("#lookupsLeft"));
   });
 
-  test("Try again on a failed line runs the add again; dismiss clears it", async () => {
-    let n = 0;
-    const p = await openPopup({
-      local: { ...CONNECTED, words: WORDS },
-      answer: (msg) => (msg.type !== "add" ? { ok: true } : n++ ? { words: [w(60, "ru", "собака", "dog", "sobaka")] } : { error: "x", code: "server_unreachable" }),
-    });
-    p.$("#addText").value = "sobaka";
-    p.$("#addForm").dispatchEvent(new p.win.Event("submit", { cancelable: true }));
-    await p.settle();
-    p.$('#jobs [data-action="retry"]').click();
-    await p.settle();
-    assert.match(p.text("#jobs"), /^Added собака/);
-    p.$("#addText").value = "x".repeat(201);
-    p.$("#addForm").dispatchEvent(new p.win.Event("submit", { cancelable: true }));
-    p.$('#jobs [data-action="dismiss"]').click();
-    assert.equal(p.doc.querySelectorAll("#jobs li").length, 1);
-  });
 });
 
 describe("languages", () => {
@@ -590,10 +656,9 @@ describe("keyboard and focus (20 §4)", () => {
   });
 
   test("/ returns to the add box; ↓ in the add box reaches the newest line's first action", async () => {
-    const p = await openPopup({ local: { ...CONNECTED, words: WORDS }, answer: (m) => (m.type === "add" ? { words: [w(80, "ru", "собака", "dog")] } : { ok: true }) });
-    p.$("#addText").value = "sobaka";
-    p.$("#addForm").dispatchEvent(new p.win.Event("submit", { cancelable: true }));
-    await p.settle();
+    const done = { id: "01900000-0000-7000-8000-000000000080", text: "sobaka", state: "done", createdAt: Date.now(), seen: false, baseLangs: ["en"], results: [{ wordId: "w-80", result: "created", word: { id: "w-80", lang: "ru", native: "собака", gloss: "dog", base_lang: "en" } }] };
+    const p = await openPopup({ local: { ...CONNECTED, words: WORDS, addJobs: [done] } });
+    p.$("#addText").focus();
     p.$("#addText").dispatchEvent(new p.win.KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
     assert.equal(p.doc.activeElement.dataset.action, "undo");
     p.doc.activeElement.dispatchEvent(new p.win.KeyboardEvent("keydown", { key: "/", bubbles: true, cancelable: true }));
@@ -715,21 +780,21 @@ describe("words in this browser (slice 11): adds are background jobs", () => {
     p.$("#addText").value = "shukran";
     p.$("#addForm").dispatchEvent(new p.win.Event("submit", { cancelable: true }));
     assert.equal(p.$("#addText").value, "");
-    assert.equal(p.text("#jobs"), "Looking up shukran…");
+    assert.equal(p.text("#jobs .job-text"), "Looking up shukran…");
+    assert.ok(p.$('#jobs [data-action="cancel"]'), "a lookup can be cancelled");
     assert.equal(p.$("#addBtn").disabled, false, "never disabled");
     const sent = p.fake.calls.sendMessage.find((m) => m.type === "add");
     assert.match(sent.id, /^[0-9a-f-]{36}$/);
     assert.equal(sent.text, "shukran");
     await p.fake.chrome.storage.local.set({ addJobs: [job(sent.id, "looking_up")] });
     await p.settle();
-    assert.equal(p.text("#jobs"), "Looking up shukran…");
+    assert.equal(p.text("#jobs .job-text"), "Looking up shukran…");
     await p.fake.chrome.storage.local.set({ addJobs: [job(sent.id, "done", { results: [{ wordId: "w-1", result: "created", word: shukran, undo: null }] })] });
     await p.settle();
     assert.match(p.text("#jobs"), /^Added شكرا \(shukran\) = thanks · Arabic\s*Undo$/);
     p.$('#jobs [data-action="undo"]').click();
     await p.settle();
-    assert.deepEqual(p.fake.calls.sendMessage.find((m) => m.type === "remove"), { type: "remove", id: "w-1", jobId: sent.id });
-    assert.match(p.text("#jobs"), /^Removed شكرا/);
+    assert.deepEqual(p.fake.calls.sendMessage.find((m) => m.type === "jobs.undo"), { type: "jobs.undo", id: sent.id, key: "ar\u001fشكرا" });
   });
 
   test("a waiting job says why and offers the next step; with no AI set up, Set up lookups", async () => {
@@ -757,7 +822,7 @@ describe("words in this browser (slice 11): adds are background jobs", () => {
   test("a job that finished while the popup was closed shows on open, and counts as seen", async () => {
     const id = "01900000-0000-7000-8000-000000000003";
     const p = await openPopup({ local: { ...LOCAL, words: WORDS, addJobs: [job(id, "done", { results: [{ wordId: "w-1", result: "created", word: shukran }] }), job("old", "done", { seen: true, text: "old", results: [{ wordId: "w-2", result: "created", word: { ...shukran, id: "w-2", native: "قديم" } }] })] } });
-    assert.match(p.text("#jobs"), /^Added شكرا/);
+    assert.match(p.text("#jobs"), /^While you were awayAdded شكرا/, "finished with the popup closed: says so (24 §9)");
     assert.doesNotMatch(p.text("#jobs"), /قديم/, "seen before: not shown again");
     assert.deepEqual(p.fake.calls.sendMessage.find((m) => m.type === "jobs.seen"), { type: "jobs.seen", ids: [id] });
   });

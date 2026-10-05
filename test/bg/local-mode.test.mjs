@@ -323,11 +323,14 @@ describe("upgrading an existing install (slice 11 §8)", () => {
     assert.deepEqual(bg.store.words, LEGACY_WORDS, "the pages' list is the server's, byte for byte");
     // The 50 cached words are also in the store, for a later move into this browser.
     assert.equal((await (await bg.k.getStore()).list()).length, 50);
-    // Adds still go straight to the server, as before.
+    // Adds go to the server, which looks the word up and keeps it, through the add queue
+    // (slice 24): its lookup, then the save under the job's id.
     const res = await bg.send({ type: "add", text: "sobaka" }, POPUP);
-    assert.equal(res.words[0].native, "собака");
-    assert.ok(srv.state.log.some((r) => r.method === "POST" && r.path === "/kotiko/api/words" && r.auth === `Bearer ${srv.token}`));
-    assert.equal(srv.state.log.filter((r) => r.path.startsWith("/llm/")).length, 0);
+    const job = await bg.until(() => bg.store.addJobs?.find((j) => j.id === res.job.id && j.state === "done"));
+    assert.equal(job.results[0].word.native, "собака");
+    assert.ok(srv.state.log.some((r) => r.method === "POST" && r.path === "/kotiko/api/v1/words" && r.auth === `Bearer ${srv.token}`));
+    assert.ok(srv.state.log.some((r) => r.method === "POST" && r.path === "/kotiko/api/v1/words/batch"));
+    assert.equal(srv.state.log.filter((r) => r.path.startsWith("/llm/")).length, 0, "no model asked from this browser");
     await bg.until(() => bg.store.words.some((w) => w.native === "собака"));
   });
 

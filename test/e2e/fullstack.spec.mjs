@@ -137,10 +137,11 @@ test.describe("full stack", () => {
     await expect(page.locator("#p1 kotiko-w")).toHaveAttribute("lang", "ar");
 
     // Slice 07: adding it again merges instead of overwriting, and the popup names the
-    // word with no Undo that could delete the original.
+    // word with no Undo that could delete the original, only a way to open it (24 §4).
     const again = await popup.add("shukran");
-    await expect(again).toHaveText("Already in your list: شكرا");
-    await expect(again.locator("button")).toHaveCount(0);
+    await expect(again.locator(".job-text")).toHaveText("Already in your list: شكرا = thanks · Arabic");
+    await expect(again.locator('[data-action="undo"]')).toHaveCount(0);
+    await expect(again.locator('[data-action="open"]')).toHaveCount(1);
     await expect(p.locator("#count")).toHaveText("1 word");
 
     // Undo of a new word tombstones it on the server; the next sync drops it.
@@ -148,7 +149,7 @@ test.describe("full stack", () => {
     await expect(dog).toHaveText(/^Added собака \(sobaka\) = dog · Russian\s*Undo$/);
     await expect(p.locator("#count")).toHaveText("2 words");
     await dog.getByRole("button", { name: "Undo adding собака" }).click();
-    await expect(p.locator("#jobs li").first()).toHaveText("Removed собака.");
+    await expect(p.locator("#jobs li .job-text").first()).toHaveText("Removed собака.");
     await expect(p.locator("#count")).toHaveText("1 word");
   });
 
@@ -219,7 +220,8 @@ test.describe("full stack", () => {
     await server.control({ llm: "429" });
     const p = await popup.connect(serverUrl, TOKEN);
     const line = await popup.add("hello");
-    await expect(line.locator(".job-text > p")).toHaveText("Word lookup is busy. Try again in a minute.");
+    // A busy model: the add waits and runs again by itself (24 §2).
+    await expect(line.locator(".job-text > p")).toHaveText("Waiting to look up hello: the AI is busy. It runs again by itself in a moment.");
     await expect(line.locator('[data-action="retry"]')).toBeVisible();
     expect(await modelCalls()).toBe(before + 3);
     await expect(p.locator("#lookupsLeft")).toBeHidden();

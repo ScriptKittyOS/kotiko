@@ -241,6 +241,20 @@ body {
   color: var(--ink);
 }
 
+/* 24: the words a pasted sentence held, and adds finished with the popup closed. */
+.choose-list {
+  display: grid;
+  gap: var(--s-1);
+  margin: var(--s-2) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.job-away {
+  color: var(--ink-3);
+  font: var(--t-small) var(--font-ui);
+}
+
 .job-looking {
   color: var(--ink-3);
 }

@@ -64,9 +64,10 @@ test("a used-up quota says when lookups come back", async ({ server, popup }) =>
   await server.control({ words: WORDS });
   await popup.connect(server.kotikoUrl, server.token);
   const retryAt = new Date(Date.now() + 4 * 3600_000).toISOString();
-  await server.control({ failNext: { path: "/api/words", status: 429, code: "quota_exhausted", message: "You've used today's free lookups.", details: { reason: "daily_limit", retry_at: retryAt } } });
+  // The lookup (slice 24: every add is a job; a used-up quota waits for its retry time).
+  await server.control({ failNext: { path: "/words", status: 429, code: "quota_exhausted", message: "You've used today's free lookups.", details: { reason: "daily_limit", retry_at: retryAt } } });
   const line = await popup.add("shukran");
-  await expect(line.locator(".job-text > p")).toHaveText(/^You've used today's free lookups\. Try again after \d{1,2}:\d{2}/);
+  await expect(line.locator(".job-text > p")).toHaveText(/^Waiting to look up shukran: today's free lookups are used up\. It runs by itself at \d{1,2}:\d{2}/);
   await expect(line.locator('[data-action="retry"]')).toHaveCount(0);
 });
 

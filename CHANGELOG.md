@@ -5,6 +5,13 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Adding words is safer. With a Kotiko server, adds now finish even if you close the
+  popup, and a retry never saves twice. Re-adding a word you have says "Already in your
+  list" with Open; adding forms says "Updated … new forms: …", and its Undo puts the word
+  back as it was. Undo now works for words added with your own AI key on a server, where
+  it always failed. A pasted sentence asks which words to keep before saving. Offline, an
+  add waits and finishes when you're back online.
+
 - Each word on a page now shows one of your languages, the same everywhere on that page,
   and stays put while you read; another page or another day may pick a different one.
   New words show up first for a week. Focus on a language from the popup (a language you

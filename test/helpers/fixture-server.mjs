@@ -252,6 +252,8 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
       }
       if (typeof body.text !== "string" || !body.text.trim()) return v1Error(res, 400, "empty_input", "Type a word to add.");
       if (!Array.isArray(body.base_langs) || !body.base_langs.length) return v1Error(res, 400, "invalid_request", "base_langs", { field: "base_langs" });
+      // A lookup uses a free one, with or without saving (the real server's quota).
+      if (state.llmRemaining !== null) state.llmRemaining = Math.max(0, state.llmRemaining - 1);
       const candidates = candidatesFor(body.text, body.base_langs);
       if (body.preview === true) return send(res, 200, { candidates, rejected: [], dropped_fields: [] });
       const results = candidates.map((c) => saveWord(c, "add"));

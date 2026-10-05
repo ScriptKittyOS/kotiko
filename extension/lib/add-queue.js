@@ -7,8 +7,10 @@
 // failing) when the model is busy, the free lookups ran out or no provider is set up yet.
 // Pages render the jobs from storage; replies never carry results.
 //
-//   const q = KotikoAddQueue.createAddQueue({ storage, lookup, save, now });
+//   const q = KotikoAddQueue.createAddQueue({ storage, lookup, save, now, isFunctionWord });
 //   await q.add({id, text, hintLang, baseLangs, surface})   persisted, then run
+//   await q.choose(id, keys)  a needs_choice job saves the words whose key it lists
+//   await q.setUndo(id, key, patch)  writes an Undo's outcome on the word's results
 //   q.kick()            run due jobs (the alarm, `online`)
 //   q.wake()            waiting jobs are due now (a key was saved, the provider changed)
 //   q.abortRunning()    stop running attempts; they run again with the new settings
@@ -19,20 +21,26 @@
 // save(job, words)    -> [{result, word, previous}]  (one transaction keyed by job.id)
 //
 // Job (slice 24 section 1): {id, surface, text, hintLang, baseLangs, manual, state,
-// createdAt, startedAt, attempts, waits, error, results, rejected, missingBases, retryAt,
-// seen}. States: queued, looking_up, waiting, done, failed, cancelled.
+// createdAt, startedAt, attempts, waits, error, candidates, results, rejected, missingBases,
+// retryAt, seen}. States: queued, looking_up, waiting, needs_choice, done, failed,
+// cancelled. A word's key is its language and native spelling: one target word, whatever
+// the number of bases it has a record for (犬 for es and en is one word).
 (() => {
   const MAX_JOBS = 20;
   const KEEP_MS = 7 * 86_400_000;
   const MAX_WAIT_MS = 3 * 86_400_000;
   const BACKOFF_MS = [30_000, 120_000, 600_000, 1_800_000];
   const SHORT_TIMER_MS = 5 * 60_000;
+  const OFFLINE_MS = 10 * 60_000;
   // A retry time already past (or a wait of a few milliseconds) still waits this long, so a
   // busy provider is never asked in a tight loop.
   const MIN_WAIT_MS = 2_000;
   // Slice 24 section 2: these wait and retry; everything else fails.
   const WAIT = new Set(["offline", "server_unreachable", "rate_limited", "model_unavailable", "lookup_timeout", "quota_exhausted", "user_quota_exhausted", "lookup_not_set_up"]);
   const FINISHED = new Set(["done", "failed", "cancelled"]);
+  // Slice 24 section 2: a lookup that finds this many target words asks before saving.
+  const CONFIRM_AT = 4;
+  const keyOf = (w) => `${w?.lang}\u001f${w?.native}`;
 
   function createAddQueue({
     storage,
@@ -44,6 +52,8 @@
     clearTimer = (t) => clearTimeout(t),
     onSettled = () => {},
     onError = () => {},
+    // Function words (the target language's stopwords) start unticked in needs_choice.
+    isFunctionWord = () => false,
   }) {
     const running = new Map(); // id -> AbortController
     let timer = null;
@@ -159,8 +169,10 @@
       const tooLong = now() - job.createdAt > MAX_WAIT_MS;
       if (tooLong) return { ...job, state: "failed", error, finishedAt: now(), retryAt: null };
       const at = Date.parse(error.details?.retry_at ?? "");
-      // No provider yet: wait until one is saved (wake), not on a timer.
-      const retryAt = error.code === "lookup_not_set_up" ? null : Number.isFinite(at) ? Math.max(at, now() + MIN_WAIT_MS) : now() + BACKOFF_MS[Math.min(job.waits, BACKOFF_MS.length - 1)];
+      // No provider yet: wait until one is saved (wake), not on a timer. Offline: the
+      // `online` event wakes it; the alarm looks again after OFFLINE_MS in case the event
+      // came while the worker slept.
+      const retryAt = error.code === "lookup_not_set_up" ? null : error.code === "offline" ? now() + OFFLINE_MS : Number.isFinite(at) ? Math.max(at, now() + MIN_WAIT_MS) : now() + BACKOFF_MS[Math.min(job.waits, BACKOFF_MS.length - 1)];
       return { ...job, state: "waiting", error, retryAt, waits: job.waits + 1 };
     }
 
@@ -183,22 +195,14 @@
         return;
       }
       let next;
-      if (res.ok && res.result?.words?.length) {
-        try {
-          const results = await save(job, res.result.words);
-          next = (j) => ({
-            ...j,
-            state: "done",
-            finishedAt: now(),
-            error: null,
-            results: results.map((r) => ({ wordId: r.word?.id ?? null, baseLang: r.word?.base_lang ?? null, result: r.result, word: r.word, previous: r.previous ?? null, undo: null })),
-            rejected: res.result.rejected ?? [],
-            missingBases: res.result.missing_bases ?? [],
-          });
-        } catch (e) {
-          const error = { code: typeof e?.code === "string" ? e.code : "internal", details: e?.details ?? {} };
-          next = (j) => (WAIT.has(error.code) ? waitFor(j, error) : { ...j, state: "failed", error, finishedAt: now() });
-        }
+      const words = res.ok ? res.result?.words ?? [] : [];
+      if (words.length && !job.manual && new Set(words.map(keyOf)).size >= CONFIRM_AT) {
+        // Many words from one add (a pasted sentence): nothing is saved until the learner
+        // picks, function words unticked.
+        const candidates = words.map((w) => ({ ...w, unticked: !!isFunctionWord(w) }));
+        next = (j) => ({ ...j, state: "needs_choice", error: null, candidates, rejected: res.result.rejected ?? [], missingBases: res.result.missing_bases ?? [] });
+      } else if (words.length) {
+        next = await saved(job, words, res.result);
       } else if (res.ok) {
         const code = res.result?.code ?? "no_word_found";
         const error = { code, details: res.result?.reply ? { reply: res.result.reply } : {} };
@@ -212,6 +216,39 @@
       }
       const settled = await change(id, (j) => (j.state === "looking_up" ? next(j) : null));
       if (settled) onSettled(settled);
+    }
+
+    // Saves a job's words; the change that finishes the job.
+    async function saved(job, words, result = {}) {
+      try {
+        const results = await save(job, words);
+        return (j) => ({
+          ...j,
+          state: "done",
+          finishedAt: now(),
+          error: null,
+          candidates: null,
+          results: results.map((r) => ({ wordId: r.word?.id ?? null, baseLang: r.word?.base_lang ?? null, result: r.result, word: r.word, previous: r.previous ?? null, undo: null })),
+          rejected: result.rejected ?? j.rejected ?? [],
+          missingBases: result.missing_bases ?? j.missingBases ?? [],
+        });
+      } catch (e) {
+        const error = { code: typeof e?.code === "string" ? e.code : "internal", details: e?.details ?? {} };
+        return (j) => (WAIT.has(error.code) ? waitFor(j, error) : { ...j, state: "failed", error, finishedAt: now() });
+      }
+    }
+
+    // The learner's pick in needs_choice: the listed words are saved; none cancels.
+    async function choose(id, keys) {
+      const want = new Set(keys);
+      const job = (await read()).find((j) => j.id === id);
+      if (!job || job.state !== "needs_choice") return job ?? null;
+      const words = (job.candidates ?? []).filter((w) => want.has(keyOf(w))).map((w) => Object.fromEntries(Object.entries(w).filter(([k]) => k !== "unticked")));
+      if (!words.length) return change(id, (j) => (j.state === "needs_choice" ? { ...j, state: "cancelled", candidates: null, finishedAt: now() } : null));
+      const next = await saved({ ...job, chosen: true }, words);
+      const done = await change(id, (j) => (j.state === "needs_choice" ? next(j) : null));
+      if (done) onSettled(done);
+      return done;
     }
 
     return {
@@ -256,7 +293,11 @@
         const next = jobs.filter((j) => j.id !== id || !FINISHED.has(j.state));
         if (next.length !== jobs.length) await storage.set({ addJobs: next });
       }),
+      choose,
       markUndo: (id, wordId, undo) => change(id, (j) => ({ ...j, results: j.results.map((r) => (r.wordId === wordId ? { ...r, undo } : r)) })),
+      // An Undo's outcome on every record of one word: {undo: "pending" | "done" | "failed",
+      // undoError?, word?} (word: the restored record, after "Add it back").
+      setUndo: (id, key, patch) => change(id, (j) => ({ ...j, results: j.results.map((r) => (keyOf(r.word) === key ? { ...r, ...patch } : r)) })),
       markSeen: (ids) => serial(async () => {
         const jobs = await read();
         const want = new Set(ids);
@@ -273,7 +314,7 @@
     };
   }
 
-  const api = { createAddQueue, WAIT, MAX_JOBS };
+  const api = { createAddQueue, WAIT, MAX_JOBS, CONFIRM_AT, keyOf };
   globalThis.KotikoAddQueue = api;
   if (typeof module === "object" && module.exports) module.exports = api;
 })();

@@ -53,6 +53,33 @@ function loadBackground({ local = {}, fetch, alarms = null, globals = {} } = {})
   };
 }
 
+// A server that looks words up and keeps them, as the add queue uses it (slice 24): the
+// preview finds `found`, the batch saves it (calling `onSave`); other requests go to `rest`.
+function lookupServer(found, rest, onSave = () => {}) {
+  return stubFetch(async (url, init) => {
+    if (url.endsWith("/api/v1/words") && init.method === "POST") return json(200, { candidates: found.map((w) => ({ ...w, id: undefined })), rejected: [] });
+    if (url.endsWith("/api/v1/words/batch")) {
+      await onSave();
+      return json(200, { results: found.map((word, index) => ({ result: "created", word, index })), rejected: [] });
+    }
+    if (url.endsWith("/api/v1/llm/status")) return json(404, { error: { code: "not_found" } });
+    return rest(url, init);
+  });
+}
+const v1 = (n, native, gloss, extra = {}) => ({ id: `01900000-0000-7000-8000-${String(n).padStart(12, "0")}`, lang: "ru", native, gloss, base_lang: "en", forms: [{ text: gloss, enabled: true }], ...extra });
+const JOB = "01900000-0000-7000-8000-00000000f000";
+
+// Waits until an add job (slice 24) reaches one of `states`.
+async function settled(fake, store, id, states = ["done", "failed", "waiting", "needs_choice"]) {
+  for (let i = 0; i < 200; i++) {
+    await fake.idle();
+    const j = (store.addJobs ?? []).find((x) => x.id === id);
+    if (j && states.includes(j.state)) return j;
+    await sleep(5);
+  }
+  throw new Error(`job ${id} never settled: ${JSON.stringify(store.addJobs)}`);
+}
+
 const serverWith = (words) => stubFetch((url, init) => {
   if ((init.method ?? "GET") === "GET") return json(200, { words });
   return json(404, { error: "No such route." });
@@ -243,52 +270,83 @@ describe("triggers", () => {
 });
 
 describe("add and remove relay", () => {
-  test("add posts the text, re-syncs and answers with the server's reply", async () => {
-    const added = { id: 3, lang: "ja", language: "Japanese", native: "犬", romanization: "inu", english: "dog", forms: ["dog"], note: null };
-    let words = WORDS;
+  // Slice 24: a server that looks words up and keeps them goes through the add queue too.
+  const UUID = "01900000-0000-7000-8000-00000000d000";
+  const v1Word = (native, gloss, extra = {}) => ({ id: `01900000-0000-7000-8000-${String(native.length).padStart(12, "0")}`, lang: "ja", native, gloss, base_lang: "en", forms: [{ text: gloss, enabled: true }], updated_at: "2026-10-05T10:00:00.000Z", ...extra });
+
+  test("add is a job: the server's lookup, then the save under the job's id, then a re-sync", async () => {
+    const inu = v1Word("犬", "dog");
     const { fetch, requests } = stubFetch((url, init) => {
-      if (init.method === "POST") {
-        words = [added, ...words];
-        return json(200, { words: [added] });
-      }
-      return json(200, { words });
+      if (url.endsWith("/api/v1/words") && init.method === "POST") return json(200, { candidates: [{ ...inu, id: undefined }], rejected: [] });
+      if (url.endsWith("/api/v1/words/batch")) return json(200, { results: [{ result: "created", word: inu, index: 0 }], rejected: [] });
+      if (url.endsWith("/api/v1/llm/status")) return json(404, { error: { code: "not_found" } });
+      return json(200, { words: WORDS });
     });
-    const { send, store } = loadBackground({ fetch });
-    const res = await send({ type: "add", text: "dog in japanese" }, POPUP);
-    assert.deepEqual(res, { words: [added] });
-    // Besides the free lookups left (slice 10), read after every add.
-    const wordRequests = requests.filter((r) => !r.url.endsWith("/api/v1/llm/status"));
-    assert.deepEqual(wordRequests.map((r) => r.method), ["POST", "GET"]);
-    assert.equal(requests[0].url, "http://127.0.0.1:4999/api/words");
-    assert.equal(requests[0].headers["Content-Type"], "application/json");
+    const { send, store, fake } = loadBackground({ fetch });
+    assert.deepEqual(await send({ type: "add", id: UUID, text: "dog in japanese" }, POPUP), { ok: true, job: { id: UUID, state: "queued" } });
+    const job = await settled(fake, store, UUID);
+    assert.equal(job.state, "done");
+    assert.deepEqual(job.results.map((r) => [r.result, r.word.native, r.wordId]), [["created", "犬", inu.id]]);
+    const posts = requests.filter((r) => r.method === "POST").map((r) => [r.url.replace("http://127.0.0.1:4999", ""), JSON.parse(r.body)]);
+    assert.deepEqual(posts[0], ["/api/v1/words", { text: "dog in japanese", preview: true, base_langs: ["en"] }]);
+    assert.equal(posts[1][0], "/api/v1/words/batch");
+    assert.equal(posts[1][1].client_request_id, UUID, "the job's id is the idempotency key");
     assert.equal(requests[0].headers.Authorization, "Bearer good-token");
-    assert.deepEqual(JSON.parse(requests[0].body), { text: "dog in japanese" });
-    assert.deepEqual(store.words, [added, ...WORDS]);
   });
 
-  test("add passes the server's error and its status back to the popup", async () => {
-    const { fetch } = stubFetch(() => json(502, { error: "The language model failed: rate limited" }));
-    const { send } = loadBackground({ fetch });
-    assert.deepEqual(await send({ type: "add", text: "x" }, POPUP), {
-      error: "The language model failed: rate limited",
-      code: "http_error",
-      details: { status: 502 },
-    });
+  test("a lookup that fails reads as the job's state: a 502 fails with its status, a used-up quota waits for its retry time", async () => {
+    const retryAt = "2030-10-03T00:00:00.000Z";
+    for (const [answer, want] of [
+      [json(502, { error: { code: "http_error", message: "The language model failed" } }), (j) => j.state === "failed" && j.error.details.status === 502],
+      [json(429, { error: { code: "quota_exhausted", message: "Used up.", details: { reason: "daily_limit", retry_at: retryAt, provider: "openrouter" } } }), (j) => j.state === "waiting" && j.error.code === "quota_exhausted" && j.error.details.retry_at === retryAt],
+    ]) {
+      const { fetch } = stubFetch((url, init) => (url.endsWith("/api/v1/words") && init.method === "POST" ? answer.clone() : json(404, { error: { code: "not_found" } })));
+      const { send, store, fake } = loadBackground({ fetch });
+      await send({ type: "add", id: UUID, text: "x" }, POPUP);
+      const job = await settled(fake, store, UUID);
+      assert.ok(want(job), JSON.stringify(job));
+    }
   });
 
-  test("a failed lookup keeps slice 25's code and details (slice 10), not just the text", async () => {
-    const retryAt = "2026-10-03T00:00:00.000Z";
-    const { fetch } = stubFetch((url) =>
-      url.endsWith("/api/words")
-        ? json(429, { error: "You've used today's free lookups.", code: "quota_exhausted", details: { reason: "daily_limit", retry_at: retryAt, provider: "openrouter" } })
-        : json(404, { error: { code: "not_found" } }),
-    );
-    const { send } = loadBackground({ fetch });
-    assert.deepEqual(await send({ type: "add", text: "x" }, POPUP), {
-      error: "You've used today's free lookups.",
-      code: "quota_exhausted",
-      details: { reason: "daily_limit", retry_at: retryAt, provider: "openrouter", status: 429 },
+  test("Undo removes a created word and puts an updated one back, by its v1 id; a word changed since is refused", async () => {
+    const created = v1Word("犬", "dog");
+    const previous = v1Word("猫", "cat");
+    const updated = { ...previous, forms: [...previous.forms, { text: "kitty", enabled: true }], updated_at: "2026-10-05T11:00:00.000Z" };
+    let stale = false;
+    const { fetch, requests } = stubFetch((url, init) => {
+      if (url.endsWith("/api/v1/words") && init.method === "POST") return json(200, { candidates: [created, previous].map((w) => ({ ...w, id: undefined })), rejected: [] });
+      if (url.endsWith("/api/v1/words/batch")) return json(200, { results: [{ result: "created", word: created, index: 0 }, { result: "updated", word: updated, previous, index: 1 }], rejected: [] });
+      if (init.method === "DELETE") return json(200, { word: { ...created, deleted_at: "x" } });
+      if (init.method === "PATCH") return stale ? json(409, { error: { code: "word_conflict", message: "This word changed since.", details: { reason: "stale" } } }) : json(200, { word: previous });
+      if (init.method === "POST" && url.endsWith("/restore")) return json(200, { word: created });
+      return json(200, { words: WORDS });
     });
+    const { send, store, fake } = loadBackground({ fetch });
+    await send({ type: "add", id: UUID, text: "dog and cat" }, POPUP);
+    await settled(fake, store, UUID);
+    assert.deepEqual(await send({ type: "jobs.undo", id: UUID, key: "ja\u001f犬" }, POPUP), { ok: true });
+    const del = requests.find((r) => r.method === "DELETE");
+    assert.equal(del.url, `http://127.0.0.1:4999/api/v1/words/${created.id}`, "the v1 route, never /api/words/:number");
+    assert.equal(store.addJobs[0].results[0].undo, "done");
+    assert.deepEqual(await send({ type: "jobs.redo", id: UUID, key: "ja\u001f犬" }, POPUP), { ok: true });
+    assert.ok(requests.some((r) => r.url.endsWith(`/api/v1/words/${created.id}/restore`)));
+    assert.equal(store.addJobs[0].results[0].undo, null, "back to Added, with its Undo");
+
+    stale = true;
+    const res = await send({ type: "jobs.undo", id: UUID, key: "ja\u001f猫" }, POPUP);
+    assert.equal(res.code, "word_conflict");
+    const patch = JSON.parse(requests.find((r) => r.method === "PATCH").body);
+    assert.equal(patch.if_updated_at, updated.updated_at, "only the version the add made");
+    assert.deepEqual(patch.forms, previous.forms, "the previous forms exactly");
+    assert.deepEqual([store.addJobs[0].results[1].undo, store.addJobs[0].results[1].undoError.code], ["failed", "word_conflict"]);
+  });
+
+  test("offline: a lookup that can't reach anything waits as offline, not as a busy model", async () => {
+    const { fetch } = stubFetch((url, init) => (init.method === "POST" ? Promise.reject(new TypeError("Failed to fetch")) : json(200, { words: WORDS })));
+    const { send, store, fake } = loadBackground({ fetch, globals: { navigator: { onLine: false } } });
+    await send({ type: "add", id: UUID, text: "x" }, POPUP);
+    const job = await settled(fake, store, UUID);
+    assert.deepEqual([job.state, job.error.code], ["waiting", "offline"]);
   });
 
   test("llmStatus keeps the free lookups left in storage; adds refresh it; an older server clears it", async () => {
@@ -356,18 +414,19 @@ describe("against the fixture server", () => {
   });
   after(() => srv.close());
 
-  test("sync, add and remove round-trip through the fake Kotiko API", async () => {
+  test("sync, add and Undo round-trip through the fake Kotiko API", async () => {
     srv.reset();
-    const { send, store } = loadBackground({ fetch, local: { serverUrl: srv.kotikoUrl, token: srv.token } });
+    const { send, store, fake } = loadBackground({ fetch, local: { serverUrl: srv.kotikoUrl, token: srv.token } });
     await send({ type: "sync", force: true });
     assert.equal(store.syncError, null);
     assert.deepEqual(store.words, srv.state.words);
 
-    const res = await send({ type: "add", text: "sobaka" }, POPUP);
-    assert.equal(res.words[0].native, "собака");
+    await send({ type: "add", id: JOB, text: "sobaka" }, POPUP);
+    const job = await settled(fake, store, JOB);
+    assert.equal(job.results[0].word.native, "собака");
     assert.equal(store.words[0].native, "собака");
 
-    assert.deepEqual(await send({ type: "remove", id: res.words[0].id }, POPUP), { ok: true });
+    assert.deepEqual(await send({ type: "jobs.undo", id: JOB, key: "ru\u001fсобака" }, POPUP), { ok: true });
     assert.equal(store.words.some((w) => w.native === "собака"), false);
   });
 
@@ -397,21 +456,22 @@ describe("against the fixture server", () => {
 describe("sync correctness (slice 26)", () => {
   test("F10: an add during an in-flight sync still lands in the cache", async () => {
     let serverWords = [{ ...WORDS[0], id: 1, native: "old" }];
-    const { fetch } = stubFetch(async (url, init) => {
-      if (init.method === "POST") {
-        await sleep(20);
-        serverWords = [{ ...WORDS[0], id: 2, native: "new" }, ...serverWords];
-        return json(200, { words: [serverWords[0]] });
-      }
+    const { fetch } = lookupServer([v1(2, "new", "house")], async () => {
       const snapshot = serverWords;
       await sleep(150);
       return json(200, { words: snapshot });
+    }, async () => {
+      await sleep(20);
+      serverWords = [{ ...WORDS[0], id: 2, native: "new" }, ...serverWords];
     });
-    const { send, store } = loadBackground({ fetch });
+    const { send, store, fake } = loadBackground({ fetch });
     const syncing = send({ type: "sync", force: true });
     await sleep(5);
-    await send({ type: "add", text: "new" }, POPUP);
+    await send({ type: "add", id: JOB, text: "new" }, POPUP);
+    await settled(fake, store, JOB);
     await syncing;
+    await sleep(200);
+    await fake.idle();
     assert.deepEqual(store.words.map((w) => w.native), ["new", "old"]);
   });
 
@@ -476,23 +536,23 @@ describe("sync correctness (slice 26)", () => {
     assert.deepEqual(store.words.map((w) => w.id), [1]);
   });
 
-  test("F10: an added word is in the cache as soon as the add answers", async () => {
-    const added = { ...WORDS[0], id: 9, native: "собака", forms: ["dog"] };
+  test("F10: an added word is in the cache as soon as it's saved", async () => {
+    const added = v1(9, "собака", "dog");
     let gets = 0;
-    const { fetch } = stubFetch(async (url, init) => {
-      if (init.method === "POST") return json(200, { words: [added] });
-      if (url.endsWith("/api/v1/llm/status")) return json(404, { error: { code: "not_found" } });
+    const { fetch } = lookupServer([added], async () => {
       gets++;
       await sleep(100);
-      return json(200, { words: [added, ...WORDS] });
+      return json(200, { words: [{ ...WORDS[0], id: 9, native: "собака", english: "dog", forms: ["dog"] }, ...WORDS] });
     });
     const { send, store, fake } = loadBackground({ fetch, local: { words: WORDS } });
-    send({ type: "add", text: "dog" }, POPUP);
-    await sleep(30);
-    await fake.idle();
-    assert.deepEqual(store.words.map((w) => w.id), [9, 2, 1], "merged before the follow-up sync answers");
+    send({ type: "add", id: JOB, text: "dog" }, POPUP);
+    for (let i = 0; i < 100 && !store.words.some((w) => w.native === "собака"); i++) await sleep(5);
+    assert.deepEqual(store.words.map((w) => w.native), ["собака", "дом", "شكرا"], "merged before the follow-up sync answers");
+    assert.equal(store.words[0].english, "dog", "in the cache's shape");
     await sleep(150);
+    await fake.idle();
     assert.equal(gets, 1);
+    assert.deepEqual(store.words.map((w) => w.id), [9, 2, 1], "then the sync's answer, without a duplicate");
   });
 
   test("F11: the old request is aborted and its 401 never shows", async () => {
@@ -600,19 +660,18 @@ describe("sync correctness (slice 26)", () => {
   });
 
   test("E2: words from an add are checked before they're merged", async () => {
-    const good = { ...WORDS[0], id: 20 };
-    const bad = { ...WORDS[0], id: 21, forms: [3], english: undefined };
-    const { fetch } = stubFetch(async (url, init) => {
-      if (init.method === "POST") return json(200, { words: [good, bad] });
-      await sleep(50);
-      return json(200, { words: [good, ...WORDS] });
+    const good = v1(20, "кот", "cat");
+    const bad = v1(21, "пёс", "dog", { forms: [3], gloss: undefined });
+    const { fetch } = lookupServer([good, bad], async () => {
+      await sleep(500);
+      return json(200, { words: WORDS });
     });
     const { send, store, fake } = loadBackground({ fetch, local: { words: WORDS } });
-    const adding = send({ type: "add", text: "two" }, POPUP);
-    await sleep(20);
-    await fake.idle();
-    assert.deepEqual(store.words.map((w) => w.id), [20, 2, 1]);
-    assert.deepEqual((await adding).words.map((w) => w.id), [20, 21], "the popup still sees the server's answer");
+    await send({ type: "add", id: JOB, text: "two" }, POPUP);
+    for (let i = 0; i < 100 && !store.words.some((w) => w.native === "кот"); i++) await sleep(5);
+    assert.deepEqual(store.words.map((w) => w.native), ["кот", "дом", "شكرا"]);
+    const job = await settled(fake, store, JOB);
+    assert.deepEqual(job.results.map((r) => r.word.native), ["кот", "пёс"], "the job keeps the server's answer");
   });
 
   const addresses = [
@@ -720,14 +779,13 @@ describe("message senders (research 03 E3)", () => {
   });
 
   test("the popup, and an extension page in a tab, can add", async () => {
-    const added = { ...WORDS[0], id: 3 };
-    const { fetch, requests } = stubFetch((url, init) =>
-      init.method === "POST" ? json(200, { words: [added] }) : json(200, { words: [added, ...WORDS] }),
-    );
+    const { fetch } = lookupServer([v1(3, "дом", "house")], () => json(200, { words: WORDS }));
     const { send } = loadBackground({ fetch });
-    assert.deepEqual(await send(ADD, SENDERS.popup), { words: [added] });
-    assert.deepEqual(await send(ADD, SENDERS.pageInTab), { words: [added] });
-    assert.equal(requests.filter((r) => r.method === "POST").length, 2);
+    for (const sender of [SENDERS.popup, SENDERS.pageInTab]) {
+      const res = await send(ADD, sender);
+      assert.deepEqual(Object.keys(res), ["ok", "job"]);
+      assert.equal(res.job.state, "queued");
+    }
   });
 
   const badPayloads = [
@@ -749,12 +807,9 @@ describe("message senders (research 03 E3)", () => {
   }
 
   test("text of exactly 200 characters is fine", async () => {
-    const { fetch, requests } = stubFetch((url, init) =>
-      init.method === "POST" ? json(200, { words: [], reply: "nothing" }) : json(200, { words: WORDS }),
-    );
+    const { fetch } = serverWith(WORDS);
     const { send } = loadBackground({ fetch });
-    assert.deepEqual(await send({ type: "add", text: "x".repeat(200) }, POPUP), { words: [], reply: "nothing" });
-    assert.equal(requests[0].method, "POST");
+    assert.equal((await send({ type: "add", text: "x".repeat(200) }, POPUP)).ok, true);
   });
 });
 
