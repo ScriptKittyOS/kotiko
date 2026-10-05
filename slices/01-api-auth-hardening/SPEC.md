@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | In progress (deny-by-default auth done in 4705cb0; the rest proposed) |
+| **Status** | In progress (deny-by-default auth done in 2693809; the rest proposed) |
 | **Priority** | P0 (before public release) |
 | **Size** | S (a day or two) |
 | **Depends on** | None |
@@ -12,11 +12,11 @@
 ## Problem
 
 The server holds a learner's whole vocabulary and spends their model quota. Before
-4705cb0 a percent-encoded path such as `GET /%61pi/words` reached every word route with
+2693809 a percent-encoded path such as `GET /%61pi/words` reached every word route with
 no token, because the auth plug matched the raw path while routing matched the decoded
 one ([06 F01](../../docs/research/06-adversarial-qa.md), reproduced, critical).
 
-**Already fixed (commit 4705cb0, 2026-10-01).** `authorize/2` now denies by default:
+**Already fixed (commit 2693809, 2026-10-01).** `authorize/2` now denies by default:
 only the exact raw path `["health"]` is open, everything else needs
 `Authorization: Bearer <API_TOKEN>` (`server/lib/slovo/router.ex:86-101`), compared with
 `Plug.Crypto.secure_compare` (`router.ex:96`). `Plug.Parsers` runs after auth with

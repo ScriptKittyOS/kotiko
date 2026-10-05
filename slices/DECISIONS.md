@@ -279,6 +279,6 @@ model on the maintainer's machine isn't suited to this. Any OpenAI-compatible AP
 possible.
 
 **Encoded-path auth bypass fixed immediately.** *Synthesis.* `/%61pi/words` skipped the
-token check ([06 F01](../docs/research/06-adversarial-qa.md)). Fixed in commit 4705cb0 before
+token check ([06 F01](../docs/research/06-adversarial-qa.md)). Fixed in commit 2693809 before
 the plan was written: deny by default, only `/health` is open, bodies are parsed after auth
 and capped at 64 KB. The rest of that work is in [01](01-api-auth-hardening/SPEC.md).

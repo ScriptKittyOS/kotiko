@@ -351,7 +351,7 @@ Built 2026-10-05. What runs where:
   say:
   - Hidden sections need a `section` name (the schema requires it). `build`, `refactor` and
     `style` are listed as hidden too.
-  - `bootstrap-sha` is the 0.2.0 commit (dbcbd1a), so the first release PR lists only
+  - `bootstrap-sha` is the 0.2.0 commit (c4275d8), so the first release PR lists only
     commits since 0.2.0, not the whole history.
 
   The JSON updater rewrites `extension/manifest.json` with one array item per line on the

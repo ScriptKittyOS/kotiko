@@ -19,7 +19,7 @@ no entry at all.
 
 Most of the groundwork is already in the repository (license, community files, CI with
 tests, linters and audits, Dependabot, REUSE). What is missing, read from the tree on
-2026-10-02 at `4a8a98a` plus the in-progress rename branch:
+2026-10-02 at `fb9fb63` plus the in-progress rename branch:
 
 - **The repository is private** (`ScriptKittyOS/slovo`), so no criterion can be claimed
   yet, and the entry can't be created under the final name until slice 04 renames it.
@@ -28,7 +28,7 @@ tests, linters and audits, Dependabot, REUSE). What is missing, read from the tr
   person who holds every account is gone. `git shortlog` shows one author for all 27
   commits.
 - **No statement coverage is measured** in CI (`.github/workflows/ci.yml` runs `mix test`
-  and `npm test` only). Reproduced for this slice on a clean export of `4a8a98a`: the
+  and `npm test` only). Reproduced for this slice on a clean export of `fb9fb63`: the
   server suite covers 72.7 % of statements (`mix test --cover`, test support modules
   excluded) and the extension suites 74.9 % (`c8 --all` over `extension/`, with
   `extension/popup.js` at 0 % because only the end-to-end tests touch it). Silver needs
@@ -127,7 +127,7 @@ badge for the highest level whose criteria are all satisfied. Anyone can read th
 
 ### 2. Criteria matrix: passing
 
-Status is as of 2026-10-02 (main at `4a8a98a`). "Met†" means the repository content
+Status is as of 2026-10-02 (main at `fb9fb63`). "Met†" means the repository content
 satisfies the criterion today, but it only counts once the repository is public
 (`repo_public`). Evidence URLs use the final repository name
 `https://github.com/ScriptKittyOS/kotiko` and resolve once slice 04 renames the
@@ -170,15 +170,15 @@ repository and it goes public.
 | `build_floss_tools` | SHOULD | Met | Elixir, Erlang/OTP, Node.js, npm: all FLOSS | – |
 | `test` | MUST | Met | [`server/test/`](https://github.com/ScriptKittyOS/kotiko/tree/main/server/test), [`test/`](https://github.com/ScriptKittyOS/kotiko/tree/main/test), [`CONTRIBUTING.md#setup`](https://github.com/ScriptKittyOS/kotiko/blob/main/CONTRIBUTING.md#setup), [`.github/workflows/ci.yml`](https://github.com/ScriptKittyOS/kotiko/blob/main/.github/workflows/ci.yml) | [02](../02-test-harness-and-ci/SPEC.md) |
 | `test_invocation` | SHOULD | Met | `mix test`, `npm test` | [02](../02-test-harness-and-ci/SPEC.md) |
-| `test_most` | SUGGESTED | Partly met | Measured 2026-10-02 at 4a8a98a: server 72.7 %, extension 74.9 % statements; not measured in CI | [02](../02-test-harness-and-ci/SPEC.md) addition |
+| `test_most` | SUGGESTED | Partly met | Measured 2026-10-02 at fb9fb63: server 72.7 %, extension 74.9 % statements; not measured in CI | [02](../02-test-harness-and-ci/SPEC.md) addition |
 | `test_continuous_integration` | SUGGESTED | Met | [`.github/workflows/ci.yml`](https://github.com/ScriptKittyOS/kotiko/blob/main/.github/workflows/ci.yml) | [02](../02-test-harness-and-ci/SPEC.md) |
 | `test_policy` | MUST | Met | [`.github/pull_request_template.md`](https://github.com/ScriptKittyOS/kotiko/blob/main/.github/pull_request_template.md) ("Tests added or updated"); every slice has a test plan | this slice §4.9 makes it formal |
-| `tests_are_added` | MUST | Met | Commits 639eaf5, cf8f593 and 5a78bcb add tests with the change | – |
+| `tests_are_added` | MUST | Met | Commits 07d5ec9, 265ebb6 and 5293305 add tests with the change | – |
 | `tests_documented_added` | SUGGESTED | Partly met | PR template checkbox only; [`CONTRIBUTING.md`](https://github.com/ScriptKittyOS/kotiko/blob/main/CONTRIBUTING.md) doesn't state the policy | this slice §4.9 |
 | `warnings` | MUST | Met | `mix compile --warnings-as-errors`, Credo, ESLint, `web-ext lint`, ShellCheck in [`.github/workflows/ci.yml`](https://github.com/ScriptKittyOS/kotiko/blob/main/.github/workflows/ci.yml) | [02](../02-test-harness-and-ci/SPEC.md) |
 | `warnings_fixed` | MUST | Met | CI fails on any warning | [02](../02-test-harness-and-ci/SPEC.md) |
 | `warnings_strict` | SUGGESTED | Partly met | Credo runs without `--strict`; ESLint uses the recommended set plus security rules | [02](../02-test-harness-and-ci/SPEC.md) addition |
-| `know_secure_design` | MUST | Met | Deny-by-default auth (4705cb0), Host allowlist, constant-time token check; [`docs/research/04-architecture-release.md`](https://github.com/ScriptKittyOS/kotiko/blob/main/docs/research/04-architecture-release.md) | [01](../01-api-auth-hardening/SPEC.md) |
+| `know_secure_design` | MUST | Met | Deny-by-default auth (2693809), Host allowlist, constant-time token check; [`docs/research/04-architecture-release.md`](https://github.com/ScriptKittyOS/kotiko/blob/main/docs/research/04-architecture-release.md) | [01](../01-api-auth-hardening/SPEC.md) |
 | `know_common_errors` | MUST | Met | [`docs/research/06-adversarial-qa.md`](https://github.com/ScriptKittyOS/kotiko/blob/main/docs/research/06-adversarial-qa.md) (40 failure modes); ESLint bans HTML strings ([`eslint.config.js`](https://github.com/ScriptKittyOS/kotiko/blob/main/eslint.config.js)) | – |
 | `crypto_published` | MUST | Met | TLS from Erlang/OTP and the browser; `:crypto.strong_rand_bytes` | – |
 | `crypto_call` | SHOULD | Met | No home-made crypto: `:crypto`, `Plug.Crypto.secure_compare`, OTP `:ssl` | – |
@@ -192,7 +192,7 @@ repository and it goes public.
 | `delivery_mitm` | MUST | Met | GitHub over HTTPS; stores sign packages | [30](../30-release-pipeline/SPEC.md) |
 | `delivery_unsigned` | MUST | Met | No hashes over HTTP; release checksums come over HTTPS with Sigstore attestations | [30](../30-release-pipeline/SPEC.md) |
 | `vulnerabilities_fixed_60_days` | MUST | Met | No known unpatched vulnerabilities | – |
-| `vulnerabilities_critical_fixed` | SHOULD | Met | The encoded-path auth bypass was fixed the day it was found (4705cb0) | – |
+| `vulnerabilities_critical_fixed` | SHOULD | Met | The encoded-path auth bypass was fixed the day it was found (2693809) | – |
 | `no_leaked_credentials` | MUST | Met | gitleaks over full history on 2026-10-02: two hits, both fake keys in tests (`boot_test.exs`, `redact_test.exs`) | [02](../02-test-harness-and-ci/SPEC.md) addition (CI scan); [03](../03-oss-foundations/SPEC.md) checklist item 2 |
 | `static_analysis` | MUST | Met | Credo, ESLint, `web-ext lint`, ShellCheck on every PR | [02](../02-test-harness-and-ci/SPEC.md) |
 | `static_analysis_common_vulnerabilities` | SUGGESTED | Partly met | `eslint-plugin-no-unsanitized` covers DOM XSS; nothing security-focused for Elixir | [02](../02-test-harness-and-ci/SPEC.md) addition |
@@ -247,7 +247,7 @@ on the silver form, now with the silver keyword.
 | `updateable_reused_components` | MUST | Met | Everything comes through Hex and npm lockfiles; no vendored copies | – |
 | `interfaces_current` | SHOULD | Met | Manifest V3; current OTP and Elixir; deprecations fail `--warnings-as-errors` | – |
 | `automated_integration_testing` | MUST | Met | [`.github/workflows/ci.yml`](https://github.com/ScriptKittyOS/kotiko/blob/main/.github/workflows/ci.yml) on every push and PR, with pass/fail reports | [02](../02-test-harness-and-ci/SPEC.md) |
-| `regression_tests_added50` | MUST | Met | All four fixes in the last six months have tests: 4705cb0 (`router_auth_test.exs`), 091c05b (`llm_test.exs`), 633453a (`config_test.exs`), 5a78bcb (sync tests) | this slice §4.9 keeps it |
+| `regression_tests_added50` | MUST | Met | All four fixes in the last six months have tests: 2693809 (`router_auth_test.exs`), eec998d (`llm_test.exs`), 161bcaf (`config_test.exs`), 5293305 (sync tests) | this slice §4.9 keeps it |
 | `test_statement_coverage80` | MUST | Not met | 72.7 % server, 74.9 % extension (`popup.js` untested) | [02](../02-test-harness-and-ci/SPEC.md) addition |
 | `test_policy_mandated` | MUST | Partly met | PR template checkbox, not a written rule | this slice §4.9 |
 | `tests_documented_added` | MUST | Partly met | As at passing | this slice §4.9 |
@@ -840,7 +840,7 @@ Built 2026-10-05, against the passing criteria as published on 2026-10-05 (read 
     loaded). `popup.js` is now covered by the DOM tests;
   - gitleaks (8.16) over the full history finds eight placeholder keys in tests, not two;
   - `scripts/regression-audit.mjs` finds 8 of the 12 `fix` commits of the last six months
-    changed a test in the same commit (67 %). 4705cb0, 091c05b and 633453a got their tests
+    changed a test in the same commit (67 %). 2693809, eec998d and 161bcaf got their tests
     in later commits, so §3's "all four fixes have tests" holds only across commits;
   - Discussions are off and the repository is private (`ScriptKittyOS/kotiko`, already
     renamed); the organization already requires two-factor authentication.

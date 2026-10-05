@@ -15,7 +15,7 @@ There are no tests and no CI. `server/` has no `test/` directory and `mix.exs` d
 no test dependencies (`server/mix.exs:18-27`); `extension/` has no `package.json`. Every
 one of the 40 failures in research 06 would have been caught by a modest suite
 ([06 section 4](../../docs/research/06-adversarial-qa.md)), including the critical auth
-bypass fixed in 4705cb0.
+bypass fixed in 2693809.
 
 The research probes showed what works and what doesn't in this environment:
 
@@ -360,7 +360,7 @@ blocks the public release; it lands after slice 04's rename.
     The extension job runs `npm run coverage` in place of `npm test`. c8 attributes code
     run through `vm` to its file because `load-script.mjs` passes `filename` (checked for
     slice 53).
-  - **Today** (main at `4a8a98a`, measured for slice 53): server 72.7 %, lowest
+  - **Today** (main at `fb9fb63`, measured for slice 53): server 72.7 %, lowest
     `Application` 33 %, `Transcriber` 33 %, `Bot` 42 %, `Repo` 50 %, `Migrations` 57 %,
     `Telegram` 61 %; extension 74.9 %, with `popup.js` at 0 % (only the end-to-end tests
     touch it) and every other file at 90 % or more. To close the gap: jsdom tests for the
@@ -422,7 +422,7 @@ blocks the public release; it lands after slice 04's rename.
 - [ ] An unstubbed HTTP call in an ExUnit test fails with a clear message.
 - [ ] `extension/lib/matcher.js` loads in the browser (extension works as before) and in Node.
 - [ ] The CI workflow runs all jobs on a PR in under 10 minutes with warm caches.
-- [ ] Reverting commit 4705cb0 locally makes `router_auth_test.exs` fail.
+- [ ] Reverting commit 2693809 locally makes `router_auth_test.exs` fail.
 - [ ] Introducing `el.innerHTML = word.native` makes ESLint fail.
 - [ ] Dependabot opens PRs for all three ecosystems.
 - [ ] Every page in the corpus table exists, with at least a `fixme` spec.

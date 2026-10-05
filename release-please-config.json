@@ -4,7 +4,7 @@
   "include-component-in-tag": false,
   "include-v-in-tag": true,
   "bump-minor-pre-major": true,
-  "bootstrap-sha": "dbcbd1a933c699dd39c7f53a2eef30c98a3d6575",
+  "bootstrap-sha": "c4275d809fe9bb6cbcfbd66c1f7dcc86e231ec4a",
   "changelog-sections": [
     { "type": "feat", "section": "Features" },
     { "type": "fix", "section": "Bug fixes" },

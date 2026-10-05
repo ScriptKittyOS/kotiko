@@ -61,7 +61,7 @@ English interface is required at launch. Every slice follows 50's cross-cutting 
 
 | # | Slice | Pri | Size | Depends on | What it covers |
 |---|---|---|---|---|---|
-| 01 | [API auth hardening](01-api-auth-hardening/SPEC.md) | P0 | S | – | Deny-by-default auth (**done**, 4705cb0), Host allowlist against DNS rebinding, server-generated long token, warnings for non-local `BIND`, regression tests. 06 F01, F21, F27, F36; 04 security. |
+| 01 | [API auth hardening](01-api-auth-hardening/SPEC.md) | P0 | S | – | Deny-by-default auth (**done**, 2693809), Host allowlist against DNS rebinding, server-generated long token, warnings for non-local `BIND`, regression tests. 06 F01, F21, F27, F36; 04 security. |
 | 02 | [Test harness and CI](02-test-harness-and-ci/SPEC.md) | P0 | M | – | ExUnit with Req.Test stubs; matcher pulled into a pure module with Node and jsdom tests; Playwright end-to-end with the unpacked extension and a fixture corpus (React, Turbo body swap, shadow DOM, iframe, RTL, Spanish, Japanese and mixed-language pages, 100k nodes, a browser launched in `es-PR`); i18n checks; GitHub Actions; format, Credo, `web-ext lint`, ESLint; Dependabot and `mix_audit`. 03, 04, 06 testing sections. |
 | 03 | [Open-source foundations](03-oss-foundations/SPEC.md) | P0 | S | – | LICENSE (recommend Apache-2.0), CONTRIBUTING, CODE_OF_CONDUCT, SECURITY.md, issue and PR templates, single version source, CHANGELOG. 04. |
 | 04 | [Rename to Kotiko](04-rename-to-kotiko/SPEC.md) | P0 | M | 02 | Everywhere: repo, Elixir app and modules (`Slovo` to `Kotiko`), data directory with a safe migration of existing databases, systemd unit, env var names if any, Firefox add-on ID, extension name and copy, README, bot text. Name-collision check. |

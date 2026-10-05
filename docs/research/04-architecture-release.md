@@ -1,6 +1,6 @@
 # 04: Architecture, deployment, data, security, privacy, and open-source release
 
-Scope: how Slovo is built and shipped, where data lives and travels, how it is secured, and what it takes to run it as a free public open-source project. All code citations refer to the tree at commit `091c05b`. Facts about third parties were checked on 2026-10-01 unless marked "unverified".
+Scope: how Slovo is built and shipped, where data lives and travels, how it is secured, and what it takes to run it as a free public open-source project. All code citations refer to the tree at commit `eec998d`. Facts about third parties were checked on 2026-10-01 unless marked "unverified".
 
 ## 1. Summary
 

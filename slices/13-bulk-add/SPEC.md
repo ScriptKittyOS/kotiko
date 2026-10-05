@@ -21,7 +21,7 @@ reader's sheet says "gato - cat", a Spanish reader learning English has "dog - p
 Japanese reader learning Korean has "고양이：猫". Kotiko must read all three without
 assuming the meaning side is English ([DECISIONS 2026-10-01](../DECISIONS.md)).
 Nothing accepts a file, and the server caps request bodies at 64 KB
-([DECISIONS](../DECISIONS.md), commit 4705cb0), so a big paste couldn't go through the add
+([DECISIONS](../DECISIONS.md), commit 2693809), so a big paste couldn't go through the add
 endpoint anyway.
 
 ## Goals
