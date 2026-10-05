@@ -148,24 +148,6 @@
       }
     }
   },
-  "popup_only_button": {
-    "message": "Mostrar solo $LANG$",
-    "description": "The small button at the end of a language chip that hides every other language.",
-    "placeholders": {
-      "lang": {
-        "content": "{lang}"
-      }
-    }
-  },
-  "popup_only_strip": {
-    "message": "Solo se muestra $ENDONYM$",
-    "description": "Line above the chips when only one of several languages is shown.",
-    "placeholders": {
-      "endonym": {
-        "content": "{endonym}"
-      }
-    }
-  },
   "popup_show_all": {
     "message": "Mostrar todos",
     "description": "Link that shows every language again."
@@ -3345,5 +3327,93 @@
         "content": "{word}"
       }
     }
+  },
+  "popup_focus_button": {
+    "message": "Centrarse en $LANG$",
+    "description": "Popup, the button beside each language (slice 18): only this language shows until Stop. $LANG$ is a language name. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "popup_focus_strip": {
+    "message": "Centrado en $LANGS$",
+    "description": "Popup strip while Focus is on (slice 18). $LANGS$ is the focused languages' own names, separated by commas. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "langs": {
+        "content": "{langs}"
+      }
+    }
+  },
+  "popup_focus_stop": {
+    "message": "Parar",
+    "description": "Popup: ends Focus; the languages shown before come back. Spanish pending native review (slice 50 §9)."
+  },
+  "popup_focus_waiting": {
+    "message": "$LANG$ es nuevo. Espera hasta que salgas del modo centrado.",
+    "description": "Popup, under the Focus strip: a language whose first word was added during Focus isn't shown yet. $LANG$ is a language name. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "dash_set_mixing": {
+    "message": "Tus idiomas en una página",
+    "description": "Settings section (slice 18): which of the learner's languages each word shows. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_mixing_help": {
+    "message": "Kotiko elige uno de tus idiomas para cada palabra de una página. «Más» hace que un idioma gane más de las palabras que tus idiomas comparten.",
+    "description": "Help at the top of the section. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_mixing_mode": {
+    "message": "Cada palabra",
+    "description": "Label of the mode choice. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_mixing_balanced": {
+    "message": "Un idioma por página",
+    "description": "Mode (default): every occurrence of a word on a page shows the same language, picked per page and day. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_mixing_mix": {
+    "message": "Mezclar en la página",
+    "description": "Mode: occurrences take turns between languages. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_mixing_priority": {
+    "message": "Siempre en este orden",
+    "description": "Mode: the first language in the learner's order that has the word. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_weight_less": {
+    "message": "Menos",
+    "description": "Weight for a language: wins fewer shared words. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_weight_normal": {
+    "message": "Normal",
+    "description": "Weight for a language: the default. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_weight_more": {
+    "message": "Más",
+    "description": "Weight for a language: wins about three times as many shared words. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_weight_backup": {
+    "message": "Solo si ningún otro idioma la tiene",
+    "description": "Weight 0: the language shows a word only when none of the others has it. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_priority_up": {
+    "message": "Subir $LANGUAGE$",
+    "description": "For screen readers: moves a language one place earlier in the order. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_fresh_first": {
+    "message": "Las palabras nuevas salen primero durante una semana",
+    "description": "Switch: a word added in the last 7 days wins over the learner's other languages. Spanish pending native review (slice 50 §9)."
+  },
+  "dash_fresh_first_help": {
+    "message": "Para que veas las palabras que acabas de añadir.",
+    "description": "Help under the switch. Spanish pending native review (slice 50 §9)."
   }
 }

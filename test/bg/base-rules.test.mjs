@@ -83,3 +83,24 @@ describe("sensitive sites for content scripts", () => {
     assert.ok(!other?.sites, "another extension gets nothing");
   });
 });
+
+// Slice 18: the salt that seeds each page's language choices.
+describe("the seed salt", () => {
+  test("made once, kept in sync for every device, and copied for content scripts", async () => {
+    const bg = loadBackground({ sync: { ui: { baseLangs: ["en"], baseLangsConfirmed: true } } });
+    await bg.until(() => bg.store.seedSalt);
+    assert.match(bg.store.seedSalt, /^[0-9a-f]{32}$/);
+    assert.equal(bg.fake.store.sync.seedSalt, bg.store.seedSalt);
+    const first = bg.store.seedSalt;
+    await bg.k.ensureSeedSalt();
+    assert.equal(bg.store.seedSalt, first, "never replaced");
+  });
+
+  test("another device's salt wins", async () => {
+    const other = "0123456789abcdef0123456789abcdef";
+    const bg = loadBackground({ sync: { seedSalt: other, ui: { baseLangs: ["en"], baseLangsConfirmed: true } }, local: { seedSalt: "ffffffffffffffffffffffffffffffff" } });
+    await bg.until(() => bg.store.seedSalt === other);
+    await bg.fake.chrome.storage.sync.set({ seedSalt: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" });
+    await bg.until(() => bg.store.seedSalt === "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+  });
+});

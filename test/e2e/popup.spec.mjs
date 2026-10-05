@@ -35,15 +35,15 @@ test("the badge says off on a paused site and nothing elsewhere; off everywhere 
   await expect.poll(() => badgeOn(serviceWorker, paused)).toBe("off");
 });
 
-test("hide a language in two steps and show only one in two (20 §3)", async ({ server, popup, context }) => {
+test("hide a language in two steps and focus on one in two (20 §3, 18)", async ({ server, popup, context }) => {
   await server.control({ words: WORDS });
   await popup.connect(server.kotikoUrl, server.token);
   // Step 1 is opening the popup.
   const p = await context.newPage();
   await p.goto(popup.url);
-  await p.locator('#chips [data-only-lang="ar"]').click(); // step 2
-  await expect(p.locator("#onlyStrip")).toHaveText("Showing only العربية · Show all");
-  await expect.poll(() => p.evaluate(() => chrome.storage.local.get("hiddenLangs").then((s) => s.hiddenLangs))).toEqual(["ru"]);
+  await p.locator('#chips [data-focus-lang="ar"]').click(); // step 2
+  await expect(p.locator("#focusStrip")).toHaveText("Focusing on العربية · Stop");
+  await expect.poll(() => p.evaluate(() => chrome.storage.local.get("mixing").then((s) => s.mixing?.focus))).toEqual(["ar"]);
 });
 
 // Slice 10: the free lookups left today come from the server's /api/v1/llm/status, and a
@@ -95,4 +95,32 @@ test.describe("with the browser in Spanish", () => {
     await expect(p.locator("#count")).toHaveText("2 palabras");
     await expect(p.locator('#chips .chip[data-lang="ru"]')).toHaveAccessibleName("ruso, Русский, 1 palabra, visible");
   });
+});
+
+// Slice 20 §8's goal, measured: the popup paints within 100 ms, median of 10 opens, with
+// words, a connection and Focus on. CI's runners are about 4.5 times slower (measured
+// 2026-10-05: 136 to 172 ms, median 148, where this machine takes 32), so CI's budget is
+// 200 ms. The size cap in test/dom/popup.test.mjs is only a backstop for this.
+test("the popup paints within 100 ms (200 ms in CI), median of 10 opens", async ({ server, popup, context }) => {
+  await server.control({ words: WORDS });
+  const first = await popup.connect(server.kotikoUrl, server.token);
+  await first.evaluate(() => chrome.storage.local.set({ mixing: { focus: ["ru"], focusSince: new Date().toISOString() } }));
+  const times = [];
+  for (let i = 0; i < 10; i++) {
+    const p = await context.newPage();
+    await p.setViewportSize({ width: 360, height: 600 });
+    // A page in a background tab doesn't paint, so it reports no paint timing.
+    await p.bringToFront();
+    await p.goto(popup.url);
+    await expect(p.locator("#chips .chip").first()).toBeVisible();
+    const fcp = () => p.evaluate(() => performance.getEntriesByType("paint").find((e) => e.name === "first-contentful-paint")?.startTime ?? null);
+    await expect.poll(fcp).not.toBeNull();
+    times.push(await fcp());
+    await p.close();
+  }
+  times.sort((a, b) => a - b);
+  const median = (times[4] + times[5]) / 2;
+  const budget = process.env.CI ? 200 : 100;
+  console.log(`popup first contentful paint: median ${median.toFixed(1)} ms (${times.map((t) => t.toFixed(0)).join(", ")})`);
+  expect(median, `median of ${times.map((t) => t.toFixed(0)).join(", ")} ms`).toBeLessThanOrEqual(budget);
 });

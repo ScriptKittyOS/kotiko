@@ -38,7 +38,7 @@
   const host = location.hostname;
   const isMark = (n) => n?.nodeType === 1 && n.localName === MARK;
 
-  let state = { words: [], enabled: true, pausedHosts: [], hiddenLangs: [], speech: null, baseLangs: null, baseRules: null, prefs: null, sensitiveSites: null };
+  let state = { words: [], enabled: true, pausedHosts: [], hiddenLangs: [], speech: null, baseLangs: null, baseRules: null, prefs: null, sensitiveSites: null, mixing: null, seedSalt: null };
   let indexes = null;
   // The page's base (or null) and why, from lib/page-lang.js.
   let page = { base: null, reason: "unknown", lang: null };
@@ -56,11 +56,17 @@
   let skipCache = new WeakMap();
   // Slice 16's token rules, with this page view's evidence and decisions.
   let rules = globalThis.KotikoRules.create();
-  // Which word each swap shows, remembered per site text node so a re-render or a settings
-  // change shows the same word in the same place (a choice is only redone when its word is
-  // gone). turns: how many times each form was given a word, to rotate its languages.
-  let chosen = new WeakMap();
-  let turns = new Map();
+  // Which of the learner's languages each word shows (slice 18): one per concept per page
+  // per day, the same for every occurrence and after every re-render. The page session's
+  // day and start time are fixed when the page opens, not at midnight mid-read.
+  const Precedence = globalThis.KotikoPrecedence; // lib/precedence.js
+  const STARTED = Date.now();
+  const DAY = Precedence.dayKey(new Date(STARTED));
+  // Without the synced salt (a moment after install), a salt for this page view only.
+  const localSalt = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  let session = null;
+  let sessionHref = null;
+  let eligibleLangs = new Set();
 
   // Buttons, toggles, menus and forms stay as the site wrote them (lib/controls.js).
   const controls = createControlCheck((el) => getComputedStyle(el).cursor);
@@ -182,12 +188,6 @@
 
   // ── what to swap ────────────────────────────────────────────────────────────
 
-  // One candidate per language (the newest), in the order the index keeps them.
-  function choices(candidates) {
-    const seen = new Set();
-    return candidates.map((c) => c.word).filter((w) => !seen.has(w.lang) && seen.add(w.lang));
-  }
-
   // The candidates slice 16's rules let a match show, or null; a capital that waits for the
   // page's evidence is noted and looked at again once decided.
   function allowed(m, text, ctx, node) {
@@ -199,18 +199,29 @@
     return d ? m.entry.candidates.filter((c) => c.case !== "exact" && c.case !== "proper") : null;
   }
 
-  // The word a match shows: the one this spot showed before while it's still a choice,
-  // else the language whose turn it is.
-  function choose(node, m, ordinal, all) {
-    const memo = chosen.get(node) ?? chosen.set(node, new Map()).get(node);
-    const spot = `${m.key}#${ordinal}`;
-    const before = memo.get(spot);
-    if (before && all.some((w) => String(w.id) === String(before.id) && w.native === before.native)) return all.find((w) => String(w.id) === String(before.id));
-    const turn = turns.get(m.key) ?? 0;
-    turns.set(m.key, turn + 1);
-    const w = all[turn % all.length];
-    memo.set(spot, w);
-    return w;
+  // The page session that picks languages; a new one when a single-page app navigates.
+  function newSession() {
+    sessionHref = location.href;
+    session = Precedence.createSession({
+      salt: typeof state.seedSalt === "string" && state.seedSalt ? state.seedSalt : localSalt,
+      pageKey: Precedence.pageKey(location.href),
+      dayKey: DAY,
+      mixing: state.mixing,
+      eligible: eligibleLangs,
+      words: state.words || [],
+      keyOf: (s, b) => Text.keyOf(s, b, rulesOf(b)),
+      now: STARTED,
+    });
+  }
+
+  // The indexes hold every word, so a concept never depends on what is hidden; which
+  // languages may show is the session's question (18 §1).
+  function rebuild() {
+    neverSwap = new Set(Array.isArray(prefs().neverSwap) ? prefs().neverSwap : []);
+    eligibleLangs = Precedence.eligible({ words: state.words || [], hiddenLangs: state.hiddenLangs || [], mixing: state.mixing });
+    indexes = active() && eligibleLangs.size ? buildIndexes(state.words || [], bases(), { rules: rulesOf }) : null;
+    if (indexes && ![...indexes.values()].some((i) => i.size)) indexes = null;
+    newSession();
   }
 
   // The engine's question: what to swap in `text` (a site text node's own text). Reads
@@ -225,21 +236,27 @@
     const ctx = { base, ...edges() };
     const items = [];
     const ordinals = new Map();
+    if (location.href !== sessionHref) newSession();
     for (const m of scan(text, ctx, index).matches) {
       if (m.surface.length === 1 && skipLetter(ctx.before + text + ctx.after, ctx.before.length + m.start)) continue;
       if (neverSwap.has(m.key)) continue;
       const cands = allowed(m, text, ctx, node);
       if (!cands?.length) continue;
-      const all = choices(cands);
-      if (!all.length) continue;
-      const n = ordinals.get(m.key) ?? 0;
-      ordinals.set(m.key, n + 1);
-      const w = choose(node, m, n, all);
+      // "Mix within the page" tells occurrences apart by the text around them.
+      const before = text.slice(Math.max(0, m.start - 32), m.start);
+      const after = text.slice(m.end, m.end + 32);
+      const spot = `${m.key}${before}${after}`;
+      const ordinal = ordinals.get(spot) ?? 0;
+      ordinals.set(spot, ordinal + 1);
+      const c = session.choose({ base, entry: m.entry, candidates: cands, surface: m.surface, before, after, ordinal });
+      if (!c?.word) continue;
+      const w = c.word;
+      const all = [w, ...c.others];
       // Written in the target's own capitals (slice 17).
       const { shouting } = rules.flags(text, ctx);
       // sentenceStart is worked out lazily; only a capitalised word needs it.
       const display = Casing.display({ shape: m.shape, sentenceStart: m.shape === "title" && m.sentenceStart, shouting, native: w.native, lang: w.lang });
-      items.push({ start: m.start, end: m.end, display, lang: w.lang, info: { surface: m.surface, key: m.key, word: w, all } });
+      items.push({ start: m.start, end: m.end, display, lang: w.lang, info: { surface: m.surface, key: m.key, word: w, all, alsoLangs: c.alsoLangs } });
     }
     return items;
   }
@@ -309,14 +326,9 @@
     controls.reset();
     baseCache = new WeakMap();
     skipCache = new WeakMap();
-    neverSwap = new Set(Array.isArray(prefs().neverSwap) ? prefs().neverSwap : []);
-    const hidden = new Set(state.hiddenLangs || []);
-    indexes = active() ? buildIndexes((state.words || []).filter((w) => !hidden.has(w.lang)), bases(), { rules: rulesOf }) : null;
-    if (indexes && ![...indexes.values()].some((i) => i.size)) indexes = null;
+    rebuild();
     if (fresh || !indexes) {
       engine.reset();
-      chosen = new WeakMap();
-      turns = new Map();
       rules = globalThis.KotikoRules.create();
     }
     if (indexes) engine.reapply();
@@ -391,7 +403,7 @@
       if (pagePrefs(next) !== pagePrefs(state.prefs)) dirty = true;
       state.prefs = next;
     }
-    for (const k of ["words", "enabled", "pausedHosts", "hiddenLangs", "sensitiveSites"]) {
+    for (const k of ["words", "enabled", "pausedHosts", "hiddenLangs", "sensitiveSites", "mixing", "seedSalt"]) {
       if (changes[k]) {
         state[k] = changes[k].newValue ?? state[k];
         dirty = true;
@@ -472,10 +484,7 @@
     }
     await decidePage();
     if (torn) return;
-    neverSwap = new Set(Array.isArray(prefs().neverSwap) ? prefs().neverSwap : []);
-    const hidden = new Set(state.hiddenLangs || []);
-    indexes = active() ? buildIndexes((state.words || []).filter((w) => !hidden.has(w.lang)), bases(), { rules: rulesOf }) : null;
-    if (indexes && ![...indexes.values()].some((i) => i.size)) indexes = null;
+    rebuild();
     // The word segmenter loads its data on first use: pay for that in a task of its own, not
     // in the first slice of swapping (no task over 50 ms, slice 15).
     if (indexes) {

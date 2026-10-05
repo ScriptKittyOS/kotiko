@@ -25,7 +25,8 @@ const BACKGROUND = { id: "fake-extension-id", url: "chrome-extension://fake-exte
 
 async function load({ html = PAGE, words = WORDS, locale = "en", voices = voiceLists().macos, local = {} } = {}) {
   const fake = createFakeChrome({
-    local: { words, enabled: true, pausedHosts: [], hiddenLangs: [], ...local },
+    // "Mix within the page" (18), so the page's two "Thanks" show 谢谢 and спасибо.
+    local: { words, enabled: true, pausedHosts: [], hiddenLangs: [], mixing: { mode: "mix" }, seedSalt: "popover-tests", ...local },
     onSendMessage: () => ({ ok: true }),
   });
   fake.chrome.i18n = createI18n(locale);
@@ -57,7 +58,23 @@ async function load({ html = PAGE, words = WORDS, locale = "en", voices = voiceL
   // content.js starts swapping a task after it loads (the segmenter's warm-up, slice 15);
   // asking the background for a sync is the last thing it does.
   for (let i = 0; i < 400 && !fake.calls.sendMessage.some((m) => m.type === "sync"); i++) await sleep(5);
-  await sleep(0);
+  // Then until the page is quiet: a capital held back for the page's evidence (slice 16)
+  // is swapped a moment later, rewriting its paragraph, and a word found before that is
+  // no longer on the page.
+  await new Promise((resolve) => {
+    let timer = setTimeout(done, 60);
+    const mo = new window.MutationObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(done, 60);
+    });
+    const cap = setTimeout(done, 2000);
+    function done() {
+      mo.disconnect();
+      clearTimeout(cap);
+      resolve();
+    }
+    mo.observe(window.document.body, { subtree: true, childList: true, characterData: true });
+  });
   const doc = window.document;
   const shadow = () => roots.at(-1);
   const card = () => shadow()?.querySelector(".k-card");

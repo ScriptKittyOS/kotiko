@@ -106,7 +106,7 @@ async function openDashboard({ local = CONNECTED, sync = {}, locale = "en", hash
   };
   runInWindow(dom, "lib/i18n.js");
   w.KotikoI18n._setLoader(async (l) => readMessages(l));
-  for (const rel of ["spec/spec.js", "lib/lang.js", "lib/welcome-model.js", "ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/word-search.js", "lib/dashboard-model.js", "lib/word-source.js", "lib/lookup-status.js", "lib/story.js", "dashboard.js"]) {
+  for (const rel of ["spec/spec.js", "lib/lang.js", "lib/welcome-model.js", "ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/word-search.js", "lib/dashboard-model.js", "lib/precedence.js", "lib/word-source.js", "lib/lookup-status.js", "lib/story.js", "dashboard.js"]) {
     runInWindow(dom, rel);
     if (rel === "lib/story.js") w.KotikoStory._setLoader(async (l) => readExt(`story/${l}.md`));
   }
@@ -788,7 +788,7 @@ describe("settings (§9)", () => {
   test("every built section, each saving on change", async () => {
     const d = await openDashboard({ hash: "#settings" });
     assert.equal(d.$("#settingsView").hidden, false);
-    assert.deepEqual(d.$$("#settingsIndex a").map((a) => a.textContent), ["Languages you read in", "Kotiko’s language", "Word lookups", "Your Kotiko server", "Voices", "Learning", "Pages", "Appearance", "About"]);
+    assert.deepEqual(d.$$("#settingsIndex a").map((a) => a.textContent), ["Languages you read in", "Kotiko’s language", "Word lookups", "Your Kotiko server", "Voices", "Learning", "Your languages on a page", "Pages", "Appearance", "About"]);
     assert.equal(d.$("#accessKey").type, "password", "the key is typed here, hidden by default");
     assert.equal(d.$("#accessKey").value, "", "a saved token is never read back (slice 11)");
     d.$("#serverUrl").value = "http://127.0.0.1:5000";

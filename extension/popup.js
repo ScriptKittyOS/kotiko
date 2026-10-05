@@ -30,6 +30,7 @@
     pausedHosts: [],
     hiddenLangs: [],
     prefs: {},
+    mixing: null,
     words: [],
     lastSync: null,
     syncError: null,
@@ -71,6 +72,8 @@
     for (const g of wordGroups(words).values()) n += g.set.size;
     return n;
   }
+
+  const focusOf = (s) => (s?.mixing?.focus?.length ? s.mixing.focus : null);
 
   // [{lang, count, name, endonym, hidden}], most words first, then by name in the
   // interface language's collation.
@@ -387,38 +390,46 @@
     const chips = $("chips");
     if (!s) return;
     $("main").removeAttribute("aria-busy");
-    const langs = languages(s.words, s.hiddenLangs);
+    // Focus (18): only the focused languages show; hiddenLangs waits untouched for Stop.
+    const focus = focusOf(s);
+    const all = [...wordGroups(s.words).keys()];
+    const langs = languages(s.words, focus ? all.filter((l) => !focus.includes(l)) : s.hiddenLangs);
     $("emptyWords").hidden = langs.length > 0;
     chips.hidden = langs.length === 0;
 
-    const shown = langs.filter((l) => !l.hidden);
-    const only = langs.length > 1 && shown.length === 1 ? shown[0] : null;
-    const strip = $("onlyStrip");
-    strip.hidden = !only;
-    if (only) {
-      strip.replaceChildren(
-        t("popup_only_strip", { endonym: only.endonym }),
+    // A language whose first word came during Focus waits for Stop, and says so.
+    const since = Date.parse(s.mixing?.focusSince) || 0;
+    const isNew = (l) => !s.words.some((w) => w.lang === l && !(Date.parse(w.created_at) > since));
+    $("focusStrip").hidden = !focus;
+    if (focus) {
+      $("focusStrip").replaceChildren(
+        t("popup_focus_strip", { langs: langs.filter((l) => !l.hidden).map((l) => l.endonym).join(", ") }),
         " · ",
-        el("button", { class: "link", type: "button", onclick: showAll, "data-action": "show-all" }, t("popup_show_all")),
+        el("button", { class: "link", type: "button", onclick: () => saveFocus(null), "data-action": "stop-focus" }, t("popup_focus_stop")),
+        ...langs.filter((l) => l.hidden && isNew(l.lang)).map((l) => el("span", { class: "focus-waiting" }, t("popup_focus_waiting", { lang: l.name }))),
       );
     }
-    $("showAll").hidden = !!only || !langs.some((l) => l.hidden);
+    $("showAll").hidden = !!focus || !langs.some((l) => l.hidden);
 
     if (!langs.some((l) => l.lang === state.roving)) state.roving = langs[0]?.lang ?? null;
     const hadFocus = chips.contains(document.activeElement) ? document.activeElement.dataset.lang : null;
-    chips.replaceChildren(...langs.map((l) => chip(l, only?.lang === l.lang)));
+    chips.replaceChildren(...langs.map((l) => chip(l, !!focus?.includes(l.lang))));
     collapseChips(chips, langs.length);
     if (hadFocus) [...chips.querySelectorAll(".chip")].find((c) => c.dataset.lang === hadFocus)?.focus();
 
     // Forget hidden languages that no longer have words, so a language removed and later
     // started again doesn't come back hidden. Only trust the list after a good sync.
-    const stale = s.hiddenLangs.filter((x) => !langs.some((l) => l.lang === x));
-    if (stale.length && s.lastSync && !s.syncError && !inFlight.has("hiddenLangs")) {
+    // Focused ones too; Focus ends with its last language.
+    const stale = s.hiddenLangs.filter((x) => !all.includes(x));
+    const trusted = s.lastSync && !s.syncError;
+    if (stale.length && trusted && !inFlight.has("hiddenLangs")) {
       write(["hiddenLangs"], async () => {
         const { hiddenLangs } = await ext.storage.local.get({ hiddenLangs: [] });
         await ext.storage.local.set({ hiddenLangs: hiddenLangs.filter((x) => !stale.includes(x)) });
       });
     }
+    const kept = focus?.filter((x) => all.includes(x));
+    if (kept?.length < focus?.length && trusted && !inFlight.has("mixing")) saveFocus(kept.length ? kept : null);
   }
 
   // With many languages, chips wrap to at most CHIP_ROWS lines and "+n more" opens the
@@ -461,7 +472,7 @@
     }
   }
 
-  function chip(l, isOnly) {
+  function chip(l, focused) {
     const nameKey = l.hidden ? "popup_chip_name_hidden" : "popup_chip_name_shown";
     const label = t(nameKey, { lang: l.name, endonym: l.endonym, count: l.count });
     const main = el("button", {
@@ -472,7 +483,7 @@
       "aria-label": label,
       title: l.name,
       tabindex: l.lang === state.roving ? "0" : "-1",
-      "data-only": isOnly ? "true" : null,
+      "data-focus": focused ? "true" : null,
       onclick: () => toggleLang(l.lang),
       onfocus: () => void (state.roving = l.lang),
     },
@@ -485,10 +496,10 @@
       class: "chip-aux",
       type: "button",
       tabindex: "-1",
-      "data-only-lang": l.lang,
-      "aria-label": t("popup_only_button", { lang: l.name }),
-      title: t("popup_only_button", { lang: l.name }),
-      onclick: () => onlyLang(l.lang),
+      "data-focus-lang": l.lang,
+      "aria-label": t("popup_focus_button", { lang: l.name }),
+      title: t("popup_focus_button", { lang: l.name }),
+      onclick: () => setFocus(l.lang),
     }, icon("target", 14));
     return el("span", { class: "chip-group" }, main, aux);
   }
@@ -511,14 +522,13 @@
     renderPageLanguage(supported && !paused && s.enabled !== false ? state.pageStatus : null);
   }
 
-  // Slice 20 states H and H2, from what the page's content script made of it (16): a page
-  // in a language the learner doesn't read, or in one of theirs with no word for it yet.
+  // What the page's content script made of it (16): a sensitive site (16 §4), with a way
+  // to run there anyway; a page that kept undoing Kotiko (15); a language they don't read,
+  // or one of theirs with no word yet (20 states H, H2).
   function renderPageLanguage(st) {
     const link = (id, label, onclick) => el("button", { class: "link", id, type: "button", onclick }, label);
     const name = (l) => I18n.languageName(l) ?? l;
     let line = null;
-    // A sensitive site (16 §4), with a way to run there anyway; a page that kept undoing
-    // Kotiko (15); a language they don't read; one of theirs with no word yet.
     if (st?.sensitive) line = [`${t(`popup_sensitive_${st.sensitive}`)} `, link("runSensitive", t("popup_sensitive_run"), allowSensitive)];
     else if (st?.stoodDown) line = [t("popup_stood_down")];
     else if (st && !st.base && st.lang && st.reason !== "unknown") line = [`${t("popup_page_not_yours", { lang: name(st.lang) })} `, link("readToo", t("popup_read_too", { lang: name(st.lang) }), () => openDashboardAt("#settings/languages"))];
@@ -791,6 +801,12 @@
   // --- Actions on storage --------------------------------------------------------------
 
   function toggleLang(lang) {
+    // While focusing, a chip adds its language to Focus or takes it out.
+    const focus = focusOf(state.s);
+    if (focus) {
+      const next = focus.includes(lang) ? focus.filter((l) => l !== lang) : [...focus, lang];
+      return saveFocus(next.length ? next : null);
+    }
     const hidden = new Set(state.s.hiddenLangs);
     if (hidden.has(lang)) hidden.delete(lang);
     else hidden.add(lang);
@@ -805,19 +821,19 @@
     });
   }
 
-  // "Show only": hide every other language; again on the only one shows all (the Stop of
-  // slice 18's Focus, which replaces this when it ships).
-  function onlyLang(lang) {
-    const all = languages(state.s.words).map((l) => l.lang);
-    const shown = all.filter((l) => !state.s.hiddenLangs.includes(l));
-    if (shown.length === 1 && shown[0] === lang && all.length > 1) return showAll();
-    state.s.hiddenLangs = all.filter((l) => l !== lang);
+  // Focus on one language (18); again on the only focused one stops.
+  function setFocus(lang) {
     state.roving = lang;
+    return saveFocus(String(focusOf(state.s)) === lang ? null : [lang]);
+  }
+
+  function saveFocus(focus) {
+    const since = focus ? (focusOf(state.s) && state.s.mixing.focusSince) || new Date().toISOString() : null;
+    state.s.mixing = { ...state.s.mixing, focus, focusSince: since };
     renderLangs();
-    return write(["hiddenLangs"], async () => {
-      const { words } = await ext.storage.local.get({ words: [] });
-      const others = [...wordGroups(words).keys()].filter((l) => l !== lang);
-      await ext.storage.local.set({ hiddenLangs: others });
+    return write(["mixing"], async () => {
+      const { mixing } = await ext.storage.local.get({ mixing: null });
+      await ext.storage.local.set({ mixing: { ...mixing, focus, focusSince: since } });
     });
   }
 
@@ -1023,6 +1039,7 @@
   const RENDER_BY_KEY = {
     words: [renderLangs, renderSections, renderBanners, renderSettingsStatus],
     hiddenLangs: [renderLangs],
+    mixing: [renderLangs],
     lastSync: [renderLangs, renderSettingsStatus],
     syncError: [renderBanners, renderSettingsStatus],
     enabled: [renderHeader, renderBanners],
@@ -1066,7 +1083,7 @@
     else if (e.key === "End") next = chips.at(-1);
     else if ((e.key === "f" || e.key === "F") && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault();
-      onlyLang(chips[i].dataset.lang);
+      setFocus(chips[i].dataset.lang);
       return;
     }
     if (!next) return;

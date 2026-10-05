@@ -22,7 +22,8 @@ async function setup({ server, serviceWorker }, extra = {}) {
   await expect.poll(() => serviceWorker.evaluate(async () => !!(await chrome.storage.local.get("onboarding")).onboarding)).toBe(true);
   await serviceWorker.evaluate(async (o) => {
     await chrome.storage.sync.set({ ui: { uiLang: "auto", baseLangs: ["en", "es"], baseLangsConfirmed: true } });
-    await chrome.storage.local.set({ serverUrl: o.url, token: o.token, words: o.words, enabled: true, lastSync: Date.now(), ...o.extra });
+    // "Mix within the page" (18), so the page's two "thanks" show 谢谢 and спасибо.
+    await chrome.storage.local.set({ serverUrl: o.url, token: o.token, words: o.words, enabled: true, lastSync: Date.now(), mixing: { mode: "mix" }, ...o.extra });
   }, { url: server.kotikoUrl, token: server.token, words: POPOVER_WORDS, extra });
   // The background writes the rules for both languages for content scripts to read.
   await expect.poll(() => serviceWorker.evaluate(async () => Object.keys((await chrome.storage.local.get("baseRules")).baseRules ?? {}).join())).toBe("en,es");

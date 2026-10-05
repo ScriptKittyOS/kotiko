@@ -559,6 +559,23 @@ function ensureAlarm() {
 ensureAlarm();
 mirrorBaseRules().catch(() => {});
 
+// Slice 18's seed salt: 32 random hex characters, made once and synced, so a page shows the
+// same languages on every device; content scripts read the copy in storage.local.
+async function ensureSeedSalt() {
+  const valid = (s) => typeof s === "string" && /^[0-9a-f]{32}$/.test(s);
+  let synced = null;
+  try {
+    ({ seedSalt: synced } = await ext.storage.sync.get({ seedSalt: null }));
+  } catch {
+    // no storage.sync here
+  }
+  const { seedSalt: local } = await ext.storage.local.get({ seedSalt: null });
+  const salt = valid(synced) ? synced : valid(local) ? local : [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  if (salt !== synced) await ext.storage.sync.set({ seedSalt: salt }).catch(() => {});
+  if (salt !== local) await ext.storage.local.set({ seedSalt: salt });
+}
+ensureSeedSalt().catch(() => {});
+
 // Slice 08: languages hidden under an old code stay hidden under the canonical one, so a
 // hidden "cmn" is a hidden "zh" once the server re-tags its words.
 async function migrateHiddenLangs() {
@@ -1097,6 +1114,7 @@ ext.storage.onChanged.addListener((changes, area) => {
     projector.schedule();
     mirrorBaseRules().catch(() => {});
   }
+  if (area === "sync" && changes.seedSalt) ensureSeedSalt().catch(() => {});
   if (area !== "local") return;
   if (changes.token?.newValue !== undefined || changes.serverUrl?.newValue !== undefined) {
     sync.credentialsChanged();
@@ -1152,4 +1170,4 @@ ext.storage.onChanged.addListener((changes, area) => {
 updateAllBadges();
 
 // For tests: the parts a test drives directly.
-globalThis.__kotiko = { ready, getStore, queue, refresh, projector, client, settings, currentBases, mirrorBaseRules, injectOpenTabs, toServer, toLocal, openWelcome, claimMilestone, onInstalled };
+globalThis.__kotiko = { ensureSeedSalt, ready, getStore, queue, refresh, projector, client, settings, currentBases, mirrorBaseRules, injectOpenTabs, toServer, toLocal, openWelcome, claimMilestone, onInstalled };

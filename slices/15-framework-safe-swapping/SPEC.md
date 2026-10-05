@@ -323,6 +323,14 @@ KotikoEngine.onSwap(fn)         // used by 32 (coverage), 35 (exposure), 46 (sta
 KotikoEngine.addRoot(root)      // used by 42 for shadow roots
 ```
 
+- **Big page on CI (2026-10-05, found in slice 18).** The 100,000-node guard failed on CI
+  with long tasks of 169 to 247 ms. main did the same under a 4× CPU slowdown, so this
+  wasn't a slice 18 regression. Profiled: part was the test itself (`locator("p").last()`
+  made Playwright query 20,000 paragraphs in the page on every poll), and part was the
+  engine (`queue.shift()` is linear, and a root that yields nothing skipped the clock
+  check). Both are fixed. Under a 4× slowdown the longest task is now 103 to 145 ms, all
+  of it the browser's layout and paint.
+
 ## Acceptance criteria
 
 - [ ] After swapping, every original text node object is still connected, at its original
