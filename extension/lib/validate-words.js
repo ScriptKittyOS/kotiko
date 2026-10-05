@@ -140,6 +140,10 @@
 
     if (status === 401) return error("server_key_rejected", "The server rejected the API token (401).", { status });
     if (status === 421) return error("server_address_invalid", "The server refused this address (421).", { status });
+    // A proxy or gateway in front of the server that couldn't reach it: the server is down.
+    if (status === 502 || status === 503 || status === 504) {
+      return error("server_unreachable", `The address answered ${status}: the server behind it isn't answering.`, { reason: "gateway", status });
+    }
     if (status >= 500) {
       return error("internal", `The server answered ${status}.`, serverError ? { status, error: serverError } : { status });
     }

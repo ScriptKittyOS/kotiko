@@ -482,14 +482,6 @@
     "message": "Estás sin conexión. Agrégala de nuevo cuando vuelvas.",
     "description": "An add failed while the computer is offline."
   },
-  "error_lookup_failed": {
-    "message": "La búsqueda de palabras no respondió. Inténtalo de nuevo en un momento.",
-    "description": "The server couldn't look the word up."
-  },
-  "error_save_failed": {
-    "message": "Tu servidor de Kotiko no pudo guardar esa palabra. Inténtalo de nuevo.",
-    "description": "The server looked the word up but couldn't save it."
-  },
   "error_no_word_found": {
     "message": "No se encontró ninguna palabra en “$TEXT$”. Prueba con la palabra sola.",
     "description": "The lookup found no word. $TEXT$ is what you typed.",
@@ -1264,15 +1256,15 @@
     "message": "Estás sin conexión. Tus palabras siguen funcionando en las páginas; los cambios se guardarán cuando vuelvas.",
     "description": "Banner while the browser is offline."
   },
-  "dash_error_server_outdated": {
+  "error_server_outdated": {
     "message": "Tu servidor de Kotiko necesita una actualización para esto. Todo lo demás sigue funcionando.",
     "description": "Slice 25 server_outdated."
   },
-  "dash_error_word_gone": {
+  "error_word_gone": {
     "message": "Esa palabra ya se había eliminado.",
     "description": "Slice 25 word_gone."
   },
-  "dash_error_duplicate": {
+  "error_word_conflict_duplicate": {
     "message": "Otra palabra en $LANGUAGE$ ya se escribe así.",
     "description": "Changing a word's spelling or language to one another word has. {language} lowercase in Spanish.",
     "placeholders": {
@@ -1281,7 +1273,7 @@
       }
     }
   },
-  "dash_conflict": {
+  "error_word_conflict": {
     "message": "Esta palabra cambió desde que la abriste. Ábrela de nuevo para corregirla.",
     "description": "Slice 25 word_conflict (stale), outside a field."
   },

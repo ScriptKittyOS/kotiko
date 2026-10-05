@@ -12,7 +12,7 @@
 // manifest's background.scripts list (before this file) in Firefox's event page.
 if (!globalThis.SyncController && typeof importScripts === "function") {
   importScripts(
-    "lib/url.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js", "lib/i18n.js", "lib/badge.js",
+    "lib/url.js", "lib/errors.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js", "lib/i18n.js", "lib/badge.js",
     "spec/spec.js", "lib/text.js", "lib/lang.js", "lib/words-v1.js", "lib/wordspec.js", "lib/word-merge.js", "lib/store.js",
     "lib/backup.js", "lib/projection.js", "lib/llm/policy.js", "lib/llm/catalog.js", "lib/llm/client.js", "lib/add-queue.js",
     "lib/refresh-job.js", "lib/local-mode.js", "lib/pkce.js", "lib/celebrations.js", "lib/welcome-model.js",
@@ -22,6 +22,7 @@ if (!globalThis.SyncController && typeof importScripts === "function") {
 
 const ext = globalThis.browser ?? globalThis.chrome;
 const { normalizeServerUrl } = globalThis.ServerUrl;
+const { fromStatus } = globalThis.KotikoErrors;
 const { validateWordsResponse, filterWords } = globalThis.WordValidator;
 const { createSyncController } = globalThis.SyncController;
 const { createMessageRouter, checks } = globalThis.MessageRouter;
@@ -331,10 +332,11 @@ async function request(conn, path, init = {}) {
 // so the popup never reads the message.
 async function api(path, init = {}) {
   const res = await request(await connection(), path, { ...init, signal: AbortSignal.timeout(ADD_TIMEOUT_MS) });
-  if (res.status === 401) throw codedError("server_key_rejected", "The server rejected that API token.");
+  if (res.status === 401) throw codedError("server_key_rejected", "The server rejected that API token.", { status: 401 });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const code = typeof body.code === "string" && body.code ? body.code : "http_error";
+    // A 0.2 route answers a string `error`; the code comes from the status (slice 25).
+    const code = typeof body.code === "string" && body.code ? body.code : res.status === 404 && init.method === "DELETE" ? "word_gone" : fromStatus(res.status);
     const details = body.details && typeof body.details === "object" ? body.details : {};
     throw codedError(code, typeof body.error === "string" ? body.error : `The server answered ${res.status}.`, { ...details, status: res.status });
   }
@@ -387,9 +389,9 @@ async function apiV1(path, { method = "GET", body, timeoutMs = ADD_TIMEOUT_MS, s
     if (e && typeof e === "object" && typeof e.code === "string" && e.code !== "not_found") {
       throw codedError(e.code, String(e.message ?? e.code), { ...(e.details ?? {}), status: res.status });
     }
-    // An older server without /api/v1 (or without this route).
+    // An older server without /api/v1 (or without this route), a proxy, or a status alone.
     if (res.status === 404 || res.status === 405) throw codedError("server_outdated", `The server answered ${res.status} for ${path}.`, { status: res.status });
-    throw codedError("http_error", typeof e === "string" ? e : `The server answered ${res.status}.`, { status: res.status });
+    throw codedError(fromStatus(res.status), typeof e === "string" ? e : `The server answered ${res.status}.`, { status: res.status });
   }
   if (!data || typeof data !== "object") throw codedError("not_kotiko_server", `${path} didn't answer with JSON.`, { status: res.status });
   return data;
@@ -1283,7 +1285,7 @@ ext.runtime.onMessage.addListener(
       },
       add: {
         from: ["page"],
-        check: (msg) => checks.text(msg.text),
+        check: (msg) => checks.addText(msg.text),
         async run(msg) {
           await ready().catch(() => {});
           const job = await queue.add({
@@ -1311,7 +1313,10 @@ ext.runtime.onMessage.addListener(
             const [r] = (await serverHandlers["words.write"].run({ ops: [{ op: "delete", id: String(msg.id) }] })).results;
             if (!r.ok && r.code !== "word_gone") throw codedError(r.code, r.message, r.details);
           } else {
-            await api(`/api/words/${encodeURIComponent(msg.id)}`, { method: "DELETE" });
+            // Already gone is what Undo wanted.
+            await api(`/api/words/${encodeURIComponent(msg.id)}`, { method: "DELETE" }).catch((e) => {
+              if (e?.code !== "word_gone") throw e;
+            });
           }
           if (typeof msg.jobId === "string") await queue.markUndo(msg.jobId, msg.id, "done");
           await sync.update(

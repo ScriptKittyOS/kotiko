@@ -52,9 +52,10 @@
         sendResponse({ error: { code: "forbidden" } });
         return undefined;
       }
+      // A check names the problem, or gives slice 25's code for it: {code, message}.
       const problem = handler.check ? handler.check(msg) : null;
       if (problem) {
-        sendResponse({ error: { code: "invalid_message", message: problem } });
+        sendResponse({ error: typeof problem === "object" ? { code: problem.code, message: problem.message } : { code: "invalid_message", message: problem } });
         return undefined;
       }
 
@@ -79,6 +80,13 @@
   const checks = {
     text: (v, max = 200) =>
       typeof v === "string" && v.length >= 1 && v.length <= max ? null : `text must be 1 to ${max} characters`,
+    // The text of an add: too long or empty is the learner's to fix, so it has a code.
+    addText: (v, max = 200) => {
+      if (typeof v !== "string") return "text must be a string";
+      if (!v.trim()) return { code: "empty_input", message: "text is empty" };
+      // In characters (code points), as slice 09's max_input_chars counts them.
+      return [...v].length <= max ? null : { code: "input_too_long", message: `text must be at most ${max} characters` };
+    },
     id: (v) => (Number.isInteger(v) || (typeof v === "string" && v.length > 0) ? null : "id must be a string or an integer"),
   };
 

@@ -87,7 +87,7 @@ async function openPopup({ local = {}, session = {}, voices = null, locale = "en
       return new Response("", { status: 404 });
     }
   };
-  for (const rel of ["lib/i18n.js", "ui/icons.js", "lib/lookup-status.js", "popup.js"]) runInWindow(dom, rel);
+  for (const rel of ["lib/i18n.js", "ui/icons.js", "lib/lookup-status.js", "lib/errors.js", "popup.js"]) runInWindow(dom, rel);
   await dom.window.KotikoPopup.ready;
   const doc = dom.window.document;
   const $ = (sel) => doc.querySelector(sel);
@@ -315,6 +315,37 @@ describe("server problems (slice 25 codes)", () => {
     assert.equal(ready.$("#banners").children.length, 0, "Ollama needs no key");
   });
 
+  test("Details: the technical text, and Copy details with the versions and no word data (25 §3)", async () => {
+    const { p, node } = await banner({ code: "server_unreachable", message: "Can't reach http://127.0.0.1:4999. Is the server running?", details: { reason: "network" } });
+    assert.equal(node.querySelector("details pre").textContent, "Can't reach http://127.0.0.1:4999. Is the server running?\nreason: network");
+    const copied = [];
+    Object.defineProperty(p.win.navigator, "clipboard", { value: { writeText: async (text) => void copied.push(text) }, configurable: true });
+    const button = node.querySelector('details [data-action="copy-details"]');
+    assert.equal(button.textContent, "Copy details");
+    button.click();
+    await p.settle();
+    assert.equal(copied[0], `Kotiko 0.0.0-test\n${p.win.navigator.userAgent}\ncode: server_unreachable\nCan't reach http://127.0.0.1:4999. Is the server running?\nreason: network`);
+    assert.equal(button.textContent, "Copied");
+  });
+
+  test("a failed add's Copy details leaves out what was typed and what the lookup said", async () => {
+    const p = await openPopup({ local: { ...CONNECTED, words: WORDS, baseLangs: ["en"], addJobs: [{ id: "0192a000-0000-7000-8000-000000000001", text: "perro grande", state: "failed", createdAt: Date.now(), seen: false, results: [], error: { code: "no_word_found", details: { reply: "No word in perro grande", status: 200 } } }] } });
+    const copied = [];
+    Object.defineProperty(p.win.navigator, "clipboard", { value: { writeText: async (text) => void copied.push(text) }, configurable: true });
+    assert.match(p.text('#jobs [data-kind="failed"] .job-text > p'), /^Couldn't find a word in “perro grande”\./);
+    p.$('#jobs [data-action="copy-details"]').click();
+    await p.settle();
+    assert.equal(copied.length, 1);
+    assert.doesNotMatch(copied[0], /perro|grande/);
+    assert.match(copied[0], /code: no_word_found/);
+  });
+
+  test("offline: the pill says the words still work on pages", async () => {
+    const p = await openPopup({ local: { ...CONNECTED, words: WORDS } });
+    p.win.dispatchEvent(new p.win.Event("offline"));
+    assert.equal(p.$("#offline").title, "You're offline. Your 8 words still work on pages; new words will be looked up when you're back.");
+  });
+
   test("the popup never opens settings on its own", async () => {
     const { p } = await banner({ code: "server_key_rejected", details: { status: 401 } });
     assert.ok(p.$("#settings").hidden);
@@ -488,9 +519,11 @@ describe("adding words (D, slice 24)", () => {
 
   test("failures read in plain language, with the right next step", async () => {
     const cases = [
-      [{ code: "http_error", details: { status: 422 } }, /^Your Kotiko server couldn't save that word\./, "retry"],
+      [{ code: "internal", details: { status: 500 } }, /^Something went wrong in Kotiko\. Try again/, "retry"],
+      // An old server's bare status reads by what it means (25: no "http_error" line).
+      [{ code: "http_error", details: { status: 503 } }, /^Can't reach your Kotiko server\./, "retry"],
       [{ code: "server_key_rejected", details: {} }, /^Your Kotiko server didn't accept the access key\./, "settings"],
-      [{ code: "no_word_found", details: { reply: "I couldn't find a word in that." } }, /^Couldn't find a word in “zzz”\. Try the word on its own\.$/, null],
+      [{ code: "no_word_found", details: { reply: "I couldn't find a word in that." } }, /^Couldn't find a word in “zzz”\. Try the word on its own, or add it yourself\.$/, null],
       [{ code: "rejected_same_as_gloss", details: {} }, /^“zzz” is already a word in English\. Try naming the language you want it in\.$/, null],
       [{ code: "bad_lookup_result", details: { status: 502 } }, /^The lookup came back garbled\./, "retry"],
       [{ code: "key_rejected", details: { provider: "openrouter", status: 502 } }, /^OpenRouter didn't accept your Kotiko server's key\./, null],
@@ -517,15 +550,21 @@ describe("adding words (D, slice 24)", () => {
       const { p } = await add("zzz", () => ({ state: "waiting", error }));
       assert.match(p.text('#jobs [data-kind="waiting"] p') ?? p.text("#jobs"), expected, JSON.stringify(error));
       assert.ok(p.$('#jobs [data-kind="waiting"] [data-action="cancel"]'));
+      // 25 §3: waiting has a clock, never the error icon.
+      assert.ok(p.$('#jobs [data-kind="waiting"] .icon-clock') && !p.$('#jobs [data-kind="waiting"] .icon-error'));
     }
   });
 
   test("text too long is refused at once; Try again on a failed line asks the background", async () => {
-    const { p } = await add("x".repeat(201), () => ({ refuse: { error: { code: "invalid_message", message: "text must be 1 to 200 characters" } } }));
-    assert.match(p.text('#jobs [data-kind="failed"] p'), /^That's a lot of text for one word\./);
+    const { p } = await add("x".repeat(201), () => ({ refuse: { error: { code: "input_too_long", message: "text must be at most 200 characters" } } }));
+    assert.match(p.text('#jobs [data-kind="failed"] p'), /^That's a lot of text for one word\. To add a list of words, use bulk add\.$/);
+    // The next step is one click away (25 §2): bulk add opens in the dashboard.
+    p.$('#jobs [data-kind="failed"] [data-action="bulk"]').click();
+    await p.settle();
+    assert.deepEqual(p.opened, ["chrome-extension://fake-extension-id/dashboard.html#add"]);
     p.$('#jobs [data-action="dismiss"]').click();
     assert.equal(p.doc.querySelectorAll("#jobs li").length, 0);
-    const failed = await add("sobaka", () => ({ state: "failed", error: { code: "http_error", details: { status: 422 } } }));
+    const failed = await add("sobaka", () => ({ state: "failed", error: { code: "internal", details: { status: 500 } } }));
     failed.p.$('#jobs [data-action="retry"]').click();
     await failed.p.settle();
     assert.ok(failed.p.fake.calls.sendMessage.some((m) => m.type === "jobs.retry"));
@@ -933,6 +972,26 @@ describe("the add box's language controls (24 §6-§9)", () => {
     assert.ok(p.fake.calls.sendMessage.some((m) => m.type === "jobs.cancel" && m.id === waiting.id), "the waiting lookup gives way");
   });
 
+  test("Add it yourself: what the background refuses reads in plain words, never its English check (25)", async () => {
+    const waiting = { id: "01900000-0000-7000-8000-0000000000da", text: "gatto", state: "waiting", createdAt: Date.now(), seen: false, baseLangs: ["en"], error: { code: "lookup_not_set_up", details: {} }, results: [] };
+    const answer = (m) => (m.type === "jobs.addManual" ? { error: { code: "invalid_message", message: "each meaning must be 1 to 64 characters" } } : { ok: true });
+    const p = await openPopup({ local: { ...CONNECTED, words: WORDS, baseLangs: ["en"], addJobs: [waiting] }, answer });
+    p.$('#jobs [data-action="manual"]').click();
+    await p.settle();
+    const form = p.$("#jobs form.manual-form");
+    form.querySelector('[name="meaning-en"]').value = "cat";
+    form.querySelector('[data-action="language"]').click();
+    await p.settle();
+    p.$(".picker input[type=search]").value = "italian";
+    p.$(".picker input[type=search]").dispatchEvent(new p.win.Event("input"));
+    for (let i = 0; i < 20 && !p.$('.picker [data-lang="it"]'); i++) await sleep(10);
+    p.$('.picker [data-lang="it"]').click();
+    await p.settle();
+    form.dispatchEvent(new p.win.Event("submit", { cancelable: true }));
+    await p.settle();
+    assert.equal(form.querySelector(".manual-error").textContent, "Something went wrong in Kotiko. Try again; if it keeps happening, please report it.");
+  });
+
   test("a word spelled like its meaning asks once before saving", async () => {
     const failed = { id: "01900000-0000-7000-8000-0000000000e9", text: "hotel", state: "failed", createdAt: Date.now(), seen: false, baseLangs: ["en"], error: { code: "no_word_found", details: {} }, results: [] };
     const p = await openPopup({ local: { ...CONNECTED, words: WORDS, addJobs: [failed] }, answer: () => ({ ok: true }) });
@@ -1005,6 +1064,9 @@ describe("size (20 §8)", () => {
   // use. The caps are a backstop for the measured goal, set from what the files weigh with
   // some room: 2026-10-05, after slice 24's language controls, own files 73 KB, everything
   // loaded at open 120 KB, the parts loaded later 10 KB (popup-more) and 11 KB (voices).
+  // Slice 25's error catalog (lib/errors.js, 11 KB, replacing the popup's own mapping)
+  // brings it to 72 KB own and 127.6 KB at open; first paint measured the same (median
+  // 82 ms at 4× CPU, 80 ms before; 132 ms at 6×, 132 before).
   const size = (files) => files.reduce((n, f) => n + Buffer.byteLength(readExt(f)), 0);
   const html = readExt("popup.html");
   const atOpen = [...html.matchAll(/<(?:script src|link rel="stylesheet" href)="([^"]+)"/g)].map((m) => m[1]);

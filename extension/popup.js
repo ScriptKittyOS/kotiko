@@ -13,6 +13,7 @@
   const I18n = globalThis.KotikoI18n;
   const Icons = globalThis.KotikoIcons;
   const LookupStatus = globalThis.KotikoLookupStatus;
+  const Errors = globalThis.KotikoErrors;
   const { t } = I18n;
   const $ = (id) => document.getElementById(id);
 
@@ -54,6 +55,8 @@
   // Providers that run without a key (spec/providers.json's keyRequired: false).
   const KEYLESS = new Set(["ollama", "lmstudio", "custom"]);
   const NO_WORD = new Set(["no_word_found", "rejected_same_as_gloss"]);
+  // A busy lookup waits and runs again by itself (24 §2).
+  const BUSY = new Set(["rate_limited", "model_unavailable", "lookup_timeout"]);
   const CHIP_ROWS = 3;
   const STORE_HOSTS = /^(chromewebstore\.google\.com|chrome\.google\.com|addons\.mozilla\.org|microsoftedge\.microsoft\.com)$/;
 
@@ -125,72 +128,21 @@
     if (kind === "server") return s?.keys?.server === true || legacyToken(s);
     return false;
   }
-  // Adds are background jobs (slice 11 §5) unless a server looks up and keeps the words.
-  // Technical detail for "Details" (25 §3): never translated, each fact once.
-  const technical = (...parts) => [...new Set(parts.filter((p) => p !== null && p !== undefined && p !== "").map(String))].join("\n");
-
-  // The banner for a sync problem (slice 25 §2, §3), or null. `n` is the word count.
-  function syncProblem(err, n) {
-    if (!err) return null;
-    if (typeof err === "string") return { severity: "state", text: t("error_internal"), details: err, actions: ["retry"] };
-    const d = err.details ?? {};
-    const details = technical(err.message, d.hint, d.status ? `HTTP ${d.status}` : null, d.error);
-    switch (err.code) {
-      case "server_unreachable":
-        return {
-          severity: "state",
-          text: n ? t("error_server_unreachable", { count: n }) : t("error_server_unreachable_empty"),
-          details,
-          actions: ["retry", "settings"],
-        };
-      case "server_key_rejected":
-        if (d.reason === "no_token") return null;
-        return { severity: "blocking", text: t("error_server_key_rejected"), details, actions: ["settings"] };
-      case "server_address_invalid":
-        return { severity: "blocking", text: t("error_server_address_invalid"), details, actions: ["settings"] };
-      case "address_changed":
-        return { severity: "blocking", text: t("error_address_changed"), details, actions: ["settings"] };
-      case "not_kotiko_server":
-        return { severity: "blocking", text: t("error_not_kotiko_server"), details, actions: ["settings"] };
-      default:
-        return { severity: "state", text: t("error_internal"), details, actions: ["retry"] };
-    }
+  // A problem as the popup shows it (slice 25): lib/errors.js chooses the words, the
+  // severity and the actions, the same as the dashboard and the welcome tab.
+  function problemView(err, ctx) {
+    const p = Errors.describe(err, { local: lookupKind(state.s) !== "server", ...ctx });
+    return p && { severity: p.severity, text: t(p.key, p.params), details: p.details, actions: p.actions, code: p.code, err };
   }
 
-  const RETRYABLE = new Set(["rate_limited", "model_unavailable", "lookup_timeout", "bad_lookup_result"]);
+  // The banner for a sync problem (slice 25 §2, §3), or null. `n` is the word count.
+  const syncProblem = (err, n) => problemView(err, { n, surface: "banner" });
 
   // The line for a failed add or undo, from the background's {error, code, details}.
-  function addProblem(res, { connected = true, online = true, n = 0 } = {}) {
-    const code = res?.code ?? res?.error?.code ?? "internal";
-    const status = res?.details?.status ?? null;
-    const details = technical(typeof res?.error === "string" ? res.error : res?.error?.message, status ? `HTTP ${status}` : null);
-    const line = (key, actions = ["retry"], params) => ({ text: t(key, params), details, actions, code });
-    if (!online && code === "server_unreachable") return line("error_add_offline");
-    // A failed lookup (slice 10's codes, slice 25's words); waiting ones can be retried.
-    // Lookups in this browser (the learner's own key, or none set up yet) get their own words.
-    const local = lookupKind(state.s) !== "server";
-    const lookup = LookupStatus.lookupProblem(code, res?.details, { locale: I18n.locale(), local });
-    if (lookup) {
-      const fix = code === "address_changed" ? (String(res?.details?.route ?? "").startsWith("lookup:") ? ["setupLookups"] : ["settings"]) : local && (code === "key_rejected" || code === "lookup_not_set_up") ? ["setupLookups"] : [];
-      return line(lookup.key, RETRYABLE.has(code) ? ["retry"] : fix, lookup.params);
-    }
-    switch (code) {
-      case "server_key_rejected":
-        return connected ? line("error_server_key_rejected", ["settings"]) : line("error_add_not_connected", ["settings"]);
-      case "server_unreachable":
-        return n ? line("error_server_unreachable", ["retry"], { count: n }) : line("error_server_unreachable_empty");
-      case "server_address_invalid":
-        return line("error_server_address_invalid", ["settings"]);
-      case "invalid_message":
-        return line("error_input_too_long", []);
-      case "http_error":
-        if (status === 401) return line("error_server_key_rejected", ["settings"]);
-        if (status === 422) return line("error_save_failed");
-        if (status >= 500) return line("error_lookup_failed");
-        return line("error_internal");
-      default:
-        return line("error_internal");
-    }
+  function addProblem(res, { online = true, n = 0, text = null, base = null } = {}) {
+    // Offline, a failed add waits for the learner (the queue's waiting line says more).
+    if (!online && Errors.toError(res)?.code === "server_unreachable") return { ...problemView(res, { n }), text: t("error_add_offline"), actions: ["retry"] };
+    return problemView(res, { n, online, text, base, surface: "line" });
   }
 
   // ---------------------------------------------------------------------------------
@@ -298,9 +250,9 @@
 
   // The same actions as quiet links, for a line under the add box.
   function actionLink(action, onRetry, onCancel) {
-    const key = { retry: "error_try_again_action", settings: "error_connection_settings_action", setupLookups: "popup_set_up_lookups", cancel: "add_cancel" }[action];
+    const key = { retry: "error_try_again_action", settings: "error_connection_settings_action", setupLookups: "popup_set_up_lookups", cancel: "add_cancel", bulk: "popup_bulk_open" }[action];
     if (!key) return null;
-    const run = { retry: onRetry, settings: () => openSettings(), setupLookups: openLookupSettings, cancel: onCancel }[action];
+    const run = { retry: onRetry, settings: () => openSettings(), setupLookups: openLookupSettings, cancel: onCancel, bulk: () => openDashboardAt("#add") }[action];
     return el("button", {
       class: "link link-quiet",
       type: "button",
@@ -311,7 +263,15 @@
 
   const SEVERITY_ICON = { state: "warning", info: "info", blocking: "error" };
 
-  function banner({ severity, text, details, actions = [], art = null, id = null }, onRetry) {
+  // "Details" (25 §3): the technical text, and Copy details (never the learner's words).
+  function detailsNode(text, err) {
+    if (!text) return null;
+    const copy = () => Errors.copy(err).then(() => (button.textContent = t("error_copied")), () => {});
+    const button = el("button", { class: "link link-quiet", type: "button", "data-action": "copy-details", onclick: copy }, t("error_copy_details"));
+    return el("details", { class: "details" }, el("summary", {}, t("error_details")), el("pre", {}, text), button);
+  }
+
+  function banner({ severity, text, details, err = null, actions = [], art = null, id = null }, onRetry) {
     const lead = art
       ? el("span", {},
         el("img", { class: "banner-art art-light", src: art.light, alt: "" }),
@@ -322,7 +282,7 @@
       lead,
       el("p", { class: "banner-body" }, text),
       buttons.length ? el("div", { class: "banner-actions" }, buttons) : null,
-      details ? el("details", { class: "details" }, el("summary", {}, t("error_details")), el("pre", {}, details)) : null,
+      detailsNode(details, err),
     );
   }
 
@@ -345,6 +305,8 @@
     $("enabledText").textContent = on ? t("popup_switch_on") : t("popup_switch_off");
     $("main").dataset.off = String(!on);
     $("offline").hidden = state.online;
+    // What still works while offline (25 §2), for whoever points at the pill.
+    $("offline").title = state.online ? "" : Errors.message({ code: "offline" }, { n: wordTotal(state.s?.words) });
   }
 
   function currentBanner() {
@@ -636,16 +598,20 @@
   // One line per target word, whatever the number of bases it has a record for (24 §4).
   const keyOf = (w) => `${w?.lang}\u001f${w?.native}`;
   const langName = (l) => I18n.languageName(l) ?? l;
-  const problem = (e) => addProblem({ code: e?.code, details: e?.details ?? {} }, { online: state.online, n: wordTotal(state.s?.words) });
+  // A failed job's line names what was typed, and the base a word matched (25 §2).
+  const problem = (e, j = null) => {
+    const base = j?.baseLangs?.[0] ?? state.s?.baseLangs?.[0];
+    return addProblem({ code: e?.code, details: e?.details ?? {} }, { online: state.online, n: wordTotal(state.s?.words), text: j?.text ?? null, base: base ? langName(base) : null });
+  };
 
   function viewJob(j) {
     const e = j.error ?? {};
     const status = { waiting: "waiting", failed: "failed", done: "done", needs_choice: "choose" }[j.state] ?? "looking";
     const v = { id: j.id, text: j.text, status, words: [], code: e.code, details: e.details ?? {}, candidates: j.candidates ?? [], missing: j.missingBases ?? [], away: state.doneAtOpen.has(j.id) };
     if (status === "failed") {
-      v.error = e.code === "rejected_same_as_gloss"
-        ? { text: t("error_rejected_same_as_gloss", { text: j.text, base: langName(j.baseLangs?.[0] ?? "en") }), details: "", actions: [] }
-        : NO_WORD.has(e.code) ? { text: t("error_no_word_found", { text: j.text }), details: e.details?.reply ?? "", actions: [] } : problem(e);
+      const p = problem(e, j);
+      // The lookup's own reply (no word found) is the learner's to read, under Details.
+      v.error = NO_WORD.has(e.code) ? { ...p, details: e.details?.reply ?? "", actions: [] } : p;
     }
     // A word's records in base order; the line reads as the most telling result.
     const order = (r) => ((j.baseLangs ?? []).indexOf(r.baseLang) + 99) % 99;
@@ -725,7 +691,7 @@
     if (code === "lookup_not_set_up") return { text: t("add_waiting_setup", { text }), actions: ["setupLookups", "manual", "cancel"] };
     if (code === "quota_exhausted" && at) return { text: t("add_waiting_quota", { text, time: new Intl.DateTimeFormat(I18n.locale(), { timeStyle: "short" }).format(at) }), actions: ["cancel"] };
     if (code === "offline") return { text: t("add_waiting_offline", { text }), actions: ["manual", "cancel"] };
-    if (RETRYABLE.has(code)) return { text: t("add_waiting_busy", { text }), actions: ["retry", "manual", "cancel"] };
+    if (BUSY.has(code)) return { text: t("add_waiting_busy", { text }), actions: ["retry", "manual", "cancel"] };
     return { text: t("add_waiting", { text, reason: problem(job).text }), actions: ["retry", "manual", "cancel"] };
   }
 
@@ -762,15 +728,16 @@
     if (line.kind === "waiting") {
       const w = waitingLine(job);
       const actions = w.actions.map((a) => (a === "manual" ? manualLink(job) : actionLink(a, () => retryJob(job), () => cancelJob(job)))).filter(Boolean);
+      // Waiting (25 §3): a clock, never red; it runs again by itself.
       return [
-        icon("info", 18),
+        icon("clock", 18),
         el("div", { class: "job-text" }, el("p", {}, w.text), el("div", { class: "job-more" }, actions)),
       ];
     }
     if (line.kind === "failed") {
       const e = job.error;
       const actions = [...e.actions.map((a) => actionLink(a, () => retryJob(job))), job.local ? null : manualLink(job)].filter(Boolean);
-      const details = e.details ? el("details", { class: "details" }, el("summary", {}, t("error_details")), el("pre", {}, e.details)) : null;
+      const details = detailsNode(e.details, e.err);
       return [
         icon("error", 18),
         el("div", { class: "job-text" }, el("p", {}, e.text), actions.length || details ? el("div", { class: "job-more" }, actions, details) : null),

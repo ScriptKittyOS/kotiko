@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Built (2026-10-05), English only; see Implementation notes |
 | **Priority** | P0 (before public release) |
 | **Size** | S (a day or two, plus server changes) |
 | **Depends on** | [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (`_locales`, `t()`, `Kotiko.I18n`) |
@@ -319,6 +319,161 @@ Ships with the popup rewrite. `syncError` strings already in storage are convert
 `{code: "internal", details: <old string>}` on first run. `page_not_english` and
 `rejected_english` don't ship; nothing stored refers to them. Changelog: "Clearer messages,
 in your language, that tell you what still works and what to do next."
+
+## Implementation notes
+
+Built 2026-10-05, stacked on slices 12 and 28. English only ([DECISIONS 2026-10-05](../DECISIONS.md)):
+every Spanish copy table and Spanish acceptance criterion above is out of scope. The
+existing `_locales/es` translations were kept (moved with their keys where a key was renamed).
+
+### The inventory (what the code base produces, and what the learner read before)
+
+Read from the sources (`grep`, and since this slice a test that does it, below), at the
+start of the slice. "Before" is what the popup, the dashboard and the welcome tab showed.
+40 codes are produced by `extension/` and `server/lib/` code sites, plus `http_error` (the
+background's code for a bare HTTP status, now gone) and two states the popup detects itself
+(`permission_missing`, `unsupported_page`): 43 in all. **13 had no message of their own, or
+one naming the wrong cause, on at least one surface** (`offline`, `server_unreachable` from a
+proxy, `not_kotiko_server`, `server_outdated`, `http_error`, `input_too_long`, `empty_input`,
+`invalid_lang`, `script_mismatch`, `word_conflict`, `word_gone`, `wiped`, `storage_full`),
+and **8 more had a message without the next step or what still works**
+(`server_address_invalid` for a refused host name, `lookup_not_set_up`, `quota_exhausted`,
+`rate_limited`, `model_unavailable`, `lookup_timeout`, `bad_lookup_result`, `no_word_found`).
+Besides codes, the manual add form showed the background's English check text.
+
+| Code | Produced by | Before | Now |
+|---|---|---|---|
+| `offline` | background (lookup or save while offline), add queue | popup add lines: own line; **dashboard: "Can't reach your Kotiko server"** (wrong cause) | `error_offline`: your {n} words still work on pages; new words looked up when back |
+| `server_unreachable` | background `request()`, sync controller, validate-words | good (popup banner with count) | unchanged; also **502, 503, 504 from a proxy** (before: "Something went wrong") |
+| `server_address_invalid` | url.js, validate-words (421), server host check | good, but **421 `host_not_allowed`** said "doesn't look right" | `_host_not_allowed`: the server doesn't answer to that name; use its IP or allow the name |
+| `not_kotiko_server` | background, validate-words | banner good; **popup add line: internal** | catalog everywhere |
+| `server_key_rejected` | background, sync controller, validate-words, server auth | good | unchanged; `no_token` is never an error banner |
+| `server_outdated` | background (404/405 on `/api/v1`) | dashboard only; **popup: internal** | `error_server_outdated` everywhere |
+| `address_changed` | background, LLM client (slice 28) | good | unchanged |
+| `http_error` | background (bare status) | **401/422/≥500 guessed; ≥500 read "Word lookup didn't answer" even for an Undo** | gone: `fromStatus()` gives a catalog code |
+| `lookup_not_set_up` | LLM client and policy, background, server | **"Word lookups aren't set up yet."** (no next step) | says “word = meaning” still works; Set up lookups |
+| `key_rejected` | LLM policy, PKCE sign-in, server | good | unchanged |
+| `quota_exhausted` | LLM client/policy, server | **"Try again after {time}"**, nothing about adding yourself; **402 waited and retried** | "Add words yourself, or try again after {time}"; a 402 now fails, no retry |
+| `rate_limited`, `model_unavailable`, `lookup_timeout`, `bad_lookup_result` | LLM policy/client, server | **"Try again"** only | "…, or add the word yourself" |
+| `no_word_found`, `rejected_same_as_gloss` | wordspec (09), server | popup/dashboard: good; no "add it yourself" | "…, or add it yourself"; the base is named only when known (never a guessed English) |
+| `input_too_long`, `empty_input` | wordspec, server v1, **the add message check** | **popup: only as `invalid_message`; as codes: internal**; "Try a word or a short phrase" | own codes from the background's check; "To add a list of words, use bulk add" with a Bulk add link |
+| `invalid_word`, `invalid_lang`, `script_mismatch` | local mode, lang.js, server | dashboard field messages; **others: internal** | `invalid_word` (aliases for the other two); the dashboard still names the field |
+| `word_conflict`, `word_gone` | store, local mode, server | dashboard only (`dash_*` keys); **popup Undo failure: internal** | `error_word_conflict*`, `error_word_gone` everywhere (keys renamed from `dash_*`) |
+| `storage_full` | store (every IndexedDB failure), background (after delete-all) | **"Free some disk space" for every reason**, including a store held open by an old page, a private window, and "everything was just deleted" | per reason: full disk (and your words still work on pages), close other tabs, open a normal window, open Kotiko again |
+| `wiped` | dashboard after "Delete everything" | **internal** | now `storage_full` with `reason: deleted` at the source |
+| `vocabulary_full` | store | good | unchanged |
+| `internal` | everywhere | good | unchanged; any code the catalog doesn't name reads as this |
+| `invalid_request`, `request_too_large`, `not_found`, `forbidden`, `invalid_message`, `job_gone` | server, message router, background | internal | aliases: `not_found` reads as `server_outdated`, the rest as `internal` (bugs, nothing the learner can fix) |
+| `backup_newer`, `not_backup`, `too_big`, `too_many`, `unreadable`, `nothing_to_undo` | backup.js, bulk/parse.js, background | worded by the restore dialog and bulk add (`data_restore_*`, `bulk_*`, `data_undo_none`) | unchanged; listed as surface-local codes in the test |
+| `cancelled`, `superseded` | data-tools, sync controller | nothing | silent on purpose |
+| manual add refused by the background | `jobs.addManual` checks | **the English check text** ("each meaning must be 1 to 64 characters") | the catalog's line |
+| `permission_missing`, `unsupported_page` | popup | good | unchanged |
+
+### What was built, by section
+
+- **§1 Error shape.** `extension/lib/errors.js` (in `lib/` with the other shared modules,
+  not `extension/errors.js`): `CODES` (code → severity, actions), `ALIASES`, `toError()`
+  (exceptions, router replies, a stored `syncError`, fetch `TypeError` online and offline,
+  `QuotaExceededError`, a bare HTTP status, an old string), `describe(err, ctx)` → `{code,
+  severity, key, params, actions, details}`, `message(err, ctx)`, `fromStatus()`,
+  `copyText()`/`copy()`, `isTransient()`. The popup (`syncProblem`, `addProblem`, the manual
+  form), the dashboard (`problemText`, the banner, add jobs) and the welcome tab
+  (`problemText`, the server check) all use it; their three copies of the mapping are gone.
+  `lib/lookup-status.js` keeps the quota line only. The background loads it too
+  (`fromStatus` replaces `http_error`). A stored string `syncError` reads as `internal` with
+  the string under Details, so no migration step is needed.
+- **Server.** `Kotiko.I18n` (`server/lib/kotiko/i18n.ex`) reads
+  `server/priv/locales/<locale>/messages.json` (`error_<code>`, then `_<reason>` or
+  `_<field>` variants, `{name}` placeholders) at compile time. Every `/api/v1` error, the
+  401, the 421 host check, Plug's 413/400 and the lookup messages (`Lookup.message/4`, also
+  the Telegram bot's) take their `message` from it, in the best `Accept-Language` match
+  among the shipped locales (only `en`), falling back to English per key. The route-specific
+  hints for curl ("Send {"words": [...]}…") became `error_invalid_request_<field>` keys.
+  The 0.2 routes keep `{"error": "<string>"}`.
+- **A body that isn't JSON** (slice 53's finding): the parser no longer passes other
+  content types through unread (which made the routes raise and answer `500 internal`); it
+  refuses them, and the error handler answers `415` with `invalid_request` and
+  `details.reason: "content_type"` (the 0.2 routes: the string). `docs/reference/http-api.md`
+  documents it, the message catalog, and the outcome codes of `POST /api/v1/words`.
+- **§2 Catalog.** Main lines rewritten where they lacked what still works or the next step
+  (table above). New keys: `error_offline_*`, `error_server_address_invalid_host_not_allowed`,
+  `error_lookup_not_set_up_local` (rewritten), `error_no_word_found_any`,
+  `error_word_conflict_duplicate_any`, `error_empty_input`, `error_invalid_word`,
+  `error_storage_full_{blocked,unavailable,deleted}`, `error_copy_details`, `error_copied`.
+  Renamed: `dash_error_server_outdated`, `dash_error_word_gone`, `dash_conflict`,
+  `dash_error_duplicate` → `error_server_outdated`, `error_word_gone`, `error_word_conflict`,
+  `error_word_conflict_duplicate`. Removed (no longer reachable): `error_save_failed`,
+  `error_lookup_failed`.
+- **§3 Presentation.** Banners: state (warning), blocking (error) or info, one button from
+  the code's actions; "Details" with **Copy details** (popup banners, failed add lines, the
+  dashboard banner), which copies the code, the technical lines, Kotiko's version and the
+  browser's user agent, and never `reply`, `word`, `native` or any field the learner typed
+  (`TECHNICAL` is an allow-list). The e2e test checks the button in Chromium. Waiting add
+  lines show a clock, not the info icon.
+- **§4 Offline.** The new e2e `test/e2e/errors.spec.mjs` stops the fixture server (a new
+  `kotiko: "down"` mode closes every connection unanswered): the popup shows the calm state
+  with "Your 2 words still work on pages", the open page and a new one keep their swaps,
+  and Try again clears the state when the server is back, with no "back online" message.
+- **§5.** Every row is covered: no red "paste your token" on a fresh install (already true
+  since slice 20; `no_token` stays silent), the address and network errors are codes, and
+  statuses map to codes.
+- **The add queue:** a provider 402 (`quota_exhausted` with `payment_required`) now fails at
+  once instead of retrying on a backoff for three days.
+- **The add message check** gives `empty_input` and `input_too_long` (counted in code
+  points, as slice 09's `max_input_chars` is) instead of `invalid_message`.
+- **Undo against a 0.2 server:** `DELETE /api/words/:id` answering 404 means the word is
+  already gone, which is what Undo wanted; it no longer reads as a failure.
+
+### Acceptance criteria
+
+| Criterion | Status | Test |
+|---|---|---|
+| Every throw and error response produces a catalog code; a test fails on an unmapped code | Met | `test/unit/errors.test.mjs` "each is in the catalog, an alias, silent, or worded by its own surface" (scans `extension/` and `server/lib/` code sites; proven by adding a `codedError("brand_new_code")`), "every code the server produces has a server message and is in the HTTP reference" |
+| Lint: no token, API, LLM, model, .env or HTTP status in catalog lines | Met (en and the existing es) | errors.test "no error line says…"; `test/unit/i18n.test.mjs` |
+| Every code has `error_<code>` in en (es optional) | Met for en | errors.test "every key a code can read as exists in en" |
+| Spanish browser, server stopped | Out of scope (English only) | — |
+| "perro" with a Spanish base names the base; no "English" unless it's the learner's | Met for the mechanism: the base is a placeholder from the learner's base list, never a guessed "en" | errors.test "placeholders are filled…", "…a language's name"; `test/dom/dashboard.test.mjs` "a failed lookup says why" |
+| `Accept-Language: es` returns Spanish | Out of scope (English only); the mechanism is built and tested | `server/test/kotiko/errors_test.exs` "the message's language" |
+| Server stopped: the state with the word count; a test page keeps its swaps | Met | `test/e2e/errors.spec.mjs` test 1 (fails when the cache is cleared on a sync error) |
+| `localhost:4747` shows `server_address_invalid` | Deviation: slice 26 normalizes it to `http://localhost:4747` and connects (`test/e2e/sync.spec.mjs` "an address typed without http:// connects"); a real bad address shows the message (sync.spec "an address with a user name…") | — |
+| Captive portal HTML 200: `not_kotiko_server`, cached words unchanged | Met | `test/bg/background.test.mjs` "F31…", errors.spec test 2 |
+| Provider daily 429: `quota_exhausted` with a local time; the job retries after it | Met | `test/bg/local-mode.test.mjs` "…quota waits until the reset"; popup.test "a job that waits says why" |
+| The popup never opens a settings panel on its own | Met | popup.test "the popup never opens settings on its own"; `test/e2e/smoke.spec.mjs` |
+| Old extensions see the plain `error` string | Met | `server/test/kotiko/router_auth_test.exs` 413; errors_test "a 415 with the 0.2 string error" |
+| "Copy details" contains no word data | Met | errors.test "Copy details…"; popup.test "a failed add's Copy details leaves out what was typed…" |
+| A provider 402 shows `payment_required` and schedules no retry | Met | `test/unit/local-store.test.mjs` "…fails on no word, a rejected key and a 402"; errors.test placeholders |
+| Every code has a docs anchor (44) | Not met: the docs site (44) isn't built. `KotikoErrors.CODES` is the list it will check | — |
+
+### Decisions and deviations
+
+- **Offline in the popup stays slice 20's header pill** (state I: "no banner unless an add
+  is waiting"); its tooltip now says the words still work. The dashboard keeps its own
+  offline line, which says the same.
+- **`local_network_blocked` isn't shipped.** A blocked request fails with the same
+  `TypeError` as a stopped server, and Chrome 144+ exempts extensions with host permissions
+  (research 03 C6), so it can't be detected honestly. A revoked host permission (Firefox)
+  already shows `permission_missing` first.
+- **Codes for slices not built yet are not in the catalog:** `user_quota_exhausted` (48),
+  `resync_required` and `server_reset` (39), `import_unreadable` (bulk add words its own),
+  `page_not_in_base` and `base_no_words` (16 and 50 have their own keys). The inventory test
+  makes each slice add its code when it produces one.
+- **`KOTIKO_ERROR_DETAILS` and upstream text in `details.text` aren't built.** A provider's
+  body can echo the learner's text, and the server already keeps `reason`, `status` and
+  `provider`; the full text is in the server log at debug. No new setting.
+- **415, not 400,** for a body that isn't JSON (RFC 9110 §15.5.16), with the code
+  `invalid_request` so clients need nothing new.
+- **Messages in failed contexts say "try again after {time}"**, not "Kotiko will try again":
+  the dashboard and the welcome tab don't retry by themselves. The popup's waiting line
+  (slice 24) says it runs by itself.
+- **Severity on banners:** failed and waiting read as `state` there (banners have no
+  failed or waiting look).
+- **Details' open state** is kept across re-renders, not remembered per browser (open
+  question 1).
+- **Popup weight:** everything loaded at open is 127.6 KB of the 128 KB cap (120.4 KB
+  before; `lib/errors.js` is 11 KB, and the popup's and lookup-status's own mapping, 4.5 KB,
+  went). First paint measured the same against the base branch, two runs of ten opens each:
+  median 82 ms vs 80 ms at 4× CPU, 128–132 ms both at 6×. The cap has 0.4 KB left; the next popup
+  feature should load later or make room.
 
 ## Open questions
 

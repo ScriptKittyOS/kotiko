@@ -27,6 +27,7 @@
   const Card = globalThis.KotikoWordCard;
   const Speak = globalThis.KotikoSpeak;
   const LookupStatus = globalThis.KotikoLookupStatus;
+  const Errors = globalThis.KotikoErrors;
   const Confetti = globalThis.KotikoConfetti;
   const SPEC = globalThis.KOTIKO_SPEC;
   const { t } = I18n;
@@ -42,14 +43,6 @@
     lmstudio: "dash_note_lmstudio",
     custom: "dash_note_custom",
   };
-  const SERVER_ERRORS = {
-    server_key_rejected: "error_server_key_rejected",
-    server_unreachable: "error_server_unreachable_empty",
-    server_address_invalid: "error_server_address_invalid",
-    not_kotiko_server: "error_not_kotiko_server",
-    address_changed: "error_address_changed",
-  };
-
   const state = {
     chips: [], // every chip shown, in order
     bases: [], // the ticked ones, in order: the first is the primary base
@@ -482,9 +475,9 @@
     const res = await call({ type: "server.connect", url: url || "http://localhost:4747", token });
     $("serverKey").value = "";
     await refreshBackend();
-    const code = failed(res) ? codeOf(res) : res.sync?.code ?? null;
-    if (code) {
-      state.check = { status: "bad", panel: "server", text: t(SERVER_ERRORS[code] ?? "error_internal") };
+    const problem = failed(res) ? res : res.sync?.code ? res.sync : null;
+    if (problem) {
+      state.check = { status: "bad", panel: "server", text: Errors.message(problem) };
       renderAi();
       return announce(state.check.text);
     }
@@ -582,9 +575,7 @@
       return t("welcome_key_rejected", { provider: p ? providerLabel(p) : LookupStatus.providerName(details?.provider) ?? "OpenRouter" });
     }
     if (code === "offline" || (code === "server_unreachable" && details?.reason === "network" && !navigator.onLine)) return t("welcome_error_offline");
-    if (SERVER_ERRORS[code]) return t(SERVER_ERRORS[code]);
-    const p = LookupStatus.lookupProblem(code, details ?? {}, { locale: I18n.locale(), local: state.backend?.lookup?.kind !== "server" });
-    return p ? t(p.key, p.params) : t("error_lookup_failed");
+    return Errors.message({ code, details }, { local: state.backend?.lookup?.kind !== "server" });
   }
 
   function lookupFailed(text, code, details) {

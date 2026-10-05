@@ -71,10 +71,10 @@ defmodule Kotiko.Lookup do
   @doc """
   How a failed lookup answers over HTTP: `{status, retry_after_seconds | nil, message,
   details}`. `details` carries `reason`, the provider's HTTP `status` and `retry_at`
-  (ISO 8601, UTC) when known; `message` is plain English for clients that show text (the
-  extension renders the code with its own catalog).
+  (ISO 8601, UTC) when known; `message` is plain text in `locale` for clients that show
+  text (the extension renders the code with its own catalog).
   """
-  def http_error(%{code: code} = e) do
+  def http_error(%{code: code} = e, locale \\ Kotiko.I18n.default()) do
     retry_at = e[:retry_at]
 
     details =
@@ -84,8 +84,8 @@ defmodule Kotiko.Lookup do
         &if(retry_at, do: Map.put(&1, :retry_at, Kotiko.Word.timestamp(retry_at)), else: &1)
       )
 
-    {http_status(code), retry_after(retry_at), message(code, e[:details] || %{}, retry_at),
-     details}
+    {http_status(code), retry_after(retry_at),
+     message(code, e[:details] || %{}, retry_at, locale), details}
   end
 
   defp http_status(code) when code in ~w(quota_exhausted rate_limited), do: 429
@@ -97,44 +97,33 @@ defmodule Kotiko.Lookup do
   defp retry_after(at),
     do: max(1, ceil(DateTime.diff(at, DateTime.utc_now(), :millisecond) / 1000))
 
-  @doc "A one-line plain message for a failed lookup's code (the bot and curl users)."
-  def message(code, details \\ %{}, retry_at \\ nil)
+  @doc """
+  A one-line plain message for a failed lookup's code (the bot and curl users), from
+  `Kotiko.I18n`'s catalog in `locale`.
+  """
+  def message(code, details \\ %{}, retry_at \\ nil, locale \\ Kotiko.I18n.default())
 
-  def message("quota_exhausted", %{reason: "payment_required"} = d, _at),
-    do:
-      "#{provider_name(d)} needs credit on your account before it will look up words, " <>
-        "even free ones. Add credit there, or add words yourself."
+  def message("quota_exhausted", %{reason: "payment_required"} = d, _at, locale),
+    do: t(locale, "error_quota_exhausted_payment_required", %{provider: provider_name(d, locale)})
 
-  def message("quota_exhausted", _d, %DateTime{} = at),
-    do:
-      "You've used today's free lookups. Add words yourself, or try again after " <>
-        "#{Calendar.strftime(at, "%H:%M")} UTC."
+  def message("quota_exhausted", _d, %DateTime{} = at, locale),
+    do: t(locale, "error_quota_exhausted", %{time: Calendar.strftime(at, "%H:%M")})
 
-  def message("quota_exhausted", _d, _at),
-    do: "You've used today's free lookups. Add words yourself, or try again tomorrow."
+  def message("quota_exhausted", _d, _at, locale), do: t(locale, "error_quota_exhausted_today")
 
-  def message("rate_limited", _d, _at), do: "Word lookup is busy. Try again in a minute."
+  def message("key_rejected", d, _at, locale),
+    do: t(locale, "error_key_rejected", %{provider: provider_name(d, locale)})
 
-  def message("model_unavailable", _d, _at),
-    do: "Word lookup isn't answering right now. Try again in a little while."
+  def message(code, _d, _at, locale) do
+    key = "error_#{code}"
+    t(locale, if(Kotiko.I18n.has?(key), do: key, else: "error_lookup_failed"))
+  end
 
-  def message("lookup_timeout", _d, _at), do: "That lookup took too long. Try again."
+  defp t(locale, key, vars \\ %{}), do: Kotiko.I18n.t(locale, key, vars)
 
-  def message("bad_lookup_result", _d, _at),
-    do: "The lookup came back garbled. Try again, or add the word yourself."
-
-  def message("key_rejected", d, _at),
-    do:
-      "#{provider_name(d)} didn't accept the server's key (LLM_API_KEY). Check it, then restart the server."
-
-  def message("lookup_not_set_up", _d, _at),
-    do: "Word lookup isn't set up: add LLM_API_KEY to the server's .env and restart it."
-
-  def message(_code, _d, _at), do: "The lookup failed. Try again."
-
-  defp provider_name(%{provider: "openrouter"}), do: "OpenRouter"
-  defp provider_name(%{provider: host}) when is_binary(host), do: host
-  defp provider_name(_), do: "The lookup service"
+  defp provider_name(%{provider: "openrouter"}, _locale), do: "OpenRouter"
+  defp provider_name(%{provider: host}, _locale) when is_binary(host), do: host
+  defp provider_name(_, locale), do: t(locale, "provider_unknown")
 
   @doc "The `rejected` and `dropped_fields` entry fields that say which word it was."
   def summary(attrs),

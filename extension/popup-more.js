@@ -133,7 +133,8 @@
           note: note.value.trim() || null,
         });
         save.disabled = false;
-        if (res?.error) error.textContent = typeof res.error === "string" ? res.error : res.error.message ?? t("error_internal");
+        // The form checks first; what the background still refuses reads in plain words (25).
+        if (res?.error) error.textContent = globalThis.KotikoErrors.message(res);
       });
       return form;
     }

@@ -18,7 +18,9 @@
 //
 // Control body (every field optional):
 //   { "reset": true,                       back to seed words and normal behaviour
-//     "kotiko": "slow" | "401" | "html" | "500" | null,
+//     "kotiko": "slow" | "401" | "html" | "500" | "down" | null,
+//                                          "down": every Kotiko request's connection is
+//                                          closed unanswered, like a stopped server
 //     "delayMs": 1500,                     how slow "slow" is
 //     "llm": "401" | "429" | "429-headers" | "429-once" | "stall" | "prose" | null,
 //     "llmRemaining": 40 | null,           free requests /key reports (null: not reported)
@@ -336,6 +338,7 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
   const answerFor = (text) => answers[norm(text)] ?? { intent: "add", words: [] };
 
   async function kotiko(req, res, route) {
+    if (state.kotiko === "down") return req.socket.destroy();
     if (state.kotiko === "slow") await sleep(state.delayMs);
     if (route === "/health" && req.method === "GET") return send(res, 200, "ok");
     if (state.kotiko === "401") return send(res, 401, "unauthorized");

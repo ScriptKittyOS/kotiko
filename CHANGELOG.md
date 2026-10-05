@@ -5,6 +5,16 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Clearer messages that tell you what still works and what to do next. When your server is
+  down or you're offline, Kotiko says your words still work on pages. When word lookup is
+  busy, out of free lookups or not set up, it says you can add the word yourself. A text too
+  long for one word points you to bulk add. The popup, the dashboard and the welcome page
+  now word every problem the same way, and "Details" has a "Copy details" button for bug
+  reports (it never copies your words). A lookup service that wants payment no longer
+  retries for days; it says so once. On the server, error messages come from one file
+  (`server/priv/locales/en/messages.json`), ready for translations, and a request body sent
+  as something other than JSON gets a clear `415` instead of `500`.
+
 - Kotiko has a privacy policy: Settings → About → Privacy policy, or the link at the bottom
   of the welcome page. It says, in plain words, what stays in your browser (the pages you
   read, always), what leaves it and to whom (the text you type to add a word, to the AI

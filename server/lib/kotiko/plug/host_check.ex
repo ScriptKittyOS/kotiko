@@ -85,10 +85,12 @@ defmodule Kotiko.Plug.HostCheck do
     name = conn.host |> normalize() |> String.slice(0, 100)
     log_once(name)
 
-    message =
+    key =
       if name == "",
-        do: "This Kotiko server only answers requests without a Host header from this computer.",
-        else: "This Kotiko server doesn't answer to #{name}. Add it to ALLOWED_HOSTS in .env."
+        do: "error_server_address_invalid_no_host",
+        else: "error_server_address_invalid_host_not_allowed"
+
+    message = Kotiko.I18n.t(Kotiko.I18n.locale(conn), key, %{host: name})
 
     body = %{
       error: %{

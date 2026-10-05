@@ -5,7 +5,7 @@ defmodule Kotiko.Router do
   use Plug.Router
   use Plug.ErrorHandler
   require Logger
-  alias Kotiko.{AddRequests, Lookup, Word, Words}
+  alias Kotiko.{AddRequests, I18n, Lookup, Word, Words}
 
   # First, on every route including /health: refuse names we don't answer to (DNS rebinding).
   plug Kotiko.Plug.HostCheck
@@ -15,7 +15,8 @@ defmodule Kotiko.Router do
   plug :parse_body
   plug :dispatch
 
-  @parsers [parsers: [:json], json_decoder: Jason, pass: ["*/*"]]
+  # Only JSON: a body of another type is refused with 415 (slice 25), never passed on unread.
+  @parsers [parsers: [:json], json_decoder: Jason]
   @small_body Plug.Parsers.init([length: 64_000] ++ @parsers)
   @batch_body Plug.Parsers.init([length: 1_000_000] ++ @parsers)
 
@@ -123,7 +124,7 @@ defmodule Kotiko.Router do
 
       # 0.2 extensions read the string `error`; newer ones read `code` and `details`.
       {:error, e} ->
-        {status, _retry_after, message, details} = Lookup.http_error(e)
+        {status, _retry_after, message, details} = Lookup.http_error(e, I18n.default())
         {status, Jason.encode!(%{error: message, code: e.code, details: details})}
     end
   end
@@ -173,26 +174,31 @@ defmodule Kotiko.Router do
 
     case conn.status do
       413 ->
-        error(conn, v1?, 413, "request_too_large", "That request is too large.")
+        error(conn, v1?, 413, "request_too_large")
+
+      # A body that isn't JSON (`curl -d` alone sends a form).
+      415 ->
+        error(conn, v1?, 415, "invalid_request", %{reason: "content_type"})
 
       s when s in 400..499 ->
-        error(conn, v1?, s, "invalid_request", "The server couldn't read that request.")
+        error(conn, v1?, s, "invalid_request")
 
       _ ->
         ref = Base.encode16(:crypto.strong_rand_bytes(4), case: :lower)
         Logger.error("Request failed (ref #{ref}): #{Exception.format_banner(kind, reason)}")
-        message = "Something went wrong in Kotiko. Check the server log for ref #{ref}."
-        error(conn, v1?, 500, "internal", message, %{ref: ref})
+        message = I18n.t(I18n.locale(conn), "error_internal_ref", %{ref: ref})
+        error(conn, v1?, 500, "internal", %{ref: ref}, message)
     end
   end
 
-  defp error(conn, v1?, status, code, message, details \\ %{})
+  # The message is the catalog's, in the request's language (slice 25 §1).
+  defp error(conn, v1?, status, code, details \\ %{}, message \\ nil) do
+    message = message || I18n.error_message(I18n.locale(conn), code, details)
 
-  defp error(conn, true, status, code, message, details),
-    do: json(conn, status, %{error: %{code: code, message: message, details: details}})
-
-  defp error(conn, false, status, _code, message, _details),
-    do: json(conn, status, %{error: message})
+    if v1?,
+      do: json(conn, status, %{error: %{code: code, message: message, details: details}}),
+      else: json(conn, status, %{error: message})
+  end
 
   # Deny by default: only the exact GET or HEAD /health is open. path_info is not yet
   # percent-decoded here, but routing decodes it, so matching on ["api" | _] let
@@ -216,7 +222,7 @@ defmodule Kotiko.Router do
     body = %{
       error: %{
         code: "server_key_rejected",
-        message: "This Kotiko server didn't accept the access key. Paste it again in Connection."
+        message: I18n.error_message(I18n.locale(conn), "server_key_rejected")
       }
     }
 

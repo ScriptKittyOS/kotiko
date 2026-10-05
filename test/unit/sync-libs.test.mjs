@@ -93,7 +93,9 @@ describe("validateWordsResponse", () => {
     assert.equal(code(401), "server_key_rejected");
     assert.equal(code(421), "server_address_invalid");
     assert.equal(code(500), "internal");
-    assert.equal(code(503), "internal");
+    // A gateway in front of a server that's down (slice 25): unreachable, not broken.
+    for (const status of [502, 503, 504]) assert.equal(code(status), "server_unreachable", status);
+    assert.equal(code(507), "internal");
     assert.deepEqual(
       validateWordsResponse({ status: 500, contentType: "application/json", body: '{"error":"Database is locked."}' }).details,
       { status: 500, error: "Database is locked." },

@@ -20,6 +20,7 @@
   const Search = globalThis.KotikoSearch;
   const M = globalThis.KotikoDashModel;
   const LookupStatus = globalThis.KotikoLookupStatus;
+  const Errors = globalThis.KotikoErrors;
   // Base-language rules and language data (slice 50), shared with the welcome tab.
   const Bases = globalThis.KotikoWelcomeModel;
   const Lang = globalThis.KotikoLang;
@@ -132,7 +133,7 @@
   const isTyping = (node) =>
     node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement || node?.isContentEditable === true;
   // After "delete everything" this page asks for nothing more, so nothing is recreated.
-  const send = (msg) => (state.wiped && msg.type !== "data.deleteAll" && msg.type !== "welcome.open" ? Promise.reject(Object.assign(new Error("Everything was deleted."), { code: "wiped" })) : Promise.resolve().then(() => ext.runtime.sendMessage(msg)));
+  const send = (msg) => (state.wiped && msg.type !== "data.deleteAll" && msg.type !== "welcome.open" ? Promise.reject(Object.assign(new Error("Everything was deleted."), { code: "storage_full", details: { reason: "deleted" } })) : Promise.resolve().then(() => ext.runtime.sendMessage(msg)));
 
   // Slice 11: where words live and whether new ones can be looked up.
   const legacyToken = (s) => !!String(s?.token ?? "").trim();
@@ -514,38 +515,15 @@
   // ---------------------------------------------------------------------------------
   // Plain-language problems (slice 25).
 
+  // What the learner reads for a failure: lib/errors.js's words, shared with the popup and
+  // the welcome tab; an invalid edit names its field here.
   function problemText(res, { field = null, lang = null } = {}) {
-    const code = res?.code ?? "internal";
-    const d = res?.details ?? {};
-    const n = state.groups.length;
-    switch (code) {
-      case "server_unreachable":
-      case "offline":
-        return n ? t("error_server_unreachable", { count: n }) : t("error_server_unreachable_empty");
-      case "server_key_rejected":
-        return t("error_server_key_rejected");
-      case "server_address_invalid":
-        return t("error_server_address_invalid");
-      case "address_changed":
-        return t("error_address_changed");
-      case "not_kotiko_server":
-        return t("error_not_kotiko_server");
-      case "server_outdated":
-        return t("dash_error_server_outdated");
-      case "word_gone":
-        return t("dash_error_word_gone");
-      case "word_conflict":
-        if (d.reason === "duplicate") return t("dash_error_duplicate", { language: languageName(lang ?? "") });
-        return t("dash_conflict");
-      case "invalid_word":
-        return invalidText(d.reason ?? null, field ?? d.field);
-      default: {
-        // A failed lookup (slice 10's codes).
-        const lookup = LookupStatus.lookupProblem(code, d, { locale: I18n.locale(), local: lookupKind(state.s) !== "server" });
-        return lookup ? t(lookup.key, lookup.params) : t("error_internal");
-      }
-    }
+    const err = Errors.toError(res) ?? { code: "internal", details: {} };
+    if (err.code === "invalid_word") return invalidText(err.details.reason ?? null, field ?? err.details.field);
+    return Errors.message(err, problemContext({ language: lang ? languageName(lang) : null }));
   }
+
+  const problemContext = (extra = {}) => ({ n: state.groups.length, local: lookupKind(state.s) !== "server", ...extra });
 
   function invalidText(reason, field) {
     switch (reason) {
@@ -588,17 +566,25 @@
       return { severity: "info", text: t("dash_not_connected"), action: { label: t("error_connection_settings_action"), run: () => go("#settings/connection") } };
     }
     if (!state.online) return { severity: "info", text: t("dash_offline") };
-    const err = state.loadError ?? (s.syncError?.code && s.syncError.code !== "server_key_rejected" ? s.syncError : null) ?? (s.syncError?.code === "server_key_rejected" && s.syncError.details?.reason !== "no_token" ? s.syncError : null);
-    if (!err) return null;
-    const blocking = ["server_key_rejected", "server_address_invalid", "not_kotiko_server", "address_changed"].includes(err.code);
-    return {
-      severity: blocking ? "blocking" : "state",
-      text: problemText(err),
-      details: [err.message, err.details?.status ? `HTTP ${err.details.status}` : null].filter(Boolean).join("\n"),
-      action: blocking
-        ? { label: t("error_connection_settings_action"), run: () => go("#settings/connection") }
-        : { label: t("error_try_again_action"), run: () => tryAgain() },
+    const err = state.loadError ?? s.syncError;
+    const p = err ? Errors.describe(err, problemContext({ surface: "banner" })) : null;
+    if (!p) return null;
+    // The banner's one button: the code's first action (25 §3); Try again for other outages.
+    const actions = {
+      retry: { label: t("error_try_again_action"), run: () => tryAgain() },
+      settings: { label: t("error_connection_settings_action"), run: () => go("#settings/connection") },
+      setupLookups: { label: t("popup_set_up_lookups"), run: () => go("#settings/lookups") },
     };
+    const action = actions[p.actions.find((a) => actions[a])] ?? (p.severity === "blocking" ? null : actions.retry);
+    return { severity: p.severity, text: t(p.key, p.params), details: p.details, err, action };
+  }
+
+  // "Copy details" (25 §3): the code and technical details with Kotiko's and the browser's
+  // versions; never the learner's words (lib/errors.js's copyText).
+  function copyButton(err) {
+    const copy = () => Errors.copy(err).then(() => (button.textContent = t("error_copied")), () => {});
+    const button = el("button", { class: "link link-quiet", type: "button", "data-action": "copy-details", onclick: copy }, t("error_copy_details"));
+    return button;
   }
 
   async function tryAgain() {
@@ -620,7 +606,7 @@
       icon(SEVERITY_ICON[b.severity]),
       el("p", { class: "banner-body" }, b.text),
       b.action ? el("div", { class: "banner-actions" }, el("button", { class: "btn btn-secondary btn-sm", type: "button", onclick: b.action.run }, b.action.label)) : null,
-      b.details ? el("details", { class: "details", open: !!open }, el("summary", {}, t("error_details")), el("pre", {}, b.details)) : null);
+      b.details ? el("details", { class: "details", open: !!open }, el("summary", {}, t("error_details")), el("pre", {}, b.details), copyButton(b.err)) : null);
     host.append(node);
   }
 
@@ -2193,7 +2179,7 @@
     state.addJobs = state.addJobs.slice(0, MAX_ADD_JOBS);
     if ([...value].length > 200) {
       job.status = "failed";
-      job.error = t("error_input_too_long");
+      job.error = Errors.message({ code: "input_too_long" });
       return renderAddJobs();
     }
     renderAddJobs();
@@ -2220,7 +2206,7 @@
       }
     } catch (e) {
       job.status = "failed";
-      job.error = problemText(e);
+      job.error = Errors.message(e, problemContext({ text: job.text }));
     }
     renderAddJobs();
     refreshQuota();
@@ -2228,12 +2214,8 @@
 
   // Why a lookup found nothing to add (slice 09's codes, slice 25's words).
   function noWordText(res, text) {
-    if (res.code === "bad_lookup_result") return t("error_bad_lookup_result");
-    if (res.code === "rejected_same_as_gloss") {
-      const base = res.rejected?.find((r) => r?.base_lang)?.base_lang ?? bases()[0];
-      return t("error_rejected_same_as_gloss", { text, base: languageName(base) });
-    }
-    return t("error_no_word_found", { text });
+    const base = res.rejected?.find((r) => r?.base_lang)?.base_lang ?? bases()[0];
+    return Errors.message({ code: res.code ?? "no_word_found" }, problemContext({ text, base: base ? languageName(base) : null }));
   }
 
   const hasWord = (c) => state.records.size && [...state.records.values()].some((r) => r.lang === c.lang && M.nativeKey(r.native) === M.nativeKey(c.native) && (r.base_lang ?? "en") === (c.base_lang ?? "en"));

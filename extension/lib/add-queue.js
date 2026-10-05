@@ -214,9 +214,11 @@
         next = (j) => ({ ...j, state: "failed", error, rejected: res.result?.rejected ?? [], finishedAt: now() });
       } else {
         const error = res.error ?? { code: "internal", details: {} };
-        // bad_lookup_result fails after one retry; the others in WAIT wait.
+        // bad_lookup_result fails after one retry; the others in WAIT wait. A provider that
+        // wants payment (402) won't answer later either: it fails, with no retry (25 §2).
+        const unpaid = error.code === "quota_exhausted" && error.details?.reason === "payment_required";
         if (error.code === "bad_lookup_result" && job.attempts < 2) next = (j) => ({ ...j, state: "waiting", error, retryAt: now() + BACKOFF_MS[0], waits: j.waits + 1 });
-        else if (WAIT.has(error.code)) next = (j) => waitFor(j, error);
+        else if (WAIT.has(error.code) && !unpaid) next = (j) => waitFor(j, error);
         else next = (j) => ({ ...j, state: "failed", error, finishedAt: now() });
       }
       const settled = await change(id, (j) => (j.state === "looking_up" ? next(j) : null));
