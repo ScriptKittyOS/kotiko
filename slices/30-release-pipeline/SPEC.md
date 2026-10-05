@@ -9,6 +9,10 @@
 | **Unblocks** | The public release; [40](../40-server-packaging-docker/SPEC.md) (image publishing hooks in here), [44](../44-docs-site/SPEC.md) |
 | **Sources** | [04 section 3 "Release plan", S30, S32](../../docs/research/04-architecture-release.md); [03 E6, E7](../../docs/research/03-browser-extension.md); [DECISIONS: store publisher and contact](../DECISIONS.md) |
 
+> **Note (2026-10-05):** Spanish copy in this spec (listings, policy, messages, release
+> notes, acceptance criteria) is optional, not a must-have. Only English is required at
+> launch; see [DECISIONS 2026-10-05](../DECISIONS.md).
+
 ## Problem
 
 There is no way to ship Kotiko to anyone who doesn't clone the repository. The extension is

@@ -9,6 +9,10 @@
 | **Unblocks** | Release sign-off for [19](../19-word-popover/SPEC.md), [20](../20-popup-redesign/SPEC.md), [21](../21-dashboard/SPEC.md), [22](../22-first-run-onboarding/SPEC.md), [13](../13-bulk-add/SPEC.md), [32](../32-page-coverage-and-celebrations/SPEC.md), [35](../35-reveal-mode-and-review/SPEC.md) |
 | **Sources** | [05 S36, S37, S35](../../docs/research/05-learner-ux.md); [03 D2, D3, D4, D5, D6](../../docs/research/03-browser-extension.md); WCAG 2.2 |
 
+> **Note (2026-10-05):** Spanish copy in this spec (listings, policy, messages, release
+> notes, acceptance criteria) is optional, not a must-have. Only English is required at
+> launch; see [DECISIONS 2026-10-05](../DECISIONS.md).
+
 ## Problem
 
 Kotiko changes text on every page a person reads, so its accessibility reaches beyond its own

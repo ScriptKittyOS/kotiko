@@ -4,6 +4,23 @@ Decisions already made, so slices don't reopen them. Newest first. Each says who
 and why. Open questions live in each slice's own "Open questions" section and in the
 [index](README.md#open-questions-for-the-maintainers).
 
+## 2026-10-05
+
+**English is the only interface language required at launch.** *Correction by the agent.*
+The maintainer never asked for a Spanish interface. Their Puerto Rico quote (2026-10-01)
+was about not assuming English is the reader's language, and "I was only using Spanish as
+an example" (2026-10-02) said the same. An agent session added "(English and Spanish
+first)" and "the interface stays in English and Spanish at launch" to those entries and
+wrote them up as the maintainer's; both parentheticals were the agent's, not the
+maintainer's. From now on: every interface string lives in `_locales/en`, which must be
+complete. Other locales, including the existing `_locales/es`, are optional and may be
+partial; a missing key falls back to English per key, as browsers do. New slices add
+English strings only. Store listings, the privacy policy, release notes and docs ship in
+English at launch; other languages come from community translators. Supporting readers of
+any language (base languages, the respelling tables, swaps on their pages) is unchanged:
+that is what the product does, not a translation of its interface. Where a slice spec
+still lists Spanish copy as a must-have or an acceptance criterion, this entry overrides it.
+
 ## 2026-10-04
 
 **Pronunciations come from Wiktionary, written by rule, not from the model.** *Maintainer.*
@@ -50,7 +67,8 @@ English and Spanish keep the extras already written for them (the respelling key
 words, preview sentences); no other language needs a folder of its own for the release, and
 more Full bases come only from native speakers who contribute them. The planned "Good"
 level (nine hand-written bases) and the per-base `detect.json` are withdrawn. The interface
-stays in English and Spanish at launch, with other languages from community translators.
+stays in English and Spanish at launch, with other languages from community translators
+(*agent's wording, not the maintainer's; corrected 2026-10-05: only English is required*).
 See [50](50-ui-localization-and-base-language/SPEC.md) §5.
 
 **@KotikoBot is the maintainer's own Telegram bot; there is no public shared bot.**
@@ -62,7 +80,7 @@ the earlier decision against a hosted service: no accounts, no shared word stora
 lookups paid for others. See [41](41-telegram-improvements/SPEC.md).
 
 **The project's domain is kotiko.org, on Cloudflare.** *Maintainer.* The docs site lives at
-`https://kotiko.org/` (Spanish at `/es/`); the extension's docs links and the OpenRouter
+`https://kotiko.org/` (other languages, such as `/es/`, when translators add them); the extension's docs links and the OpenRouter
 sign-in callback use it. Cloudflare's proxy adds the security headers GitHub Pages can't,
 which gold's `hardened_site` needs. See [44](44-docs-site/SPEC.md) and
 [53](53-openssf-best-practices/SPEC.md).
@@ -132,7 +150,9 @@ editable on the welcome tab and in settings; a learner can have several (bilingu
 get swaps on pages in each); word meanings are stored in the learner's base language, not
 in an `english` field; the model answers in the base language; coverage and celebrations
 count words on base-language pages; Mira's interface follows the browser's language, with
-all text in translation files from the first release (English and Spanish first). This
+all text in translation files from the first release (English and Spanish first; *the
+parenthetical is the agent's, not the maintainer's; corrected 2026-10-05: only English is
+required*). This
 moves base-language support from P2 to P0 and touches the word model, prompt, matcher,
 page-language rules, coverage, onboarding and every UI slice. See
 [50](50-ui-localization-and-base-language/SPEC.md).

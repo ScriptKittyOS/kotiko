@@ -9,6 +9,10 @@
 | **Unblocks** | [30-release-pipeline](../30-release-pipeline/SPEC.md), [44-docs-site](../44-docs-site/SPEC.md) |
 | **Sources** | [DECISIONS: store publisher; English is not the base language](../DECISIONS.md); [04 summary, S24, S25, S29, S30](../../docs/research/04-architecture-release.md); [03 summary, C4, C5, C6, E4, E6, E7, open questions 6 and 8](../../docs/research/03-browser-extension.md); [06 F36](../../docs/research/06-adversarial-qa.md) |
 
+> **Note (2026-10-05):** Spanish copy in this spec (listings, policy, messages, release
+> notes, acceptance criteria) is optional, not a must-have. Only English is required at
+> launch; see [DECISIONS 2026-10-05](../DECISIONS.md).
+
 ## Problem
 
 Kotiko can't be listed in either store today, and a learner installing it has no written

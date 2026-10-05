@@ -8,7 +8,9 @@ import { createI18n, LOCALES, readMessages } from "../helpers/fake-i18n.mjs";
 import { manifest, readExt } from "../helpers/load-script.mjs";
 import vm from "node:vm";
 
-const LAUNCH = ["en", "es"];
+// Only English must be complete (DECISIONS 2026-10-05). Other locales are optional and may
+// be partial: a missing key falls back to English per key, as browsers do.
+const LAUNCH = ["en"];
 const placeholdersIn = (message) => [...message.matchAll(/\$([A-Za-z0-9_]+)\$/g)].map((m) => m[1].toLowerCase()).sort();
 
 // Loads lib/i18n.js against a fake chrome.i18n in its own context.
@@ -24,9 +26,12 @@ describe("locale files", () => {
     assert.equal(manifest().default_locale, "en");
   });
 
-  test("en and es have exactly the same keys", () => {
-    const en = Object.keys(readMessages("en")).sort();
-    for (const l of LOCALES) assert.deepEqual(Object.keys(readMessages(l)).sort(), en, `${l} keys differ from en`);
+  test("other locales only translate keys en has", () => {
+    const en = new Set(Object.keys(readMessages("en")));
+    for (const l of LOCALES) {
+      const extra = Object.keys(readMessages(l)).filter((k) => !en.has(k));
+      assert.deepEqual(extra, [], `${l} has keys en doesn't (renamed or removed in en?)`);
+    }
   });
 
   test("every key has a message and a description for translators", () => {
