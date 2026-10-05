@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Line height fixture</title>
+  <style>
+    body { font-family: "Liberation Serif", "Times New Roman", serif; font-size: 16px; }
+    p { white-space: nowrap; margin: 0 0 8px; }
+    .tall { line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <!-- Slice 17: swapped words in taller scripts never change a line's height. Each line is
+       measured by the page itself before Kotiko runs (data-before). -->
+  <p id="n-zh">Many thanks for the help.</p>
+  <p id="n-ja">The dog sleeps by the door.</p>
+  <p id="n-hi">A glass of water, please.</p>
+  <p id="n-th">A good book about the sea.</p>
+  <p id="n-my">An old castle by the sea.</p>
+  <p id="t-zh" class="tall">Many thanks for the help.</p>
+  <p id="t-ja" class="tall">The dog sleeps by the door.</p>
+  <p id="t-hi" class="tall">A glass of water, please.</p>
+  <p id="t-th" class="tall">A good book about the sea.</p>
+  <p id="t-my" class="tall">An old castle by the sea.</p>
+  <script>
+    for (const p of document.querySelectorAll("p")) p.dataset.before = String(p.getBoundingClientRect().height);
+  </script>
+</body>
+</html>

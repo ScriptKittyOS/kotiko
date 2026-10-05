@@ -121,12 +121,17 @@
     // `text`: the text node's own text; `ctx`: { before, after } (slice 14's edges);
     // `casing`: the base's entry of casing.json. Returns the candidates that may be shown,
     // a deferral, or null.
+    // Whether a text shouts and whether it is a Title Case run; slice 17's casing reads them
+    // too. Once per text, not per match: a text node's matches are judged in a row.
     let last = null;
-    function judge(m, { text, ctx = {}, casing = {} }) {
-      // Once per text, not per match: a text node's matches are judged in a row.
+    function flags(text, ctx = {}) {
       const full = `${ctx.before ?? ""}${text}${ctx.after ?? ""}`;
       if (last?.full !== full || last.text !== text) last = { full, text, node: { shouting: shouting(full), titleRun: titleRun(text) } };
-      const { node } = last;
+      return last.node;
+    }
+
+    function judge(m, { text, ctx = {}, casing = {} }) {
+      const node = flags(text, ctx);
       record(m, casing, node);
       const cands = m.entry?.candidates ?? [];
       const keep = [];
@@ -169,7 +174,7 @@
       return [...revisit];
     }
 
-    return { judge, decision, defer, settle, evidence: () => ({ lowerSeen, properSeen }) };
+    return { judge, flags, decision, defer, settle, evidence: () => ({ lowerSeen, properSeen }) };
   }
 
   const api = { create, shouting, titleRun };

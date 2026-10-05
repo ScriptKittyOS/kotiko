@@ -319,15 +319,6 @@
     }
   }
 
-  // The page's capitals on the shown word: "House" -> "Дом", "HOUSE" -> "ДОМ". Slice 17
-  // replaces this with casing rules per language.
-  function matchCase(src, out) {
-    const shape = Text.shapeOf(src);
-    if (shape === "upper") return out.toUpperCase();
-    if (shape === "title") return out.charAt(0).toUpperCase() + out.slice(1);
-    return out;
-  }
-
   // A lone capital letter next to a numeral, an acronym or a code is part of a name, not
   // a word: "AOI I", "World War I", "Henry VIII I", "Type I", "I-95", "I/O". `s` is the
   // text around the match (content.js adds a little of the neighbouring text) and `i` the
@@ -376,7 +367,7 @@
     return false;
   }
 
-  const api = { MAX_WORDS, sameBase, baseOf, formTexts, formsOf, buildIndex, buildIndexes, scan, matchCase, skipLetter };
+  const api = { MAX_WORDS, sameBase, baseOf, formTexts, formsOf, buildIndex, buildIndexes, scan, skipLetter };
   globalThis.KotikoMatcher = api;
   if (typeof module === "object" && module.exports) module.exports = api;
 })();

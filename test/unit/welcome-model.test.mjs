@@ -18,6 +18,7 @@ const { Lang, Local, spec } = L;
 const M = requireExt("lib/welcome-model.js");
 requireExt("lib/text.js");
 const Matcher = requireExt("lib/matcher.js");
+requireExt("lib/casing.js"); // the preview writes words as pages do (slice 17)
 const plain = (v) => JSON.parse(JSON.stringify(v));
 const entry = (text, bases = ["en"]) => M.parseEntry(text, { bases, Lang, Local, spec });
 

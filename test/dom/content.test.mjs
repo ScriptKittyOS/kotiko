@@ -249,7 +249,7 @@ describe("a lone capital that is a numeral or code", () => {
     assert.equal($("b").textContent, "Type I");
     assert.equal($("c").textContent, "Take I-95 north.");
     assert.equal($("d").textContent, "AOI I and AOI II");
-    assert.equal($("e").textContent, "Я think so, and so do Я.", "AOI II in the block before doesn't count");
+    assert.equal($("e").textContent, "Я think so, and so do я.", "AOI II in the block before doesn't count; mid-sentence, English's own capital isn't passed on (slice 17)");
     assert.equal($("f").textContent, "AOI I", "the acronym is in a sibling element");
     assert.equal($("g").textContent, "AOII", "the acronym is in the parent's sibling");
   });
@@ -753,5 +753,31 @@ describe("sensitive sites and page settings (slice 16)", () => {
     const before = $("p").querySelector("kotiko-w");
     await set({ prefs: { theme: "dark" } });
     assert.equal($("p").querySelector("kotiko-w"), before);
+  });
+});
+
+// Slice 17: swapped words in their own language's capitals, whatever the page's.
+describe("casing (slice 17)", () => {
+  test("an English learner reading Spanish: el lunes -> el Monday, yo creo -> I creo, Perro -> Dog", async () => {
+    const W = [word("Monday", "lunes", ["lunes"], "en", { base_lang: "es" }), word("I", "yo", ["yo"], "en", { base_lang: "es" }), word("dog", "perro", ["perro"], "en", { base_lang: "es" })];
+    const { $ } = await load(`<p id="a">Nos vemos el lunes.</p><p id="b">Y yo creo que sí.</p><p id="c">Perro grande.</p>`, { words: W, lang: "es", baseLangs: ["es"] });
+    assert.equal($("a").textContent, "Nos vemos el Monday.");
+    assert.equal($("b").textContent, "Y I creo que sí.");
+    assert.equal($("c").textContent, "Dog grande.");
+  });
+
+  test("a German page: nouns' capitals stay German; a sentence start still capitalises", async () => {
+    const W = [word("perro", "Hund", ["Hund"], "es", { base_lang: "de" })];
+    const { $ } = await load(`<p id="a">Der Hund bellt.</p><p id="b">Hund und Katze.</p>`, { words: W, lang: "de", baseLangs: ["de"] });
+    assert.equal($("a").textContent, "Der perro bellt.");
+    assert.equal($("b").textContent, "Perro und Katze.");
+  });
+
+  test("Turkish dotted İ, Georgian never in capitals, Monday in lowercase Spanish", async () => {
+    const W = [word("işçi", "worker", ["worker"], "tr"), word("მადლობა", "thanks", ["thanks"], "ka"), word("lunes", "Monday", [{ text: "Monday", case: "proper" }], "es")];
+    const { $ } = await load(`<p id="a">Worker rights.</p><p id="b">Thanks a lot. THANK YOU ALL, THANKS AGAIN!</p><p id="c">See you on Monday. Monday works.</p>`, { words: W });
+    assert.equal($("a").textContent, "İşçi rights.");
+    assert.equal($("b").textContent, "მადლობა a lot. THANK YOU ALL, მადლობა AGAIN!");
+    assert.equal($("c").textContent, "See you on lunes. Lunes works.");
   });
 });

@@ -262,7 +262,9 @@
       const all = m.entry.candidates.map((c) => c.word).filter((w) => !seen.has(w.lang) && seen.add(w.lang));
       const w = all[0];
       if (m.start > last) out.push({ text: text.slice(last, m.start) });
-      out.push({ native: Matcher.matchCase(m.surface, w.native), surface: m.surface, word: w, all });
+      // Written as content.js writes it (slice 17); the preview's sentences never shout.
+      const native = globalThis.KotikoCasing.display({ shape: m.shape, sentenceStart: m.shape === "title" && m.sentenceStart, shouting: false, native: w.native, lang: w.lang });
+      out.push({ native, surface: m.surface, word: w, all });
       last = m.end;
     }
     if (last < text.length) out.push({ text: text.slice(last) });

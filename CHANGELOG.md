@@ -5,6 +5,19 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Swapped words now follow each language's own capitals: no more "Lunes" for Monday
+  mid-sentence, and English "Monday" and "I" keep their capitals on a Spanish page. Turkish
+  gets its dotted İ, Greek capitals drop their accents, and Georgian always stays in its
+  everyday letters. Swapped Chinese, Japanese, Hindi, Thai or Burmese words no longer
+  change a paragraph's line spacing.
+
+- Kotiko leaves alone what isn't an ordinary word: acronyms (the IT team), names (Will
+  Smith, Sr. Rosa), dates and codes (May 2026, Plan B), code editors, and login and payment
+  forms. Banks, payment, health, government and tax sites, and email you're writing, are
+  left alone by default (Settings, Pages), with "Swap words here anyway" in the popup. A
+  word's card has "Don't swap this word". An English quote on a page in another language
+  is now swapped.
+
 - Kotiko no longer interferes with web apps built with React, Vue and the like: it changes
   words without taking the page's own text away from it. It keeps working after a site
   navigates without reloading, swaps new posts in a feed before you see them, stops if a

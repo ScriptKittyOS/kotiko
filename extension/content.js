@@ -16,7 +16,8 @@
 // file decides what to swap (`plan`) and wires settings, the popup and the word card.
 (() => {
   const ext = globalThis.browser ?? globalThis.chrome;
-  const { buildIndexes, scan, matchCase, skipLetter, baseOf } = globalThis.KotikoMatcher; // lib/matcher.js
+  const { buildIndexes, scan, skipLetter, baseOf } = globalThis.KotikoMatcher; // lib/matcher.js
+  const Casing = globalThis.KotikoCasing; // lib/casing.js
   const Text = globalThis.KotikoText; // lib/text.js
   const PageLang = globalThis.KotikoPageLang; // lib/page-lang.js
   const { createControlCheck } = globalThis.KotikoControls; // lib/controls.js
@@ -234,7 +235,11 @@
       const n = ordinals.get(m.key) ?? 0;
       ordinals.set(m.key, n + 1);
       const w = choose(node, m, n, all);
-      items.push({ start: m.start, end: m.end, display: matchCase(m.surface, w.native), lang: w.lang, info: { surface: m.surface, key: m.key, word: w, all } });
+      // Written in the target's own capitals (slice 17).
+      const { shouting } = rules.flags(text, ctx);
+      // sentenceStart is worked out lazily; only a capitalised word needs it.
+      const display = Casing.display({ shape: m.shape, sentenceStart: m.shape === "title" && m.sentenceStart, shouting, native: w.native, lang: w.lang });
+      items.push({ start: m.start, end: m.end, display, lang: w.lang, info: { surface: m.surface, key: m.key, word: w, all } });
     }
     return items;
   }
