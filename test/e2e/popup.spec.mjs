@@ -97,10 +97,11 @@ test.describe("with the browser in Spanish", () => {
   });
 });
 
-// Slice 20 §8's goal, measured: the popup paints within 100 ms (150 ms on CI's runners),
-// median of 10 opens, with words, a connection and Focus on. The size cap in
-// test/dom/popup.test.mjs is only a backstop for this.
-test("the popup paints within 100 ms (150 ms in CI), median of 10 opens", async ({ server, popup, context }) => {
+// Slice 20 §8's goal, measured: the popup paints within 100 ms, median of 10 opens, with
+// words, a connection and Focus on. CI's runners are about 4.5 times slower (measured
+// 2026-10-05: 136 to 172 ms, median 148, where this machine takes 32), so CI's budget is
+// 200 ms. The size cap in test/dom/popup.test.mjs is only a backstop for this.
+test("the popup paints within 100 ms (200 ms in CI), median of 10 opens", async ({ server, popup, context }) => {
   await server.control({ words: WORDS });
   const first = await popup.connect(server.kotikoUrl, server.token);
   await first.evaluate(() => chrome.storage.local.set({ mixing: { focus: ["ru"], focusSince: new Date().toISOString() } }));
@@ -119,7 +120,7 @@ test("the popup paints within 100 ms (150 ms in CI), median of 10 opens", async 
   }
   times.sort((a, b) => a - b);
   const median = (times[4] + times[5]) / 2;
-  const budget = process.env.CI ? 150 : 100;
+  const budget = process.env.CI ? 200 : 100;
   console.log(`popup first contentful paint: median ${median.toFixed(1)} ms (${times.map((t) => t.toFixed(0)).join(", ")})`);
   expect(median, `median of ${times.map((t) => t.toFixed(0)).join(", ")} ms`).toBeLessThanOrEqual(budget);
 });

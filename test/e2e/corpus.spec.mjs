@@ -139,7 +139,9 @@ test.describe("slice 15: framework-safe swapping", () => {
       document.addEventListener("DOMContentLoaded", () => (window.__ready = performance.now()));
     });
     await page.goto(server.page("big.html"));
-    await expect(page.locator("p").last().locator("kotiko-w").first()).toBeAttached({ timeout: 30_000 });
+    // Waits with a cheap check: a locator like p:last makes Playwright query all 20,000
+    // paragraphs on every poll, in the page, which shows up as long tasks of its own.
+    await page.waitForFunction(() => !!document.getElementById("root")?.lastElementChild?.querySelector("kotiko-w"), null, { polling: 250, timeout: 30_000 });
     await page.waitForTimeout(500);
     const long = await page.evaluate(() => window.__long.filter((t) => t.start > window.__ready + 1).map((t) => Math.round(t.duration)));
     expect(long.filter((d) => d > 150), `long tasks after load: ${JSON.stringify(long)}`).toEqual([]);

@@ -53,7 +53,24 @@
     let status = "idle";
     let observer = null;
     let torn = false;
+    // Roots to walk, taken from `head` on (shift() is linear in the queue's length, and a
+    // big page can queue thousands of roots).
     const queue = [];
+    let head = 0;
+    const pending = () => queue.length - head;
+    function take() {
+      if (head >= queue.length) {
+        queue.length = head = 0;
+        return undefined;
+      }
+      const root = queue[head];
+      queue[head++] = undefined;
+      if (head > 1024 && head * 2 > queue.length) {
+        queue.splice(0, head);
+        head = 0;
+      }
+      return root;
+    }
     let walking = null;
     let scheduled = false;
     let dirty = false;
@@ -232,9 +249,13 @@
     function run(deadline) {
       for (;;) {
         if (!walking) {
-          const root = queue.shift();
+          const root = take();
           if (!root) return true;
-          if (!root.isConnected && root.nodeType !== 9) continue;
+          // A root that yields nothing still costs time: the clock is checked after each.
+          if (!root.isConnected && root.nodeType !== 9) {
+            if (now() >= deadline) return !pending();
+            continue;
+          }
           walking = textsUnder(root);
         }
         // Plans (reads) for up to 200 nodes or until the deadline, then their writes.
@@ -251,7 +272,7 @@
           if (plans.length >= BATCH || chars >= SYNC_CHARS || now() >= deadline) break;
         }
         if (plans.length) write(plans);
-        if (now() >= deadline) return !walking && !queue.length;
+        if (now() >= deadline) return !walking && !pending();
       }
     }
 
@@ -279,7 +300,7 @@
           for (;;) {
             const done = torn || run(now() + SLICE_MS);
             settle();
-            if (done && !walking && !queue.length) break;
+            if (done && !walking && !pending()) break;
             await yieldNow();
           }
         } finally {
@@ -381,7 +402,7 @@
       if (status === "stood-down") return;
       unwrapAll();
       observer?.disconnect();
-      queue.length = 0;
+      queue.length = head = 0;
       walking = null;
       status = "stood-down";
       onStatus(status);
@@ -489,7 +510,7 @@
       unwrapAll();
       torn = true;
       observer?.disconnect();
-      queue.length = 0;
+      queue.length = head = 0;
       walking = null;
       doc.removeEventListener("visibilitychange", onVisibility);
       status = "torn";
