@@ -9,6 +9,7 @@
 //     -> { ok: true, url: "http://192.168.1.5:4747" }
 //   normalizeServerUrl("http://user:pw@host")
 //     -> { ok: false, code: "server_address_invalid", hint: "..." }
+//   sendsInClear("http://192.168.1.5:4747")  -> true  (the token would cross the network unencrypted)
 (() => {
   const INVALID = "server_address_invalid";
   const fail = (hint) => ({ ok: false, code: INVALID, hint });
@@ -81,7 +82,23 @@
     return { ok: true, url: `${u.protocol}//${u.host}${path}` };
   }
 
-  const api = { normalizeServerUrl, isLocalHost };
+  // An address whose requests (and the token in them) cross a network unencrypted: plain
+  // http:// to anywhere but this computer (127.0.0.0/8, ::1, localhost) or a Tailscale
+  // address (100.64.0.0/10, fd7a:115c:a1e0::/48, *.ts.net), whose traffic WireGuard
+  // encrypts (slice 28 §5). The address still works; the settings say so under the field.
+  function sendsInClear(input) {
+    const n = normalizeServerUrl(input);
+    if (!n.ok) return false;
+    const u = new URL(n.url);
+    if (u.protocol !== "http:") return false;
+    const h = u.hostname.toLowerCase().replace(/\.$/, "");
+    if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".ts.net")) return false;
+    if (IPV4.test(h)) return !(h.split(".")[0] === "127" || isTailscale(h));
+    if (h.startsWith("[")) return !(h === "[::1]" || /^\[fd7a:115c:a1e0:/.test(h));
+    return true;
+  }
+
+  const api = { normalizeServerUrl, isLocalHost, sendsInClear };
   globalThis.ServerUrl = api;
   if (typeof module === "object" && module.exports) module.exports = api;
 })();

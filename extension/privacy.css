@@ -1,0 +1,49 @@
+/* SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/* The bundled privacy policy (slice 28 §2): one readable column of text. */
+body {
+  background: var(--canvas);
+}
+
+.policy {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: var(--s-8) var(--s-6) var(--s-10);
+  font: var(--t-lead) var(--font-ui);
+  color: var(--ink);
+}
+
+.policy h1 {
+  margin: 0 0 var(--s-3);
+  font: 600 1.75rem/2.25rem var(--font-display);
+}
+
+.policy h2 {
+  margin: var(--s-8) 0 var(--s-3);
+  font: 600 1.25rem/1.75rem var(--font-display);
+}
+
+.policy p,
+.policy ul {
+  margin: 0 0 var(--s-4);
+}
+
+.policy ul {
+  padding-inline-start: var(--s-6);
+}
+
+.policy li + li {
+  margin-block-start: var(--s-2);
+}
+
+.policy code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.policy a {
+  color: var(--purple-text);
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}

@@ -5,6 +5,27 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Kotiko has a privacy policy: Settings → About → Privacy policy, or the link at the bottom
+  of the welcome page. It says, in plain words, what stays in your browser (the pages you
+  read, always), what leaves it and to whom (the text you type to add a word, to the AI
+  service you chose; the word alone to Wiktionary for its pronunciation), and how to
+  delete it. A list of everything Kotiko keeps and sends, with the code that does it, is in
+  `docs/privacy/inventory.md`.
+
+- Kotiko now sends your words and keys only to the server and AI service you chose in its
+  own settings. If a website manages to change those settings behind your back, Kotiko
+  sends nothing there and puts your choice back.
+
+- Typing a server address that starts with `http://` and isn't on this computer or a
+  Tailscale address now shows a note under the field: your access key would travel
+  unencrypted, so use `https://` if others share the network. It still connects.
+
+- Firefox: Kotiko's pages now say they don't want Firefox's default switch from `http://`
+  to `https://`, which could stop a Kotiko server at an `http://` address on your home
+  network or Tailscale from connecting. Kotiko now needs Firefox 140 or later, and tells
+  Firefox it collects no data. The full name in the extensions list is
+  "Kotiko: learn languages while you browse".
+
 - Back up your words to a file and restore them, export to a spreadsheet or Anki, and
   delete everything with one button. In Settings, "Your data": a backup file holds every
   word (and your settings, never your keys); restoring one shows what it will add or merge

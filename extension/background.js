@@ -76,6 +76,7 @@ function ready() {
     const r = await Local.migrate({ store, storage: ext.storage.local, uiLanguage: uiLanguage() });
     if (r.migrated && r.home === "local" && r.seeded) projector.schedule();
     if (r.migrated) refresh.nudge().catch(() => {});
+    await bindRoutesOnce(store, { fresh: r.migrated && (await store.meta.get("migratedFrom")) === "new" });
   })().catch((e) => {
     readyP = null;
     console.warn("Kotiko couldn't open its word store:", e?.message ?? e);
@@ -104,6 +105,113 @@ async function setSecret(id, value) {
   if (id === "server") keys.server = !!value;
   else keys.providers[id.slice("provider:".length)] = !!value;
   await ext.storage.local.set({ keys });
+}
+
+// Where requests may go (slice 28 §7). The settings that say where Kotiko sends words and
+// keys live in storage.local, which content scripts can write as well as read. So each
+// route's trusted address is kept in the store (`meta`, out of their reach): "server", and
+// "lookup:<provider>" for each lookup service. Only Kotiko's own pages set it, by naming an
+// address (`server.connect`, `backend.set`, the OpenRouter sign-in), plus once at the
+// upgrade that introduced it. Every request checks the address it is about to use against
+// its route and sends nothing when they differ ("address_changed"); until a page names an
+// address, a route trusts the built-in one (a preset's own, the default server's).
+// Keys and the token go only where their route's trusted address is.
+const routeKey = (route) => `route:${route}`;
+const providerOf = (id) => globalThis.KOTIKO_SPEC.providers.providers.find((p) => p.id === id) ?? null;
+
+// The address a request on `route` would use, in the form routes are stored in.
+function routeUrl(route, url) {
+  if (route === "server") {
+    const n = normalizeServerUrl(url ?? "");
+    return n.ok ? n.url : null;
+  }
+  return url ? String(url).trim().replace(/\/+$/, "") || null : null;
+}
+
+// Read from the store every time (one small read), so a wiped store (slice 12's "delete
+// everything") is never outlived by a remembered address.
+async function trustedUrl(route) {
+  const bound = await (await getStore()).meta.get(routeKey(route));
+  if (bound) return bound;
+  // Nothing named yet (a new install, or after "delete everything"): the built-in addresses.
+  if (route.startsWith("lookup:")) return routeUrl(route, providerOf(route.slice("lookup:".length))?.baseUrl ?? null);
+  return route === "server" ? routeUrl(route, Local.DEFAULT_SERVER) : null;
+}
+
+// Every change to where requests go (a route and the `server` or `lookup` settings that
+// follow it) runs one at a time, so the repair below never writes back a stale copy over
+// a page's change.
+let routeChain = Promise.resolve();
+function underRoutes(fn) {
+  const run = routeChain.then(fn);
+  routeChain = run.catch(() => {});
+  return run;
+}
+
+// The lookup service the learner chose on a Kotiko page (the provider, not only its
+// address): a page can't be made to send words to another service the learner has a key
+// for. Until a page chooses, the default service.
+const CHOSEN = "route:lookupProvider";
+async function chosenProvider() {
+  return (await (await getStore()).meta.get(CHOSEN)) ?? globalThis.KOTIKO_SPEC.providers.default;
+}
+async function chooseProvider(id) {
+  await (await getStore()).meta.set(CHOSEN, id);
+}
+async function lookupAllowed(providerId, baseUrl) {
+  if ((await chosenProvider()) !== providerId) {
+    healRoutes().catch(() => {});
+    return false;
+  }
+  return routeAllows(`lookup:${providerId}`, baseUrl);
+}
+
+// Called only for an address a Kotiko page named (or the one-time upgrade). An address
+// that isn't one is kept as typed ("raw:…"), so the settings can show the learner's typo
+// and its error; no request is ever made to it.
+const RAW = "raw:";
+async function bindRoute(route, url) {
+  const value = routeUrl(route, url) ?? (url ? `${RAW}${String(url).trim()}` : null);
+  await (await getStore()).meta.set(routeKey(route), value);
+}
+const sameAddress = (route, url, trusted) => (routeUrl(route, url) ?? `${RAW}${String(url ?? "").trim()}`) === trusted;
+
+async function routeAllows(route, url, { heal = true } = {}) {
+  const want = routeUrl(route, url);
+  const ok = !!want && want === (await trustedUrl(route));
+  // A refusal also puts the trusted address back in the settings (in case the change
+  // arrived while this worker wasn't listening), which wakes the waiting adds.
+  if (!ok && heal) healRoutes().catch(() => {});
+  return ok;
+}
+
+const addressChanged = (route) =>
+  codedError("address_changed", "Where Kotiko sends words was changed outside its settings, so it sent nothing. Check the address in Settings and save it again.", { route });
+
+// The secret for a request to `url`: only on its route's trusted address.
+async function secretFor(id, url) {
+  const route = id === "server" ? "server" : `lookup:${id.slice("provider:".length)}`;
+  if (!(await routeAllows(route, url))) return null;
+  return secret(id);
+}
+
+// The upgrade to routes, once, right after the storage upgrade. A fresh install trusts only
+// the built-in addresses (the default server, each preset's own), never what storage.local
+// says, since a content script may already have written there. An install from before
+// this version trusts the addresses its settings hold at that moment, which only its own
+// pages could have chosen until now.
+async function bindRoutesOnce(store, { fresh = false } = {}) {
+  if ((await store.meta.get("routesBound")) === true) return;
+  if (fresh) {
+    await bindRoute("server", Local.DEFAULT_SERVER);
+  } else {
+    const s = await Local.readSettings(ext.storage.local);
+    await bindRoute("server", s.server.url);
+    const ep = globalThis.KotikoLLMClient.endpoint(s.lookup);
+    if (s.lookup.baseUrl) await bindRoute(`lookup:${ep.preset.id}`, ep.baseUrl);
+    await chooseProvider(ep.preset.id);
+  }
+  await store.meta.set("routesBound", true);
 }
 
 // "sk-or-…a1b2": the first six and last four characters, never the whole key.
@@ -189,13 +297,13 @@ async function mirrorBaseRules({ force = false } = {}) {
 // Resolves the stored address and token into a request base, or throws a coded error.
 async function connection() {
   await ready().catch(() => {});
-  // A page from before the upgrade may still have written these; they win until moved.
-  const legacy = await ext.storage.local.get({ token: "", serverUrl: null });
   const stored = await secret("server").catch(() => null);
-  const token = String(legacy.token || stored || "").trim();
-  if (!token) throw codedError("server_key_rejected", "Paste your API token to connect.", { reason: "no_token" });
-  const n = normalizeServerUrl(legacy.serverUrl ?? (await Local.readSettings(ext.storage.local)).server.url);
+  if (!stored) throw codedError("server_key_rejected", "Paste your API token to connect.", { reason: "no_token" });
+  const n = normalizeServerUrl((await Local.readSettings(ext.storage.local)).server.url);
   if (!n.ok) throw codedError(n.code, n.hint, { hint: n.hint });
+  // Only the address a Kotiko page named gets the token (slice 28 §7).
+  const token = await secretFor("server", n.url);
+  if (!token) throw addressChanged("server");
   return { base: n.url, token };
 }
 
@@ -293,8 +401,7 @@ const sync = createSyncController({
   now: () => Date.now(),
   async readCreds() {
     await ready().catch(() => {});
-    const legacy = await ext.storage.local.get({ token: "" });
-    return { token: String(legacy.token || (await secret("server").catch(() => null)) || "").trim() };
+    return { token: String((await secret("server").catch(() => null)) || "").trim() };
   },
   async fetchWords(_creds, signal) {
     // Read the settings again here, so an address that fails to parse reports
@@ -347,7 +454,9 @@ const client = globalThis.KotikoLLMClient.createClient({
   fetch: (...a) => fetch(...a),
   store: { meta: { get: async (k) => (await getStore()).meta.get(k), set: async (k, v) => (await getStore()).meta.set(k, v) }, cache: { get: async (k) => (await getStore()).cache.get(k), put: async (k, v, m) => (await getStore()).cache.put(k, v, m) } },
   settings: async () => (await settings()).lookup,
-  key: (providerId) => secret(`provider:${providerId}`).catch(() => null),
+  // Every request the client makes (lookups, model lists, the quota, Test) asks first.
+  allow: (providerId, baseUrl) => lookupAllowed(providerId, baseUrl).catch(() => false),
+  key: (providerId, baseUrl) => secretFor(`provider:${providerId}`, baseUrl).catch(() => null),
   now,
   onQuota: (quota) => {
     settings().then((s) => s.lookup.kind === "provider" && ext.storage.local.set({ lookupStatus: { provider: s.lookup.provider, quota, ready: true, at: Date.now() } })).catch(() => {});
@@ -561,8 +670,10 @@ async function toServer() {
     for (const r of res.results ?? []) if (counts[r.result] !== undefined) counts[r.result]++;
     counts.rejected += Array.isArray(res.rejected) ? res.rejected.length : 0;
   }
-  const s = await settings();
-  await ext.storage.local.set({ wordsHome: "server", lookup: { ...s.lookup, kind: s.lookup.kind === "none" ? "server" : s.lookup.kind } });
+  await underRoutes(async () => {
+    const s = await settings();
+    await ext.storage.local.set({ wordsHome: "server", lookup: { ...s.lookup, kind: s.lookup.kind === "none" ? "server" : s.lookup.kind } });
+  });
   await sync.credentialsChanged();
   return { ok: true, total: words.length, ...counts };
 }
@@ -573,12 +684,14 @@ async function toLocal({ forget = false, serverLookups = false } = {}) {
   const words = await serverWords();
   const store = await getStore();
   const n = await store.replaceAll(words);
-  const s = await settings();
   const bases = await currentBases();
   const present = [...new Set(words.map((w) => w.base_lang).filter(Boolean))];
   const nextBases = [...bases, ...present.filter((b) => !bases.includes(b))].slice(0, 4);
-  const kind = s.lookup.kind === "server" && !(serverLookups && !forget) ? "none" : s.lookup.kind;
-  await ext.storage.local.set({ wordsHome: "local", lookup: { ...s.lookup, kind }, baseLangs: nextBases, syncError: null });
+  await underRoutes(async () => {
+    const { lookup } = await settings();
+    const kind = lookup.kind === "server" && !(serverLookups && !forget) ? "none" : lookup.kind;
+    await ext.storage.local.set({ wordsHome: "local", lookup: { ...lookup, kind }, baseLangs: nextBases, syncError: null });
+  });
   // Slice 50's synced list, when there is one, is what currentBases() reads first.
   try {
     const { ui } = await ext.storage.sync.get({ ui: null });
@@ -588,7 +701,10 @@ async function toLocal({ forget = false, serverLookups = false } = {}) {
   }
   if (forget) {
     await setSecret("server", null);
-    await ext.storage.local.set({ server: { url: Local.DEFAULT_SERVER } });
+    await underRoutes(async () => {
+      await bindRoute("server", Local.DEFAULT_SERVER);
+      await ext.storage.local.set({ server: { url: Local.DEFAULT_SERVER } });
+    });
   }
   await projector.flush();
   refresh.nudge().catch(() => {});
@@ -906,8 +1022,27 @@ async function detectBrowserBases() {
 
 // A new install: detect the base languages, mark the first run as not done, and open the
 // welcome tab. Never on update: existing learners keep what they have.
+// A new install has nothing from an older version, so a 0.2 token, address or word list
+// the one-time upgrade found was written by a web page's content script in the moments
+// before the upgrade ran (slice 28 §7): drop all of it.
+async function discardPlanted() {
+  const store = await getStore();
+  const from = await store.meta.get("migratedFrom");
+  if (!from || from === "new") return;
+  await setSecret("server", null);
+  await store.replaceAll([]);
+  await underRoutes(async () => {
+    await bindRoute("server", Local.DEFAULT_SERVER);
+    const { lookup } = await settings();
+    await ext.storage.local.set({ wordsHome: "local", server: { url: Local.DEFAULT_SERVER }, lookup: { ...lookup, kind: lookup.kind === "server" ? "none" : lookup.kind }, words: [] });
+  });
+  await store.meta.set("migratedFrom", "new");
+  sync.credentialsChanged();
+}
+
 async function firstInstall() {
   await ready().catch(() => {});
+  await discardPlanted().catch((e) => console.warn("Kotiko install:", e?.message ?? e));
   const bases = await detectBrowserBases();
   let ui;
   try {
@@ -1260,15 +1395,23 @@ ext.runtime.onMessage.addListener(
       "backend.set": {
         from: ["page"],
         check: (m) => checkLookup(m.lookup),
-        async run(m) {
+        run: (m) => underRoutes(async () => {
           const s = await settings();
           const next = { ...s.lookup };
           for (const k of ["kind", "provider", "baseUrl", "model", "dataCollection"]) if (m.lookup[k] !== undefined) next[k] = typeof m.lookup[k] === "string" ? m.lookup[k].trim() || null : m.lookup[k];
+          // Choosing a service without naming an address means its own address.
+          if (m.lookup.provider !== undefined && m.lookup.baseUrl === undefined) next.baseUrl = null;
           if (next.kind === "server" && !s.keys.server) throw codedError("server_key_rejected", "Connect a server first.", { reason: "no_token" });
+          // The page named the address (or the service, whose own address it is): trust it.
+          if (m.lookup.provider !== undefined || m.lookup.baseUrl !== undefined) {
+            const ep = globalThis.KotikoLLMClient.endpoint(next);
+            await bindRoute(`lookup:${ep.preset.id}`, ep.baseUrl);
+            await chooseProvider(ep.preset.id);
+          }
           await ext.storage.local.set({ lookup: next });
           lookupChanged();
           return { ok: true, lookup: next };
-        },
+        }),
       },
       "backend.test": {
         from: ["page"],
@@ -1290,14 +1433,22 @@ ext.runtime.onMessage.addListener(
         check: (m) => (m.url !== undefined && (typeof m.url !== "string" || m.url.length > 500) ? "url must be a string" : m.token !== undefined && (typeof m.token !== "string" || m.token.length > MAX_SECRET) ? "token must be a string" : null),
         async run(m) {
           await ready();
-          if (typeof m.url === "string") await ext.storage.local.set({ server: { url: m.url.trim() || Local.DEFAULT_SERVER } });
+          if (typeof m.url === "string") {
+            await underRoutes(async () => {
+              await bindRoute("server", m.url.trim() || Local.DEFAULT_SERVER);
+              await ext.storage.local.set({ server: { url: m.url.trim() || Local.DEFAULT_SERVER } });
+            });
+          }
           if (typeof m.token === "string") await setSecret("server", m.token.trim() || null);
           const s = await settings();
           if (s.wordsHome === "local") {
             const count = await (await getStore()).count();
             if (count > 0) return { ok: true, wordsHome: "local", needsSwitch: true, count };
             if (s.keys.server) {
-              await ext.storage.local.set({ wordsHome: "server", lookup: { ...s.lookup, kind: s.lookup.kind === "provider" ? "provider" : "server" } });
+              await underRoutes(async () => {
+                const { lookup } = await settings();
+                await ext.storage.local.set({ wordsHome: "server", lookup: { ...lookup, kind: lookup.kind === "provider" ? "provider" : "server" } });
+              });
             }
           }
           const result = await sync.credentialsChanged();
@@ -1363,8 +1514,12 @@ ext.runtime.onMessage.addListener(
           if (!pending || pending.expires < now()) throw codedError("key_rejected", "That sign-in has expired.", { reason: "expired", provider: "openrouter" });
           const key = await globalThis.KotikoPKCE.exchange({ fetch: (...a) => fetch(...a), code: m.code, verifier: pending.verifier });
           await setSecret("provider:openrouter", key);
-          const s = await settings();
-          await ext.storage.local.set({ lookup: { ...s.lookup, kind: "provider", provider: "openrouter", baseUrl: null } });
+          await underRoutes(async () => {
+            await bindRoute("lookup:openrouter", globalThis.KotikoLLMClient.endpoint({ provider: "openrouter" }).baseUrl);
+            await chooseProvider("openrouter");
+            const s = await settings();
+            await ext.storage.local.set({ lookup: { ...s.lookup, kind: "provider", provider: "openrouter", baseUrl: null } });
+          });
           lookupChanged();
           return { ok: true };
         },
@@ -1518,26 +1673,42 @@ ext.commands?.onCommand?.addListener((command, tab) => {
   else Promise.resolve(ext.tabs.query({ active: true, currentWindow: true })).then(([t]) => t?.id && send(t.id), () => {});
 });
 
-// A token or address written to storage.local (a page from before the upgrade, still
-// open) moves into the store and the settings at once; then the sync starts over with
-// it, cancelling the request made with the old one (research 06 F11).
-async function adoptLegacy() {
+// The address and token of a 0.2 install are adopted once, by the storage upgrade
+// (lib/local-mode.js `migrate`). After an update no page from before it is left, so these
+// keys written later can only come from a content script: they are removed, never used.
+async function dropLegacy() {
   await ready().catch(() => {});
-  const legacy = await ext.storage.local.get({ token: null, serverUrl: null });
-  if (legacy.token === null && legacy.serverUrl === null) return;
-  const s = await settings();
-  const patch = {};
-  if (legacy.serverUrl !== null) patch.server = { url: String(legacy.serverUrl).trim() || Local.DEFAULT_SERVER };
-  const token = String(legacy.token ?? "").trim();
-  if (legacy.token !== null) {
-    await setSecret("server", token || null);
-    if (token && s.wordsHome !== "server") {
-      patch.wordsHome = "server";
-      patch.lookup = { ...s.lookup, kind: s.lookup.kind === "provider" ? "provider" : "server" };
-    }
-  }
-  await ext.storage.local.set(patch);
   await ext.storage.local.remove(["token", "serverUrl"]);
+}
+
+// Kotiko's own code writes `server` and `lookup` only after setting their routes, so a
+// copy in storage.local that disagrees was written by something else: put the trusted
+// address back, so the settings show what Kotiko really uses, and wake waiting adds.
+let healing = null;
+function healRoutes() {
+  healing ??= underRoutes(healOnce).finally(() => {
+    healing = null;
+  });
+  return healing;
+}
+async function healOnce() {
+  await ready().catch(() => {});
+  const s = await Local.readSettings(ext.storage.local);
+  const patch = {};
+  const server = await trustedUrl("server");
+  if (server && !sameAddress("server", s.server.url, server)) patch.server = { url: server.startsWith(RAW) ? server.slice(RAW.length) : server };
+  const chosen = await chosenProvider();
+  const ep = globalThis.KotikoLLMClient.endpoint(s.lookup);
+  if (ep.preset.id !== chosen || (ep.baseUrl && !(await routeAllows(`lookup:${ep.preset.id}`, ep.baseUrl, { heal: false })))) {
+    const trusted = await trustedUrl(`lookup:${chosen}`);
+    const own = routeUrl("lookup", providerOf(chosen)?.baseUrl ?? null);
+    patch.lookup = { ...s.lookup, provider: chosen, baseUrl: trusted && trusted !== own ? trusted : null };
+  }
+  if (!Object.keys(patch).length) return;
+  await ext.storage.local.set(patch);
+  client.reset();
+  queue.wake();
+  if (patch.server) sync.credentialsChanged();
 }
 
 ext.storage.onChanged.addListener((changes, area) => {
@@ -1548,10 +1719,8 @@ ext.storage.onChanged.addListener((changes, area) => {
   }
   if (area === "sync" && changes.seedSalt) ensureSeedSalt().catch(() => {});
   if (area !== "local") return;
-  if (changes.token?.newValue !== undefined || changes.serverUrl?.newValue !== undefined) {
-    sync.credentialsChanged();
-    adoptLegacy().catch(() => {});
-  }
+  if (changes.token?.newValue !== undefined || changes.serverUrl?.newValue !== undefined) dropLegacy().catch(() => {});
+  if (changes.server || changes.lookup) healRoutes().catch(() => {});
   // Bases changed by a page (not the projection's own mirror): project again.
   if (changes.baseLangs && JSON.stringify(changes.baseLangs.newValue) !== lastBases) {
     lastBases = JSON.stringify(changes.baseLangs.newValue);

@@ -4,8 +4,8 @@
     "description": "The extension's name in the browser and stores. Don't translate."
   },
   "extDescription": {
-    "message": "Learn words as you browse: swaps words on web pages for the ones you're learning, in any language.",
-    "description": "The extension's one-line description on the browser's extensions page."
+    "message": "Swap words on the pages you read for the words you're learning, in any language. Free, open source, and private by design.",
+    "description": "The extension's one-line description on the browser's extensions page and the store summary. At most 132 characters (the Chrome Web Store's limit). Don't say which language the reader reads: Kotiko works on pages in any language."
   },
   "ui_locale": {
     "message": "en",
@@ -4935,5 +4935,29 @@
   "data_anki_elsewhere": {
     "message": "Another language",
     "description": "Your data (slice 12): option when Anki is in a language not listed; Anki then asks which note type to use."
+  },
+  "extStoreName": {
+    "message": "Kotiko: learn languages while you browse",
+    "description": "The extension's full name in the browser's extensions list and on the Chrome Web Store and Firefox Add-ons listings: the name Kotiko, a colon, and a short phrase saying what it does. Keep \"Kotiko\" as it is. At most 45 characters (the Edge store's limit)."
+  },
+  "privacy_link": {
+    "message": "Privacy policy",
+    "description": "Link that opens Kotiko's privacy policy (on the settings page and the welcome page)."
+  },
+  "privacy_title": {
+    "message": "Kotiko privacy policy",
+    "description": "The privacy policy page's title in the browser tab."
+  },
+  "privacy_unavailable": {
+    "message": "The privacy policy couldn't be shown here. Read it at kotiko.org/privacy.",
+    "description": "Shown on the privacy policy page if its text can't be loaded. Keep the address kotiko.org/privacy as it is."
+  },
+  "server_url_unencrypted": {
+    "message": "This address starts with http://, so your access key travels unencrypted. If anyone else shares this network, use an https:// address (for example with tailscale serve).",
+    "description": "Warning under the server address field when the address uses http:// and isn't on this computer or a Tailscale network. The connection still works. Keep http://, https:// and \"tailscale serve\" as they are."
+  },
+  "error_address_changed": {
+    "message": "Where Kotiko sends your words was changed outside its settings, so it sent nothing there. Open Settings, check your word lookups and server address, and save them again.",
+    "description": "Shown when the settings that say where words and keys are sent were changed by something other than Kotiko's own settings pages (for example a web page), so Kotiko refused to send anything."
   }
 }

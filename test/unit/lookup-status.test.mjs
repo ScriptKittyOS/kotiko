@@ -15,8 +15,9 @@ const NOW = Date.UTC(2026, 9, 2, 15, 0);
 const RESETS = "2026-10-03T00:00:00.000Z";
 const status = (remaining, resets_at = RESETS) => ({ provider: "openrouter", quota: { used: 50 - remaining, limit: 50, remaining, resets_at, estimated: false } });
 
-test("every key it can return exists in en and es (plural keys as _one and _other)", () => {
-  for (const l of ["en", "es"]) {
+// English is the one complete locale; others fall back to it per key (DECISIONS 2026-10-05).
+test("every key it can return exists in en (plural keys as _one and _other)", () => {
+  for (const l of ["en"]) {
     const m = messages(l);
     for (const key of S.KEYS) assert.ok(key in m || (`${key}_one` in m && `${key}_other` in m), `${l}: ${key}`);
   }

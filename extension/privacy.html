@@ -1,0 +1,26 @@
+<!doctype html>
+<!-- SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kotiko</title>
+  <link rel="icon" href="icon32.png" />
+  <script src="ui/theme.js"></script>
+  <link rel="stylesheet" href="ui/tokens.css" />
+  <link rel="stylesheet" href="ui/base.css" />
+  <link rel="stylesheet" href="privacy.css" />
+</head>
+<body>
+  <!--
+    Slice 28 §2: the privacy policy shipped with the extension. The text is
+    extension/privacy/<locale>.md, a copy of docs/privacy/<locale>.md (the published
+    policy) made by scripts/sync-privacy.mjs; privacy.js renders it with lib/policy.js's DOM methods.
+  -->
+  <main class="policy" id="policy" aria-busy="true"></main>
+  <script src="lib/i18n.js"></script>
+  <script src="lib/policy.js"></script>
+  <script src="privacy.js"></script>
+</body>
+</html>

@@ -85,7 +85,9 @@ async function run() {
     await control({ v1Words, job });
     await page.evaluate(async (o) => {
       await chrome.storage.local.clear();
-      await chrome.storage.local.set({ serverUrl: o.url, token: o.token, lastSync: Date.now() - 60_000, syncError: null, ...o.local });
+      await chrome.storage.local.set({ lastSync: Date.now() - 60_000, syncError: null, ...o.local });
+      // As the settings connect (slice 28: an address written to storage.local is ignored).
+      await chrome.runtime.sendMessage({ type: "server.connect", url: o.url, token: o.token });
     }, { url: `${srv.url}/kotiko`, token: srv.token, local });
   };
   const deleteIds = (ids) => async (page) => {
@@ -150,7 +152,7 @@ async function run() {
         await control({ reset: true });
         await p.evaluate(async () => {
           await chrome.storage.local.clear();
-          await chrome.storage.local.set({ serverUrl: "http://127.0.0.1:9", token: "t0ken" });
+          await chrome.runtime.sendMessage({ type: "server.connect", url: "http://127.0.0.1:9", token: "t0ken" });
         });
       },
     }],

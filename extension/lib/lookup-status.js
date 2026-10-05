@@ -72,6 +72,9 @@
         return provider ? { key: "error_key_rejected", params: { provider } } : { key: "error_key_rejected_generic", params: {} };
       case "lookup_not_set_up":
         return { key: local ? "error_lookup_not_set_up_local" : "error_lookup_not_set_up", params: {} };
+      // Slice 28 §7: the settings point somewhere the learner didn't choose in Kotiko.
+      case "address_changed":
+        return { key: "error_address_changed", params: {} };
       case "vocabulary_full":
         return { key: "error_vocabulary_full", params: {} };
       case "storage_full":
@@ -100,6 +103,7 @@
     "error_key_rejected_local",
     "error_key_rejected_local_generic",
     "error_lookup_not_set_up_local",
+    "error_address_changed",
     "error_vocabulary_full",
     "error_storage_full",
   ];

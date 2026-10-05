@@ -1,0 +1,264 @@
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
+// SPDX-License-Identifier: Apache-2.0
+
+// Slice 28 §7 in the real background.js (vm, fake chrome, fake-indexeddb): every message
+// type refuses senders it doesn't list (enumerated from the router itself, so a new type is
+// covered the day it's added), and a secret is only ever sent to the address it was saved
+// for. Content scripts can write storage.local, where the settings that say where requests
+// go live; an address written there by anything but a Kotiko page must never receive the
+// provider key or the server token. The real-browser half is test/e2e/privacy.spec.mjs.
+import { after, before, describe, test } from "node:test";
+import assert from "node:assert/strict";
+import { createFakeChrome } from "../helpers/fake-chrome.mjs";
+import { startFixtureServer } from "../helpers/fixture-server.mjs";
+import { runInVm, sleep } from "../helpers/load-script.mjs";
+
+const EXT_ID = "fake-extension-id";
+const PAGE = { id: EXT_ID, url: `chrome-extension://${EXT_ID}/dashboard.html`, tab: { id: 3, url: `chrome-extension://${EXT_ID}/dashboard.html` } };
+const POPUP = { id: EXT_ID, url: `chrome-extension://${EXT_ID}/popup.html` };
+const CONTENT = { id: EXT_ID, url: "https://example.com/", tab: { id: 1, url: "https://example.com/" } };
+const DOCS = { id: EXT_ID, url: "https://kotiko.org/connected/", tab: { id: 4, url: "https://kotiko.org/connected/" } };
+const OTHER_EXTENSION = { id: "another-extension", url: "chrome-extension://another-extension/page.html" };
+const KEY = "sk-or-v1-0123456789abcdef0123456789abcdefa1b2";
+
+function loadBackground({ local = {}, fetch: f = fetch } = {}) {
+  const fake = createFakeChrome({ runtimeId: EXT_ID, local });
+  const ctx = runInVm("background.js", { chrome: fake.chrome, fetch: f });
+  return {
+    fake,
+    k: ctx.__kotiko,
+    store: fake.store.local,
+    send: (msg, sender = PAGE) => fake.deliver(msg, sender),
+    async until(fn, ms = 5000) {
+      const end = Date.now() + ms;
+      for (;;) {
+        await fake.idle();
+        const v = await fn();
+        if (v) return v;
+        if (Date.now() > end) throw new Error("timed out waiting");
+        await sleep(20);
+      }
+    },
+  };
+}
+
+describe("who may send what (slice 28 §7 item 4)", () => {
+  test("content scripts may only ask for a sync and the sensitive-sites list; every other type refuses them", async () => {
+    const bg = loadBackground();
+    await bg.k.ready();
+    const [listener] = bg.fake.chrome.runtime.onMessage.listeners;
+    const routes = listener.routes;
+    assert.ok(routes && Object.keys(routes).length > 30, "the router lists its routes");
+    const allowed = (kind) => Object.keys(routes).filter((t) => routes[t].includes(kind)).sort();
+    assert.deepEqual(allowed("content"), ["sensitiveSites", "sync"]);
+    assert.deepEqual(allowed("docs"), ["oauth.code"]);
+    for (const type of Object.keys(routes)) {
+      if (!routes[type].includes("content")) assert.deepEqual(await bg.send({ type }, CONTENT), { error: { code: "forbidden" } }, `content: ${type}`);
+      // The docs site's page is a content script too; it gets only its one route.
+      if (!routes[type].includes("content") && !routes[type].includes("docs")) assert.deepEqual(await bg.send({ type }, DOCS), { error: { code: "forbidden" } }, `docs: ${type}`);
+      assert.deepEqual(await bg.send({ type }, OTHER_EXTENSION), { error: { code: "forbidden" } }, `another extension: ${type}`);
+    }
+    assert.deepEqual(await (await bg.k.getStore()).secrets.ids(), []);
+  });
+});
+
+describe("requests go only where a Kotiko page said (slice 28 §7)", () => {
+  let srv;
+  let evil;
+  before(async () => {
+    srv = await startFixtureServer();
+    evil = await startFixtureServer();
+  });
+  after(async () => {
+    await srv.close();
+    await evil.close();
+  });
+
+  const chats = (s) => s.state.log.filter((r) => r.path === "/llm/v1/chat/completions");
+  const reset = () => {
+    srv.state.log.length = 0;
+    evil.state.log.length = 0;
+  };
+  const add = async (bg, text) => {
+    const res = await bg.send({ type: "add", text }, POPUP);
+    return bg.until(() => bg.store.addJobs?.find((j) => j.id === res.job.id && (j.state === "done" || j.state === "waiting" || j.state === "failed")));
+  };
+  // Waiting jobs keep a retry timer; cancel them so the test file can end.
+  const FINISHED = new Set(["done", "failed", "cancelled"]);
+  const settle = async (bg) => {
+    await bg.until(async () => {
+      const open = (bg.store.addJobs ?? []).filter((j) => !FINISHED.has(j.state));
+      for (const j of open) await bg.send({ type: "jobs.cancel", id: j.id }, POPUP);
+      return !open.length;
+    });
+    // A cancel leaves the queue's retry timer; one more pass clears it.
+    await bg.k.queue.kick();
+  };
+  // What a content script can do: write the settings in storage.local.
+  const poison = async (bg, patch) => {
+    await bg.fake.chrome.storage.local.set(patch);
+    await bg.fake.idle();
+  };
+
+  test("a hidden address planted for a hosted service, then the key pasted: the key never leaves for it", async () => {
+    // The dashboard hides the address field for OpenAI, so the learner can't see a planted one.
+    const requests = [];
+    // Every request is recorded and refused at once (a 401 isn't retried).
+    const record = async (url, init = {}) => {
+      requests.push({ url: String(url), auth: init.headers?.Authorization ?? null });
+      return new Response("{}", { status: 401, headers: { "content-type": "application/json" } });
+    };
+    const bg = loadBackground({ local: { baseLangs: ["en"] }, fetch: record });
+    await bg.k.ready();
+    // The learner picks OpenAI in the settings (no address: the field is hidden for it).
+    await bg.send({ type: "backend.set", lookup: { kind: "provider", provider: "openai", baseUrl: null } });
+    await poison(bg, { lookup: { ...bg.store.lookup, baseUrl: "https://evil.example/v1" } });
+    await bg.send({ type: "secrets.set", id: "provider:openai", value: KEY });
+    await add(bg, "shukran");
+    await bg.send({ type: "backend.test" });
+    await bg.fake.idle();
+    assert.ok(requests.length >= 1, "the add and the Test did go out, to OpenAI");
+    assert.ok(requests.every((r) => !r.url.includes("evil.example")), JSON.stringify(requests));
+    assert.ok(requests.filter((r) => r.auth).every((r) => r.url.startsWith("https://api.openai.com/v1/")), "the key goes only to OpenAI's own address");
+    assert.equal(bg.store.lookup.baseUrl, null, "the planted address is taken back out of the settings");
+    await settle(bg);
+  });
+
+  test("a service switched from a content script (to one the learner has a key for) gets nothing; the choice is put back", async () => {
+    const requests = [];
+    const record = async (url, init = {}) => {
+      requests.push({ url: String(url), auth: init.headers?.Authorization ?? null });
+      return new Response("{}", { status: 401, headers: { "content-type": "application/json" } });
+    };
+    const bg = loadBackground({ local: { baseLangs: ["en"] }, fetch: record });
+    await bg.k.ready();
+    // A key saved for OpenAI earlier, but the learner now uses Ollama on this computer.
+    await bg.send({ type: "secrets.set", id: "provider:openai", value: KEY });
+    await bg.send({ type: "backend.set", lookup: { kind: "provider", provider: "ollama", baseUrl: null } });
+    await poison(bg, { lookup: { ...bg.store.lookup, provider: "openai", baseUrl: null } });
+    await add(bg, "sobaka");
+    await bg.fake.idle();
+    assert.ok(requests.every((r) => !r.url.startsWith("https://api.openai.com/")), JSON.stringify(requests));
+    await bg.until(() => bg.store.lookup.provider === "ollama");
+    await settle(bg);
+  });
+
+  test("a keyless local service (Ollama) pointed elsewhere gets no request at all", async () => {
+    reset();
+    const bg = loadBackground({ local: { baseLangs: ["en"] } });
+    await bg.k.ready();
+    await bg.send({ type: "backend.set", lookup: { kind: "provider", provider: "ollama", baseUrl: null } });
+    await poison(bg, { lookup: { ...bg.store.lookup, baseUrl: evil.llmUrl } });
+    await add(bg, "sobaka");
+    await bg.send({ type: "backend.test" });
+    await bg.fake.idle();
+    assert.deepEqual(evil.state.log, []);
+    assert.equal(bg.store.lookup.baseUrl, null);
+    await settle(bg);
+  });
+
+  test("a custom address rewritten: nothing goes there, and the add finishes at the address the page chose", async () => {
+    reset();
+    const bg = loadBackground({ local: { baseLangs: ["en"] } });
+    await bg.k.ready();
+    await bg.send({ type: "backend.set", lookup: { kind: "provider", provider: "custom", baseUrl: srv.llmUrl } });
+    await bg.send({ type: "secrets.set", id: "provider:custom", value: KEY });
+    await poison(bg, { lookup: { ...bg.store.lookup, baseUrl: evil.llmUrl } });
+    assert.equal((await add(bg, "shukran")).state, "done");
+    assert.deepEqual(evil.state.log, []);
+    assert.ok(chats(srv).length >= 1 && chats(srv).every((r) => r.auth === `Bearer ${KEY}`));
+    assert.equal(bg.store.lookup.baseUrl, srv.llmUrl.replace(/\/+$/, ""));
+
+    // A page that names the address (the settings field) moves the route and the key there.
+    await bg.send({ type: "backend.set", lookup: { baseUrl: evil.llmUrl } });
+    assert.equal((await add(bg, "kniga")).state, "done");
+    assert.ok(chats(evil).length >= 1 && chats(evil).every((r) => r.auth === `Bearer ${KEY}`));
+  });
+
+  test("a 0.2 token and address planted after the upgrade are removed, never used", async () => {
+    reset();
+    const bg = loadBackground({ local: { baseLangs: ["en"] } });
+    await bg.k.ready();
+    await poison(bg, { token: "planted-token", serverUrl: evil.kotikoUrl });
+    await bg.send({ type: "sync", force: true }, CONTENT);
+    await bg.fake.idle();
+    await sleep(50);
+    assert.deepEqual(evil.state.log, []);
+    assert.equal(bg.store.token, undefined);
+    assert.equal(bg.store.serverUrl, undefined);
+    assert.equal(bg.store.wordsHome, "local");
+    assert.deepEqual(await (await bg.k.getStore()).secrets.ids(), []);
+  });
+
+  test("the upgrade adopts a 0.2 token once and trusts the address it was used with", async () => {
+    const bg = loadBackground({ local: { serverUrl: srv.kotikoUrl, token: srv.token, words: [] } });
+    await bg.k.ready();
+    const store = await bg.k.getStore();
+    assert.equal(await store.meta.get("route:server"), srv.kotikoUrl);
+    assert.equal(await store.secrets.get("server"), srv.token);
+    assert.equal(bg.store.token, undefined);
+  });
+
+  test("a server address planted before the token is pasted: the token goes only where a page said", async () => {
+    reset();
+    const bg = loadBackground({ local: { baseLangs: ["en"] } });
+    await bg.k.ready();
+    await bg.send({ type: "server.connect", url: srv.kotikoUrl });
+    await poison(bg, { server: { url: evil.kotikoUrl } });
+    await bg.send({ type: "server.connect", token: srv.token });
+    await bg.send({ type: "sync", force: true });
+    await bg.fake.idle();
+    assert.deepEqual(evil.state.log, []);
+    assert.equal(bg.store.server.url, srv.kotikoUrl);
+  });
+});
+
+describe("after slice 12's delete everything, the routes start over like a new install", () => {
+  let srv;
+  before(async () => {
+    srv = await startFixtureServer();
+  });
+  after(() => srv.close());
+
+  test("with the bindings gone, the built-in addresses are trusted and a page can connect again", async () => {
+    const bg = loadBackground({ local: { baseLangs: ["en"] } });
+    await bg.k.ready();
+    await bg.send({ type: "server.connect", url: srv.kotikoUrl, token: srv.token });
+    // What the wipe leaves: no settings, no secrets, no route bindings.
+    const store = await bg.k.getStore();
+    for (const key of ["route:server", "route:lookupProvider", "routesBound"]) await store.meta.set(key, null);
+    await bg.send({ type: "secrets.remove", id: "server" });
+    await bg.fake.chrome.storage.local.clear();
+    await bg.fake.idle();
+    srv.state.log.length = 0;
+    await bg.send({ type: "sync", force: true }, CONTENT);
+    assert.deepEqual(srv.state.log, [], "nothing to send without a token");
+    await bg.send({ type: "server.connect", url: srv.kotikoUrl, token: srv.token });
+    await bg.send({ type: "sync", force: true });
+    await bg.fake.idle();
+    assert.ok(srv.state.log.some((r) => r.auth === `Bearer ${srv.token}`));
+  });
+});
+
+describe("a new install keeps nothing a page planted before its first start (slice 28 §7)", () => {
+  test("a 0.2 token, address and word list found on a fresh install are dropped", async () => {
+    const requests = [];
+    const fetch = async (url, init = {}) => {
+      requests.push({ url: String(url), auth: init.headers?.Authorization ?? null });
+      return new Response(JSON.stringify({ words: [] }), { status: 200, headers: { "content-type": "application/json" } });
+    };
+    const planted = [{ id: 1, lang: "ru", language: "Russian", native: "дом", english: "house", forms: ["house"], note: null }];
+    const bg = loadBackground({ local: { serverUrl: "http://127.0.0.1:6666", token: "planted-token", words: planted }, fetch });
+    await bg.fake.fireInstalled({ reason: "install" });
+    await bg.until(() => bg.store.wordsHome === "local" && bg.store.server?.url === "http://localhost:4747");
+    const store = await bg.k.getStore();
+    assert.deepEqual(await store.secrets.ids(), []);
+    assert.deepEqual(await store.list(), []);
+    // From then on nothing goes to the planted address.
+    const before = requests.length;
+    await bg.send({ type: "sync", force: true }, CONTENT);
+    await bg.fake.idle();
+    await sleep(50);
+    assert.deepEqual(requests.slice(before).filter((r) => r.url.includes(":6666")), []);
+  });
+});

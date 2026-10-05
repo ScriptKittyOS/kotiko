@@ -66,10 +66,12 @@ async function run() {
   try {
     for (const lang of ["en", "es"]) {
       const { context, sw, userDataDir } = await launch(lang);
-      await sw.evaluate(
-        (o) => chrome.storage.local.set({ serverUrl: o.url, token: o.token, words: o.words, enabled: true, lastSync: Date.now() }),
-        { url: `${srv.url}/kotiko`, token: srv.token, words: POPOVER_WORDS },
-      );
+      await sw.evaluate((o) => chrome.storage.local.set({ words: o.words, enabled: true, lastSync: Date.now() }), { words: POPOVER_WORDS });
+      // Connects as the settings do (slice 28: an address written to storage.local is ignored).
+      const setupPage = await context.newPage();
+      await setupPage.goto(`chrome-extension://${new URL(sw.url()).host}/privacy.html`);
+      await setupPage.evaluate((m) => chrome.runtime.sendMessage(m), { type: "server.connect", url: `${srv.url}/kotiko`, token: srv.token });
+      await setupPage.close();
       const shots = [
         ["ru-stress-careful", "popover-light.html", "пожалуйста"],
         ["zh-tones-also-note", "popover-light.html", "谢谢"],

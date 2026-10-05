@@ -47,6 +47,7 @@
     server_unreachable: "error_server_unreachable_empty",
     server_address_invalid: "error_server_address_invalid",
     not_kotiko_server: "error_not_kotiko_server",
+    address_changed: "error_address_changed",
   };
 
   const state = {
@@ -1131,6 +1132,10 @@
     if (getKey) $("getKey").href = getKey;
     $("serverPanel").addEventListener("submit", connectServer);
     $("serverUrl").value = state.backend?.server?.url ?? "";
+    // Slice 28 §5: plain http:// beyond this computer or a Tailscale address says so.
+    const warnHttp = () => ($("serverUrlWarn").hidden = !globalThis.ServerUrl?.sendsInClear($("serverUrl").value));
+    $("serverUrl").addEventListener("input", warnHttp);
+    warnHttp();
     $("askForm").addEventListener("submit", onAsk);
     $("tryHello").addEventListener("click", tryHello);
     $("meaningForm").addEventListener("submit", onMeaning);

@@ -148,6 +148,8 @@
         return { severity: "blocking", text: t("error_server_key_rejected"), details, actions: ["settings"] };
       case "server_address_invalid":
         return { severity: "blocking", text: t("error_server_address_invalid"), details, actions: ["settings"] };
+      case "address_changed":
+        return { severity: "blocking", text: t("error_address_changed"), details, actions: ["settings"] };
       case "not_kotiko_server":
         return { severity: "blocking", text: t("error_not_kotiko_server"), details, actions: ["settings"] };
       default:
@@ -169,7 +171,7 @@
     const local = lookupKind(state.s) !== "server";
     const lookup = LookupStatus.lookupProblem(code, res?.details, { locale: I18n.locale(), local });
     if (lookup) {
-      const fix = local && (code === "key_rejected" || code === "lookup_not_set_up") ? ["setupLookups"] : [];
+      const fix = code === "address_changed" ? (String(res?.details?.route ?? "").startsWith("lookup:") ? ["setupLookups"] : ["settings"]) : local && (code === "key_rejected" || code === "lookup_not_set_up") ? ["setupLookups"] : [];
       return line(lookup.key, RETRYABLE.has(code) ? ["retry"] : fix, lookup.params);
     }
     switch (code) {
@@ -1050,6 +1052,12 @@
     renderSettingsStatus();
     renderVoices();
     $("serverUrl").focus();
+    load("lib/url.js").then(warnHttp, () => {});
+  }
+
+  // Slice 28 §5: plain http:// beyond this computer or a Tailscale address says so.
+  function warnHttp() {
+    $("serverUrlWarn").hidden = !globalThis.ServerUrl?.sendsInClear($("serverUrl").value);
   }
 
   function closeSettings() {
@@ -1077,6 +1085,7 @@
     const input = $("serverUrl");
     // Never overwrite a field being edited (research 06 F16).
     if (document.activeElement !== input && !state.dirty.has("serverUrl")) input.value = state.s.server?.url ?? state.s.serverUrl ?? "";
+    warnHttp();
     const key = $("accessKey");
     key.placeholder = state.maskedToken ? t("settings_key_saved", { masked: state.maskedToken }) : "";
   }
@@ -1285,6 +1294,7 @@
       $("toggleKey").textContent = show ? t("settings_hide_key") : t("settings_show_key");
     });
     for (const id of ["serverUrl", "accessKey"]) $(id).addEventListener("input", () => state.dirty.add(id));
+    $("serverUrl").addEventListener("input", warnHttp);
     document.addEventListener("keydown", onGlobalKeys);
     addEventListener("online", () => {
       state.online = true;

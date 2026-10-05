@@ -455,11 +455,11 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
       if (pathname.startsWith("/vendor/")) return serveStatic(res, path.join(FIXTURES, "vendor"), pathname.slice(8));
       if (pathname.startsWith("/npm/") && NPM[pathname.slice(5)]) return serveStatic(res, NODE_MODULES, NPM[pathname.slice(5)]);
       if (pathname.startsWith("/kotiko/")) {
-        state.log.push({ method: req.method, path: pathname, auth: req.headers.authorization ?? null });
+        state.log.push({ method: req.method, path: pathname, auth: req.headers.authorization ?? null, host: req.headers.host ?? null });
         return await kotiko(req, res, pathname.slice("/kotiko".length));
       }
       if (pathname.startsWith("/llm/v1/")) {
-        state.log.push({ method: req.method, path: pathname, auth: req.headers.authorization ?? null });
+        state.log.push({ method: req.method, path: pathname, auth: req.headers.authorization ?? null, host: req.headers.host ?? null });
         return await llm(req, res, pathname.slice(7));
       }
       return send(res, 404, "not found");

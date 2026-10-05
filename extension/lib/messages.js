@@ -43,7 +43,7 @@
   }
 
   function createMessageRouter({ runtime, handlers, docsOrigin = null, onError = null }) {
-    return function onMessage(msg, sender, sendResponse) {
+    function onMessage(msg, sender, sendResponse) {
       const type = msg && typeof msg === "object" ? msg.type : undefined;
       if (typeof type !== "string" || !Object.hasOwn(handlers, type)) return undefined;
       const handler = handlers[type];
@@ -68,7 +68,11 @@
           sendResponse({ error: String(e.message ?? e.code), code: e.code, ...(details ? { details } : {}) });
         });
       return true;
-    };
+    }
+    // Every type and who may send it, for the audit that sends each one from a content
+    // script (slice 28 §7), so a new privileged message is covered the day it is added.
+    onMessage.routes = Object.freeze(Object.fromEntries(Object.entries(handlers).map(([type, h]) => [type, Object.freeze([...(h.from ?? [])])])));
+    return onMessage;
   }
 
   // Payload checks shared by handlers.

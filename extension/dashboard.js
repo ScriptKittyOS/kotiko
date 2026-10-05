@@ -526,6 +526,8 @@
         return t("error_server_key_rejected");
       case "server_address_invalid":
         return t("error_server_address_invalid");
+      case "address_changed":
+        return t("error_address_changed");
       case "not_kotiko_server":
         return t("error_not_kotiko_server");
       case "server_outdated":
@@ -588,7 +590,7 @@
     if (!state.online) return { severity: "info", text: t("dash_offline") };
     const err = state.loadError ?? (s.syncError?.code && s.syncError.code !== "server_key_rejected" ? s.syncError : null) ?? (s.syncError?.code === "server_key_rejected" && s.syncError.details?.reason !== "no_token" ? s.syncError : null);
     if (!err) return null;
-    const blocking = ["server_key_rejected", "server_address_invalid", "not_kotiko_server"].includes(err.code);
+    const blocking = ["server_key_rejected", "server_address_invalid", "not_kotiko_server", "address_changed"].includes(err.code);
     return {
       severity: blocking ? "blocking" : "state",
       text: problemText(err),
@@ -2746,8 +2748,14 @@
   function renderConnection() {
     const url = $("serverUrl");
     if (document.activeElement !== url && !dirty.has("serverUrl")) url.value = state.s.server?.url ?? state.s.serverUrl ?? "";
+    warnHttp();
     // The token is never read back (slice 11 §3): a saved one shows only masked.
     $("accessKey").placeholder = state.masked.server ? t("settings_key_saved", { masked: state.masked.server }) : "";
+  }
+
+  // Slice 28 §5: plain http:// beyond this computer or a Tailscale address says so.
+  function warnHttp() {
+    $("serverUrlWarn").hidden = !globalThis.ServerUrl?.sendsInClear($("serverUrl").value);
   }
 
   // The address and token go to the background, which keeps the token where pages can't
@@ -3327,6 +3335,7 @@
       $("toggleKey").setAttribute("aria-pressed", String(show));
       $("toggleKey").textContent = show ? t("settings_hide_key") : t("settings_show_key");
     });
+    $("serverUrl").addEventListener("input", warnHttp);
     for (const id of ["serverUrl", "accessKey"]) {
       $(id).addEventListener("input", () => dirty.add(id));
       $(id).addEventListener("change", () => saveConnection(id));
