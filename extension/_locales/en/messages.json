@@ -479,20 +479,12 @@
     "description": "An add failed because no server is set up."
   },
   "error_add_offline": {
-    "message": "You're offline. Add it again when you're back.",
-    "description": "An add failed while the computer is offline."
-  },
-  "error_lookup_failed": {
-    "message": "Word lookup didn't answer. Try again in a moment.",
-    "description": "The server couldn't look the word up."
-  },
-  "error_save_failed": {
-    "message": "Your Kotiko server couldn't save that word. Try again.",
-    "description": "The server looked the word up but couldn't save it."
+    "message": "You're offline. Your words still work on pages; add this one again when you're back.",
+    "description": "Slice 25 error (code offline): an add failed because the browser has no network."
   },
   "error_no_word_found": {
-    "message": "Couldn't find a word in “$TEXT$”. Try the word on its own.",
-    "description": "The lookup found no word. $TEXT$ is what you typed.",
+    "message": "Couldn't find a word in “$TEXT$”. Try the word on its own, or add it yourself.",
+    "description": "Slice 25 error (code no_word_found): the lookup found no word. TEXT is what the learner typed.",
     "placeholders": {
       "text": {
         "content": "{text}"
@@ -500,8 +492,8 @@
     }
   },
   "error_input_too_long": {
-    "message": "That's a lot of text for one word. Try a word or a short phrase.",
-    "description": "The add box text is over 200 characters."
+    "message": "That's a lot of text for one word. To add a list of words, use bulk add.",
+    "description": "Slice 25 error (code input_too_long): the add box got more than 200 characters."
   },
   "add_already_known": {
     "message": "Already in your list: $WORDS$",
@@ -1264,26 +1256,26 @@
     "message": "You’re offline. Your words still work on pages; changes are saved when you’re back.",
     "description": "Banner while the browser is offline."
   },
-  "dash_error_server_outdated": {
+  "error_server_outdated": {
     "message": "Your Kotiko server needs an update for this. Everything else still works.",
-    "description": "Slice 25 server_outdated."
+    "description": "Slice 25 error (code server_outdated): the server is too old for this action."
   },
-  "dash_error_word_gone": {
+  "error_word_gone": {
     "message": "That word was already removed.",
-    "description": "Slice 25 word_gone."
+    "description": "Slice 25 error (code word_gone): the word was already removed."
   },
-  "dash_error_duplicate": {
+  "error_word_conflict_duplicate": {
     "message": "Another $LANGUAGE$ word is already spelled like that.",
-    "description": "Changing a word's spelling or language to one another word has. {language} lowercase in Spanish.",
+    "description": "Slice 25 error (code word_conflict): an edit would make two words alike. LANGUAGE is the word's language name.",
     "placeholders": {
       "language": {
         "content": "{language}"
       }
     }
   },
-  "dash_conflict": {
+  "error_word_conflict": {
     "message": "This word changed since you opened it. Open it again to fix.",
-    "description": "Slice 25 word_conflict (stale), outside a field."
+    "description": "Slice 25 error (code word_conflict): the word changed since it was opened."
   },
   "dash_conflict_field": {
     "message": "This word just changed on another device.",
@@ -2217,8 +2209,8 @@
     "description": "Under the add box when no free lookups are left and the reset time isn't known."
   },
   "error_quota_exhausted": {
-    "message": "You've used today's free lookups. Try again after $TIME$.",
-    "description": "An add failed: the daily free lookups are used up (slice 25 quota_exhausted). {time} is a short local time.",
+    "message": "You've used today's free lookups. Add words yourself, or try again after $TIME$.",
+    "description": "Slice 25 error (code quota_exhausted): today's free lookups are used up. TIME is a local time of day.",
     "placeholders": {
       "time": {
         "content": "{time}"
@@ -2226,12 +2218,12 @@
     }
   },
   "error_quota_exhausted_today": {
-    "message": "You've used today's free lookups. Try again tomorrow.",
-    "description": "An add failed: the daily free lookups are used up, reset time unknown."
+    "message": "You've used today's free lookups. Add words yourself, or try again tomorrow.",
+    "description": "Slice 25 error (code quota_exhausted): today's free lookups are used up and the reset time isn't known."
   },
   "error_quota_exhausted_payment_required": {
-    "message": "$PROVIDER$ needs credit on your account before it will look up words, even free ones. Add credit there, then try again.",
-    "description": "An add failed: the lookup service asks for payment (HTTP 402). {provider} is a service name like OpenRouter.",
+    "message": "$PROVIDER$ needs credit on your account before it will look up words, even free ones. Add credit there, or add words yourself.",
+    "description": "Slice 25 error (code quota_exhausted): the lookup service asks for payment (HTTP 402). PROVIDER is its name, such as OpenRouter.",
     "placeholders": {
       "provider": {
         "content": "{provider}"
@@ -2239,24 +2231,24 @@
     }
   },
   "error_quota_exhausted_payment_required_generic": {
-    "message": "Your lookup service needs credit on your account before it will look up words, even free ones. Add credit there, then try again.",
-    "description": "An add failed: the lookup service asks for payment, name unknown."
+    "message": "Your lookup service needs credit on your account before it will look up words, even free ones. Add credit there, or add words yourself.",
+    "description": "Slice 25 error (code quota_exhausted): the lookup service asks for payment and its name isn't known."
   },
   "error_rate_limited": {
-    "message": "Word lookup is busy. Try again in a minute.",
-    "description": "An add failed: too many lookups this minute (slice 25 rate_limited)."
+    "message": "Word lookup is busy. Try again in a minute, or add the word yourself.",
+    "description": "Slice 25 error (code rate_limited): the lookup service asked to slow down."
   },
   "error_model_unavailable": {
-    "message": "Word lookup isn't answering right now. Try again in a little while.",
-    "description": "An add failed: no lookup service answered (slice 25 model_unavailable)."
+    "message": "Word lookup isn't answering right now. Try again in a little while, or add the word yourself.",
+    "description": "Slice 25 error (code model_unavailable): no lookup service answered."
   },
   "error_lookup_timeout": {
-    "message": "That lookup took too long. Try again.",
-    "description": "An add failed: the lookup ran out of time (slice 25 lookup_timeout)."
+    "message": "That lookup took too long. Try again, or add the word yourself.",
+    "description": "Slice 25 error (code lookup_timeout): the lookup ran past its deadline."
   },
   "error_bad_lookup_result": {
-    "message": "The lookup came back garbled. Try again.",
-    "description": "An add failed: the answer couldn't be read (slice 25 bad_lookup_result)."
+    "message": "The lookup came back garbled. Try again, or add the word yourself.",
+    "description": "Slice 25 error (code bad_lookup_result): the lookup's answer couldn't be read."
   },
   "error_key_rejected": {
     "message": "$PROVIDER$ didn't accept your Kotiko server's key. Check it in the server's settings.",
@@ -2272,8 +2264,8 @@
     "description": "An add failed: the lookup service refused the server's key, name unknown."
   },
   "error_lookup_not_set_up": {
-    "message": "Word lookup isn’t set up on your Kotiko server yet.",
-    "description": "An add failed: the server has no key for its lookup service (slice 25 lookup_not_set_up)."
+    "message": "Word lookup isn't set up on your Kotiko server yet. Words you type as “word = meaning” still work.",
+    "description": "Slice 25 error (code lookup_not_set_up): the learner's server has no lookup service configured."
   },
   "error_rejected_same_as_gloss": {
     "message": "“$TEXT$” is already a word in $BASE$. Try naming the language you want it in.",
@@ -2353,8 +2345,8 @@
     "description": "Cancels a waiting add."
   },
   "error_lookup_not_set_up_local": {
-    "message": "Word lookups aren't set up yet.",
-    "description": "An add can't be looked up: no AI is set up in this browser (slice 25 lookup_not_set_up)."
+    "message": "To look up new words, set up word lookup. Your words, and words you type as “word = meaning”, work without it.",
+    "description": "Slice 25 error (code lookup_not_set_up): no lookup service is set up in this browser."
   },
   "error_key_rejected_local": {
     "message": "$PROVIDER$ didn't accept your key. Check it in Settings.",
@@ -2374,8 +2366,8 @@
     "description": "An add failed: the word list is full (slice 11 §9, vocabulary_full)."
   },
   "error_storage_full": {
-    "message": "Kotiko couldn't save in this browser. Free some disk space and try again.",
-    "description": "The extension's own word store couldn't be written (slice 25 storage_full)."
+    "message": "Kotiko couldn't save in this browser because the disk is full. Your words still work on pages; free some disk space, then try again.",
+    "description": "Slice 25 error (code storage_full): the browser's storage refused a write (full disk)."
   },
   "settings_move_first_one": {
     "message": "You have $COUNT$ word in this browser. Move it to your server in Settings first.",
@@ -4959,5 +4951,62 @@
   "error_address_changed": {
     "message": "Where Kotiko sends your words was changed outside its settings, so it sent nothing there. Open Settings, check your word lookups and server address, and save them again.",
     "description": "Shown when the settings that say where words and keys are sent were changed by something other than Kotiko's own settings pages (for example a web page), so Kotiko refused to send anything."
+  },
+  "error_offline_one": {
+    "message": "You're offline. Your word still works on pages; new words will be looked up when you're back.",
+    "description": "Slice 25 error (code offline): the browser has no network. The state banner; COUNT is the learner's word count."
+  },
+  "error_offline_other": {
+    "message": "You're offline. Your $COUNT$ words still work on pages; new words will be looked up when you're back.",
+    "description": "Slice 25 error (code offline): the browser has no network. COUNT is the learner's word count.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "error_offline_empty": {
+    "message": "You're offline. Words you add will be looked up when you're back.",
+    "description": "Slice 25 error (code offline): the browser has no network and the learner has no words yet."
+  },
+  "error_server_address_invalid_host_not_allowed": {
+    "message": "Your Kotiko server doesn't answer to the name in this address. Use its IP address, or add the name to the server's allowed host names.",
+    "description": "Slice 25 error (code server_address_invalid): the server refused the host name it was reached by (DNS rebinding protection, ALLOWED_HOSTS)."
+  },
+  "error_no_word_found_any": {
+    "message": "Couldn't find a word in that. Try the word on its own, or add it yourself.",
+    "description": "Slice 25 error (code no_word_found): the lookup found no word, when the typed text isn't shown."
+  },
+  "error_empty_input": {
+    "message": "Type a word to add.",
+    "description": "Slice 25 error (code empty_input): the add text was empty."
+  },
+  "error_invalid_word": {
+    "message": "That isn’t a valid word. Check what you typed, then try again.",
+    "description": "Slice 25 error (code invalid_word): a word or an edit failed the word checks; the dashboard says which field when it can."
+  },
+  "error_word_conflict_duplicate_any": {
+    "message": "Another word is already spelled like that, with the same meaning.",
+    "description": "Slice 25 error (code word_conflict): an edit would make two words alike, when the language name isn't known."
+  },
+  "error_storage_full_blocked": {
+    "message": "Kotiko is still open in a tab from before an update. Close Kotiko's other tabs, then try again.",
+    "description": "Slice 25 error (code storage_full): the word store is held open by an older page."
+  },
+  "error_storage_full_unavailable": {
+    "message": "This browser won't let Kotiko keep words here. Private windows can do this; open Kotiko in a normal window.",
+    "description": "Slice 25 error (code storage_full): the browser refused to open the word store."
+  },
+  "error_storage_full_deleted": {
+    "message": "Everything Kotiko kept in this browser was just deleted. Open Kotiko again to start fresh.",
+    "description": "Slice 25 error (code storage_full): after 'Delete everything', until an extension page is opened again."
+  },
+  "error_copy_details": {
+    "message": "Copy details",
+    "description": "Button inside an error's Details: copies the error code, technical details, Kotiko's version and the browser's, never words."
+  },
+  "error_copied": {
+    "message": "Copied",
+    "description": "Shown on the Copy details button after copying."
   }
 }

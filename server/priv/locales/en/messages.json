@@ -1,0 +1,130 @@
+{
+  "error_internal": {
+    "message": "Something went wrong in Kotiko. Check the server log.",
+    "description": "500: a bug."
+  },
+  "error_internal_ref": {
+    "message": "Something went wrong in Kotiko. Check the server log for ref {ref}.",
+    "description": "500: a bug. REF finds the error in the server log."
+  },
+  "error_request_too_large": {
+    "message": "That request is too large.",
+    "description": "413: the body is over the limit."
+  },
+  "error_invalid_request": {
+    "message": "The server couldn't read that request; details.field names the part to fix.",
+    "description": "400: a parameter or body field is missing or wrong."
+  },
+  "error_invalid_request_content_type": {
+    "message": "Send the body as JSON, with the header Content-Type: application/json.",
+    "description": "415: the body was sent with another content type."
+  },
+  "error_invalid_request_text": {
+    "message": "Send {\"text\": \"...\"} or {\"word\": {...}}.",
+    "description": "400: POST /api/v1/words without text or word."
+  },
+  "error_invalid_request_words": {
+    "message": "Send {\"words\": [...]}, with at most {max} words.",
+    "description": "400: the batch add's word list is missing or too long. MAX is the limit."
+  },
+  "error_invalid_request_confirm": {
+    "message": "Send {\"confirm\": \"delete-all-words\"} to delete every word.",
+    "description": "400: DELETE /api/v1/words without its confirmation."
+  },
+  "error_invalid_request_action": {
+    "message": "Send {\"action\": \"pause\"} or {\"action\": \"resume\"}.",
+    "description": "400: the pronunciation job's control without an action."
+  },
+  "error_invalid_word": {
+    "message": "That change isn't a valid word.",
+    "description": "400: an edit doesn't make a valid word; details say which field."
+  },
+  "error_empty_input": {
+    "message": "Type a word to add.",
+    "description": "400: the add text is empty."
+  },
+  "error_input_too_long": {
+    "message": "That's a lot of text for one word.",
+    "description": "400: the add text is over 200 characters."
+  },
+  "error_server_key_rejected": {
+    "message": "This Kotiko server didn't accept the access key. Paste it again in Connection.",
+    "description": "401: missing or wrong token."
+  },
+  "error_word_gone": {
+    "message": "That word was already removed.",
+    "description": "404: no word with that id."
+  },
+  "error_word_gone_scrubbed": {
+    "message": "That word was removed too long ago to restore.",
+    "description": "410: a restore after 30 days."
+  },
+  "error_not_found": {
+    "message": "No such route.",
+    "description": "404: no such route under /api/v1."
+  },
+  "error_word_conflict": {
+    "message": "This word changed since.",
+    "description": "409: the word changed since if_updated_at."
+  },
+  "error_word_conflict_duplicate": {
+    "message": "Another word already has that key.",
+    "description": "409: another word has the same language, text and meaning."
+  },
+  "error_server_address_invalid": {
+    "message": "This Kotiko server doesn't answer to that address.",
+    "description": "421: the request reached the server by an address it doesn't answer to."
+  },
+  "error_server_address_invalid_host_not_allowed": {
+    "message": "This Kotiko server doesn't answer to {host}. Add it to ALLOWED_HOSTS in .env.",
+    "description": "421: the Host header names a host the server doesn't answer to. HOST is that name."
+  },
+  "error_server_address_invalid_no_host": {
+    "message": "This Kotiko server only answers requests without a Host header from this computer.",
+    "description": "421: a request without a Host header came from another computer."
+  },
+  "error_quota_exhausted": {
+    "message": "You've used today's free lookups. Add words yourself, or try again after {time} UTC.",
+    "description": "429: today's free lookups are used up. TIME is HH:MM in UTC."
+  },
+  "error_quota_exhausted_today": {
+    "message": "You've used today's free lookups. Add words yourself, or try again tomorrow.",
+    "description": "429: today's free lookups are used up; the reset time isn't known."
+  },
+  "error_quota_exhausted_payment_required": {
+    "message": "{provider} needs credit on your account before it will look up words, even free ones. Add credit there, or add words yourself.",
+    "description": "429: the provider asks for payment (402). PROVIDER is its name."
+  },
+  "error_rate_limited": {
+    "message": "Word lookup is busy. Try again in a minute.",
+    "description": "429: the provider asked to slow down."
+  },
+  "error_model_unavailable": {
+    "message": "Word lookup isn't answering right now. Try again in a little while.",
+    "description": "502: no model could answer."
+  },
+  "error_lookup_timeout": {
+    "message": "That lookup took too long. Try again.",
+    "description": "503: no answer within the add's deadline."
+  },
+  "error_bad_lookup_result": {
+    "message": "The lookup came back garbled. Try again, or add the word yourself.",
+    "description": "502: the model's answer couldn't be used."
+  },
+  "error_key_rejected": {
+    "message": "{provider} didn't accept the server's key (LLM_API_KEY). Check it, then restart the server.",
+    "description": "502: the provider refused the server's key. PROVIDER is its name."
+  },
+  "error_lookup_not_set_up": {
+    "message": "Word lookup isn't set up: add LLM_API_KEY to the server's .env and restart it.",
+    "description": "503: no model key is set."
+  },
+  "error_lookup_failed": {
+    "message": "The lookup failed. Try again.",
+    "description": "A lookup failed with a code that has no message of its own."
+  },
+  "provider_unknown": {
+    "message": "The lookup service",
+    "description": "Stands in for PROVIDER when the provider isn't known."
+  }
+}

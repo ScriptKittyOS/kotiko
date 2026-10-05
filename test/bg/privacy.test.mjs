@@ -21,7 +21,12 @@ const DOCS = { id: EXT_ID, url: "https://kotiko.org/connected/", tab: { id: 4, u
 const OTHER_EXTENSION = { id: "another-extension", url: "chrome-extension://another-extension/page.html" };
 const KEY = "sk-or-v1-0123456789abcdef0123456789abcdefa1b2";
 
-function loadBackground({ local = {}, fetch: f = fetch } = {}) {
+// Real requests reach the fixture servers; the built-in local services' addresses (Ollama,
+// LM Studio) are answered here, so a test never talks to one running on this computer.
+const LOCAL_SERVICES = /^http:\/\/localhost:(11434|1234)\//;
+const offline = (url, init) => (LOCAL_SERVICES.test(String(url)) ? Promise.reject(new TypeError("Failed to fetch")) : fetch(url, init));
+
+function loadBackground({ local = {}, fetch: f = offline } = {}) {
   const fake = createFakeChrome({ runtimeId: EXT_ID, local });
   const ctx = runInVm("background.js", { chrome: fake.chrome, fetch: f });
   return {

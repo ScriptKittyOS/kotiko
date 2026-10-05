@@ -6,7 +6,7 @@ defmodule Kotiko.RouterV1 do
   `/api/v1` (slice 07 section 5), forwarded from `Kotiko.Router` after the token check
   and body parsing. Errors use one shape,
   `{"error": {"code": "...", "message": "...", "details": {...}}}`, with slice 25's codes;
-  slice 25 owns the wording (and its translations).
+  the message is `Kotiko.I18n`'s, in the request's `Accept-Language`.
   """
   use Plug.Router
   require Logger
@@ -14,6 +14,7 @@ defmodule Kotiko.RouterV1 do
   alias Kotiko.{
     AddRequests,
     Backup,
+    I18n,
     Lang,
     Lookup,
     PronunciationRefresh,
@@ -100,11 +101,7 @@ defmodule Kotiko.RouterV1 do
         json(conn, 200, result)
 
       _ ->
-        invalid(
-          conn,
-          %{field: "confirm"},
-          "Send {\"confirm\": \"delete-all-words\"} to delete every word."
-        )
+        invalid(conn, %{field: "confirm"})
     end
   end
 
@@ -118,15 +115,8 @@ defmodule Kotiko.RouterV1 do
       not request_id?(crid) ->
         invalid(conn, %{field: "client_request_id"})
 
-      not is_list(body["words"]) ->
-        invalid(conn, %{field: "words"}, "Send {\"words\": [...]}.")
-
-      length(body["words"]) > @max_batch ->
-        invalid(
-          conn,
-          %{field: "words", max: @max_batch},
-          "At most #{@max_batch} words at a time."
-        )
+      not is_list(body["words"]) or length(body["words"]) > @max_batch ->
+        invalid(conn, %{field: "words", max: @max_batch})
 
       true ->
         checked =
@@ -158,7 +148,7 @@ defmodule Kotiko.RouterV1 do
         add_text(conn, body, crid)
 
       true ->
-        invalid(conn, %{field: "text"}, "Send {\"text\": \"...\"} or {\"word\": {...}}.")
+        invalid(conn, %{field: "text"})
     end
   end
 
@@ -175,10 +165,10 @@ defmodule Kotiko.RouterV1 do
       end
     else
       {:error, :empty_input} ->
-        error(conn, 400, "empty_input", "Type a word to add.")
+        error(conn, 400, "empty_input")
 
       {:error, :input_too_long} ->
-        error(conn, 400, "input_too_long", "That's a lot of text for one word.")
+        error(conn, 400, "input_too_long")
 
       {:error, field} ->
         invalid(conn, %{field: field})
@@ -318,11 +308,11 @@ defmodule Kotiko.RouterV1 do
   # Slice 10's structured lookup errors: slice 25's code, its details and, when known,
   # when to try again (also as Retry-After).
   defp lookup_failed(conn, e) do
-    {status, retry_after, message, details} = Lookup.http_error(e)
+    {status, retry_after, message, details} = Lookup.http_error(e, I18n.locale(conn))
 
     conn
     |> then(&if(retry_after, do: put_resp_header(&1, "retry-after", "#{retry_after}"), else: &1))
-    |> error(status, e.code, message, details)
+    |> json(status, %{error: %{code: e.code, message: message, details: details}})
   end
 
   # ── edits ────────────────────────────────────────────────────────────
@@ -364,25 +354,14 @@ defmodule Kotiko.RouterV1 do
   defp write_error(conn, :not_found), do: gone(conn)
   defp write_error(conn, :deleted), do: gone(conn)
 
-  defp write_error(conn, :scrubbed) do
-    error(conn, 410, "word_gone", "That word was removed too long ago to restore.", %{
-      reason: "scrubbed"
-    })
-  end
+  defp write_error(conn, :scrubbed),
+    do: error(conn, 410, "word_gone", %{reason: "scrubbed"})
 
-  defp write_error(conn, {:stale, w}) do
-    error(conn, 409, "word_conflict", "This word changed since.", %{
-      reason: "stale",
-      word: Word.to_api(w)
-    })
-  end
+  defp write_error(conn, {:stale, w}),
+    do: error(conn, 409, "word_conflict", %{reason: "stale", word: Word.to_api(w)})
 
-  defp write_error(conn, {:conflict, other}) do
-    error(conn, 409, "word_conflict", "Another word already has that key.", %{
-      reason: "duplicate",
-      other_id: other
-    })
-  end
+  defp write_error(conn, {:conflict, other}),
+    do: error(conn, 409, "word_conflict", %{reason: "duplicate", other_id: other})
 
   defp write_error(conn, {:invalid, e}), do: invalid_word(conn, e)
 
@@ -408,12 +387,12 @@ defmodule Kotiko.RouterV1 do
         json(conn, 200, PronunciationRefresh.control(String.to_existing_atom(action)))
 
       _ ->
-        invalid(conn, %{field: "action"}, "Send {\"action\": \"pause\"} or \"resume\".")
+        invalid(conn, %{field: "action"})
     end
   end
 
   match _ do
-    error(conn, 404, "not_found", "No such route.")
+    error(conn, 404, "not_found")
   end
 
   # ── parameters ───────────────────────────────────────────────────────
@@ -508,15 +487,16 @@ defmodule Kotiko.RouterV1 do
 
   # ── responses ────────────────────────────────────────────────────────
 
-  defp gone(conn), do: error(conn, 404, "word_gone", "That word was already removed.")
+  defp gone(conn), do: error(conn, 404, "word_gone")
 
-  defp invalid(conn, details, message \\ "The server couldn't read that request."),
-    do: error(conn, 400, "invalid_request", message, details)
+  defp invalid(conn, details), do: error(conn, 400, "invalid_request", details)
 
-  defp invalid_word(conn, details),
-    do: error(conn, 400, "invalid_word", "That change isn't a valid word.", details)
+  defp invalid_word(conn, details), do: error(conn, 400, "invalid_word", details)
 
-  defp error(conn, status, code, message, details \\ %{}) do
+  # Slice 25: a stable code, its details, and the catalog's message (Kotiko.I18n) in the
+  # request's language.
+  defp error(conn, status, code, details \\ %{}) do
+    message = I18n.error_message(I18n.locale(conn), code, details)
     json(conn, status, %{error: %{code: code, message: message, details: details}})
   end
 

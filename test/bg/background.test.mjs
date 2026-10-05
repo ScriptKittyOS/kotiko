@@ -171,7 +171,9 @@ describe("sync", () => {
   const failures = [
     ["rejected token", {}, () => new Response("unauthorized", { status: 401 }), { code: "server_key_rejected", details: { status: 401 } }],
     ["server error with a message", {}, () => json(500, { error: "Database is locked." }), { code: "internal", details: { status: 500, error: "Database is locked." } }],
-    ["server error without one", {}, () => new Response("<h1>Bad gateway</h1>", { status: 502 }), { code: "internal", details: { status: 502 } }],
+    // A proxy whose server is down (25): the server is unreachable, not broken.
+    ["a gateway whose server is down", {}, () => new Response("<h1>Bad gateway</h1>", { status: 502 }), { code: "server_unreachable", details: { reason: "gateway", status: 502 } }],
+    ["a server error without a message", {}, () => new Response("oops", { status: 500 }), { code: "internal", details: { status: 500 } }],
     ["unreachable", {}, () => Promise.reject(new TypeError("fetch failed")), { code: "server_unreachable", details: { reason: "network" } }],
     ["a missing route", {}, () => new Response("not found", { status: 404 }), { code: "not_kotiko_server", details: { status: 404 } }],
     ["a host check failure", {}, () => new Response("misdirected", { status: 421 }), { code: "server_address_invalid", details: { status: 421 } }],
@@ -410,12 +412,23 @@ describe("add and remove relay", () => {
     assert.deepEqual(store.words, [WORDS[1]]);
   });
 
-  test("remove encodes the id into the path", async () => {
+  test("remove encodes the id into the path; a word already gone is what Undo wanted", async () => {
     const { fetch, requests } = stubFetch(() => json(404, { error: "No such word." }));
     const { send } = loadBackground({ fetch });
-    assert.deepEqual(await send({ type: "remove", id: "1/../x?y" }, POPUP), { error: "No such word.", code: "http_error", details: { status: 404 } });
+    assert.deepEqual(await send({ type: "remove", id: "1/../x?y" }, POPUP), { ok: true });
     assert.equal(requests[0].url, "http://127.0.0.1:4999/api/words/1%2F..%2Fx%3Fy");
   });
+
+  // Slice 25: a 0.2 route's bare status becomes a code from the catalog, never "http_error".
+  for (const [status, code] of [[401, "server_key_rejected"], [500, "internal"], [503, "server_unreachable"], [429, "rate_limited"]]) {
+    test(`remove: a ${status} from a 0.2 route reads as ${code}`, async () => {
+      const { fetch } = stubFetch(() => json(status, { error: "Nope." }));
+      const { send } = loadBackground({ fetch });
+      const res = await send({ type: "remove", id: "7" }, POPUP);
+      assert.equal(res.code, code);
+      assert.equal(res.details.status, status);
+    });
+  }
 });
 
 describe("against the fixture server", () => {
@@ -826,23 +839,32 @@ describe("message senders (research 03 E3)", () => {
     }
   });
 
+  // The learner's own mistakes carry slice 25's codes; malformed messages are bugs.
   const badPayloads = [
-    ["empty text", { type: "add", text: "" }],
-    ["text over 200 characters", { type: "add", text: "x".repeat(201) }],
-    ["text that isn't a string", { type: "add", text: ["dog"] }],
-    ["an id that's an object", { type: "remove", id: { toString: "2" } }],
-    ["an id that's a fraction", { type: "remove", id: 1.5 }],
-    ["a missing id", { type: "remove" }],
+    ["empty text", { type: "add", text: "" }, "empty_input"],
+    ["blank text", { type: "add", text: "   " }, "empty_input"],
+    ["text over 200 characters", { type: "add", text: "x".repeat(201) }, "input_too_long"],
+    ["text that isn't a string", { type: "add", text: ["dog"] }, "invalid_message"],
+    ["an id that's an object", { type: "remove", id: { toString: "2" } }, "invalid_message"],
+    ["an id that's a fraction", { type: "remove", id: 1.5 }, "invalid_message"],
+    ["a missing id", { type: "remove" }, "invalid_message"],
   ];
-  for (const [name, msg] of badPayloads) {
+  for (const [name, msg, code] of badPayloads) {
     test(`rejects ${name} without calling the server`, async () => {
       const { fetch, requests } = serverWith(WORDS);
       const { send } = loadBackground({ fetch });
       const res = await send(msg, POPUP);
-      assert.equal(res.error.code, "invalid_message");
+      assert.equal(res.error.code, code);
       assert.equal(requests.length, 0);
     });
   }
+
+  test("200 characters are counted as characters, not UTF-16 units", async () => {
+    const { fetch } = lookupServer([v1(3, "дом", "house")], () => json(200, { words: WORDS }));
+    const { send } = loadBackground({ fetch });
+    const res = await send({ type: "add", text: "😀".repeat(200) }, POPUP);
+    assert.equal(res.ok, true, JSON.stringify(res));
+  });
 
   test("text of exactly 200 characters is fine", async () => {
     const { fetch } = serverWith(WORDS);

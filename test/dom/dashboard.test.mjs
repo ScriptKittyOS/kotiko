@@ -118,7 +118,7 @@ async function openDashboard({ local = CONNECTED, sync = {}, session = {}, local
   };
   runInWindow(dom, "lib/i18n.js");
   w.KotikoI18n._setLoader(async (l) => readMessages(l));
-  for (const rel of ["spec/spec.js", "lib/lang.js", "lib/welcome-model.js", "ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/word-search.js", "lib/dashboard-model.js", "lib/precedence.js", "lib/word-source.js", "lib/text.js", "bulk/parse.js", "bulk/sheet.js", "lib/lookup-status.js", "lib/story.js", "dashboard.js"]) {
+  for (const rel of ["spec/spec.js", "lib/lang.js", "lib/welcome-model.js", "ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/word-search.js", "lib/dashboard-model.js", "lib/precedence.js", "lib/word-source.js", "lib/text.js", "bulk/parse.js", "bulk/sheet.js", "lib/lookup-status.js", "lib/errors.js", "lib/story.js", "dashboard.js"]) {
     runInWindow(dom, rel);
     if (rel === "lib/story.js") w.KotikoStory._setLoader(async (l) => readExt(`story/${l}.md`));
   }
@@ -216,6 +216,18 @@ describe("states (§11)", () => {
     assert.equal(d.$("#settingsView").hidden, false);
   });
 
+  test("a rejected key blocks with Connection settings; Details copies no word data (25 §3)", async () => {
+    const d = await openDashboard({ backend: fakeBackend({ failList: { error: "The server rejected that API token.", code: "server_key_rejected", details: { status: 401 } } }) });
+    assert.equal(d.$("#banners .banner").dataset.severity, "blocking");
+    assert.equal(d.text("#banners .banner-body"), "Your Kotiko server didn't accept the access key. Paste it again in Connection settings.");
+    assert.equal(d.text("#banners .btn"), "Connection settings");
+    const copied = [];
+    Object.defineProperty(d.w.navigator, "clipboard", { value: { writeText: async (text) => void copied.push(text) }, configurable: true });
+    d.$('#banners [data-action="copy-details"]').click();
+    await d.settle();
+    assert.match(copied[0], /^Kotiko 0\.0\.0-test\n.+\ncode: server_key_rejected\nThe server rejected that API token\.\nHTTP 401$/);
+  });
+
   test("server unreachable: a calm state banner with Try again, and the list says why it's empty", async () => {
     const d = await openDashboard({ backend: fakeBackend({ failList: { error: "Can't reach", code: "server_unreachable", details: { reason: "network" } } }) });
     assert.equal(d.$("#banners .banner").dataset.severity, "state");
@@ -224,7 +236,7 @@ describe("states (§11)", () => {
     d.backend.failList = null;
     d.$("#banners .btn").click();
     await d.settle();
-    assert.equal(d.$("#banners").children.length, 0);
+    assert.equal(d.$("#banners").children.length, 0, d.text("#banners"));
     assert.equal(d.rows().length > 0, true);
   });
 });
@@ -687,11 +699,11 @@ describe("adding words (§8; 24's preview, full control)", () => {
       zz: { candidates: [], rejected: [{ native: "zz", reason: "script_mismatch" }], code: "bad_lookup_result" },
     };
     const expected = {
-      a: /^You've used today's free lookups\. Try again after \d{1,2}:\d{2}/,
-      b: /^Word lookup is busy\. Try again in a minute\./,
+      a: /^You've used today's free lookups\. Add words yourself, or try again after \d{1,2}:\d{2}/,
+      b: /^Word lookup is busy\. Try again in a minute, or add the word yourself\./,
       c: /^OpenRouter didn't accept your Kotiko server's key\./,
-      d: /^Word lookup isn’t set up on your Kotiko server yet\./,
-      e: /^That lookup took too long\. Try again\./,
+      d: /^Word lookup isn't set up on your Kotiko server yet\. Words you type as “word = meaning” still work\./,
+      e: /^That lookup took too long\. Try again, or add the word yourself\./,
       perro: /^“perro” is already a word in Spanish\./,
       zz: /^The lookup came back garbled\./,
     };

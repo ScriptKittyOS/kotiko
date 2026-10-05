@@ -38,10 +38,9 @@ off.
 
 **Bodies.** Send JSON with `Content-Type: application/json`, UTF-8. A body may be at most
 64,000 bytes, except `POST /api/v1/words/batch`, which takes up to 1,000,000 bytes. A larger
-body gets `413`; JSON that can't be parsed gets `400`. Always send the JSON content type: a
-body sent as another type (`curl -d` alone sends `application/x-www-form-urlencoded`) isn't
-read, and today the body routes then fail with `500 internal` instead of a clear `400`
-(a known bug).
+body gets `413`; JSON that can't be parsed gets `400`. A body sent as another type (`curl -d`
+alone sends `application/x-www-form-urlencoded`) gets `415` with the error
+`invalid_request` (`details.reason`: `content_type`); add `-H 'Content-Type: application/json'`.
 
 **No browser access from web pages.** The server sends no CORS headers, so a script on a
 web page can't read its answers. The extension calls it from its own background page.
@@ -61,8 +60,13 @@ Routes under `/api/v1` answer errors in one shape:
 {"error": {"code": "word_conflict", "message": "This word changed since.", "details": {}}}
 ```
 
-- `code` is stable and meant for programs. `message` is a short plain-English sentence for
-  people; it can change. `details` is an object, often empty.
+- `code` is stable and meant for programs. `message` is a short plain sentence for people;
+  it can change. `details` is an object, often empty.
+- `message` comes from the server's catalog (`server/priv/locales/<locale>/messages.json`,
+  the key `error_<code>`, or `error_<code>_<reason>` and `error_<code>_<field>` where those
+  say more). Its language follows the request's `Accept-Language` among the shipped locales,
+  else English. Only English ships today; a translator adds a folder. The extension doesn't
+  show `message`: it words each code itself, in the learner's interface language.
 - The codes and what they mean to the learner are slice 25's
   ([plain-language errors](../../slices/25-plain-language-errors/SPEC.md)).
 
@@ -77,6 +81,7 @@ Routes under `/api/v1` answer errors in one shape:
 | 409 | `word_conflict` | `details.reason`: `stale` (changed since `if_updated_at`, with the current `details.word`) or `duplicate` (another word has the same language, text and meaning, `details.other_id`) |
 | 410 | `word_gone` | A restore after the 30 days (`details.reason`: `scrubbed`) |
 | 413 | `request_too_large` | The body is over the limit |
+| 415 | `invalid_request` | The body isn't JSON (`details.reason`: `content_type`) |
 | 421 | `server_address_invalid` | The `Host` header names a host the server doesn't answer to |
 | 429 | `rate_limited`, `quota_exhausted` | The model provider is busy, or today's free lookups are used up; `Retry-After` (seconds) and `details.retry_at` when known; `details.reason` is `payment_required` when the provider wants credit |
 | 502 | `key_rejected`, `model_unavailable`, `bad_lookup_result` | The provider refused the server's key, no model could answer, or the answer wasn't usable |
@@ -212,7 +217,9 @@ curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
 - `rejected`: words the checks refused, each with its `reason`.
 - `dropped_forms`, `dropped_fields`: parts of an answer that were left out, with reasons.
 - `missing_bases`: base languages the model gave no meaning for.
-- `code`: present when no word was saved (for example `no_word_found`).
+- `code`: present when no word was saved: `no_word_found` (nothing found),
+  `rejected_same_as_gloss` (every word was already a word in that base language, or its
+  meaning was the word itself) or `bad_lookup_result` (the answer couldn't be used).
 - `reply`: present when the model answered with a message instead of a word.
 
 With `"preview": true`, the answer has `candidates` (the words that would be saved, each with
@@ -249,8 +256,8 @@ import). Body up to 1,000,000 bytes.
 `200`: `{"results": [...], "rejected": [...], "dropped_fields": [...]}`, in input order. Each
 entry has `index`, its position in `words`.
 
-Errors: `400 invalid_request` with `details.field` `words` (not a list, or more than 500, with
-`details.max`) or `client_request_id`; `413 request_too_large`.
+Errors: `400 invalid_request` with `details.field` `words` (not a list, or more than 500;
+`details.max` is 500) or `client_request_id`; `413 request_too_large`.
 
 ### GET /api/v1/export
 

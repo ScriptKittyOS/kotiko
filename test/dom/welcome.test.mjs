@@ -23,7 +23,7 @@ const KEY = "sk-or-v1-0123456789abcdef0123456789abcdefa1b2";
 const FRESH = { onboarding: { completedAt: null, skipped: false, version: 2 } };
 const SCRIPTS = [
   "spec/spec.js", "lib/lang.js", "lib/wordspec.js", "lib/word-merge.js", "lib/local-mode.js", "lib/text.js", "lib/matcher.js", "lib/casing.js",
-  "lib/i18n.js", "ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/lookup-status.js", "ui/popover-style.js",
+  "lib/i18n.js", "ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/lookup-status.js", "lib/errors.js", "ui/popover-style.js",
   "content/popover.js", "ui/confetti.js", "lib/welcome-model.js", "welcome.js",
 ];
 

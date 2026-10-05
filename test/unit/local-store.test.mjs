@@ -203,13 +203,15 @@ describe("the add queue", () => {
     assert.deepEqual(job("j1").results.map((r) => [r.result, r.word.native, r.wordId]), [["created", "кот", "id-кот"]]);
   });
 
-  test("waits on rate limits and quota with the provider's retry time; fails on no word and a rejected key", async () => {
+  test("waits on rate limits and quota with the provider's retry time; fails on no word, a rejected key and a 402", async () => {
     const answers = {
       busy: { ok: false, error: { code: "rate_limited", details: { retry_at: new Date(Date.now() + 60_000).toISOString() } } },
       quota: { ok: false, error: { code: "quota_exhausted", details: { retry_at: new Date(Date.now() + 3_600_000).toISOString() } } },
       none: { ok: true, result: { words: [], code: "no_word_found", rejected: [] } },
       key: { ok: false, error: { code: "key_rejected", details: {} } },
       setup: { ok: false, error: { code: "lookup_not_set_up", details: {} } },
+      // 25 §2: a provider that wants credit (402) won't answer later either; no retry.
+      unpaid: { ok: false, error: { code: "quota_exhausted", details: { reason: "payment_required", provider: "openrouter" } } },
     };
     const { q, job, until } = queue({ lookup: async (j) => answers[j.text] });
     for (const id of Object.keys(answers)) await q.add({ id, text: id });
@@ -223,6 +225,9 @@ describe("the add queue", () => {
     assert.equal(job("key").state, "failed");
     assert.equal(job("setup").state, "waiting");
     assert.equal(job("setup").retryAt, null);
+    assert.equal(job("unpaid").state, "failed");
+    assert.equal(job("unpaid").retryAt, null);
+    assert.equal(job("unpaid").error.details.reason, "payment_required");
   });
 
   test("wake: jobs waiting for a provider run as soon as one is saved", async () => {

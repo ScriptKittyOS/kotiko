@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 // SPDX-License-Identifier: Apache-2.0
 
-// Slice 10: the free lookups left and the lookup error codes, as the popup and the
-// dashboard word them (extension/lib/lookup-status.js).
+// Slice 10: the free lookups left, as the popup and the dashboard word them
+// (extension/lib/lookup-status.js). Lookup errors are lib/errors.js's (test/unit/errors.test.mjs).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -34,22 +34,6 @@ test("the quota line: at 20 or fewer, none at 0 with the reset time, nothing whe
   assert.equal(S.quotaLine(status(3, "2026-10-02T00:00:00.000Z"), { now: NOW }), null, "numbers from before the reset");
   assert.equal(S.quotaLine({ provider: "localhost", quota: null }, { now: NOW }), null);
   assert.equal(S.quotaLine(null), null);
-});
-
-test("lookup codes", () => {
-  assert.deepEqual(S.lookupProblem("rate_limited", { status: 429 }), { key: "error_rate_limited", params: {} });
-  assert.equal(S.lookupProblem("quota_exhausted", { reason: "daily_limit", retry_at: RESETS }, { locale: "en-GB" }).key, "error_quota_exhausted");
-  assert.deepEqual(S.lookupProblem("quota_exhausted", { reason: "daily_limit" }), { key: "error_quota_exhausted_today", params: {} });
-  assert.deepEqual(S.lookupProblem("quota_exhausted", { reason: "payment_required", provider: "openrouter" }), {
-    key: "error_quota_exhausted_payment_required",
-    params: { provider: "OpenRouter" },
-  });
-  assert.deepEqual(S.lookupProblem("key_rejected", { provider: "api.example.com" }), { key: "error_key_rejected", params: { provider: "api.example.com" } });
-  assert.deepEqual(S.lookupProblem("key_rejected", {}), { key: "error_key_rejected_generic", params: {} });
-  for (const code of ["model_unavailable", "lookup_timeout", "bad_lookup_result", "lookup_not_set_up"]) {
-    assert.equal(S.lookupProblem(code, {}).key, `error_${code}`);
-  }
-  assert.equal(S.lookupProblem("server_unreachable", {}), null, "not a lookup code");
 });
 
 test("no lookup message names a model, an API or a status number", () => {

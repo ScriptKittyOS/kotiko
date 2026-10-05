@@ -33,7 +33,8 @@ defmodule Kotiko.ConnCase do
 
   @doc """
   Runs one request through the router. `headers` replace nothing: pass two authorization
-  headers to send two. `opts`: `:host` (default "localhost"), `:body` (a map is sent as JSON).
+  headers to send two. `opts`: `:host` (default "localhost"), `:body` (a map is sent as JSON),
+  `:content_type` (default "application/json").
   """
   def request(method, raw_path, headers \\ [], opts \\ []) do
     method |> build(raw_path, headers, opts) |> Kotiko.Router.call(Kotiko.Router.init([]))
@@ -65,11 +66,13 @@ defmodule Kotiko.ConnCase do
   defp build(method, raw_path, headers, opts) do
     host = Keyword.get(opts, :host, "localhost")
 
+    type = Keyword.get(opts, :content_type, "application/json")
+
     {body, headers} =
       case Keyword.get(opts, :body) do
         nil -> {nil, headers}
-        b when is_map(b) -> {Jason.encode!(b), [{"content-type", "application/json"} | headers]}
-        b -> {b, [{"content-type", "application/json"} | headers]}
+        b when is_map(b) -> {Jason.encode!(b), [{"content-type", type} | headers]}
+        b -> {b, [{"content-type", type} | headers]}
       end
 
     conn = Plug.Test.conn(method, "http://#{host}" <> raw_path, body)
