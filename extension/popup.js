@@ -43,6 +43,11 @@
     speech: { allowOnline: false, rate: 0.9, voices: {} },
     // Slice 22: {completedAt, skipped, version} once the welcome tab's first run is done.
     onboarding: null,
+    // Slice 12 §8: the last backup saved or restored, when the reminder started counting,
+    // and "Not now" until when.
+    lastBackupAt: null,
+    backupSince: null,
+    backupSnooze: null,
   };
   const MAX_JOBS = 3;
   const DEFAULT_SERVER = "http://localhost:4747";
@@ -66,6 +71,18 @@
       byLang.get(w.lang).language ??= w.language ?? null;
     }
     return byLang;
+  }
+
+  // Slice 12 §8: words only in this browser, at least 20, and no backup for 30 days (counted
+  // from the update that brought the reminder, so nobody is nagged on day one).
+  const BACKUP_DAYS = 30;
+  const DAY_MS = 86_400_000;
+  function backupDue(s, now = Date.now()) {
+    if (!s || (s.wordsHome ?? "local") !== "local" || s.prefs?.backupReminder === false) return false;
+    if (typeof s.backupSnooze === "number" && now < s.backupSnooze) return false;
+    if (wordTotal(s.words) < 20) return false;
+    const since = typeof s.lastBackupAt === "number" ? s.lastBackupAt : typeof s.backupSince === "number" ? s.backupSince : null;
+    return since !== null && now - since > BACKUP_DAYS * DAY_MS;
   }
 
   function wordTotal(words) {
@@ -268,6 +285,10 @@
         return el("button", { class: "btn btn-secondary btn-sm", type: "button", onclick: requestPermission, "data-action": "allow" }, t("error_permission_missing_action"));
       case "setupLookups":
         return el("button", { class: "btn btn-secondary btn-sm", type: "button", onclick: openLookupSettings, "data-action": "setup-lookups" }, t("popup_set_up_lookups"));
+      case "backupNow":
+        return el("button", { class: "btn btn-secondary btn-sm", type: "button", onclick: () => openDashboardAt("#settings/data/backup"), "data-action": "backup-now" }, t("popup_backup_now"));
+      case "notNow":
+        return el("button", { class: "link link-quiet", type: "button", onclick: () => ext.storage.local.set({ backupSnooze: Date.now() + BACKUP_DAYS * DAY_MS }), "data-action": "not-now" }, t("popup_backup_not_now"));
       default:
         return null;
     }
@@ -342,7 +363,8 @@
     }
     // Words in this browser: only "no AI set up yet" (11 §9); the first-run card without words.
     if (mode(s) === "local") {
-      return n && !lookupReady(s) ? { severity: "info", text: t("popup_lookups_off"), actions: ["setupLookups"], id: "bannerLookups" } : null;
+      if (n && !lookupReady(s)) return { severity: "info", text: t("popup_lookups_off"), actions: ["setupLookups"], id: "bannerLookups" };
+      return backupDue(s) ? { severity: "info", text: t("popup_backup_reminder", { count: n }), actions: ["backupNow", "notNow"], id: "bannerBackup" } : null;
     }
     if (!hasToken(s)) {
       return n ? { severity: "info", text: t("popup_not_connected", { count: n }), actions: ["settings"], id: "bannerSync" } : null;
@@ -1160,6 +1182,9 @@
     speech: [renderVoices],
     lookupStatus: [renderQuota],
     onboarding: [renderSections],
+    lastBackupAt: [renderBanners],
+    backupSnooze: [renderBanners],
+    prefs: [renderBanners],
   };
 
   function renderFor(keys) {
@@ -1323,5 +1348,5 @@
     requestAnimationFrame(() => setTimeout(loadVoices, 0));
   }
 
-  globalThis.KotikoPopup = { wordGroups, wordTotal, languages, hostOf, syncProblem, addProblem, mode, lookupReady, state, ready: init() };
+  globalThis.KotikoPopup = { wordGroups, wordTotal, languages, hostOf, syncProblem, addProblem, mode, lookupReady, backupDue, state, ready: init() };
 })();

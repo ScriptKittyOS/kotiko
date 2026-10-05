@@ -279,7 +279,14 @@ access to all websites. Temporary add-ons are removed when Firefox restarts.
   already polling with the same token; stop it.
 - **A site acts strangely**: some apps don't like their text being rewritten. Use
   "Pause on this site" in the popup.
-- **Start over**: stop the server and delete `~/.local/share/kotiko/kotiko.db`.
+- **Back up, restore, start over**: in the extension, the dashboard's Settings, "Your
+  data": export a backup (JSON), a spreadsheet (CSV) or Anki cards, restore a backup, or
+  "Delete everything…" (tick "Also delete all words on my Kotiko server" to empty the server
+  too). On the server, in `server/`: `mix kotiko.export --output backup.json`,
+  `mix kotiko.import backup.json`, and `mix kotiko.reset`, which asks first and copies the
+  database to `backups/` before deleting every word (`--yes` doesn't ask, `--no-backup`
+  skips the copy). Settings, the API token and the Telegram pairing stay. Uninstalling the
+  extension deletes everything it kept in your browser.
 
 ## API
 
@@ -296,6 +303,8 @@ reference, with every field, limit and error, is
 | `POST /api/v1/words/batch` `{"words": [...]}` | Saves up to 500 words at once, without the model |
 | `PATCH /api/v1/words/:id` | Edits the fields you send; `if_updated_at` (or `If-Match`) refuses a stale edit |
 | `DELETE /api/v1/words/:id`, `POST /api/v1/words/:id/restore` | Deletes a word, and undoes that for 30 days |
+| `GET /api/v1/export` | Every word as a Kotiko JSON backup (`spec/export.schema.json`); `?include=pending` adds Telegram lookups never added, `?download=1` makes it a file |
+| `DELETE /api/v1/words` `{"confirm": "delete-all-words"}` | Deletes every word, pending lookup and deleted word; returns `{"deleted", "reset_epoch"}`. Without the confirmation: 400, nothing deleted |
 | `GET`/`POST /api/v1/jobs/pronunciation-refresh` | The one-time job adding pronunciations to saved words; `{"action": "pause"}` or `"resume"` |
 | `GET /api/v1/llm/status` | The lookup service: `provider`, the `models` an add asks now, and `quota` (`used`, `limit`, `remaining`, `resets_at`; OpenRouter only, else `null`) |
 | `GET /api/words`, `POST /api/words`, `DELETE /api/words/:id` | The routes the 0.2 extension uses (words for English pages only); removed one minor version after `/api/v1` ships |

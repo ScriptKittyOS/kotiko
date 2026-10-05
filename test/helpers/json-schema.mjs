@@ -4,14 +4,27 @@
 // A small JSON Schema (2020-12) checker for the spec/ data files and fixtures: the
 // keywords those schemas use (type, enum, const, required, properties,
 // additionalProperties, items, min/maxItems, min/maxLength, pattern, minimum, maximum,
-// anyOf, $ref to #/$defs). Returns a list of "path: problem" strings, empty when valid.
+// anyOf, $ref to #/$defs or to a registered file). Returns a list of "path: problem" strings, empty when valid.
 const typeOf = (v) =>
   v === null ? "null" : Array.isArray(v) ? "array" : Number.isInteger(v) ? "integer" : typeof v;
+
+const schemas = new Map();
+// Makes a schema file reachable from a `$ref` by its name ("word.schema.json").
+export function register(name, schema) {
+  schemas.set(name, schema);
+}
 
 export function validate(schema, value, root = schema, where = "$") {
   if (schema === true) return [];
   if (schema === false) return [`${where}: not allowed`];
   if (schema.$ref) {
+    // Another schema file (export.schema.json's words are word.schema.json), registered
+    // with `register`.
+    if (!schema.$ref.startsWith("#")) {
+      const other = schemas.get(schema.$ref);
+      if (!other) return [`${where}: unknown schema ${schema.$ref}`];
+      return validate(other, value, other, where);
+    }
     const name = schema.$ref.replace(/^#\/\$defs\//, "");
     return validate(root.$defs[name], value, root, where);
   }

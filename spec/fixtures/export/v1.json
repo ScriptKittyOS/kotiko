@@ -1,0 +1,61 @@
+{
+  "format": "kotiko.words",
+  "schemaVersion": 1,
+  "exportedAt": "2026-06-01T12:00:00.000Z",
+  "app": {
+    "name": "Kotiko",
+    "version": "0.2.0",
+    "source": "extension"
+  },
+  "words": [
+    {
+      "id": "0199a000-0000-7000-8000-0000000000c9",
+      "lang": "ru",
+      "native": "пожалуйста",
+      "english": "please",
+      "forms": [
+        "please"
+      ],
+      "romanization": "pazhaluysta",
+      "note": null,
+      "status": "active",
+      "origin": "add",
+      "created_at": "2026-05-01T12:00:00.000Z",
+      "updated_at": "2026-05-01T12:00:00.000Z",
+      "deleted_at": null
+    },
+    {
+      "id": "0199a000-0000-7000-8000-0000000000ca",
+      "lang": "ru",
+      "native": "кошка",
+      "english": "cat",
+      "forms": [
+        "cat",
+        "cats"
+      ],
+      "romanization": "koshka",
+      "note": "feminine",
+      "status": "active",
+      "origin": "add",
+      "created_at": "2026-05-02T12:00:00.000Z",
+      "updated_at": "2026-05-02T12:00:00.000Z",
+      "deleted_at": null
+    },
+    {
+      "id": "0199a000-0000-7000-8000-0000000000cb",
+      "lang": "ja",
+      "native": "水",
+      "english": "water",
+      "forms": [
+        "water"
+      ],
+      "romanization": "mizu",
+      "note": null,
+      "status": "paused",
+      "origin": "telegram",
+      "created_at": "2026-05-03T12:00:00.000Z",
+      "updated_at": "2026-05-03T12:00:00.000Z",
+      "deleted_at": null
+    }
+  ]
+}

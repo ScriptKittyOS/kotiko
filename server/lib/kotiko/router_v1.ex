@@ -13,6 +13,7 @@ defmodule Kotiko.RouterV1 do
 
   alias Kotiko.{
     AddRequests,
+    Backup,
     Lang,
     Lookup,
     PronunciationRefresh,
@@ -51,6 +52,59 @@ defmodule Kotiko.RouterV1 do
     case word(id) do
       %Word{} = w -> json(conn, 200, %{word: Word.to_api(w)})
       nil -> gone(conn)
+    end
+  end
+
+  # ── backups (slice 12) ───────────────────────────────────────────────
+
+  # The JSON backup (spec/export.schema.json), streamed in id order. `include=pending` adds
+  # Telegram lookups that were never added; `download=1` makes it a file download.
+  get "/export" do
+    conn = fetch_query_params(conn)
+    q = conn.query_params
+    pending? = "pending" in String.split(q["include"] || "", ",", trim: true)
+
+    conn =
+      if q["download"] == "1" do
+        name = "kotiko-backup-#{Date.to_iso8601(Date.utc_today())}.json"
+        put_resp_header(conn, "content-disposition", ~s(attachment; filename="#{name}"))
+      else
+        conn
+      end
+
+    conn =
+      conn
+      |> put_resp_content_type("application/json")
+      |> put_resp_header("cache-control", "no-store")
+      |> send_chunked(200)
+
+    {_count, conn} =
+      Backup.reduce(
+        conn,
+        fn data, conn ->
+          {:ok, conn} = chunk(conn, data)
+          conn
+        end,
+        include_pending: pending?
+      )
+
+    conn
+  end
+
+  # Deletes every word, pending lookup and tombstone; only with the confirmation in the
+  # body, so a stray DELETE can't empty the server.
+  delete "/words" do
+    case conn.body_params do
+      %{"confirm" => "delete-all-words"} ->
+        {:ok, result} = Backup.delete_all()
+        json(conn, 200, result)
+
+      _ ->
+        invalid(
+          conn,
+          %{field: "confirm"},
+          "Send {\"confirm\": \"delete-all-words\"} to delete every word."
+        )
     end
   end
 

@@ -1,0 +1,11 @@
+{
+  "format": "kotiko.words",
+  "schemaVersion": 3,
+  "exportedAt": "2027-06-01T12:00:00.000Z",
+  "app": {
+    "name": "Kotiko",
+    "version": "9.0.0",
+    "source": "extension"
+  },
+  "words": []
+}

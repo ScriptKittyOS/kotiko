@@ -9,6 +9,7 @@ the server (`Kotiko.Spec`, compiled into the release) and the extension (its cop
 |---|---|
 | `VERSION` | The spec version (SemVer). A prompt change bumps the minor version. |
 | `word.schema.json` | JSON Schema of the word record (slice 07). |
+| `export.schema.json` | Slice 12: JSON Schema of the backup file both runtimes write and read (its words are `word.schema.json` records). |
 | `model-output.schema.json` | What the lookup prompt asks the model for. Lenient: the extractor repairs common deviations. |
 | `respell-output.schema.json` | What the respell prompt asks the model for. |
 | `prompt.md` | The prompt, in fenced `prompt <name>` sections, with `{{placeholders}}`. |
@@ -22,8 +23,10 @@ the server (`Kotiko.Spec`, compiled into the release) and the extension (its cop
 | `eval/` | The golden evaluation set and its runner. See `eval/README.md`. |
 | `tools/` | `gen-lang-data.mjs` (CLDR data), `sync-extension.mjs` (the extension's copy), `fixture-results.mjs` (the full-output snapshot). |
 
-`export.schema.json` (slice 12) joins this folder with its slice. `fixtures/merge.json`
-(slice 07's merge rules) is checked by both runtimes: `Kotiko.WordMerge` and the
+`fixtures/export/` (slice 12) holds backups both runtimes restore: every script with
+pronunciations from both sources, a version 1 backup, a bilingual one, one from a newer
+Kotiko and one with invalid words, plus the CSV and Anki files the extension writes from
+the first. `fixtures/merge.json` (slice 07's merge rules) is checked by both runtimes: `Kotiko.WordMerge` and the
 extension's `lib/word-merge.js`.
 
 ## How the runtimes use it

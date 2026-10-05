@@ -5,7 +5,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { createI18n, LOCALES, readMessages } from "../helpers/fake-i18n.mjs";
-import { manifest, readExt } from "../helpers/load-script.mjs";
+import { manifest, readExt, requireExt } from "../helpers/load-script.mjs";
 import vm from "node:vm";
 
 // Only English must be complete (DECISIONS 2026-10-05). Other locales are optional and may
@@ -101,11 +101,13 @@ describe("locale files", () => {
 
   test("every key the dashboard uses exists", () => {
     const en = readMessages("en");
-    const src = readExt("dashboard.html") + readExt("dashboard.js") + readExt("lib/dashboard-model.js");
+    const src = readExt("dashboard.html") + readExt("dashboard.js") + readExt("lib/dashboard-model.js") + readExt("data-tools.js");
     const used = new Set([
       ...[...src.matchAll(/data-i18n(?:-[a-z-]+)?="([a-z_A-Z]+)"/g)].map((m) => m[1]),
       ...[...src.matchAll(/\b(?:t|parts)\("([a-zA-Z_]+)"/g)].map((m) => m[1]),
-      ...[...src.matchAll(/"(dash_[a-z_]+)"/g)].map((m) => m[1]),
+      ...[...src.matchAll(/"((?:dash|data)_[a-z_]+)"/g)].map((m) => m[1]),
+      // Slice 12's CSV headers, one per export column.
+      ...requireExt("lib/export-files.js").CSV_COLUMNS.map((c) => `export_csv_col_${c}`),
     ]);
     assert.deepEqual([...used].filter((k) => !(k in en) && !(`${k}_other` in en)), []);
   });

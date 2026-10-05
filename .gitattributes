@@ -4,3 +4,5 @@
 *.ico binary
 *.zip binary
 *.db binary
+# Slice 12: golden CSV exports keep their CRLF line ends and byte-order mark.
+spec/fixtures/export/*.csv -text

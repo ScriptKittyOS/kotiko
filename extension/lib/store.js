@@ -9,10 +9,12 @@
 //   store.upsertByNatural(words, {explicit, origin, jobId})  -> {results, applied}
 //   store.list() / get(id) / update(id, patch, {if_updated_at}) / remove(id) / restore(id)
 //   store.changesSince(iso) / recentLangs(5) / replaceAll(words) / seed(words)
+//   store.importWords(backupWords, {restoreDeleted}) / undoImport()   (slice 12)
 //   store.secrets.get(id) / set(id, value) / remove(id) / ids()
 //   store.meta.get(key) / set(key, value)
 //   store.cache.get(key) / put(key, value) / prune()
 //   store.onCommit(fn)                fn({reason, by}) after any committed word write
+//   KotikoStore.wipe({ indexedDB })    deletes the whole database (slice 12's delete everything)
 //
 // Object stores (database version 1): words (key id; indexes natural, group, updated_at,
 // lang, base_lang), outbox, secrets, meta, jobs (add jobs already applied, by job id: a
@@ -396,6 +398,56 @@
       return n;
     }
 
+    // Restores a backup's checked words (slice 12 section 5, lib/backup.js) in one
+    // transaction, so pages update once: the plan is made against the records as they are
+    // inside it. Keeps what each write replaced in meta `lastImport` for Undo (24 hours).
+    // Returns {counts, items, restoreDeleted, written}.
+    async function importWords(fileWords, { restoreDeleted = null, by = null, label = null } = {}) {
+      const Backup = globalThis.KotikoBackup;
+      const out = await tx(["words", "meta"], "readwrite", async ({ words, meta: m }) => {
+        const existing = (await request(words.getAll())).map(pub);
+        const t = now();
+        const p = Backup.plan(fileWords, existing, { restoreDeleted, now: t });
+        const live = existing.filter((w) => !w.deleted_at && w.status !== "pending").length;
+        const added = p.writes.filter((x) => !x.previous || x.previous.deleted_at).length;
+        if (added && live + added > MAX_VOCABULARY) throw codedError("vocabulary_full", `At most ${MAX_VOCABULARY} words.`, { max: MAX_VOCABULARY });
+        for (const { record: r } of p.writes) await request(words.put({ ...r, native_key: Merge.nativeKey(r.native) }));
+        if (p.writes.length) {
+          const writes = p.writes.map(({ record: r, previous }) => ({ id: r.id, updated_at: r.updated_at, previous: previous ? { ...previous, native_key: Merge.nativeKey(previous.native) } : null }));
+          await request(m.put({ key: "lastImport", value: { at: t, label, counts: p.counts, writes } }));
+        }
+        return { counts: p.counts, items: p.items, restoreDeleted: p.restoreDeleted, written: p.writes.length };
+      });
+      if (out.written) committed({ reason: "import", by });
+      return out;
+    }
+
+    // Undoes the last import within 24 hours: records it created are removed, records it
+    // changed get their previous version back. A record changed again since is left alone
+    // and counted in `changed`.
+    async function undoImport({ by = null, maxAgeMs = DAY } = {}) {
+      const out = await tx(["words", "meta"], "readwrite", async ({ words, meta: m }) => {
+        const last = (await request(m.get("lastImport")))?.value;
+        if (!last || now() - last.at > maxAgeMs) return { ok: false, code: "nothing_to_undo", undone: 0, changed: 0 };
+        let undone = 0;
+        let changed = 0;
+        for (const wr of last.writes) {
+          const cur = await request(words.get(wr.id));
+          if (!cur || cur.updated_at !== wr.updated_at) {
+            changed++;
+            continue;
+          }
+          if (wr.previous) await request(words.put(wr.previous));
+          else await request(words.delete(wr.id));
+          undone++;
+        }
+        await request(m.delete("lastImport"));
+        return { ok: true, undone, changed };
+      });
+      if (out.undone) committed({ reason: "undo-import", by });
+      return out;
+    }
+
     const secrets = {
       get: async (id) => (await tx("secrets", "readonly", ({ secrets: s }) => request(s.get(id))))?.value ?? null,
       set: (id, value) => tx("secrets", "readwrite", ({ secrets: s }) => request(s.put({ id, value }))),
@@ -406,6 +458,7 @@
     const meta = {
       get: async (key) => (await tx("meta", "readonly", ({ meta: m }) => request(m.get(key))))?.value ?? null,
       set: (key, value) => tx("meta", "readwrite", ({ meta: m }) => request(m.put({ key, value }))),
+      remove: (key) => tx("meta", "readwrite", ({ meta: m }) => request(m.delete(key))),
     };
 
     // The lookup cache (slice 10 section 5): checked results only, 30 days, the 5,000 used
@@ -464,6 +517,8 @@
       restore,
       replaceAll,
       seed,
+      importWords,
+      undoImport,
       pruneJobs,
       secrets,
       meta,
@@ -476,7 +531,26 @@
     };
   }
 
-  const api = { open, openDb, uuid7, pub, DB_NAME, DB_VERSION, MAX_VOCABULARY };
+  // Deletes the database and everything in it (words, tombstones, secrets, jobs, cache).
+  // Every connection must be closed first; one still open (an older page) blocks it, and
+  // after `timeoutMs` that is an error rather than a wait forever.
+  function wipe({ indexedDB = globalThis.indexedDB, name = DB_NAME, timeoutMs = 10_000 } = {}) {
+    return new Promise((resolve, reject) => {
+      if (!indexedDB?.deleteDatabase) return reject(codedError("storage_full", "IndexedDB isn't available here.", { reason: "no_indexeddb" }));
+      const timer = setTimeout(() => reject(codedError("storage_full", "The word store is still open somewhere.", { reason: "blocked" })), timeoutMs);
+      const r = indexedDB.deleteDatabase(name);
+      r.onsuccess = () => {
+        clearTimeout(timer);
+        resolve(true);
+      };
+      r.onerror = () => {
+        clearTimeout(timer);
+        reject(codedError("storage_full", String(r.error?.message ?? r.error), { reason: r.error?.name ?? "delete_failed" }));
+      };
+    });
+  }
+
+  const api = { open, openDb, wipe, uuid7, pub, DB_NAME, DB_VERSION, MAX_VOCABULARY };
   globalThis.KotikoStore = api;
   if (typeof module === "object" && module.exports) module.exports = api;
 })();

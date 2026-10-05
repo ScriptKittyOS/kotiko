@@ -463,8 +463,9 @@ Built 2026-10-05:
 - **The popup.** Pasting two lines or more keeps the list whole in `storage.session`
   (`bulkDraft`) and offers "Open bulk add". The one-line box would drop the line breaks.
 - **Not yet:**
-  - Kotiko's own backup JSON (12) and Anki exports written by Kotiko (12 §4) are only
-    recognised;
+  - Anki exports written by Kotiko (12 §4) are only recognised. Since slice 12, a Kotiko
+    backup dropped or pasted here opens 12's restore preview, and Kotiko's own CSV is read
+    with every column it writes;
   - the dashboard's ⋯ "Import a list or file" entry;
   - the welcome page's entry;
   - "Also add meanings in {base}";

@@ -1,0 +1,12 @@
+#separator:tab
+#html:false
+#notetype:Basic (and reversed card)
+#deck column:4
+#tags column:5
+#guid column:6
+#columns:Front	Back	Language	Deck	Tags	GUID
+犬 (inu) · i-nu	perro	Japanese	Kotiko::Spanish::Japanese	kotiko lang::ja base::es	kotiko-0199a000-0000-7000-8000-000000000065
+犬 (inu) · ee-noo	dog	Japanese	Kotiko::English::Japanese	kotiko lang::ja base::en	kotiko-0199a000-0000-7000-8000-000000000066
+спаси́бо (spasibo) · spa-SI-ba	gracias	Russian	Kotiko::Spanish::Russian	kotiko lang::ru base::es	kotiko-0199a000-0000-7000-8000-000000000067
+спаси́бо (spasibo) · spa-SEE-ba	thanks	Russian	Kotiko::English::Russian	kotiko lang::ru base::en	kotiko-0199a000-0000-7000-8000-000000000068
+dog	perro	English	Kotiko::Spanish::English	kotiko lang::en base::es	kotiko-0199a000-0000-7000-8000-000000000069

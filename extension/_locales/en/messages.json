@@ -4256,5 +4256,684 @@
   "popup_bulk_open": {
     "message": "Open bulk add",
     "description": "Popup (slice 13 §1): text with line breaks was pasted; opens the dashboard's bulk add with it."
+  },
+  "data_title": {
+    "message": "Your data",
+    "description": "Your data (slice 12): settings section and index entry."
+  },
+  "data_backup_label": {
+    "message": "Back up",
+    "description": "Your data (slice 12): label of the backup row."
+  },
+  "data_backup_button": {
+    "message": "Export backup (JSON)",
+    "description": "Your data (slice 12): button: saves every word to one JSON file."
+  },
+  "data_backup_help": {
+    "message": "One file with every word, to keep or to restore later. Your AI key and your server's access key are never in it.",
+    "description": "Your data (slice 12): help under the backup button."
+  },
+  "data_include_settings": {
+    "message": "Include settings",
+    "description": "Your data (slice 12): checkbox: put the (non-secret) settings in the backup."
+  },
+  "data_last_backup": {
+    "message": "Last backup: $WHEN$",
+    "description": "Your data (slice 12): when the last backup was saved or restored; {when} is relative, e.g. \"12 days ago\" or \"today\".",
+    "placeholders": {
+      "when": {
+        "content": "{when}"
+      }
+    }
+  },
+  "data_last_backup_never": {
+    "message": "No backup yet",
+    "description": "Your data (slice 12): shown beside the backup button before the first backup."
+  },
+  "data_share_label": {
+    "message": "Share",
+    "description": "Your data (slice 12): label of the spreadsheet and Anki row."
+  },
+  "data_csv_button": {
+    "message": "Spreadsheet (CSV)",
+    "description": "Your data (slice 12): button: saves the words as a CSV file for Excel, LibreOffice or Google Sheets."
+  },
+  "data_anki_button": {
+    "message": "Anki cards",
+    "description": "Your data (slice 12): button: saves the words as a file Anki can import."
+  },
+  "data_scope_all": {
+    "message": "All words",
+    "description": "Your data (slice 12): which words the spreadsheet and Anki files hold: all of them."
+  },
+  "data_scope_filter": {
+    "message": "Current filter",
+    "description": "Your data (slice 12): which words the spreadsheet and Anki files hold: the ones the word list shows now."
+  },
+  "data_restore_label": {
+    "message": "Restore",
+    "description": "Your data (slice 12): label of the restore row."
+  },
+  "data_restore_choose": {
+    "message": "Import a backup…",
+    "description": "Your data (slice 12): button: choose a Kotiko backup file to restore."
+  },
+  "data_last_restore": {
+    "message": "Restored $FILE$ today.",
+    "description": "Your data (slice 12): line under the restore button for 24 hours after a restore, followed by an Undo button.",
+    "placeholders": {
+      "file": {
+        "content": "{file}"
+      }
+    }
+  },
+  "data_reminder": {
+    "message": "Remind me to back up",
+    "description": "Your data (slice 12): switch for the monthly backup reminder in the toolbar popup."
+  },
+  "data_reminder_help": {
+    "message": "When your words are only in this browser, the toolbar popup reminds you once a month.",
+    "description": "Your data (slice 12): help under the reminder switch."
+  },
+  "data_danger_label": {
+    "message": "Danger zone",
+    "description": "Your data (slice 12): label of the row with Delete everything."
+  },
+  "data_delete_button": {
+    "message": "Delete everything…",
+    "description": "Your data (slice 12): button that opens the delete-everything dialog."
+  },
+  "data_saved_file": {
+    "message": "Saved $FILE$.",
+    "description": "Your data (slice 12): toast after an export; {file} is the file name.",
+    "placeholders": {
+      "file": {
+        "content": "{file}"
+      }
+    }
+  },
+  "data_menu_restore": {
+    "message": "Import a Kotiko backup",
+    "description": "Your data (slice 12): the dashboard's ⋯ menu."
+  },
+  "data_menu_backup": {
+    "message": "Export a backup",
+    "description": "Your data (slice 12): the dashboard's ⋯ menu."
+  },
+  "data_menu_csv": {
+    "message": "Export all words as a spreadsheet",
+    "description": "Your data (slice 12): the dashboard's ⋯ menu."
+  },
+  "data_menu_csv_filter": {
+    "message": "Export these words as a spreadsheet",
+    "description": "Your data (slice 12): the dashboard's ⋯ menu, when the word list is filtered."
+  },
+  "data_menu_anki": {
+    "message": "Export all words as Anki cards",
+    "description": "Your data (slice 12): the dashboard's ⋯ menu."
+  },
+  "data_menu_anki_filter": {
+    "message": "Export these words as Anki cards",
+    "description": "Your data (slice 12): the dashboard's ⋯ menu, when the word list is filtered."
+  },
+  "data_anki_title": {
+    "message": "Anki cards",
+    "description": "Your data (slice 12): title of the Anki export dialog."
+  },
+  "data_anki_locale": {
+    "message": "My Anki is in:",
+    "description": "Your data (slice 12): label of the list of Anki's interface languages (it decides the note type's name)."
+  },
+  "data_anki_howto": {
+    "message": "In Anki: File, Import, choose this file. Each language gets its own deck, and importing a newer file updates the same cards.",
+    "description": "Your data (slice 12): Anki export dialog."
+  },
+  "data_anki_download": {
+    "message": "Download",
+    "description": "Your data (slice 12): Anki export dialog's button."
+  },
+  "data_restore_title": {
+    "message": "Restore $FILE$",
+    "description": "Your data (slice 12): title of the restore preview; {file} is the file name.",
+    "placeholders": {
+      "file": {
+        "content": "{file}"
+      }
+    }
+  },
+  "data_restore_in_file_one": {
+    "message": "$COUNT$ word in the file",
+    "description": "Your data (slice 12): restore preview.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_in_file_other": {
+    "message": "$COUNT$ words in the file",
+    "description": "Your data (slice 12): restore preview.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_new_one": {
+    "message": "$COUNT$ new",
+    "description": "Your data (slice 12): restore preview: words not here yet.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_new_other": {
+    "message": "$COUNT$ new",
+    "description": "Your data (slice 12): restore preview: words not here yet.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_merge_one": {
+    "message": "$COUNT$ will be merged",
+    "description": "Your data (slice 12): restore preview: words here that gain something from the backup.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_merge_other": {
+    "message": "$COUNT$ will be merged",
+    "description": "Your data (slice 12): restore preview: words here that gain something from the backup.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_identical_one": {
+    "message": "$COUNT$ already identical",
+    "description": "Your data (slice 12): restore preview: words here exactly as in the backup.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_identical_other": {
+    "message": "$COUNT$ already identical",
+    "description": "Your data (slice 12): restore preview: words here exactly as in the backup.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_kept_one": {
+    "message": "$COUNT$ changed here since this backup; yours is kept",
+    "description": "Your data (slice 12): restore preview: words edited after the backup was made, which the restore leaves alone.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_kept_other": {
+    "message": "$COUNT$ changed here since this backup; yours are kept",
+    "description": "Your data (slice 12): restore preview: words edited after the backup was made, which the restore leaves alone.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_invalid_one": {
+    "message": "$COUNT$ can't be used",
+    "description": "Your data (slice 12): restore preview: entries in the file that aren't valid words.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_invalid_other": {
+    "message": "$COUNT$ can't be used",
+    "description": "Your data (slice 12): restore preview: entries in the file that aren't valid words.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_dropped_one": {
+    "message": "$COUNT$ pronunciation didn't pass the checks and is left out",
+    "description": "Your data (slice 12): restore preview: their words are restored without them.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_dropped_other": {
+    "message": "$COUNT$ pronunciations didn't pass the checks and are left out",
+    "description": "Your data (slice 12): restore preview: their words are restored without them.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_invalid_list": {
+    "message": "Which ones can't be used",
+    "description": "Your data (slice 12): restore preview: opens the list of entries that can't be used."
+  },
+  "data_restore_deleted_one": {
+    "message": "Also restore $COUNT$ word you deleted after this backup was made",
+    "description": "Your data (slice 12): restore preview checkbox.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_deleted_other": {
+    "message": "Also restore $COUNT$ words you deleted after this backup was made",
+    "description": "Your data (slice 12): restore preview checkbox.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_settings": {
+    "message": "Restore settings from the backup",
+    "description": "Your data (slice 12): restore preview checkbox."
+  },
+  "data_restore_pron_one": {
+    "message": "Add pronunciations to $COUNT$ word (about $LOOKUPS$ lookups)",
+    "description": "Your data (slice 12): restore preview checkbox; {lookups} is how many lookups it uses.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "lookups": {
+        "content": "{lookups}"
+      }
+    }
+  },
+  "data_restore_pron_other": {
+    "message": "Add pronunciations to $COUNT$ words (about $LOOKUPS$ lookups)",
+    "description": "Your data (slice 12): restore preview checkbox; {lookups} is how many lookups it uses.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "lookups": {
+        "content": "{lookups}"
+      }
+    }
+  },
+  "data_restore_bases": {
+    "message": "These words are for pages in $LANGUAGES$, which isn't one of your languages. Add it to your languages?",
+    "description": "Your data (slice 12): restore preview: the backup has meanings for a language the learner doesn't read in yet; {languages} is its name (or a list of names).",
+    "placeholders": {
+      "languages": {
+        "content": "{languages}"
+      }
+    }
+  },
+  "data_restore_add_bases": {
+    "message": "Add $LANGUAGES$",
+    "description": "Your data (slice 12): restore preview button.",
+    "placeholders": {
+      "languages": {
+        "content": "{languages}"
+      }
+    }
+  },
+  "data_restore_anyway": {
+    "message": "Import anyway",
+    "description": "Your data (slice 12): restore preview button: keep the words without adding the language (they don't swap until it is added)."
+  },
+  "data_restore_button_one": {
+    "message": "Restore $COUNT$ word",
+    "description": "Your data (slice 12): restore preview's main button.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_button_other": {
+    "message": "Restore $COUNT$ words",
+    "description": "Your data (slice 12): restore preview's main button.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_settings_only": {
+    "message": "Restore settings",
+    "description": "Your data (slice 12): restore preview's main button when no word changes but settings will."
+  },
+  "data_restore_nothing": {
+    "message": "Nothing to restore",
+    "description": "Your data (slice 12): restore preview's main button (disabled) when nothing would change."
+  },
+  "data_restore_done_one": {
+    "message": "Restored $COUNT$ word.",
+    "description": "Your data (slice 12): toast after a restore, with Undo.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_done_other": {
+    "message": "Restored $COUNT$ words.",
+    "description": "Your data (slice 12): toast after a restore, with Undo.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_some_failed_one": {
+    "message": "$COUNT$ couldn't be saved.",
+    "description": "Your data (slice 12): added to the restore toast.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_some_failed_other": {
+    "message": "$COUNT$ couldn't be saved.",
+    "description": "Your data (slice 12): added to the restore toast.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_restore_failed": {
+    "message": "Couldn't restore that backup. Nothing was changed. Try again.",
+    "description": "Your data (slice 12): error."
+  },
+  "data_restore_full": {
+    "message": "Kotiko keeps at most $MAX$ words, and this backup would go over. Nothing was changed.",
+    "description": "Your data (slice 12): error.",
+    "placeholders": {
+      "max": {
+        "content": "{max}"
+      }
+    }
+  },
+  "data_restore_newer": {
+    "message": "This backup was made by a newer version of Kotiko. Update Kotiko, then try again.",
+    "description": "Your data (slice 12): error: the file's schema version is newer than this Kotiko reads. Nothing changes."
+  },
+  "data_restore_unreadable": {
+    "message": "This file isn't a Kotiko backup.",
+    "description": "Your data (slice 12): error."
+  },
+  "data_restore_too_big": {
+    "message": "This file is larger than 20 MB, too large for a Kotiko backup.",
+    "description": "Your data (slice 12): error."
+  },
+  "data_restore_over_cap": {
+    "message": "This backup has more than $MAX$ words, more than Kotiko keeps.",
+    "description": "Your data (slice 12): error.",
+    "placeholders": {
+      "max": {
+        "content": "{max}"
+      }
+    }
+  },
+  "data_undo_done": {
+    "message": "The restore is undone.",
+    "description": "Your data (slice 12): toast after Undo."
+  },
+  "data_undo_changed_one": {
+    "message": "$COUNT$ word changed since the restore and was kept.",
+    "description": "Your data (slice 12): added to the Undo toast.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_undo_changed_other": {
+    "message": "$COUNT$ words changed since the restore and were kept.",
+    "description": "Your data (slice 12): added to the Undo toast.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_undo_none": {
+    "message": "There's no restore to undo.",
+    "description": "Your data (slice 12): error: the last restore is more than 24 hours old or already undone."
+  },
+  "data_delete_title": {
+    "message": "Delete everything Kotiko keeps in this browser?",
+    "description": "Your data (slice 12): title of the delete-everything dialog."
+  },
+  "data_delete_words_one": {
+    "message": "$COUNT$ word",
+    "description": "Your data (slice 12): delete dialog: what goes, first line.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_delete_words_other": {
+    "message": "$COUNT$ words",
+    "description": "Your data (slice 12): delete dialog: what goes, first line.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_delete_settings": {
+    "message": "Your settings",
+    "description": "Your data (slice 12): delete dialog: what goes."
+  },
+  "data_delete_key": {
+    "message": "Your AI key",
+    "description": "Your data (slice 12): delete dialog: what goes (the lookup provider's key)."
+  },
+  "data_delete_backup_first": {
+    "message": "Download a backup first",
+    "description": "Your data (slice 12): delete dialog checkbox (on by default)."
+  },
+  "data_delete_sync": {
+    "message": "Also clear the settings your other browsers share with this one",
+    "description": "Your data (slice 12): delete dialog checkbox (off by default); clearing changes every signed-in browser."
+  },
+  "data_delete_server_one": {
+    "message": "Also delete all $COUNT$ word on my Kotiko server ($SERVER$)",
+    "description": "Your data (slice 12): delete dialog checkbox (off by default); {server} is its address.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "server": {
+        "content": "{server}"
+      }
+    }
+  },
+  "data_delete_server_other": {
+    "message": "Also delete all $COUNT$ words on my Kotiko server ($SERVER$)",
+    "description": "Your data (slice 12): delete dialog checkbox (off by default); {server} is its address.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "server": {
+        "content": "{server}"
+      }
+    }
+  },
+  "data_delete_server_unknown": {
+    "message": "Also delete all words on my Kotiko server ($SERVER$)",
+    "description": "Your data (slice 12): delete dialog checkbox when the server's word count isn't known.",
+    "placeholders": {
+      "server": {
+        "content": "{server}"
+      }
+    }
+  },
+  "data_delete_cant": {
+    "message": "Kotiko can't delete: messages in your Telegram chat, what your model provider keeps under its own policy, and backup files you've downloaded.",
+    "description": "Your data (slice 12): delete dialog."
+  },
+  "data_delete_confirm_one": {
+    "message": "Delete $COUNT$ word",
+    "description": "Your data (slice 12): delete dialog's red button.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_delete_confirm_other": {
+    "message": "Delete $COUNT$ words",
+    "description": "Your data (slice 12): delete dialog's red button.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "data_delete_confirm_none": {
+    "message": "Delete everything",
+    "description": "Your data (slice 12): delete dialog's red button when there are no words."
+  },
+  "data_deleting": {
+    "message": "Deleting…",
+    "description": "Your data (slice 12): delete dialog's button while deleting."
+  },
+  "data_delete_server_failed": {
+    "message": "Couldn't delete the words on your server, so nothing was deleted. Check the connection and try again.",
+    "description": "Your data (slice 12): error in the delete dialog."
+  },
+  "data_delete_failed": {
+    "message": "Something went wrong while deleting. Try again.",
+    "description": "Your data (slice 12): error in the delete dialog."
+  },
+  "data_delete_done": {
+    "message": "Everything is deleted.",
+    "description": "Your data (slice 12): title of the last dialog."
+  },
+  "data_delete_start_again": {
+    "message": "Start again",
+    "description": "Your data (slice 12): opens the welcome page."
+  },
+  "data_delete_close": {
+    "message": "Close",
+    "description": "Your data (slice 12): closes the tab."
+  },
+  "popup_backup_reminder_one": {
+    "message": "Your $COUNT$ word is only in this browser.",
+    "description": "Popup (slice 12 §8): the monthly backup reminder when words live only in this browser.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "popup_backup_reminder_other": {
+    "message": "Your $COUNT$ words are only in this browser.",
+    "description": "Popup (slice 12 §8): the monthly backup reminder when words live only in this browser.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "popup_backup_now": {
+    "message": "Back up now",
+    "description": "Popup (slice 12 §8): opens the dashboard and saves a backup."
+  },
+  "popup_backup_not_now": {
+    "message": "Not now",
+    "description": "Popup (slice 12 §8): hides the backup reminder for 30 days."
+  },
+  "export_csv_col_native": {
+    "message": "word",
+    "description": "CSV export header (slice 12 §3): the column with the word. One lowercase word or words joined with _, so spreadsheets and Kotiko's bulk add read it back."
+  },
+  "export_csv_col_native_vocalized": {
+    "message": "word_with_marks",
+    "description": "CSV export header (slice 12 §3): the column with the word with its stress or vowel marks. One lowercase word or words joined with _, so spreadsheets and Kotiko's bulk add read it back."
+  },
+  "export_csv_col_pronunciation": {
+    "message": "pronunciation",
+    "description": "CSV export header (slice 12 §3): the column with how to say it, respelled for the meaning's language. One lowercase word or words joined with _, so spreadsheets and Kotiko's bulk add read it back."
+  },
+  "export_csv_col_pronunciation_careful": {
+    "message": "pronunciation_slow",
+    "description": "CSV export header (slice 12 §3): the column with the slow, careful pronunciation. One lowercase word or words joined with _, so spreadsheets and Kotiko's bulk add read it back."
+  },
+  "export_csv_col_romanization": {
+    "message": "romanization",
+    "description": "CSV export header (slice 12 §3): the column with the standard Latin spelling. One lowercase word or words joined with _, so spreadsheets and Kotiko's bulk add read it back."
+  },
+  "export_csv_col_gloss": {
+    "message": "meaning",
+    "description": "CSV export header (slice 12 §3): the column with the main meaning. One lowercase word or words joined with _, so spreadsheets and Kotiko's bulk add read it back."
+  },
+  "export_csv_col_forms": {
+    "message": "forms",
+    "description": "CSV export header (slice 12 §3): the column with the forms that get swapped, joined with |. One lowercase word or words joined with _, so spreadsheets and Kotiko's bulk add read it back."
+  },
+  "export_csv_col_language": {
+    "message": "language",
+    "description": "CSV export header (slice 12 §3): the column with the word's language, by name. One lowercase word or words joined with _, so spreadsheets and Kotiko's bulk add read it back."
+  },
+  "export_csv_col_language_code": {
+    "message": "language_code",
+    "description": "CSV export header (slice 12 §3): the column with the word's language tag (BCP 47). One lowercase word or words joined with _, so spreadsheets and Kotiko's bulk add read it back."
+  },
+  "export_csv_col_base_language": {
+    "message": "base_language",
+    "description": "CSV export header (slice 12 §3): the column with the meaning's language, by name. One lowercase word or words joined with _, so spreadsheets and Kotiko's bulk add read it back."
+  },
+  "export_csv_col_base_language_code": {
+    "message": "base_language_code",
+    "description": "CSV export header (slice 12 §3): the column with the meaning's language tag. One lowercase word or words joined with _, so spreadsheets and Kotiko's bulk add read it back."
+  },
+  "export_csv_col_note": {
+    "message": "note",
+    "description": "CSV export header (slice 12 §3): the column with the note. One lowercase word or words joined with _, so spreadsheets and Kotiko's bulk add read it back."
+  },
+  "export_csv_col_status": {
+    "message": "status",
+    "description": "CSV export header (slice 12 §3): the column with active or paused. One lowercase word or words joined with _, so spreadsheets and Kotiko's bulk add read it back."
+  },
+  "export_csv_col_added": {
+    "message": "added",
+    "description": "CSV export header (slice 12 §3): the column with the date it was added (YYYY-MM-DD). One lowercase word or words joined with _, so spreadsheets and Kotiko's bulk add read it back."
+  },
+  "export_csv_col_pronunciation_source": {
+    "message": "pronunciation_source",
+    "description": "CSV export header (slice 12 §3): the column with who wrote the pronunciation (model or user). One lowercase word or words joined with _, so spreadsheets and Kotiko's bulk add read it back."
+  },
+  "export_csv_col_id": {
+    "message": "id",
+    "description": "CSV export header (slice 12 §3): the column with the word's id. One lowercase word or words joined with _, so spreadsheets and Kotiko's bulk add read it back."
+  },
+  "data_anki_elsewhere": {
+    "message": "Another language",
+    "description": "Your data (slice 12): option when Anki is in a language not listed; Anki then asks which note type to use."
   }
 }

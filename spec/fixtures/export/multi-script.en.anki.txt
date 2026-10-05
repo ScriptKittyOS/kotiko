@@ -1,0 +1,20 @@
+#separator:tab
+#html:false
+#notetype:Basic (and reversed card)
+#deck column:4
+#tags column:5
+#guid column:6
+#columns:Front	Back	Language	Deck	Tags	GUID
+пожа́луйста (pozhaluysta) · pa-ZHAL-sta · Slowly: pa-ZHA-lu-sta	please	Russian	Kotiko::Russian	kotiko lang::ru base::en	kotiko-0199a000-0000-7000-8000-000000000001
+спаси́бо (spasibo) · spa-SEE-ba	thanks - =1+1 is how a formula starts	Russian	Kotiko::Russian	kotiko lang::ru base::en	kotiko-0199a000-0000-7000-8000-000000000002
+gato · GAH-toh	"cat - He said ""miau"", then left, quietly"	Spanish	Kotiko::Spanish	kotiko lang::es base::en	kotiko-0199a000-0000-7000-8000-000000000003
+犬 (inu) · ee-noo	dog	Japanese	Kotiko::Japanese	kotiko lang::ja base::en	kotiko-0199a000-0000-7000-8000-000000000004
+猫 (māo)	cat	Chinese	Kotiko::Chinese	kotiko lang::zh base::en	kotiko-0199a000-0000-7000-8000-000000000005
+고양이 (goyangi)	cat	Korean	Kotiko::Korean	kotiko lang::ko base::en	kotiko-0199a000-0000-7000-8000-000000000006
+شكرا (shukran)	thanks - + said everywhere	Arabic	Kotiko::Arabic	kotiko lang::ar base::en	kotiko-0199a000-0000-7000-8000-000000000007
+पानी (pānī)	water	Hindi	Kotiko::Hindi	kotiko lang::hi base::en	kotiko-0199a000-0000-7000-8000-000000000008
+νερό (neró)	water - -ό takes the stress	Greek	Kotiko::Greek	kotiko lang::el base::en	kotiko-0199a000-0000-7000-8000-000000000009
+שלום (shalom)	hello - @ the door, too	Hebrew	Kotiko::Hebrew	kotiko lang::he base::en	kotiko-0199a000-0000-7000-8000-00000000000a
+น้ำ (nam)	water	Thai	Kotiko::Thai	kotiko lang::th base::en	kotiko-0199a000-0000-7000-8000-00000000000b
+წყალი (ts'q'ali)	water	Georgian	Kotiko::Georgian	kotiko lang::ka base::en	kotiko-0199a000-0000-7000-8000-00000000000c
+ջուր (jur)	water	Armenian	Kotiko::Armenian	kotiko lang::hy base::en	kotiko-0199a000-0000-7000-8000-00000000000d

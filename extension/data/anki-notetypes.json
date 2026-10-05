@@ -1,0 +1,7 @@
+{
+ "$comment": "Slice 12 section 4: the name of Anki's stock note type \"Basic (and reversed card)\" in each Anki interface language, for the #notetype header of the Anki export. Only names verified in a running Anki are listed (the spec's rule); for any other language the export leaves #notetype out and Anki asks which note type to use. English is from Anki's manual (docs.ankiweb.net, Importing: text files). To add a language, check the name in Anki set to that language and add it here.",
+ "source": "https://docs.ankiweb.net/importing/text-files.html",
+ "names": {
+  "en": "Basic (and reversed card)"
+ }
+}

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Built (2026-10-05); see Implementation notes |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
 | **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages, localized headers) |
@@ -330,6 +330,158 @@ least 20 words. If the last export or import is more than 30 days ago (or never)
 popup's status area shows one quiet line: "Your 312 words are only in this browser.
 Back up now · Not now". "Not now" hides it for 30 days. A setting, "Remind me to back
 up", defaults on. No system notifications.
+
+## Implementation notes
+
+Built 2026-10-05. English strings only (DECISIONS 2026-10-05), so "Spanish headers" and
+the Spanish deck names below read "in the interface language"; the English ones are tested.
+
+- **Where the code is.**
+  - `extension/lib/backup.js`: the document, reading any version, the restore's plan, and
+    the settings allowlist. Loaded by the background and, on first use, by the dashboard.
+  - `extension/lib/export-files.js`: CSV, Anki and file names.
+  - `extension/data-tools.js`: the dashboard's "Your data" dialogs.
+  - The dashboard loads these three, with `lib/word-merge.js` and `lib/wordspec.js` (the
+    file checks), on first use, so its first view loads nothing more. The background loads
+    only `lib/backup.js` (20 KB).
+  - The store: `importWords` (one transaction), `undoImport`, `KotikoStore.wipe`.
+  - The background: `backup.preview`, `backup.restore`, `backup.undo`, `backup.status`,
+    `backup.saved`, `data.describe`, `data.deleteAll`. Only extension pages may call them.
+    Words a page sends are checked again there.
+  - The server: `Kotiko.Backup`, `GET /api/v1/export`, `DELETE /api/v1/words`, and
+    `mix kotiko.reset`, `mix kotiko.export`, `mix kotiko.import`.
+  - `spec/export.schema.json` and `spec/fixtures/export/`: multi-script, v1, bilingual,
+    newer and invalid-words backups, plus English CSV and Anki golden files.
+- **§1.**
+  - "Your data" is a Settings section (`#settings/data`).
+  - The list's "Export ▾" is two ⋯ menu entries, "Export these words as a spreadsheet"
+    and "… as Anki cards". They follow the list's filters, and say "all words" when there
+    are none. The E key, the selection bar and the shelf menu have no export yet.
+  - The JSON backup reads the words through `words.list` in both homes. The server's
+    `/api/v1/export` is for the commands and for other tools.
+- **§2.**
+  - `settings` is an allowlist from slice 39's list: `enabled`, `pausedHosts`,
+    `hiddenLangs`, `prefs`, `mixing`, `speech`, `seedSalt`, `lookup` (provider, base URL,
+    model, data collection) and `server.url`, both addresses without user name, password
+    or query, and `ui` (`uiLang`, `baseLangs`).
+  - Restoring settings never changes where words live, the lookup kind, the provider, any
+    address or any secret: where requests go is set only in Kotiko's settings, which slice
+    28 binds each key to (lead review). The model comes back only for the provider already
+    chosen.
+  - `stats` is never written and there is no "Include learning stats" box: slice 46 isn't
+    built.
+- **§3.**
+  - English headers: `word, word_with_marks, pronunciation, pronunciation_slow,
+    romanization, meaning, forms, language, language_code, base_language,
+    base_language_code, note, status, added, pronunciation_source, id`.
+  - Slice 13's reader (`bulk/parse.js`) now knows these and the stable ids, plus the
+    interface language's own headers, which the dashboard passes in. It keeps
+    `native_vocalized`, `pronunciation_careful`, `pronunciation_source`, each row's base
+    (`base_language_code`) and the forms column.
+  - The "Already in your list" check still uses the sheet's base.
+  - `forms` lists the enabled forms.
+- **§4.**
+  - Header syntax checked against Anki's manual (text import, 2.1.54 and later), including
+    `#guid column`, which updates notes in place.
+  - `extension/data/anki-notetypes.json` holds only the English name, "Basic (and reversed
+    card)", from Anki's manual. The spec ships a name only once it is verified in a running
+    Anki; none of the other languages' names were (a first draft took 49 from Anki's
+    translation files, whose licensing was also unclear), so for every other "My Anki is
+    in" choice the export leaves `#notetype` out and Anki asks which note type to use. The
+    dialog defaults to "another language" unless the interface language has a verified
+    name (lead review).
+  - A field with a double quote is quoted, since Anki reads the file as CSV.
+  - The docs link (slice 44) isn't there; the dialog says "In Anki: File, Import, …".
+- **§5, merge rules.** 07 has no per-field "newer wins", so:
+  - **Same id:** the newer `updated_at` wins as a whole. An older backup leaves a later
+    edit alone, without re-adding its old forms. A newer one brings its version back,
+    keeping the local key if another word took it.
+  - The preview gets a fourth line for the first case: "{n} changed here since this
+    backup; yours are kept".
+  - **Same natural key, other id:** 07's additive merge (`explicit: false`), keeping the
+    local id.
+  - **A tombstone newer than the file's word:** "Also restore … you deleted". It starts
+    ticked when the store has no live words.
+  - **A file word newer than its tombstone:** restored.
+  - Restored words keep their ids, times, origin and status. That's what makes the round
+    trip deep-equal.
+- **§5, server mode.**
+  - New words go through `/api/v1/words/batch`, 500 at a time, keeping their ids.
+  - Merges and restored deletes are `words.write` edits, checked against the version read.
+  - Deletes the server still has are found from this browser's "Recently deleted" (the
+    server lists no tombstones). A delete the server has purged is sent as a new word.
+  - The server sets its own `created_at`, and turns origin `migrated` into `bulk` (07
+    keeps `migrated` for its own upgrade).
+- **§5, Undo.**
+  - `lastImport` in the store's `meta`, for both homes, for 24 hours, the latest restore
+    only.
+  - Locally, records the restore created are removed outright and changed ones get their
+    exact previous version.
+  - A record changed again since is left alone and counted.
+- **§5, other.**
+  - "Add pronunciations to {n} words (about {k} lookups)" shows in local mode only.
+    Ticked, it starts the pronunciation refresh job, as slice 13 does, rather than 09's
+    `respell` in groups of 20.
+  - The base notice covers any base the file has that the learner doesn't read, not only
+    English. "Add" adds as many as fit in four.
+  - Over the 20,000-word cap the restore changes nothing and says so.
+- **§6.**
+  - The page saves the backup, then waits 1.5 s before anything is deleted. There's no
+    event for a download link being read.
+  - If the server's delete fails, nothing is deleted.
+  - The background then stops jobs and waits for running ones, clears alarms and context
+    menus, closes and deletes the `kotiko` database, writes `words: []` (open tabs unwrap),
+    clears `storage.local` and `storage.session`, and clears `storage.sync` when asked.
+    The page clears its own `localStorage` (the theme cache).
+  - Root cause found on the way: `content.js` kept a removed key's old value
+    (`newValue ?? state[k]`), so clearing storage left swaps on open tabs. A removed key
+    now goes back to its default.
+  - Until an extension page asks for something, the background opens no store and writes
+    nothing. Pages left open (the popup, a welcome tab) react to the cleared storage at
+    once, and their status requests fail for 2 s rather than set Kotiko up again. After
+    that, or for anything a person asks for, Kotiko starts as a fresh install.
+  - "Start again" opens the welcome tab and closes this one. "Close" closes the tab.
+  - The browser-sync box shows unless the platform is Android or the browser is Safari.
+  - The server box counts the server's words (one `GET`), or omits the count when it
+    can't get one.
+  - The server's delete also empties `add_requests` (they hold copies of words) and the
+    lookup cache (what was looked up). It sets `purged_through_seq` to `last_seq`, so a
+    sync cursor from before the reset starts over.
+  - The Telegram pairing stays (open question 3).
+- **§7.**
+  - `bin/kotiko` doesn't exist yet (releases are slice 40), so the commands are mix tasks.
+  - `mix kotiko.reset` takes `--yes`, `--no-backup`, `--data-dir` and `--env-file`. Its
+    backup is the migrations' `VACUUM INTO` helper into `backups/`.
+  - `mix kotiko.export` takes `--output` and `--include-pending`. `mix kotiko.import`
+    takes a file.
+  - The export is written in pages of 500 by row id; each page is one chunk.
+  - The extension doesn't check `/health` for the new routes. An older server's 404 shows
+    as "Couldn't delete the words on your server", and nothing is deleted.
+- **§8.**
+  - One quiet popup banner: "Your {n} words are only in this browser." with "Back up now"
+    (opens `#settings/data/backup`, which saves a backup) and "Not now" (30 days).
+  - Counts the words the popup shows (the swappable ones).
+  - The clock (`backupSince`) starts the first time this version runs, so nobody is
+    reminded on day one.
+  - "Remind me to back up" is in Your data (`prefs.backupReminder`), shown in local mode.
+- **Tests.**
+  - `test/unit/backup.test.mjs` (30): schema, reading, merge rules, the 2,000-word
+    12-script round trip, Undo, CSV and Anki goldens, CSV read back by bulk add, no
+    secrets.
+  - `test/bg/backup.test.mjs` (7): restore and Undo in both homes, delete everything with
+    and without the server, a failing server.
+  - `test/dom/data.test.mjs` (12): the dashboard.
+  - The popup reminder (2) and content unwrap-on-clear (1).
+  - `server/test/kotiko/backup_test.exs` (13) and
+    `server/test/mix/tasks/kotiko.backup_tasks_test.exs` (5).
+  - `test/e2e/data.spec.mjs`: backup, delete everything with a swapped tab, restore, in
+    Chromium.
+  - The fixture server now joins request chunks before decoding. A Cyrillic character
+    split across two chunks used to break large batch bodies.
+- **Not done:**
+  - Firefox end-to-end: the Playwright setup is Chromium only.
+  - Opening the files in Excel, LibreOffice, Google Sheets and Anki: manual, per release.
+  - The docs-site page and the uninstall URL page (28, 44).
 
 ## Acceptance criteria
 

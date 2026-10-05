@@ -299,7 +299,45 @@
             </div>
           </section>
 
-          <!-- 12: "Your data" (export, import, delete everything). -->
+          <!-- 12: "Your data". The work loads on first use (data-tools.js). -->
+          <section class="set-section" id="set-data" data-section="data" aria-labelledby="setDataTitle">
+            <h2 class="set-title" id="setDataTitle" data-i18n="data_title"></h2>
+            <div class="data-row">
+              <p class="field-label" data-i18n="data_backup_label"></p>
+              <div class="set-actions">
+                <button class="btn btn-secondary" id="dataBackup" type="button" data-i18n="data_backup_button"></button>
+                <span class="field-help num" id="dataLastBackup"></span>
+              </div>
+              <label class="check-row"><input type="checkbox" id="dataIncludeSettings" checked /> <span data-i18n="data_include_settings"></span></label>
+              <p class="field-help" data-i18n="data_backup_help"></p>
+            </div>
+            <div class="data-row">
+              <p class="field-label" id="dataShareLabel" data-i18n="data_share_label"></p>
+              <div class="set-actions">
+                <button class="btn btn-secondary" id="dataCsv" type="button" data-i18n="data_csv_button"></button>
+                <button class="btn btn-secondary" id="dataAnki" type="button" data-i18n="data_anki_button"></button>
+              </div>
+              <div class="segmented" id="dataScope" role="radiogroup" aria-labelledby="dataShareLabel"></div>
+            </div>
+            <div class="data-row">
+              <p class="field-label" data-i18n="data_restore_label"></p>
+              <div class="set-actions">
+                <button class="btn btn-secondary" id="dataRestore" type="button" data-i18n="data_restore_choose"></button>
+              </div>
+              <p class="field-help" id="dataLastRestore" hidden></p>
+            </div>
+            <button class="switch-row" id="dataReminder" type="button" role="switch" aria-checked="true" aria-describedby="dataReminderHelp" hidden>
+              <span data-i18n="data_reminder"></span>
+              <span class="switch" aria-hidden="true"></span>
+            </button>
+            <p class="field-help" id="dataReminderHelp" data-i18n="data_reminder_help" hidden></p>
+            <div class="data-row data-danger">
+              <p class="field-label" data-i18n="data_danger_label"></p>
+              <div class="set-actions">
+                <button class="btn btn-danger" id="dataDelete" type="button" data-i18n="data_delete_button"></button>
+              </div>
+            </div>
+          </section>
 
           <section class="set-section" id="set-about" data-section="about" aria-labelledby="setAboutTitle">
             <h2 class="set-title" id="setAboutTitle" data-i18n="dash_set_about"></h2>

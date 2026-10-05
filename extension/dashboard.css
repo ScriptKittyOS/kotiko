@@ -2512,3 +2512,50 @@ kbd {
 .drop-overlay[hidden] {
   display: none;
 }
+
+/* Your data (slice 12): back up, share, restore, delete everything. */
+.data-row {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.data-danger {
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--divider);
+}
+
+.data-dialog {
+  display: grid;
+  gap: var(--s-4);
+}
+
+.data-counts {
+  display: grid;
+  gap: var(--s-1);
+  margin: 0;
+  padding-inline-start: var(--s-6);
+}
+
+.data-options {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.data-notice {
+  display: grid;
+  gap: var(--s-3);
+  padding: var(--s-5);
+  border-radius: var(--r-md);
+  background: var(--sunken);
+}
+
+.data-notice p {
+  margin: 0;
+}
+
+.data-invalid ul {
+  max-height: 160px;
+  overflow-y: auto;
+  margin: var(--s-2) 0 0;
+  padding-inline-start: var(--s-6);
+}

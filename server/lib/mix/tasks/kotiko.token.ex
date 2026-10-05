@@ -20,7 +20,7 @@ defmodule Mix.Tasks.Kotiko.Token do
   @impl true
   def run(args) do
     {opts, _} = OptionParser.parse!(args, strict: [rotate: :boolean, env_file: :string])
-    env = read_env(Keyword.get(opts, :env_file, ".env"))
+    env = Kotiko.TaskEnv.read_env(Keyword.get(opts, :env_file, ".env"))
     data_dir = data_dir(env)
 
     if opts[:rotate], do: rotate(env, data_dir), else: show(env, data_dir)
@@ -94,34 +94,4 @@ defmodule Mix.Tasks.Kotiko.Token do
       {:error, _} -> Mix.raise("Couldn't find an address for BIND=#{bind}.")
     end
   end
-
-  # The environment, overridden by the .env file as run.sh does. Blank values are unset.
-  defp read_env(file) do
-    dotenv =
-      case File.read(file) do
-        {:ok, contents} -> parse_env(contents)
-        {:error, _} -> %{}
-      end
-
-    System.get_env()
-    |> Map.merge(dotenv)
-    |> Map.new(fn {k, v} -> {k, String.trim(v)} end)
-    |> Map.reject(fn {_k, v} -> v == "" end)
-  end
-
-  defp parse_env(contents) do
-    for line <- String.split(contents, "\n"),
-        line = line |> String.trim() |> String.replace_prefix("export ", ""),
-        line != "" and not String.starts_with?(line, "#"),
-        [key, value] <- [String.split(line, "=", parts: 2)],
-        into: %{} do
-      {String.trim(key), value |> String.trim() |> unquote_value()}
-    end
-  end
-
-  defp unquote_value(<<q, rest::binary>> = value) when q in [?", ?'] do
-    if String.ends_with?(rest, <<q>>), do: String.slice(rest, 0..-2//1), else: value
-  end
-
-  defp unquote_value(value), do: value
 end

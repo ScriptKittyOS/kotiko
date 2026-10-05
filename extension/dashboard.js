@@ -57,6 +57,7 @@
     speech: { allowOnline: false, rate: 0.9, voices: {} },
     prefs: {},
     mixing: null,
+    lastBackupAt: null, // slice 12: the last backup saved or restored
   };
 
   // ---------------------------------------------------------------------------------
@@ -130,7 +131,8 @@
   const endonym = (lang) => I18n.endonym(lang) ?? languageName(lang);
   const isTyping = (node) =>
     node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement || node?.isContentEditable === true;
-  const send = (msg) => Promise.resolve().then(() => ext.runtime.sendMessage(msg));
+  // After "delete everything" this page asks for nothing more, so nothing is recreated.
+  const send = (msg) => (state.wiped && msg.type !== "data.deleteAll" && msg.type !== "welcome.open" ? Promise.reject(Object.assign(new Error("Everything was deleted."), { code: "wiped" })) : Promise.resolve().then(() => ext.runtime.sendMessage(msg)));
 
   // Slice 11: where words live and whether new ones can be looked up.
   const legacyToken = (s) => !!String(s?.token ?? "").trim();
@@ -2091,6 +2093,8 @@
 
   // Bulk add (13): its own sheet under the add box, made once.
   let bulk = null;
+  // Bulk add's column roles (bulk/parse.js) for slice 12's export columns.
+  const CSV_ROLES = [["native", "native"], ["native_vocalized", "native_vocalized"], ["pronunciation", "pronunciation"], ["pronunciation_careful", "pronunciation_careful"], ["romanization", "romanization"], ["gloss", "gloss"], ["forms", "forms"], ["lang", "language"], ["lang_code", "language_code"], ["base_lang", "base_language"], ["base_code", "base_language_code"], ["note", "note"], ["pronunciation_source", "pronunciation_source"]];
   function bulkSheet() {
     bulk ??= globalThis.KotikoBulkSheet.create({
       el,
@@ -2108,6 +2112,14 @@
       defaultLang: () => state.hint ?? (state.s.mixing?.focus?.length === 1 ? state.s.mixing.focus[0] : null) ?? [...state.records.values()].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0]?.lang ?? null,
       pickLanguage,
       lookupStatus: () => state.lookupStatus,
+      // The CSV columns of 12's export, in the interface language: read back unmapped.
+      csvHeaders: () => Object.fromEntries(CSV_ROLES.map(([role, id]) => [role, t(`export_csv_col_${id}`)])),
+      // Kotiko's own backup dropped or pasted into bulk add: restored through 12's import.
+      restoreBackup: ({ text, filename }) => {
+        closeAdd();
+        go("#settings/data");
+        withTools((x) => x.restoreText(text, filename ?? ""))();
+      },
       seeBatch: (ids) => {
         state.batchIds = new Set(ids);
         closeAdd();
@@ -2310,6 +2322,7 @@
     ["mixing", "dash_set_mixing"],
     ["pages", "dash_set_pages"],
     ["appearance", "dash_set_appearance"],
+    ["data", "data_title"],
     ["about", "dash_set_about"],
   ];
   const dirty = new Set();
@@ -2341,6 +2354,89 @@
     renderPages();
     renderMixing();
     renderStory();
+    renderData();
+  }
+
+  // ---------------------------------------------------------------------------------
+  // Your data (slice 12). The exports, the restore and "delete everything" live in
+  // data-tools.js, loaded with the backup libraries on first use.
+
+  const scripts = new Map();
+  const script = (src) => scripts.get(src) ?? scripts.set(src, new Promise((resolve, reject) => document.head.append(el("script", { src, onload: resolve, onerror: reject })))).get(src);
+  let dataTools = null;
+  async function tools() {
+    for (const src of ["lib/word-merge.js", "lib/wordspec.js", "lib/backup.js", "lib/export-files.js", "data-tools.js"]) await script(src);
+    dataTools ??= globalThis.KotikoDataTools.create({
+      el,
+      t,
+      I18n,
+      send,
+      ext,
+      dialog,
+      toast,
+      langName: (l) => languageName(l),
+      bases: () => bases(),
+      allRecords: () => [...state.records.values()].filter((r) => !state.removing.has(r.id)).map(effective),
+      // The words the list shows now (its filters and search), every record of each.
+      viewRecords: () => state.view.map(groupById).filter(Boolean).flatMap((g) => g.records),
+      addBases: (tags) => writeBases([...bases(), ...tags.filter((b) => !bases().includes(b))].slice(0, Bases.MAX_BASES)),
+      includeSettings: () => $("dataIncludeSettings").checked,
+      onWipe: (on) => {
+        state.wiped = on;
+      },
+      refresh: () => {
+        refreshDataStatus();
+        scheduleReload();
+      },
+    });
+    return dataTools;
+  }
+  const withTools = (fn) => () => tools().then(fn).catch((e) => toast({ text: problemText(e), error: true }));
+  const filtered = () => {
+    const p = params();
+    return !!(p.lang || (p.status && p.status !== "live") || p.added || p.source || p.q || p.missing || p.batch);
+  };
+
+  // "today", "12 days ago" in the interface language.
+  function daysAgo(at) {
+    const day = (ms) => new Date(ms).setHours(0, 0, 0, 0);
+    const days = Math.max(0, Math.round((day(Date.now()) - day(at)) / 86_400_000));
+    try {
+      return new Intl.RelativeTimeFormat(I18n.locale(), { numeric: "auto" }).format(-days, "day");
+    } catch {
+      return new Date(at).toLocaleDateString();
+    }
+  }
+
+  function renderData() {
+    const at = state.s.lastBackupAt;
+    $("dataLastBackup").textContent = typeof at === "number" ? t("data_last_backup", { when: daysAgo(at) }) : t("data_last_backup_never");
+    state.dataScope ??= "all";
+    renderSegmented($("dataScope"), [["all", "data_scope_all"], ["filter", "data_scope_filter"]], state.dataScope, (v) => {
+      state.dataScope = v;
+      renderData();
+    });
+    const local = mode(state.s) === "local";
+    $("dataReminder").hidden = !local;
+    $("dataReminderHelp").hidden = !local;
+    $("dataReminder").setAttribute("aria-checked", String(state.s.prefs?.backupReminder !== false));
+    const last = state.lastImport;
+    $("dataLastRestore").hidden = !last;
+    if (last) {
+      $("dataLastRestore").replaceChildren(t("data_last_restore", { file: last.label || "kotiko-backup.json" }), " ",
+        el("button", { class: "link", type: "button", "data-action": "undo-restore", onclick: withTools((x) => x.undoRestore()) }, t("add_undo")));
+    }
+  }
+
+  async function refreshDataStatus() {
+    try {
+      const st = await send({ type: "backup.status" });
+      state.lastImport = st.lastImport;
+      if (typeof st.lastBackupAt === "number") state.s.lastBackupAt = st.lastBackupAt;
+    } catch {
+      state.lastImport = null;
+    }
+    if (state.route.view === "settings") renderData();
   }
 
   // Slice 18: one language per page (default), mix within the page, or always in this
@@ -3006,6 +3102,12 @@
       history.replaceState(null, "", "#settings/languages");
       addBase({ preselect: route.add });
     }
+    // "#settings/data/backup" (the popup's "Back up now", 12 §8): one backup, once.
+    if (route.backup) {
+      history.replaceState(null, "", "#settings/data");
+      withTools((x) => x.exportBackup())();
+    }
+    if (route.view === "settings") refreshDataStatus();
     if (route.view === "words") {
       if ((params().status ?? "live") !== (prevStatus ?? "live")) resort();
       else refilter();
@@ -3060,6 +3162,7 @@
   // Wiring.
 
   function onStorage(changes, area) {
+    if (state.wiped) return;
     if (area === "sync" && changes.ui) {
       const prev = JSON.stringify(state.ui?.baseLangs ?? null);
       state.ui = changes.ui.newValue ?? {};
@@ -3097,7 +3200,7 @@
       loadDeleted();
     }
     if (changes.hiddenLangs) renderShelf();
-    if ((changes.prefs || changes.mixing) && state.route.view === "settings") renderSettings();
+    if ((changes.prefs || changes.mixing || changes.lastBackupAt) && state.route.view === "settings") renderSettings();
     if (words) {
       rebuild();
       renderWords();
@@ -3177,9 +3280,20 @@
       }
     });
     $("moreMenu").addEventListener("click", (e) => openMenu(e.currentTarget, [
-      // 13: "Import a list or file"; 12: "Import a Kotiko backup", "Export all words".
+      // 13: "Import a list or file".
+      { label: t("data_menu_restore"), run: withTools((x) => x.chooseBackup()) },
+      { label: t("data_menu_backup"), run: withTools((x) => x.exportBackup()) },
+      // Export ▾ (21 §2): the words the list shows now.
+      { label: t(filtered() ? "data_menu_csv_filter" : "data_menu_csv"), run: withTools((x) => x.exportCsv(filtered() ? "filter" : "all")) },
+      { label: t(filtered() ? "data_menu_anki_filter" : "data_menu_anki"), run: withTools((x) => x.exportAnki(filtered() ? "filter" : "all")) },
       { label: t("dash_keys_title"), run: showShortcuts },
     ]));
+    $("dataBackup").addEventListener("click", withTools((x) => x.exportBackup()));
+    $("dataCsv").addEventListener("click", withTools((x) => x.exportCsv(state.dataScope ?? "all")));
+    $("dataAnki").addEventListener("click", withTools((x) => x.exportAnki(state.dataScope ?? "all")));
+    $("dataRestore").addEventListener("click", withTools((x) => x.chooseBackup()));
+    $("dataDelete").addEventListener("click", withTools((x) => x.deleteEverything()));
+    $("dataReminder").addEventListener("click", () => setPref("backupReminder", state.s.prefs?.backupReminder === false));
     $("refreshAction").addEventListener("click", onRefreshAction);
     $("testConn").addEventListener("click", () => checkConnection());
     $("saveKey").addEventListener("click", saveKey);
