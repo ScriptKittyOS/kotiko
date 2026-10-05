@@ -46,7 +46,19 @@ function fakeBackend({ words = dashboardWords(Date.now()), job = { state: "done"
       case "llmStatus":
         return lookupStatus ? clone(lookupStatus) : { error: "x", code: "server_outdated", details: { status: 404 } };
       case "words.save": {
+        // 07's merge: an existing word (language, spelling, base) gains forms or stays.
+        const text = (f) => (typeof f === "string" ? f : f.text);
         const results = msg.words.map((w, i) => {
+          const old = b.words.find((x) => !x.deleted_at && x.lang === w.lang && x.native === w.native && (x.base_lang ?? "en") === (w.base_lang ?? "en"));
+          if (old) {
+            const had = new Set((old.forms ?? []).map(text));
+            const add = (w.forms ?? []).filter((f) => !had.has(text(f)));
+            if (!add.length) return { result: "unchanged", word: clone(old) };
+            const previous = clone(old);
+            old.forms = [...old.forms, ...add];
+            old.updated_at = now();
+            return { result: "updated", word: clone(old), previous };
+          }
           const word = { ...w, id: `new-${b.words.length}-${i}`, base_lang: w.base_lang ?? "en", status: "active", created_at: now(), updated_at: now() };
           b.words.unshift(word);
           return { result: "created", word: clone(word) };
@@ -86,8 +98,8 @@ function fakeBackend({ words = dashboardWords(Date.now()), job = { state: "done"
   return b;
 }
 
-async function openDashboard({ local = CONNECTED, sync = {}, locale = "en", hash = "", width = 1440, backend = fakeBackend() } = {}) {
-  const fake = createFakeChrome({ local: { ...local }, sync, onSendMessage: (msg) => backend.answer(msg) });
+async function openDashboard({ local = CONNECTED, sync = {}, session = {}, locale = "en", hash = "", width = 1440, backend = fakeBackend() } = {}) {
+  const fake = createFakeChrome({ local: { ...local }, sync, session, onSendMessage: (msg) => backend.answer(msg) });
   fake.chrome.i18n = createI18n(locale);
   const dom = new JSDOM(readExt("dashboard.html"), {
     url: `chrome-extension://fake-extension-id/dashboard.html${hash}`,
@@ -106,7 +118,7 @@ async function openDashboard({ local = CONNECTED, sync = {}, locale = "en", hash
   };
   runInWindow(dom, "lib/i18n.js");
   w.KotikoI18n._setLoader(async (l) => readMessages(l));
-  for (const rel of ["spec/spec.js", "lib/lang.js", "lib/welcome-model.js", "ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/word-search.js", "lib/dashboard-model.js", "lib/precedence.js", "lib/word-source.js", "lib/lookup-status.js", "lib/story.js", "dashboard.js"]) {
+  for (const rel of ["spec/spec.js", "lib/lang.js", "lib/welcome-model.js", "ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/word-search.js", "lib/dashboard-model.js", "lib/precedence.js", "lib/word-source.js", "lib/text.js", "bulk/parse.js", "bulk/sheet.js", "lib/lookup-status.js", "lib/story.js", "dashboard.js"]) {
     runInWindow(dom, rel);
     if (rel === "lib/story.js") w.KotikoStory._setLoader(async (l) => readExt(`story/${l}.md`));
   }
@@ -1160,3 +1172,147 @@ describe("Word lookups and the words' home (slice 11)", () => {
     assert.equal(d.text("#lookupState"), "Pega una clave para empezar a buscar palabras.");
   });
 });
+
+// Slice 13: bulk add, in the add sheet.
+describe("bulk add (slice 13)", () => {
+  const paste = async (d, text) => {
+    const area = d.$("#bulkText");
+    area.value = text;
+    area.dispatchEvent(new d.w.Event("input"));
+    await sleep(200);
+    await d.settle();
+  };
+  const learn = async (d, name) => {
+    d.$('[data-action="learning"]').click();
+    await d.settle();
+    const input = d.$(".lang-picker input");
+    input.value = name;
+    input.dispatchEvent(new d.w.Event("input"));
+    input.dispatchEvent(new d.w.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await d.settle();
+  };
+  // A learner who reads English (slice 50).
+  const EN = { ui: { baseLangs: ["en"], baseLangsConfirmed: true } };
+  const statuses = (d) => d.$$(".bulk-table tbody tr").map((tr) => tr.dataset.status);
+
+  test("200 lines of 'native = meaning': all ready, saved in one batch with no lookup, then a summary with Undo", async () => {
+    const d = await openDashboard({ hash: "#add", sync: EN });
+    await learn(d, "Spanish");
+    const lines = Array.from({ length: 200 }, (_, i) => `palabra${i} = word${i}`).join("\n");
+    await paste(d, lines);
+    assert.equal(d.text(".bulk-counts").startsWith("200 words"), true);
+    assert.equal(d.$$(".bulk-table tbody tr").length, 100, "a page at a time");
+    assert.equal(d.$('[data-action="save"]').textContent, "Add 200 words");
+    d.$('[data-action="save"]').click();
+    await d.settle(12);
+    const saves = d.backend.sent.filter((m) => m.type === "words.save");
+    assert.equal(saves.length, 1);
+    assert.equal(saves[0].words.length, 200);
+    assert.deepEqual(Object.fromEntries(["lang", "native", "base_lang", "gloss", "origin", "source_text"].map((k) => [k, saves[0].words[0][k]])), { lang: "es", native: "palabra0", base_lang: "en", gloss: "word0", origin: "bulk", source_text: "palabra0 = word0" });
+    assert.equal(d.backend.sent.filter((m) => m.type === "words.preview").length, 0, "no lookup");
+    assert.match(d.text(".bulk-summary"), /^Added 200 words to Spanish\./);
+    d.$('.bulk-summary [data-action="undo"]').click();
+    await d.settle(12);
+    const deletes = d.backend.sent.filter((m) => m.type === "words.write").flatMap((m) => m.ops).filter((o) => o.op === "delete");
+    assert.equal(deletes.length, 200);
+    assert.equal(d.text(".bulk-summary"), "Removed the words this list added, and put changed ones back.");
+  });
+
+  test("a Spanish reader's 'dog = perro' list and its reverse both learn dog, with perro as the meaning", async () => {
+    for (const text of ["dog = perro\ncat = gato\nhouse = casa", "perro = dog\ngato = cat\ncasa = house"]) {
+      const d = await openDashboard({ hash: "#add", sync: { ui: { baseLangs: ["es"], baseLangsConfirmed: true } } });
+      d.w.chrome.i18n.detectLanguage = async (t) => (/perro/.test(t) ? { isReliable: true, languages: [{ language: "es", percentage: 95 }] } : { isReliable: true, languages: [{ language: "en", percentage: 95 }] });
+      await learn(d, "English");
+      await paste(d, text);
+      const words = d.$$('.bulk-table [data-field="native"]').map((i) => i.value);
+      assert.deepEqual(words, ["dog", "cat", "house"], text);
+      d.$('[data-action="save"]').click();
+      await d.settle(12);
+      const w = d.backend.sent.find((m) => m.type === "words.save").words[0];
+      assert.deepEqual([w.lang, w.native, w.gloss, w.base_lang], ["en", "dog", "perro", "es"]);
+    }
+  });
+
+  test("statuses against the word list: already there, adds a meaning, duplicate, same as the meaning, a problem", async () => {
+    const backend = fakeBackend({ words: [{ id: "w1", lang: "es", native: "gato", base_lang: "en", gloss: "cat", forms: [{ text: "cat", enabled: true }], status: "active", created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z" }, { id: "w2", lang: "es", native: "casa", base_lang: "en", gloss: "house", forms: [{ text: "house", enabled: true }], status: "active", created_at: "2026-01-02T00:00:00Z", updated_at: "2026-01-02T00:00:00Z" }] });
+    const d = await openDashboard({ hash: "#add", backend, sync: EN });
+    await learn(d, "Spanish");
+    await paste(d, `gato = cat\ncasa = house, home\nperro = dog\nperro = dog\nhotel = hotel\n${"x".repeat(70)} = long`);
+    assert.deepEqual(statuses(d), ["known", "adds", "ready", "duplicate", "same", "problem"]);
+    assert.deepEqual(d.$$(".bulk-table tbody input[type=checkbox]").map((c) => c.checked), [false, true, true, false, false, false]);
+    assert.equal(d.$('.bulk-table tr[data-status="problem"] input[type=checkbox]').disabled, true);
+    assert.match(d.text('.bulk-table tr[data-status="adds"] .bulk-status'), /Adds 1 meaning to your word/);
+    assert.ok(d.$('.bulk-table tr[data-status="problem"] [data-action="split"]'), "too long: split into words");
+    d.$('[data-action="save"]').click();
+    await d.settle(12);
+    assert.match(d.text(".bulk-summary"), /1 got a new meaning\./);
+  });
+
+  test("words without a meaning: looked up on request, one at a time, filling their rows", async () => {
+    const backend = fakeBackend({ candidates: { mariposa: [{ lang: "es", native: "mariposa", base_lang: "en", gloss: "butterfly", forms: ["butterfly", "moth"] }], spaseeba: [{ lang: "ru", native: "спасибо", base_lang: "en", gloss: "thanks", forms: ["thanks"] }] } });
+    const d = await openDashboard({ hash: "#add", backend, sync: EN });
+    await learn(d, "Spanish");
+    await paste(d, "zorro = fox\nmariposa\nspaseeba");
+    assert.deepEqual(statuses(d), ["ready", "needs", "needs"]);
+    assert.match(d.text(".bulk-footer"), /2 words need a meaning\. Look them up uses about 2 lookups/);
+    d.$('[data-action="look-up"]').click();
+    await d.settle(12);
+    assert.deepEqual(statuses(d), ["ready", "ready", "known"], "спасибо = thanks was already in the list");
+    assert.equal(d.$$('.bulk-table [data-field="gloss"]')[1].value, "butterfly, moth");
+    assert.match(d.text('.bulk-table tr[data-row="2"] .bulk-status'), /Kotiko read “spaseeba” as спасибо/);
+    assert.equal(d.backend.sent.filter((m) => m.type === "words.preview").length, 2, "only the rows without a meaning");
+  });
+
+  test("lookups that run out: those rows go back, with a way to save them for later as add jobs", async () => {
+    const backend = fakeBackend({ previews: { a1: { error: "x", code: "quota_exhausted", details: {} }, a2: { error: "x", code: "quota_exhausted", details: {} } } });
+    const d = await openDashboard({ hash: "#add", backend, sync: EN });
+    await learn(d, "Spanish");
+    await paste(d, "a1\na2");
+    d.$('[data-action="look-up"]').click();
+    await d.settle(12);
+    assert.deepEqual(statuses(d), ["needs", "needs"]);
+    assert.match(d.text(".bulk-notes"), /You've used today's free lookups\./);
+    d.$('[data-action="later"]').click();
+    await d.settle(12);
+    const adds = d.backend.sent.filter((m) => m.type === "add");
+    assert.deepEqual(adds.map((m) => [m.text, m.hintLang, m.baseLangs]), [["a1", "es", ["en"]], ["a2", "es", ["en"]]]);
+  });
+
+  test("a file: chosen with the button, read, and unreadable ones explained", async () => {
+    const d = await openDashboard({ hash: "#add", sync: EN });
+    await learn(d, "Spanish");
+    assert.ok(d.$('[data-action="choose-file"]'), "a button, not only dropping");
+    const sheet = d.w.document.querySelector(".bulk");
+    void sheet;
+    const file = (name, text) => ({ name, arrayBuffer: async () => new TextEncoder().encode(text).buffer });
+    const input = d.$('.bulk input[type="file"]');
+    Object.defineProperty(input, "files", { value: [file("words.csv", "\uFEFFword,meaning\nperro,\"dog, hound\"")], configurable: true });
+    input.dispatchEvent(new d.w.Event("change"));
+    await sleep(50);
+    await d.settle(12);
+    assert.deepEqual(d.$$('.bulk-table [data-field="native"]').map((i) => i.value), ["perro"]);
+    assert.equal(d.$$('.bulk-table [data-field="gloss"]')[0].value, "dog, hound");
+    Object.defineProperty(input, "files", { value: [file("book.xlsx", "PK")], configurable: true });
+    input.dispatchEvent(new d.w.Event("change"));
+    await sleep(50);
+    await d.settle(12);
+    assert.match(d.text(".bulk-notes"), /Kotiko reads \.csv files\./);
+  });
+
+  test("a list pasted in the popup opens here, once", async () => {
+    const d = await openDashboard({ hash: "#add", sync: EN, session: { bulkDraft: "zorro = fox\nlobo = wolf" } });
+    await sleep(200);
+    await d.settle();
+    assert.equal(d.$("#bulkText").value, "zorro = fox\nlobo = wolf");
+    assert.equal(d.$$(".bulk-table tbody tr").length, 2);
+    assert.equal(d.fake.store.session.bulkDraft, undefined, "handed over, then gone");
+  });
+
+  test("Choose a language first when nothing says what the words are in", async () => {
+    const d = await openDashboard({ hash: "#add", backend: fakeBackend({ words: [] }), sync: EN });
+    await paste(d, "gato = cat");
+    assert.equal(d.$('[data-action="save"]').textContent, "Choose a language");
+    assert.equal(d.$('[data-action="save"]').disabled, true);
+  });
+});
+

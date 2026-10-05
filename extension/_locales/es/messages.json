@@ -3695,5 +3695,563 @@
   "lang_none": {
     "message": "Ningún idioma coincide.",
     "description": "The language picker, when the search finds nothing. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_title": {
+    "message": "Agregar una lista de palabras",
+    "description": "Bulk add (slice 13): the paste and drop area, for screen readers. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_paste": {
+    "message": "Pega una lista aquí, una palabra por línea. Por ejemplo:",
+    "description": "Bulk add (slice 13): the paste area's first placeholder line. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_example_1": {
+    "message": "dog = perro",
+    "description": "Bulk add (slice 13): an example line, a word and its meaning in the interface language's readers' base. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_example_2": {
+    "message": "cat - gato",
+    "description": "Bulk add (slice 13): an example line with a dash. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_example_3": {
+    "message": "спасибо (spasibo) = gracias",
+    "description": "Bulk add (slice 13): an example with a romanization in parentheses. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_example_4": {
+    "message": "butterfly",
+    "description": "Bulk add (slice 13): a word alone, which Kotiko looks up. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_drop_hint": {
+    "message": "O suelta un archivo .txt, .csv, .tsv o .json.",
+    "description": "Bulk add (slice 13): under the paste area. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_choose_file": {
+    "message": "Elegir un archivo",
+    "description": "Bulk add (slice 13): opens the file picker (the keyboard way to drop a file). Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_drop_here": {
+    "message": "Suelta para agregar las palabras de este archivo",
+    "description": "Bulk add (slice 13): shown over the dashboard while a file is dragged over it. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_replace_confirm": {
+    "message": "¿Reemplazar las filas que editaste con este archivo?",
+    "description": "Bulk add (slice 13): dropping a second file after editing rows. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_too_big": {
+    "message": "Este archivo pesa más de 5 MB.",
+    "description": "Bulk add (slice 13): a file too big to read. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_unreadable": {
+    "message": "Kotiko no puede leer este archivo. Usa un archivo .txt, .csv, .tsv o .json.",
+    "description": "Bulk add (slice 13): a binary or unknown file. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_spreadsheet": {
+    "message": "Kotiko lee archivos .csv. En tu hoja de cálculo elige Guardar como → CSV y suelta ese archivo.",
+    "description": "Bulk add (slice 13): an .xlsx or similar file. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_apkg": {
+    "message": "Kotiko lee la exportación de texto de Anki. En Anki elige Archivo → Exportar → Notas en texto plano y suelta ese archivo.",
+    "description": "Bulk add (slice 13): an Anki .apkg package. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_backup": {
+    "message": "Es una copia de seguridad de Kotiko. Restaurar copias llega en una versión posterior.",
+    "description": "Bulk add (slice 13): Kotiko's own JSON backup (slice 12 restores it). Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_not_utf8": {
+    "message": "Puede que algunos caracteres estén mal. Guarda el archivo como UTF-8 y vuelve a intentarlo.",
+    "description": "Bulk add (slice 13): a file that isn't UTF-8. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_over_limit": {
+    "message": "Kotiko puede agregar 5000 palabras a la vez. Abajo están las primeras 5000; agrega el resto después.",
+    "description": "Bulk add (slice 13): a list over the limit. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_learning": {
+    "message": "Aprendiendo",
+    "description": "Bulk add (slice 13): the language the list's words are in. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_meanings_in": {
+    "message": "Significados en",
+    "description": "Bulk add (slice 13): which of the learner's languages the meanings are in. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_script_hint": {
+    "message": "Parecen $LANG$.",
+    "description": "Bulk add (slice 13): most words are in a script the chosen language isn't written in. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "bulk_script_use": {
+    "message": "Cambiar a $LANG$",
+    "description": "Bulk add (slice 13): accepts the language guessed from the script. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "bulk_which": {
+    "message": "¿Estás aprendiendo $A$ o $B$?",
+    "description": "Bulk add (slice 13): when Kotiko can't tell which side of the list is the word being learned. $A$ and $B$ are the two sides of the first line. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "a": {
+        "content": "{a}"
+      },
+      "b": {
+        "content": "{b}"
+      }
+    }
+  },
+  "bulk_count_words_one": {
+    "message": "$COUNT$ palabra",
+    "description": "Bulk add (slice 13): the review's count. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_count_words_other": {
+    "message": "$COUNT$ palabras",
+    "description": "Bulk add (slice 13): the review's count. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_swap": {
+    "message": "Intercambiar",
+    "description": "Bulk add (slice 13): swaps the word and meaning columns. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_column": {
+    "message": "Columna $N$",
+    "description": "Bulk add (slice 13): a column of a table, by number. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "n": {
+        "content": "{n}"
+      }
+    }
+  },
+  "bulk_role_word": {
+    "message": "Palabra",
+    "description": "Bulk add (slice 13): column role. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_role_meaning": {
+    "message": "Significado",
+    "description": "Bulk add (slice 13): column role. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_role_romanization": {
+    "message": "Romanización",
+    "description": "Bulk add (slice 13): column role. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_role_pronunciation": {
+    "message": "Pronunciación",
+    "description": "Bulk add (slice 13): column role. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_role_note": {
+    "message": "Nota",
+    "description": "Bulk add (slice 13): column role. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_role_lang": {
+    "message": "Idioma",
+    "description": "Bulk add (slice 13): column role. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_role_ignore": {
+    "message": "Ignorar",
+    "description": "Bulk add (slice 13): column role. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_col_add": {
+    "message": "Agregar",
+    "description": "Bulk add (slice 13): the tick column, for screen readers. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_col_word": {
+    "message": "Palabra",
+    "description": "Bulk add (slice 13): table column. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_col_meaning": {
+    "message": "Significado",
+    "description": "Bulk add (slice 13): table column. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_col_romanization": {
+    "message": "Romanización",
+    "description": "Bulk add (slice 13): a row's romanization, for screen readers. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_col_pronunciation": {
+    "message": "Pronunciación",
+    "description": "Bulk add (slice 13): a row's pronunciation, for screen readers. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_col_status": {
+    "message": "Estado",
+    "description": "Bulk add (slice 13): table column. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_status_ready": {
+    "message": "Lista",
+    "description": "Bulk add (slice 13): a row that can be saved. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_status_needs": {
+    "message": "Necesita un significado",
+    "description": "Bulk add (slice 13): a word with no meaning yet. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_status_find": {
+    "message": "Kotiko buscará la palabra en $LANG$",
+    "description": "Bulk add (slice 13): a word in the learner's own language; Kotiko finds the word to learn. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "bulk_status_looking": {
+    "message": "Buscando…",
+    "description": "Bulk add (slice 13): a row being looked up. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_status_known": {
+    "message": "Ya está en tu lista",
+    "description": "Bulk add (slice 13): nothing would change. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_status_adds_one": {
+    "message": "Agrega $COUNT$ significado a tu palabra",
+    "description": "Bulk add (slice 13): an existing word gains meanings. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_status_adds_other": {
+    "message": "Agrega $COUNT$ significados a tu palabra",
+    "description": "Bulk add (slice 13): an existing word gains meanings. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_status_duplicate": {
+    "message": "Repetida en esta lista",
+    "description": "Bulk add (slice 13): the same word appears earlier. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_status_same": {
+    "message": "Igual que el significado",
+    "description": "Bulk add (slice 13): the word is spelled like its meaning (hotel = hotel). Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_status_problem": {
+    "message": "Problema: $REASON$",
+    "description": "Bulk add (slice 13): a row that can't be saved until fixed. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "reason": {
+        "content": "{reason}"
+      }
+    }
+  },
+  "bulk_status_queued": {
+    "message": "Se agregará cuando vuelvan las búsquedas",
+    "description": "Bulk add (slice 13): saved for later as an add job. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_problem_empty": {
+    "message": "falta la palabra",
+    "description": "Bulk add (slice 13): problem reason. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_problem_too_long": {
+    "message": "demasiado largo para una palabra",
+    "description": "Bulk add (slice 13): problem reason. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_problem_base": {
+    "message": "una palabra en un idioma que lees",
+    "description": "Bulk add (slice 13): problem reason. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_problem_meaning_long": {
+    "message": "el significado es demasiado largo",
+    "description": "Bulk add (slice 13): problem reason. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_problem_short": {
+    "message": "un significado es demasiado corto",
+    "description": "Bulk add (slice 13): problem reason. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_problem_unclear": {
+    "message": "la búsqueda no dio un resultado claro",
+    "description": "Bulk add (slice 13): problem reason. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_split": {
+    "message": "Separar en palabras",
+    "description": "Bulk add (slice 13): replaces a sentence row with one row per word. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_read_as": {
+    "message": "Kotiko leyó «$FROM$» como $TO$",
+    "description": "Bulk add (slice 13): the lookup corrected the spelling. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "from": {
+        "content": "{from}"
+      },
+      "to": {
+        "content": "{to}"
+      }
+    }
+  },
+  "bulk_show_more": {
+    "message": "Mostrar $COUNT$ más",
+    "description": "Bulk add (slice 13): more rows of a long list. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_need_meaning_one": {
+    "message": "$COUNT$ palabra necesita un significado.",
+    "description": "Bulk add (slice 13): rows without a meaning. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_need_meaning_other": {
+    "message": "$COUNT$ palabras necesitan un significado.",
+    "description": "Bulk add (slice 13): rows without a meaning. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_look_up": {
+    "message": "Buscarlas",
+    "description": "Bulk add (slice 13): looks up the rows without a meaning. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_cost_one": {
+    "message": "usa unas $COUNT$ búsqueda",
+    "description": "Bulk add (slice 13): the cost of looking them up. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_cost_other": {
+    "message": "usa unas $COUNT$ búsquedas",
+    "description": "Bulk add (slice 13): the cost of looking them up. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_cost_left_one": {
+    "message": "usa unas $COUNT$ de tus $LEFT$ búsquedas restantes",
+    "description": "Bulk add (slice 13): the cost, with the free lookups left today. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "left": {
+        "content": "{left}"
+      }
+    }
+  },
+  "bulk_cost_left_other": {
+    "message": "usa unas $COUNT$ de tus $LEFT$ búsquedas restantes",
+    "description": "Bulk add (slice 13): the cost, with the free lookups left today. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "left": {
+        "content": "{left}"
+      }
+    }
+  },
+  "bulk_quota_out": {
+    "message": "Usaste las búsquedas gratis de hoy. Agrega los significados tú, o guarda estas $COUNT$ palabras para después.",
+    "description": "Bulk add (slice 13): lookups ran out mid-list. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_lookups_busy": {
+    "message": "Las búsquedas no responden ahora. Agrega los significados tú, o guarda estas $COUNT$ palabras para después.",
+    "description": "Bulk add (slice 13): lookups unreachable mid-list. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_save_later_one": {
+    "message": "Guardar $COUNT$ palabra para después",
+    "description": "Bulk add (slice 13): queues the rest as add jobs that resume when lookups come back. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_save_later_other": {
+    "message": "Guardar $COUNT$ palabras para después",
+    "description": "Bulk add (slice 13): queues the rest as add jobs that resume when lookups come back. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_saved_for_later_one": {
+    "message": "$COUNT$ palabra se agregará cuando vuelvan las búsquedas.",
+    "description": "Bulk add (slice 13): after saving for later. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_saved_for_later_other": {
+    "message": "$COUNT$ palabras se agregarán cuando vuelvan las búsquedas.",
+    "description": "Bulk add (slice 13): after saving for later. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_pronunciations": {
+    "message": "Agregar la pronunciación",
+    "description": "Bulk add (slice 13): writes a pronunciation for saved words that have none, as a background job. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_add_one": {
+    "message": "Agregar $COUNT$ palabra",
+    "description": "Bulk add (slice 13): saves the ticked rows. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_add_other": {
+    "message": "Agregar $COUNT$ palabras",
+    "description": "Bulk add (slice 13): saves the ticked rows. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_added_one": {
+    "message": "Se agregó $COUNT$ palabra a $LANG$.",
+    "description": "Bulk add (slice 13): the summary's first line. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "bulk_added_other": {
+    "message": "Se agregaron $COUNT$ palabras a $LANG$.",
+    "description": "Bulk add (slice 13): the summary's first line. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "bulk_added_known_one": {
+    "message": "$COUNT$ ya estaba en tu lista.",
+    "description": "Bulk add (slice 13): summary. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_added_known_other": {
+    "message": "$COUNT$ ya estaban en tu lista.",
+    "description": "Bulk add (slice 13): summary. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_added_updated_one": {
+    "message": "$COUNT$ recibió un significado nuevo.",
+    "description": "Bulk add (slice 13): summary. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_added_updated_other": {
+    "message": "$COUNT$ recibieron significados nuevos.",
+    "description": "Bulk add (slice 13): summary. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_added_pending_one": {
+    "message": "$COUNT$ todavía se está buscando.",
+    "description": "Bulk add (slice 13): summary. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_added_pending_other": {
+    "message": "$COUNT$ todavía se están buscando.",
+    "description": "Bulk add (slice 13): summary. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_save_failed": {
+    "message": "No se pudieron guardar algunas palabras. Vuelve a intentarlo.",
+    "description": "Bulk add (slice 13): the batch save failed partway. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_see": {
+    "message": "Verlas",
+    "description": "Bulk add (slice 13): filters the dashboard's list to the words just added. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_add_more": {
+    "message": "Agregar más",
+    "description": "Bulk add (slice 13): back to an empty paste area. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_undone": {
+    "message": "Se quitaron las palabras que agregó esta lista y se restauraron las que cambió.",
+    "description": "Bulk add (slice 13): after Undo. Spanish pending native review (slice 50 §9)."
+  },
+  "bulk_undo_partly_one": {
+    "message": "Deshecho, salvo $COUNT$ palabra que cambió desde entonces.",
+    "description": "Bulk add (slice 13): Undo with conflicts. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "bulk_undo_partly_other": {
+    "message": "Deshecho, salvo $COUNT$ palabras que cambiaron desde entonces.",
+    "description": "Bulk add (slice 13): Undo with conflicts. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "popup_bulk_open": {
+    "message": "Abrir agregado en lote",
+    "description": "Popup (slice 13 §1): text with line breaks was pasted; opens the dashboard's bulk add with it. Spanish pending native review (slice 50 §9)."
   }
 }

@@ -5,6 +5,13 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Add a whole list at once: paste it into "Add words" in your word list, or drop a .txt,
+  .csv, .tsv, .json or Anki text export on it. Lines that already have a meaning are saved
+  with no lookup ("gato = cat", "dog - perro", "고양이：猫"), and Kotiko works out which side
+  is the word you're learning from the languages you read, not by assuming English. Check
+  every row first; words you have are marked, words without a meaning can be looked up,
+  and one Undo takes the whole list back. Pasting a list into the popup opens it there.
+
 - Got the wrong language? Click the language on the result and pick another: Kotiko adds
   it again in that language and removes the first. Lookups not working? "Add it yourself"
   saves a word from a small form, with a meaning in each language you read. A language

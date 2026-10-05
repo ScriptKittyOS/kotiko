@@ -125,3 +125,27 @@ test("Languages you read in: add one, drag it first, and the pages' copy follows
   // Content scripts read the local mirror; the background's projection keeps it in step.
   await expect.poll(() => dash.evaluate(() => chrome.storage.local.get("baseLangs").then((s) => s.baseLangs))).toEqual(["pl", "en"]);
 });
+
+// Slice 13: a pasted list of 200 words with meanings, saved in three steps from the
+// dashboard (Add words, paste, Add 200 words) with no lookup at all.
+test("bulk add: 200 lines with meanings saved in three steps, with no model call", async ({ context, server, popup }) => {
+  await server.control({ words: WORDS });
+  const p = await popup.connect(server.kotikoUrl, server.token);
+  const dash = await openFromPopup(context, p);
+  await dash.locator("#addWords").click(); // step 1
+  await dash.locator('[data-action="learning"]').click();
+  await dash.locator(".lang-picker input").fill("Spanish");
+  await dash.locator(".lang-picker input").press("Enter");
+  const lines = Array.from({ length: 200 }, (_, i) => `palabra${i} = word${i}`).join("\n");
+  await dash.locator("#bulkText").fill(lines); // step 2
+  await expect(dash.locator('.bulk [data-action="save"]')).toHaveText("Add 200 words");
+  await dash.locator('.bulk [data-action="save"]').click(); // step 3
+  await expect(dash.locator(".bulk-summary-title")).toHaveText("Added 200 words to Spanish.");
+  const state = await server.state();
+  expect(state.words.filter((w) => w.native.startsWith("palabra"))).toHaveLength(200);
+  expect(state.log.filter((r) => r.path.startsWith("/llm/") || (r.path === "/kotiko/api/v1/words" && r.method === "POST"))).toEqual([]);
+  // "See them" shows exactly this batch.
+  await dash.locator('.bulk [data-action="see"]').click();
+  await expect(row(dash, "palabra199")).toHaveCount(1);
+  await expect(row(dash, "дом")).toHaveCount(0);
+});

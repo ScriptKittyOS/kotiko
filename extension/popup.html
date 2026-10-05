@@ -37,6 +37,8 @@
         <legend data-i18n="popup_pages_in"></legend>
         <span class="pages-in-chips" id="pagesInChips"></span>
       </fieldset>
+      <!-- 13 §1: a pasted list goes to the dashboard's bulk add. -->
+      <p class="add-quota" id="bulkOffer" hidden><button class="btn btn-secondary btn-sm" id="openBulk" type="button" data-i18n="popup_bulk_open"></button></p>
       <!-- Slice 10: free lookups left today, from the server's /api/v1/llm/status. -->
       <p class="add-quota" id="lookupsLeft" hidden></p>
       <ul class="jobs" id="jobs" aria-live="polite"></ul>

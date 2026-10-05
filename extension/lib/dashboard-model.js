@@ -194,7 +194,7 @@
 
   // --- Routes (§1) ----------------------------------------------------------------------------
 
-  const ROUTE_KEYS = ["lang", "status", "q", "sort", "added", "source", "missing"];
+  const ROUTE_KEYS = ["lang", "status", "q", "sort", "added", "source", "missing", "batch"];
 
   // "#words/abc?lang=es&q=thank" -> { view: "words", id: "abc", params: {lang: "es", q: "thank"} }
   function parseRoute(hash) {

@@ -1228,6 +1228,17 @@
 
     $("addForm").addEventListener("submit", submit);
     $("addText").addEventListener("input", (e) => saveDraft(e.target.value));
+    // A pasted list (two lines or more) is for bulk add (13 §1): kept whole for the session,
+    // since the one-line box would drop its line breaks.
+    $("addText").addEventListener("paste", (e) => {
+      const text = e.clipboardData?.getData("text/plain") ?? "";
+      if (text.split(/\r?\n/).filter((l) => l.trim()).length < 2) return;
+      e.preventDefault();
+      ext.storage.session?.set({ bulkDraft: text }).catch(() => {});
+      $("bulkOffer").hidden = false;
+      $("openBulk").focus();
+    });
+    $("openBulk").addEventListener("click", () => openDashboardAt("#add"));
     $("hintLang").addEventListener("change", (e) => setHint(e.target.value));
     $("enabled").addEventListener("click", () => setEnabled(!(state.s?.enabled !== false)));
     $("pauseRow").addEventListener("click", () => setPaused(true));
