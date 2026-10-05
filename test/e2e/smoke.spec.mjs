@@ -96,7 +96,7 @@ test("adds a word from the popup through the server", async ({ context, server, 
 
   // Undo removes it on the server and from the page.
   await added.getByRole("button", { name: "Undo adding собака" }).click();
-  await expect(p.locator("#jobs li").first()).toHaveText("Removed собака.");
+  await expect(p.locator("#jobs li .job-text").first()).toHaveText("Removed собака.");
   await expect(page.locator("#late")).toHaveText("A dog arrives later.");
   expect((await server.state()).words.map((w) => w.native)).not.toContain("собака");
 });
@@ -112,7 +112,7 @@ test("the add box clears at once, even when the server is slow", async ({ server
   await expect(input).toHaveValue("");
   await expect(input).toBeFocused();
   expect(Date.now() - t0).toBeLessThan(1000);
-  await expect(p.locator("#jobs li").first()).toHaveText("Looking up sobaka…");
+  await expect(p.locator("#jobs li .job-text").first()).toHaveText("Looking up sobaka…");
 });
 
 test("shows the server's errors in the popup, in plain words", async ({ server, popup }) => {

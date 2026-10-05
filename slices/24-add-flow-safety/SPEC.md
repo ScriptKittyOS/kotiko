@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Partly built (2026-10-05): the job, its lifecycle, idempotency, results and Undo (§§1-5); §§6-9 (language chip, manual form, hint and "For pages in" chips, draft) are next. See Implementation notes |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
 | **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages, `t()`) |
@@ -393,6 +393,50 @@ what makes the popup closing harmless.
 `addJobs` holds the text the learner typed, locally, for at most 7 days; it is included in
 "Delete all my data" ([12](../12-export-import-and-delete/SPEC.md)). The server's
 `add_requests` table stores responses for 24 hours and is purged by 07's daily janitor.
+
+## Implementation notes
+
+Built 2026-10-05 (§§1-5, from slice 11's queue):
+
+- **Every add is a job.** That includes a server that looks words up and keeps them, which
+  until now went straight to the 0.2 `POST /api/words` and lost its result when the popup
+  closed. The job uses the server's preview (`POST /api/v1/words` with `preview: true`),
+  then saves through `/api/v1/words/batch` with the job's id as `client_request_id`. So
+  §2's "Keep {k} words" exception isn't needed: nothing is saved before the learner picks.
+  The saved words reach open pages at once, through the sync controller's `update` (06
+  F10), checked like any server answer (03 E2).
+- **needs_choice.** `CONFIRM_AT = 4` target words (a word with a record per base counts
+  once). Candidates in the word's language's common-words list start unticked. The
+  `jobs.choose` message carries the kept words' keys (language and spelling).
+- **Undo** (`jobs.undo`) and "Add it back" (`jobs.redo`) run in the background through the
+  dashboard's `words.write`, so both homes and the v1 ids are covered. Before this, Undo in
+  server mode called `DELETE /api/words/:id` with a v1 UUID, which that route always
+  refuses. An updated word is patched back to `previous` with
+  `if_updated_at: word.updated_at`. A conflict reads "This word changed since. Open it to
+  fix." The outcome (`undo`, `undoError`) is written on the job's records. "Add it back"
+  restores the tombstone, or saves the word again on `word_gone` / `word_conflict`.
+- **offline.** A network failure while the browser is offline is `offline`. It waits for
+  the `online` event, with a 10-minute backstop picked up by the alarm, not a short timer.
+- **Popup.** Lines are per target word:
+  - created, with the primary base's pronunciation, else romanization;
+  - updated, with "new forms: …";
+  - unchanged, with Open;
+  - several bases on one line ("perro · dog") with one Undo;
+  - "No meaning in {base} yet." when a base is missing;
+  - "While you were away" above jobs that finished with the popup closed;
+  - Cancel on a lookup.
+
+  The direct path (`state.jobs`, `runJob`) is gone.
+- **Not yet (next PR):**
+  - §6, the language chip and `relang`;
+  - §7, the manual form ("Add it yourself", "Add it");
+  - §8, the hint and "For pages in" chips;
+  - §9, the draft;
+  - the speak button and stress styling on the line;
+  - the dashboard showing pending jobs.
+
+  The resume rule ("startedAt older than the deadline plus 5 s") isn't used: at worker
+  start nothing is running, so every `looking_up` job is retried at once with the same id.
 
 ## Acceptance criteria
 

@@ -119,7 +119,7 @@ test("closing the popup during a lookup still saves the word; reopening shows th
   await p.locator("#addText").fill("sobaka");
   await p.locator("#addText").press("Enter");
   await expect(p.locator("#addText")).toHaveValue("");
-  await expect(p.locator("#jobs li").first()).toHaveText("Looking up sobaka…");
+  await expect(p.locator("#jobs li .job-text").first()).toHaveText("Looking up sobaka…");
   await p.close();
 
   const page = await context.newPage();
@@ -133,7 +133,8 @@ test("closing the popup during a lookup still saves the word; reopening shows th
   await expect(page.locator("#late")).toHaveText("A собака arrives.", { timeout: 10_000 });
 
   const again = await popup.page();
-  await expect(again.locator("#jobs li").first()).toHaveText(/^Added собака \(sobaka\) = dog · Russian\s*Undo$/);
+  await expect(again.locator("#jobs li").first()).toHaveText("While you were away");
+  await expect(again.locator('#jobs [data-kind="word"]').first()).toHaveText(/^Added собака \(sobaka\) = dog · Russian\s*Undo$/);
 });
 
 test("stopping the worker mid-lookup: the job runs again with the same id when it wakes, and the word is saved once", async ({ context, extensionId, server, popup }) => {
@@ -207,11 +208,13 @@ test("an existing server install upgrades with nothing changed: same words on pa
   expect(JSON.stringify(s)).not.toContain(server.token);
   expect(s.local.words).toEqual(WORDS);
 
-  // Adds go to the server exactly as before.
+  // Adds go to the same server, which looks words up and keeps them, as an add job
+  // (slice 24): its lookup, then the save under the job's id.
   const line = await popup.add("sobaka");
   await expect(line).toHaveText(/^Added собака \(sobaka\) = dog · Russian\s*Undo$/);
   const log = (await server.state()).log;
-  expect(log.some((r) => r.method === "POST" && r.path === "/kotiko/api/words")).toBe(true);
+  expect(log.some((r) => r.method === "POST" && r.path === "/kotiko/api/v1/words")).toBe(true);
+  expect(log.some((r) => r.method === "POST" && r.path === "/kotiko/api/v1/words/batch")).toBe(true);
   expect(log.filter((r) => r.path.startsWith("/kotiko/")).every((r) => r.auth === `Bearer ${server.token}`)).toBe(true);
   expect(log.filter((r) => r.path.startsWith("/llm/"))).toEqual([]);
 });

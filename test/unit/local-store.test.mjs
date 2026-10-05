@@ -173,12 +173,12 @@ describe("the projection for content scripts", () => {
 });
 
 describe("the add queue", () => {
-  function queue({ lookup, save = async (job, words) => words.map((w) => ({ result: "created", word: { ...w, id: `id-${w.native}` } })), now = () => Date.now() } = {}) {
+  function queue({ lookup, save = async (job, words) => words.map((w) => ({ result: "created", word: { ...w, id: `id-${w.native}` } })), now = () => Date.now(), isFunctionWord } = {}) {
     const fake = createFakeChrome();
     const settled = [];
     // Timers that don't keep the test process alive (a job may wait an hour).
     const setTimer = (fn, ms) => setTimeout(fn, ms).unref();
-    const q = L.Queue.createAddQueue({ storage: fake.chrome.storage.local, lookup, save, now, setTimer, onSettled: (j) => settled.push(j) });
+    const q = L.Queue.createAddQueue({ storage: fake.chrome.storage.local, lookup, save, now, setTimer, isFunctionWord, onSettled: (j) => settled.push(j) });
     const job = (id) => (fake.store.local.addJobs ?? []).find((j) => j.id === id);
     const until = async (fn) => {
       for (let i = 0; i < 200; i++) {
@@ -278,6 +278,61 @@ describe("the add queue", () => {
       await sleep(5);
     }
     assert.equal(fake.store.local.addJobs[0].state, "done");
+  });
+
+  // Slice 24 section 2: four or more target words wait for the learner's pick.
+  const many = (words) => ({ ok: true, result: { words: words.map(([native, base]) => ({ lang: "es", native, base_lang: base ?? "en", gloss: native })), rejected: [], missing_bases: [] } });
+  const saveAll = async (j, w) => w.map((x, i) => ({ result: "created", word: { ...x, id: `${j.id}-${i}` } }));
+
+  test("four or more words: nothing saved; the pick saves exactly the ticked ones; function words start unticked", async () => {
+    let saves = 0;
+    const save = async (j, w) => (saves++, saveAll(j, w));
+    const { q, job, until } = queue({ lookup: async () => many([["gato"], ["sentarse"], ["estera"], ["en"], ["mi"]]), save, isFunctionWord: (w) => ["en", "mi"].includes(w.native) });
+    await q.add({ id: "c1", text: "the cat sat on my mat", baseLangs: ["en"] });
+    await until(() => job("c1")?.state === "needs_choice");
+    assert.equal(saves, 0);
+    assert.deepEqual(job("c1").candidates.map((c) => [c.native, c.unticked]), [["gato", false], ["sentarse", false], ["estera", false], ["en", true], ["mi", true]]);
+    const keys = job("c1").candidates.filter((c) => !c.unticked).map(L.Queue.keyOf);
+    await q.choose("c1", keys);
+    assert.equal(job("c1").state, "done");
+    assert.deepEqual(job("c1").results.map((r) => r.word.native), ["gato", "sentarse", "estera"]);
+    assert.equal(job("c1").candidates, null);
+  });
+
+  test("a word with a record per base counts once: 犬 for es and en is one word, saved at once", async () => {
+    const { q, job, until } = queue({ lookup: async () => many([["perro", "en"], ["perro", "fr"], ["gato", "en"], ["gato", "fr"]]), save: saveAll });
+    await q.add({ id: "c2", text: "x", baseLangs: ["en", "fr"] });
+    await until(() => job("c2")?.state === "done");
+    assert.equal(job("c2").results.length, 4);
+  });
+
+  test("picking nothing cancels; a pick for a job not waiting on one changes nothing", async () => {
+    const { q, job, until } = queue({ lookup: async () => many([["a1"], ["a2"], ["a3"], ["a4"]]), save: saveAll });
+    await q.add({ id: "c3", text: "x", baseLangs: ["en"] });
+    await until(() => job("c3")?.state === "needs_choice");
+    await q.choose("c3", []);
+    assert.equal(job("c3").state, "cancelled");
+    await q.choose("c3", ["es\u001fa1"]);
+    assert.equal(job("c3").state, "cancelled");
+  });
+
+  test("offline: waits without a short timer, and finishes on its own when the network is back", async () => {
+    let online = false;
+    const { q, job, until } = queue({ lookup: async () => (online ? found("кот") : { ok: false, error: { code: "offline", details: {} } }) });
+    await q.add({ id: "o1", text: "kot", baseLangs: ["en"] });
+    await until(() => job("o1")?.state === "waiting");
+    assert.ok(job("o1").retryAt - Date.now() > 5 * 60_000, "the alarm's to pick up, not a timer");
+    online = true;
+    await q.wake(); // the `online` event
+    await until(() => job("o1")?.state === "done");
+  });
+
+  test("an Undo's outcome is written on every record of the word", async () => {
+    const { q, job, until } = queue({ lookup: async () => many([["perro", "en"], ["perro", "fr"]]), save: saveAll });
+    await q.add({ id: "u1", text: "x", baseLangs: ["en", "fr"] });
+    await until(() => job("u1")?.state === "done");
+    await q.setUndo("u1", L.Queue.keyOf(job("u1").results[0].word), { undo: "failed", undoError: { code: "server_unreachable" } });
+    assert.deepEqual(job("u1").results.map((r) => [r.undo, r.undoError.code]), [["failed", "server_unreachable"], ["failed", "server_unreachable"]]);
   });
 
   test("keeps the 20 most recent jobs, never dropping unfinished ones", async () => {

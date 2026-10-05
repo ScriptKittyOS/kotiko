@@ -3418,5 +3418,156 @@
   "dash_fresh_first_help": {
     "message": "So the words you just added get seen.",
     "description": "Help under the switch."
+  },
+  "add_unchanged": {
+    "message": "Already in your list: $NATIVE$ = $GLOSS$ · $LANG$",
+    "description": "Popup line (slice 24 §4): the word was already saved exactly so; nothing changed and there is nothing to undo.",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      },
+      "gloss": {
+        "content": "{gloss}"
+      },
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "add_updated": {
+    "message": "Updated $NATIVE$ = $GLOSS$ · $LANG$: $CHANGES$",
+    "description": "Popup line: an existing word gained something; $CHANGES$ is add_updated_forms. \"Actualizada\" agrees with \"palabra\".",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      },
+      "gloss": {
+        "content": "{gloss}"
+      },
+      "lang": {
+        "content": "{lang}"
+      },
+      "changes": {
+        "content": "{changes}"
+      }
+    }
+  },
+  "add_updated_plain": {
+    "message": "Updated $NATIVE$ = $GLOSS$ · $LANG$",
+    "description": "Popup line: an existing word changed, with no new forms to name.",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      },
+      "gloss": {
+        "content": "{gloss}"
+      },
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "add_updated_forms": {
+    "message": "new forms: $FORMS$",
+    "description": "What an update added: the page words that now show this word, separated by commas.",
+    "placeholders": {
+      "forms": {
+        "content": "{forms}"
+      }
+    }
+  },
+  "add_needs_choice_one": {
+    "message": "Found $COUNT$ word in “$TEXT$”.",
+    "description": "Popup, before saving several words from one add (slice 24 §2). Rarely singular.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "text": {
+        "content": "{text}"
+      }
+    }
+  },
+  "add_needs_choice_other": {
+    "message": "Found $COUNT$ words in “$TEXT$”.",
+    "description": "Popup, before saving several words from one add: the learner ticks the ones to keep.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      },
+      "text": {
+        "content": "{text}"
+      }
+    }
+  },
+  "add_choose_one": {
+    "message": "Add $COUNT$ word",
+    "description": "Button under the list of words found: saves the ticked one.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "add_choose_other": {
+    "message": "Add $COUNT$ words",
+    "description": "Button under the list of words found: saves the ticked ones.",
+    "placeholders": {
+      "count": {
+        "content": "{count}"
+      }
+    }
+  },
+  "add_missing_base": {
+    "message": "No meaning in $BASE$ yet.",
+    "description": "Popup, under a saved word: the lookup gave no meaning for one of the learner's languages. $BASE$ is that language's name.",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "undo_done_updated": {
+    "message": "Put $NATIVE$ back as it was.",
+    "description": "Popup, after undoing an update: the word is as before the add.",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      }
+    }
+  },
+  "undo_stale": {
+    "message": "This word changed since. Open it to fix.",
+    "description": "Popup: undo refused because the word was edited after the add (another device, the dashboard)."
+  },
+  "add_redo": {
+    "message": "Add it back",
+    "description": "Popup, after undoing an add: saves the word again."
+  },
+  "add_open": {
+    "message": "Open",
+    "description": "Popup: opens the word in the dashboard."
+  },
+  "add_open_label": {
+    "message": "Open $NATIVE$",
+    "description": "For screen readers: the Open button on a word that was already in the list.",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      }
+    }
+  },
+  "add_while_away": {
+    "message": "While you were away",
+    "description": "Popup, above adds that finished with the popup closed."
+  },
+  "add_waiting_offline": {
+    "message": "Waiting to look up $TEXT$: you're offline. It continues when you're back online.",
+    "description": "Popup: an add waits for the network and finishes on its own.",
+    "placeholders": {
+      "text": {
+        "content": "{text}"
+      }
+    }
   }
 }

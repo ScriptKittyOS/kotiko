@@ -446,14 +446,49 @@ async function saveJob(job, words) {
     return results;
   }
   const res = await apiV1("/api/v1/words/batch", { method: "POST", body: { words: words.map((w) => ({ ...w, origin: w.origin ?? "add" })), client_request_id: job.id } });
-  sync.request({ reason: "add", force: true });
-  return Array.isArray(res.results) ? res.results : [];
+  const results = Array.isArray(res.results) ? res.results : [];
+  // The saved words reach open pages at once (06 F10), checked like any server answer
+  // (03 E2); the sync that follows is authoritative.
+  const added = filterWords(results.map((r) => r?.word).filter(Boolean).map(cacheWord)).words;
+  await sync.update(() => replaceCached(added, added), { reason: "add" });
+  return results;
+}
+
+// A function word of the word's own language ("en", "mi" for Spanish), from the shared
+// common-words lists: such candidates start unticked when an add asks first (24 §2).
+let importedStop = null;
+function isFunctionWord(w) {
+  const Text = globalThis.KotikoText;
+  const lang = Text.primary(w?.lang ?? "");
+  const own = globalThis.KOTIKO_SPEC?.lang?.[w?.lang]?.stopwords ?? globalThis.KOTIKO_SPEC?.lang?.[lang]?.stopwords;
+  const list = own?.length ? own : importedStop?.[w?.lang] ?? importedStop?.[lang] ?? [];
+  return list.includes(String(w?.native ?? "").toLocaleLowerCase(lang || undefined));
+}
+importedStopwords().then((s) => (importedStop = s)).catch(() => {});
+
+// With the browser offline, a failed lookup or save waits for the network (24 §2: the
+// `online` event wakes it) instead of reading as a busy model or a server that's down.
+const NETWORK = new Set(["server_unreachable", "model_unavailable", "lookup_timeout"]);
+const offline = () => globalThis.navigator?.onLine === false;
+async function lookupOrOffline(job, signal) {
+  const res = await lookupJob(job, signal);
+  if (!res?.ok && NETWORK.has(res?.error?.code) && offline()) return { ok: false, error: { code: "offline", details: {} } };
+  return res;
+}
+async function saveOrOffline(job, words) {
+  try {
+    return await saveJob(job, words);
+  } catch (e) {
+    if (NETWORK.has(e?.code) && offline()) throw codedError("offline", "You're offline.", {});
+    throw e;
+  }
 }
 
 const queue = globalThis.KotikoAddQueue.createAddQueue({
   storage: ext.storage.local,
-  lookup: lookupJob,
-  save: saveJob,
+  lookup: lookupOrOffline,
+  save: saveOrOffline,
+  isFunctionWord,
   now,
   onSettled: () => {
     lookupStatus().catch(() => {});
@@ -865,8 +900,6 @@ ext.runtime.onMessage.addListener(
         check: (msg) => checks.text(msg.text),
         async run(msg) {
           await ready().catch(() => {});
-          const s = await settings();
-          if (s.wordsHome === "server" && s.lookup.kind === "server") return legacyAdd(msg);
           const job = await queue.add({
             id: isUuid(msg.id) ? msg.id : globalThis.KotikoStore.uuid7(now()),
             text: msg.text.trim(),
@@ -887,7 +920,13 @@ ext.runtime.onMessage.addListener(
             if (typeof msg.jobId === "string") await queue.markUndo(msg.jobId, String(msg.id), "done");
             return { ok: true };
           }
-          await api(`/api/words/${encodeURIComponent(msg.id)}`, { method: "DELETE" });
+          // A v1 record (an add job's result) by its id; a word from the 0.2 list by its number.
+          if (isUuid(String(msg.id))) {
+            const [r] = (await serverHandlers["words.write"].run({ ops: [{ op: "delete", id: String(msg.id) }] })).results;
+            if (!r.ok && r.code !== "word_gone") throw codedError(r.code, r.message, r.details);
+          } else {
+            await api(`/api/words/${encodeURIComponent(msg.id)}`, { method: "DELETE" });
+          }
           if (typeof msg.jobId === "string") await queue.markUndo(msg.jobId, msg.id, "done");
           await sync.update(
             async () => {
@@ -912,6 +951,15 @@ ext.runtime.onMessage.addListener(
       "jobs.retry": { from: ["page"], check: (m) => (isUuid(m.id) ? null : "id must be a job id"), run: (m) => queue.retry(m.id).then(() => ({ ok: true })) },
       "jobs.cancel": { from: ["page"], check: (m) => (isUuid(m.id) ? null : "id must be a job id"), run: (m) => queue.cancel(m.id).then(() => ({ ok: true })) },
       "jobs.dismiss": { from: ["page"], check: (m) => (isUuid(m.id) ? null : "id must be a job id"), run: (m) => queue.dismiss(m.id).then(() => ({ ok: true })) },
+      // The learner's pick when an add found four or more words (24 §2).
+      "jobs.choose": {
+        from: ["page"],
+        check: (m) => (!isUuid(m.id) ? "id must be a job id" : !Array.isArray(m.keys) || m.keys.length > 10 || m.keys.some((k) => typeof k !== "string" || k.length > 200) ? "keys must list up to 10 words" : null),
+        run: (m) => queue.choose(m.id, m.keys).then(() => ({ ok: true })),
+      },
+      // Undo one word of an add, and "Add it back" (24 §5).
+      "jobs.undo": { from: ["page"], check: checkJobWord, run: (m) => undoWord(m.id, m.key) },
+      "jobs.redo": { from: ["page"], check: checkJobWord, run: (m) => redoWord(m.id, m.key) },
       "jobs.seen": { from: ["page"], check: (m) => (Array.isArray(m.ids) && m.ids.length <= 50 ? null : "ids must list job ids"), run: (m) => queue.markSeen(m.ids).then(() => ({ ok: true })) },
 
       // Secrets (slice 11 section 3): set from extension pages, never read back.
@@ -1051,29 +1099,78 @@ ext.runtime.onMessage.addListener(
   }),
 );
 
-// Today's server add (lookup and save on the server, then sync): kept as it was for a
-// server that looks words up and keeps them.
-async function legacyAdd(msg) {
-  // Every add (or failed one) changes what's left: read it again afterwards.
-  const res = await api("/api/words", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text: msg.text }),
-  }).finally(() => {
-    refreshLookupStatus().catch(() => {});
-  });
-  // Show the new words right away; the follow-up sync is authoritative.
-  const added = Array.isArray(res.words) ? filterWords(res.words).words : [];
-  await sync.update(
-    async () => {
-      if (!added.length) return;
-      const { words = [] } = await ext.storage.local.get("words");
-      const rest = words.filter((w) => !added.some((a) => sameId(a.id, w.id)));
-      await ext.storage.local.set({ words: [...added, ...rest] });
-    },
-    { reason: "add" },
+// A v1 record in the shape the server mode's cache holds (the 0.2 list's), and a change
+// to that cache keyed by word (a v1 id and a 0.2 number name the same word).
+const sameWord = (a, b) => a.lang === b.lang && a.native === b.native && (a.base_lang ?? "en") === (b.base_lang ?? "en");
+function cacheWord(w) {
+  const forms = (w.forms ?? []).filter((f) => typeof f === "string" || f?.enabled !== false).map((f) => (typeof f === "string" ? f : f.text));
+  // base-neutral-ok: the 0.2 list's field for the gloss, which the server mode's cache keeps
+  const out = { id: w.id, lang: w.lang, native: w.native, romanization: w.romanization ?? null, english: w.gloss ?? null, forms, note: w.note ?? null, base_lang: w.base_lang };
+  for (const k of ["native_vocalized", "pronunciation", "pronunciation_careful", "pronunciation_source"]) if (w[k]) out[k] = w[k];
+  return out;
+}
+async function replaceCached(gone, added = []) {
+  const { words = [] } = await ext.storage.local.get("words");
+  const rest = words.filter((w) => !gone.some((g) => sameWord(g, w)));
+  if (rest.length !== words.length || added.length) await ext.storage.local.set({ words: [...added, ...rest] });
+}
+
+// Undo for one word of a finished add job (slice 24 §5), on every record the job saved
+// for it: a created record is removed, an updated one goes back to its previous version
+// (refused when it changed since, from another device or the dashboard), an unchanged one
+// is left. The outcome is written on the job, so it survives the popup closing.
+function checkJobWord(m) {
+  return !isUuid(m.id) ? "id must be a job id" : typeof m.key !== "string" || !m.key || m.key.length > 200 ? "key must name a word" : null;
+}
+const RESTORABLE = ["gloss", "forms", "romanization", "native_vocalized", "pronunciation", "pronunciation_careful", "pronunciation_source", "note", "status", "sense"];
+const jobWords = async (id, key) => {
+  const { addJobs = [] } = await ext.storage.local.get({ addJobs: [] });
+  const job = addJobs.find((j) => j.id === id);
+  return (job?.results ?? []).filter((r) => r.word && globalThis.KotikoAddQueue.keyOf(r.word) === key);
+};
+const writeOps = async (ops) => (await wordRoutes["words.write"].run({ ops })).results;
+
+async function undoWord(id, key) {
+  const records = (await jobWords(id, key)).filter((r) => r.result !== "unchanged" && r.undo !== "done");
+  if (!records.length) return { ok: true };
+  await queue.setUndo(id, key, { undo: "pending", undoError: null });
+  const ops = records.map((r) =>
+    r.result === "created"
+      ? { op: "delete", id: r.wordId }
+      : { op: "patch", id: r.wordId, patch: Object.fromEntries(RESTORABLE.filter((k) => r.previous && k in r.previous).map((k) => [k, r.previous[k]])), if_updated_at: r.word.updated_at },
   );
-  return res;
+  let results;
+  try {
+    results = await writeOps(ops);
+  } catch (e) {
+    results = ops.map(() => ({ ok: false, code: e?.code ?? "internal", details: e?.details ?? {} }));
+  }
+  // A record already gone counts as undone; the first other failure is the line's.
+  const bad = results.find((r) => !r.ok && r.code !== "word_gone");
+  // With a server, pages stop showing a removed word at once, as after an add.
+  const removed = records.filter((r, i) => r.result === "created" && (results[i].ok || results[i].code === "word_gone")).map((r) => r.word);
+  if (removed.length && (await home()) === "server") await sync.update(() => replaceCached(removed), { reason: "remove" });
+  await queue.setUndo(id, key, bad ? { undo: "failed", undoError: { code: bad.code, details: bad.details ?? {} } } : { undo: "done", undoError: null });
+  return bad ? { error: bad.message ?? bad.code, code: bad.code, details: bad.details ?? {} } : { ok: true };
+}
+
+// "Add it back" after undoing a created word: restore the tombstone, or, when that word is
+// gone for good or its place was taken, save it again without the model.
+async function redoWord(id, key) {
+  const records = (await jobWords(id, key)).filter((r) => r.result === "created" && r.undo === "done");
+  if (!records.length) return { ok: true };
+  const results = await writeOps(records.map((r) => ({ op: "restore", id: r.wordId })));
+  const again = records.filter((r, i) => !results[i].ok && (results[i].code === "word_gone" || results[i].code === "word_conflict"));
+  const failed = results.find((r) => !r.ok && r.code !== "word_gone" && r.code !== "word_conflict");
+  if (failed) return { error: failed.message ?? failed.code, code: failed.code, details: failed.details ?? {} };
+  if (again.length) {
+    const fields = ["lang", "native", "base_lang", "sense", "gloss", "forms", "romanization", "native_vocalized", "pronunciation", "pronunciation_careful", "pronunciation_source", "note"];
+    const words = again.map((r) => Object.fromEntries(fields.filter((k) => r.word[k] !== undefined).map((k) => [k, r.word[k]])));
+    const res = await wordRoutes["words.save"].run({ words, client_request_id: globalThis.KotikoStore.uuid7(now()) });
+    if (res?.error) return res;
+  }
+  await queue.setUndo(id, key, { undo: null, undoError: null });
+  return { ok: true };
 }
 
 // "Show details for the selected word" (Alt+Shift+R; slice 33's reveal-word, the keyboard

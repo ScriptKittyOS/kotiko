@@ -48,7 +48,6 @@
   const KEYLESS = new Set(["ollama", "lmstudio", "custom"]);
   const NO_WORD = new Set(["no_word_found", "rejected_same_as_gloss"]);
   const CHIP_ROWS = 3;
-  const MAX_TEXT = 200;
   const STORE_HOSTS = /^(chromewebstore\.google\.com|chrome\.google\.com|addons\.mozilla\.org|microsoftedge\.microsoft\.com)$/;
 
   // ---------------------------------------------------------------------------------
@@ -108,7 +107,6 @@
     return false;
   }
   // Adds are background jobs (slice 11 §5) unless a server looks up and keeps the words.
-  const queueMode = (s) => !(mode(s) === "server" && lookupKind(s) === "server");
   // Technical detail for "Details" (25 §3): never translated, each fact once.
   const technical = (...parts) => [...new Set(parts.filter((p) => p !== null && p !== undefined && p !== "").map(String))].join("\n");
 
@@ -186,7 +184,6 @@
     pageStatus: null,
     online: navigator.onLine !== false,
     permission: true,
-    jobs: [],
     expanded: false,
     roving: null,
     checking: false,
@@ -199,7 +196,6 @@
     rendered: new Set(),
     maskedToken: null,
   };
-  let jobSeq = 0;
 
   // Writes go through one queue, each reading the current value inside it, so rapid clicks
   // never lose an update (research 06 F37). While a key has writes in flight, the popup
@@ -550,34 +546,50 @@
   }
 
   // --- Recent adds -------------------------------------------------------------------
-  // Queue jobs (`addJobs`, the background's) finish with the popup closed; direct jobs live
-  // in `state.jobs`. A storage job as the lines read it:
+  // Add jobs live in `addJobs`, the background's, and finish with the popup closed (24 §1).
+  // One line per target word, whatever the number of bases it has a record for (24 §4).
+  const keyOf = (w) => `${w?.lang}\u001f${w?.native}`;
+  const langName = (l) => I18n.languageName(l) ?? l;
+  const problem = (e) => addProblem({ code: e?.code, details: e?.details ?? {} }, { online: state.online, n: wordTotal(state.s?.words) });
+
   function viewJob(j) {
     const e = j.error ?? {};
-    const v = { id: j.id, queue: true, text: j.text, status: { waiting: "waiting", failed: "failed", done: "done" }[j.state] ?? "looking", words: [], known: [], code: e.code, details: e.details ?? {} };
-    if (v.status === "failed") {
-      v.error = NO_WORD.has(e.code) ? { text: t("error_no_word_found", { text: j.text }), details: e.details?.reply ?? "", actions: [] } : addProblem({ code: e.code, details: v.details }, { online: state.online, n: wordTotal(state.s.words) });
+    const status = { waiting: "waiting", failed: "failed", done: "done", needs_choice: "choose" }[j.state] ?? "looking";
+    const v = { id: j.id, text: j.text, status, words: [], code: e.code, details: e.details ?? {}, candidates: j.candidates ?? [], missing: j.missingBases ?? [], away: state.doneAtOpen.has(j.id) };
+    if (status === "failed") {
+      v.error = e.code === "rejected_same_as_gloss"
+        ? { text: t("error_rejected_same_as_gloss", { text: j.text, base: langName(j.baseLangs?.[0] ?? "en") }), details: "", actions: [] }
+        : NO_WORD.has(e.code) ? { text: t("error_no_word_found", { text: j.text }), details: e.details?.reply ?? "", actions: [] } : problem(e);
     }
-    for (const r of v.status === "done" ? j.results ?? [] : []) {
-      if (!r?.word) continue;
-      const k = `${j.id}:${r.wordId}`;
-      if (r.result !== "created") {
-        if (!v.known.includes(r.word.native)) v.known.push(r.word.native);
-        continue;
-      }
-      const u = state.undos.get(k);
-      v.words.push({ word: r.word, undo: r.undo ?? u?.state ?? null, undoError: u?.error, fresh: !state.doneAtOpen.has(j.id) && !state.rendered.has(k) });
+    // A word's records in base order; the line reads as the most telling result.
+    const order = (r) => ((j.baseLangs ?? []).indexOf(r.baseLang) + 99) % 99;
+    const groups = new Map();
+    for (const r of status === "done" ? j.results ?? [] : []) if (r?.word) (groups.get(keyOf(r.word)) ?? groups.set(keyOf(r.word), []).get(keyOf(r.word))).push(r);
+    for (const [key, rs] of groups) {
+      rs.sort((a, b) => order(a) - order(b));
+      const live = rs.filter((r) => r.result !== "unchanged");
+      const undo = state.undos.get(`${j.id}:${key}`) ?? (live.some((r) => r.undo === "failed") ? "failed" : live.some((r) => r.undo === "pending") ? "pending" : live.length && live.every((r) => r.undo === "done") ? "done" : null);
+      const k = `${j.id}:${key}`;
+      v.words.push({
+        key,
+        records: rs,
+        word: rs[0].word,
+        result: ["created", "updated", "unchanged"].find((x) => rs.some((r) => r.result === x)),
+        undo,
+        undoError: live.find((r) => r.undoError)?.undoError ?? null,
+        fresh: !state.doneAtOpen.has(j.id) && !state.rendered.has(k),
+      });
       state.rendered.add(k);
     }
     return v;
   }
 
-  // The three most recent jobs that are running or waiting, finished unseen, or shown
-  // since the popup opened.
+  // The three most recent jobs that are running, waiting or asking, finished unseen, or
+  // shown since the popup opened.
   function currentJobs() {
-    if (!state.s || !queueMode(state.s)) return state.jobs;
+    if (!state.s) return [];
     const stored = (state.s.addJobs ?? []).filter((j) => j?.id && j.state !== "cancelled");
-    const list = [...[...state.optimistic.values()].filter((o) => !stored.some((j) => j.id === o.id)), ...stored]
+    const list = [...[...state.optimistic.values()].reverse().filter((o) => !stored.some((j) => j.id === o.id)), ...stored]
       .filter((j) => !/done|failed/.test(j.state) || !j.seen || state.shownJobs.has(j.id))
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, MAX_JOBS);
@@ -586,13 +598,9 @@
   }
 
   function jobLines(job) {
-    if (job.status === "looking") {
-      return [{ key: `${job.id}`, kind: "looking", job }];
-    }
-    if (job.status === "waiting") return [{ key: `${job.id}`, kind: "waiting", job }];
-    if (job.status === "failed") return [{ key: `${job.id}`, kind: "failed", job }];
-    const lines = job.words.map((entry, i) => ({ key: `${job.id}:${i}`, kind: "word", job, entry }));
-    if (job.known?.length) lines.push({ key: `${job.id}:known`, kind: "known", job });
+    if (job.status !== "done") return [{ key: `${job.id}`, kind: job.status, job }];
+    const lines = job.words.map((entry) => ({ key: `${job.id}:${entry.key}`, kind: "word", job, entry }));
+    if (job.missing.length && job.words.length) lines.push({ key: `${job.id}:missing`, kind: "missing", job });
     return lines;
   }
 
@@ -600,14 +608,23 @@
     return el("bdi", { class: `word dots${fresh ? " swap-in motion" : ""}`, lang: w.lang }, w.native);
   }
 
-  function createdText(w, fresh) {
-    const lang = I18n.languageName(w.lang) ?? w.language ?? w.lang;
+  // "Added спасибо (spa-SEE-ba) = thanks · Russian"; with several bases, the glosses in base
+  // order ("perro · dog") and the primary base's pronunciation.
+  function wordText(entry, fresh) {
+    const w = entry.word;
     const pron = w.pronunciation || w.romanization;
     const params = {
       native: wordNode(w, fresh),
-      gloss: el("bdi", { class: "job-gloss" }, w.gloss ?? w.english ?? ""),
-      lang,
+      gloss: el("bdi", { class: "job-gloss" }, entry.records.map((r) => r.word.gloss ?? r.word.english ?? "").join(" · ")),
+      lang: langName(w.lang),
     };
+    if (entry.result === "unchanged") return I18n.parts("add_unchanged", params);
+    if (entry.result === "updated") {
+      // What the merge added: the forms the word didn't have before.
+      const had = new Set(entry.records.flatMap((r) => (r.previous?.forms ?? []).map((f) => (typeof f === "string" ? f : f.text))));
+      const added = [...new Set(entry.records.flatMap((r) => (r.word.forms ?? []).map((f) => (typeof f === "string" ? f : f.text))))].filter((f) => f && !had.has(f));
+      return added.length ? I18n.parts("add_updated", { ...params, changes: t("add_updated_forms", { forms: added.join(", ") }) }) : I18n.parts("add_updated_plain", params);
+    }
     if (pron) params.pronunciation = el("span", { class: "job-pron", lang: `${w.lang}-Latn` }, pron);
     return I18n.parts(pron ? "add_created" : "add_created_plain", params);
   }
@@ -618,15 +635,41 @@
     const at = Date.parse(job.details.retry_at ?? "");
     if (code === "lookup_not_set_up") return { text: t("add_waiting_setup", { text }), actions: ["setupLookups", "cancel"] };
     if (code === "quota_exhausted" && at) return { text: t("add_waiting_quota", { text, time: new Intl.DateTimeFormat(I18n.locale(), { timeStyle: "short" }).format(at) }), actions: ["cancel"] };
+    if (code === "offline") return { text: t("add_waiting_offline", { text }), actions: ["cancel"] };
     if (RETRYABLE.has(code)) return { text: t("add_waiting_busy", { text }), actions: ["retry", "cancel"] };
-    return { text: t("add_waiting", { text, reason: addProblem(job, { online: state.online }).text }), actions: ["retry", "cancel"] };
+    return { text: t("add_waiting", { text, reason: problem(job).text }), actions: ["retry", "cancel"] };
+  }
+
+  const openWord = (id) => openDashboardAt(`#words/${encodeURIComponent(id)}`);
+  const smallButton = (action, label, onclick, extra = {}) => el("button", { class: "btn btn-quiet btn-sm", type: "button", "data-action": action, onclick, ...extra }, label);
+
+  // A pasted sentence: the words found, function words unticked, nothing saved yet.
+  function chooseContent(job) {
+    const words = [];
+    for (const c of job.candidates) {
+      const w = words.find((x) => x.key === keyOf(c));
+      if (w) w.glosses.push(c.gloss);
+      else words.push({ key: keyOf(c), word: c, glosses: [c.gloss], on: !c.unticked });
+    }
+    const button = smallButton("choose", "", () => send({ type: "jobs.choose", id: job.id, keys: words.filter((w) => w.on).map((w) => w.key) }));
+    const count = () => {
+      const k = words.filter((w) => w.on).length;
+      button.textContent = t("add_choose", { count: k });
+      button.disabled = !k;
+    };
+    count();
+    const list = el("ul", { class: "choose-list" }, words.map((w) => el("li", {}, el("label", {},
+      el("input", { type: "checkbox", checked: w.on ? "" : null, "data-key": w.key, onchange: (e) => ((w.on = e.target.checked), count()) }),
+      " ", el("bdi", { class: "word", lang: w.word.lang }, w.word.native), ` = ${w.glosses.join(" · ")} · ${langName(w.word.lang)}`))));
+    return [el("div", { class: "job-text" }, el("p", {}, t("add_needs_choice", { count: words.length, text: job.text })), list,
+      el("div", { class: "job-more" }, button, actionLink("cancel", null, () => cancelJob(job))))];
   }
 
   function lineContent(line) {
     const { job, entry } = line;
-    if (line.kind === "looking") {
-      return [el("span", { class: "job-text job-looking" }, t("add_looking_up", { text: job.text }))];
-    }
+    if (line.kind === "looking") return [el("span", { class: "job-text job-looking" }, t("add_looking_up", { text: job.text })), el("span", { class: "job-actions" }, actionLink("cancel", null, () => cancelJob(job)))];
+    if (line.kind === "choose") return chooseContent(job);
+    if (line.kind === "missing") return [icon("info", 18), el("span", { class: "job-text" }, t("add_missing_base", { base: job.missing.map(langName).join(", ") }))];
     if (line.kind === "waiting") {
       const w = waitingLine(job);
       const actions = w.actions.map((a) => actionLink(a, () => retryJob(job), () => cancelJob(job))).filter(Boolean);
@@ -634,10 +677,6 @@
         icon("info", 18),
         el("div", { class: "job-text" }, el("p", {}, w.text), el("div", { class: "job-more" }, actions)),
       ];
-    }
-    if (line.kind === "known") {
-      const words = job.known.map((n, i) => [i ? ", " : "", el("bdi", { class: "word" }, n)]).flat().filter((x) => x !== "");
-      return [el("span", { class: "job-text" }, I18n.parts("add_already_known", { words: el("span", {}, words) }))];
     }
     if (line.kind === "failed") {
       const e = job.error;
@@ -650,43 +689,43 @@
       ];
     }
     const w = entry.word;
+    const native = el("bdi", { lang: w.lang }, w.native);
     if (entry.undo === "done") {
-      return [el("span", { class: "job-text" }, I18n.parts("undo_done_created", { native: el("bdi", { lang: w.lang }, w.native) }))];
+      if (entry.result === "updated") return [el("span", { class: "job-text" }, I18n.parts("undo_done_updated", { native }))];
+      return [el("span", { class: "job-text" }, I18n.parts("undo_done_created", { native })), el("span", { class: "job-actions" }, smallButton("redo", t("add_redo"), () => redo(job, entry)))];
     }
     if (entry.undo === "failed") {
+      // Changed since (another device, the dashboard): fixing it is the learner's call.
+      const stale = entry.undoError?.code === "word_conflict";
       return [
         icon("error", 18),
-        el("div", { class: "job-text" }, el("p", {}, t("undo_failed", { message: entry.undoError.text })),
-          el("div", { class: "job-more" }, actionLink("retry", () => undo(job, entry)))),
+        el("div", { class: "job-text" }, el("p", {}, stale ? t("undo_stale") : t("undo_failed", { message: problem(entry.undoError).text })),
+          el("div", { class: "job-more" }, stale ? smallButton("open", t("add_open"), () => openWord(w.id)) : actionLink("retry", () => undo(job, entry)))),
       ];
     }
     const fresh = entry.fresh;
     entry.fresh = false;
-    return [
-      el("span", { class: "job-text" }, createdText(w, fresh)),
-      el("span", { class: "job-actions" },
-        el("button", {
-          class: "btn btn-quiet btn-sm",
-          type: "button",
-          "data-action": "undo",
-          "aria-label": t("add_undo_label", { native: w.native }),
-          "aria-disabled": entry.undo === "pending" ? "true" : null,
-          onclick: () => entry.undo !== "pending" && undo(job, entry),
-        }, icon("undo", 16), t("add_undo"))),
-    ];
+    const action = entry.result === "unchanged"
+      ? smallButton("open", t("add_open"), () => openWord(w.id), { "aria-label": t("add_open_label", { native: w.native }) })
+      : smallButton("undo", [icon("undo", 16), t("add_undo")], () => entry.undo !== "pending" && undo(job, entry), { "aria-label": t("add_undo_label", { native: w.native }), "aria-disabled": entry.undo === "pending" ? "true" : null });
+    return [el("span", { class: "job-text" }, wordText(entry, fresh)), el("span", { class: "job-actions" }, action)];
   }
 
   function signature(line) {
-    if (line.kind === "word") return `word:${line.entry.undo ?? ""}`;
+    if (line.kind === "word") return `word:${line.entry.result}:${line.entry.undo ?? ""}`;
     if (line.kind === "waiting") return `waiting:${line.job.code ?? ""}`;
     if (line.kind === "failed") return `failed:${line.job.error?.text ?? ""}`;
+    if (line.kind === "choose") return `choose:${line.job.candidates.length}`;
     return line.kind;
   }
 
   function renderJobs() {
     const list = $("jobs");
     const existing = new Map([...list.children].map((li) => [li.dataset.key, li]));
-    const lines = currentJobs().flatMap(jobLines);
+    const jobs = currentJobs();
+    const lines = jobs.flatMap(jobLines);
+    // Finished while the popup was closed: says so once, above those lines (24 §9).
+    const away = jobs.some((j) => j.away && j.status === "done");
     const next = lines.map((line) => {
       const old = existing.get(line.key);
       if (old && old.dataset.sig === signature(line)) return old;
@@ -700,33 +739,11 @@
       if (focused) queueMicrotask(() => li.querySelector("button")?.focus() ?? $("addText").focus());
       return li;
     });
+    if (away) next.unshift(existing.get("away") ?? el("li", { class: "job-away", "data-key": "away" }, t("add_while_away")));
     list.replaceChildren(...next);
   }
 
-  function trimJobs() {
-    state.jobs = state.jobs.slice(0, MAX_JOBS);
-  }
-
-  async function runJob(job) {
-    job.status = "looking";
-    renderJobs();
-    const res = await send({ type: "add", text: job.text });
-    if (res?.error) {
-      job.status = "failed";
-      job.error = addProblem(res, { connected: hasToken(state.s), online: state.online, n: wordTotal(state.s?.words) });
-    } else if (res?.words?.length || res?.known?.length) {
-      job.status = "done";
-      job.words = (Array.isArray(res.words) ? res.words : []).map((word) => ({ word, undo: null, fresh: true }));
-      // Words the learner already had: named, never offered an Undo that could delete them.
-      job.known = Array.isArray(res.known) ? res.known.filter((n) => typeof n === "string" && n) : [];
-    } else {
-      job.status = "failed";
-      job.error = { text: t("error_no_word_found", { text: job.text }), details: res?.reply ?? "", actions: [] };
-    }
-    renderJobs();
-  }
-
-  // A queue job, persisted by the background before anything else: the popup can close.
+  // A job, persisted by the background before anything else: the popup can close.
   async function queueJob(text) {
     const id = globalThis.crypto.randomUUID();
     const job = { id, text, state: "queued", createdAt: Date.now() };
@@ -734,7 +751,7 @@
     renderJobs();
     const res = await send({ type: "add", id, text });
     // Refused (too long): a line of its own, dismissed locally.
-    if (res?.error) job.view = { id, queue: true, local: true, text, status: "failed", words: [], error: addProblem(res) };
+    if (res?.error) job.view = { id, local: true, text, status: "failed", words: [], missing: [], candidates: [], error: addProblem(res) };
     renderJobs();
   }
 
@@ -745,58 +762,37 @@
     if (!text) return;
     input.value = "";
     input.focus();
-    if (state.s && queueMode(state.s)) return void queueJob(text);
-    if ([...text].length > MAX_TEXT) {
-      state.jobs.unshift({ id: ++jobSeq, text, status: "failed", words: [], error: { text: t("error_input_too_long"), details: "", actions: [] } });
-      trimJobs();
-      renderJobs();
-      return;
-    }
-    const job = { id: ++jobSeq, text, status: "looking", words: [] };
-    state.jobs.unshift(job);
-    trimJobs();
-    runJob(job);
+    queueJob(text);
   }
 
   function retryJob(job) {
-    if (job.queue) send({ type: "jobs.retry", id: job.id });
-    else runJob(job);
+    send({ type: "jobs.retry", id: job.id });
     $("addText").focus();
   }
 
   function cancelJob(job) {
-    if (job.queue) send({ type: "jobs.cancel", id: job.id });
+    send({ type: "jobs.cancel", id: job.id });
     $("addText").focus();
   }
 
   function dismissJob(job) {
-    if (job.queue) {
-      state.optimistic.delete(job.id);
-      if (!job.local) send({ type: "jobs.dismiss", id: job.id });
-      state.s.addJobs = (state.s.addJobs ?? []).filter((j) => j.id !== job.id);
-    } else {
-      state.jobs = state.jobs.filter((j) => j !== job);
-    }
+    state.optimistic.delete(job.id);
+    if (!job.local) send({ type: "jobs.dismiss", id: job.id });
+    state.s.addJobs = (state.s.addJobs ?? []).filter((j) => j.id !== job.id);
     renderJobs();
     $("addText").focus();
   }
 
-  async function undo(job, entry) {
-    const key = `${job.id}:${entry.word.id}`;
-    entry.undo = "pending";
-    if (job.queue) state.undos.set(key, { state: "pending" });
+  // Undo and "Add it back" (24 §5): the background writes the outcome on the job.
+  async function undo(job, entry, type = "jobs.undo") {
+    const k = `${job.id}:${entry.key}`;
+    state.undos.set(k, "pending");
     renderJobs();
-    const res = await send(job.queue ? { type: "remove", id: entry.word.id, jobId: job.id } : { type: "remove", id: entry.word.id });
-    if (res?.error) {
-      entry.undo = "failed";
-      entry.undoError = addProblem(res, { connected: hasToken(state.s), online: state.online, n: wordTotal(state.s?.words) });
-      if (job.queue) state.undos.set(key, { state: "failed", error: entry.undoError });
-    } else {
-      entry.undo = "done";
-      if (job.queue) state.undos.set(key, { state: "done" });
-    }
+    await send({ type, id: job.id, key: entry.key });
+    state.undos.delete(k);
     renderJobs();
   }
+  const redo = (job, entry) => undo(job, entry, "jobs.redo");
 
   // --- Actions on storage --------------------------------------------------------------
 
@@ -1187,7 +1183,7 @@
     for (const j of Array.isArray(s.addJobs) ? s.addJobs : []) if (j?.state === "done") state.doneAtOpen.add(j.id);
     $("main").dataset.ready = "true";
     renderAll();
-    const seen = currentJobs().filter((j) => j.queue && (j.status === "done" || j.status === "failed")).map((j) => j.id);
+    const seen = currentJobs().filter((j) => !j.local && (j.status === "done" || j.status === "failed")).map((j) => j.id);
     if (seen.length) send({ type: "jobs.seen", ids: seen });
 
     // Fire and forget: the background refreshes words if they're stale (slice 26), and the
