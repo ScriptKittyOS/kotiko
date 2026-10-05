@@ -247,6 +247,22 @@
             <p class="field-help" id="celebrationsHelp" data-i18n="dash_celebrations_help"></p>
           </section>
 
+          <!-- 18: which of the learner's languages a word shows. -->
+          <section class="set-section" id="set-mixing" data-section="mixing" aria-labelledby="setMixingTitle">
+            <h2 class="set-title" id="setMixingTitle" data-i18n="dash_set_mixing"></h2>
+            <p class="field-help" data-i18n="dash_mixing_help"></p>
+            <div class="set-field">
+              <p class="field-label" id="mixingModeLabel" data-i18n="dash_mixing_mode"></p>
+              <div class="segmented" id="mixingMode" role="radiogroup" aria-labelledby="mixingModeLabel"></div>
+            </div>
+            <ul class="mixing-langs" id="mixingLangs"></ul>
+            <button class="switch-row" id="freshFirst" type="button" role="switch" aria-checked="true" aria-describedby="freshFirstHelp">
+              <span data-i18n="dash_fresh_first"></span>
+              <span class="switch" aria-hidden="true"></span>
+            </button>
+            <p class="field-help" id="freshFirstHelp" data-i18n="dash_fresh_first_help"></p>
+          </section>
+
           <!-- 16: where Kotiko swaps; 38 adds per-site rules here. -->
           <section class="set-section" id="set-pages" data-section="pages" aria-labelledby="setPagesTitle">
             <h2 class="set-title" id="setPagesTitle" data-i18n="dash_set_pages"></h2>
@@ -347,6 +363,7 @@
   <script src="lib/word-card.js"></script>
   <script src="lib/word-search.js"></script>
   <script src="lib/dashboard-model.js"></script>
+  <script src="lib/precedence.js"></script>
   <script src="lib/word-source.js"></script>
   <script src="lib/lookup-status.js"></script>
   <script src="lib/story.js"></script>

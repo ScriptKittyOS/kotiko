@@ -37,6 +37,8 @@ async function load(html, { words = WORDS, url = "https://example.com/", beforeI
   if (!("baseRules" in local)) local.baseRules = baseRulesFor(local.baseLangs ?? basesOf(words));
   // As the background copies it: the sensitive-sites list (none, unless a test gives one).
   if (!("sensitiveSites" in local)) local.sensitiveSites = [];
+  // The synced salt, fixed so each test sees the same languages (slice 18).
+  if (!("seedSalt" in local)) local.seedSalt = "content-tests";
   const fake = createFakeChrome({
     local: { words, enabled: true, pausedHosts: [], hiddenLangs: [], ...local },
     onSendMessage: () => ({ ok: true }),
@@ -86,9 +88,10 @@ describe("swapping", () => {
     assert.equal($("q").textContent, "THIS ДОМ IS MINE");
   });
 
-  test("rotates languages; the original word and the others stay out of the page DOM", async () => {
-    const { doc, spans } = await load(`<p>thanks thanks thanks</p>`);
-    assert.deepEqual(spans().map((s) => s.lang), ["ru", "zh", "ar"]);
+  test("one language for every occurrence of a word; the original word and the others stay out of the page DOM", async () => {
+    const { doc, spans } = await load(`<p>thanks thanks thanks</p><p>Many thanks.</p>`);
+    assert.equal(spans().length, 4);
+    assert.equal(new Set(spans().map((s) => s.lang)).size, 1, "slice 18: one language per page per day");
     assert.ok(spans().every((s) => !s.hasAttribute("title") && !Object.keys(s.dataset).length));
     assert.doesNotMatch(doc.documentElement.outerHTML, /thanks|spasibo|Mandarin|Russian/);
   });
@@ -779,5 +782,71 @@ describe("casing (slice 17)", () => {
     assert.equal($("a").textContent, "İşçi rights.");
     assert.equal($("b").textContent, "მადლობა a lot. THANK YOU ALL, მადლობა AGAIN!");
     assert.equal($("c").textContent, "See you on lunes. Lunes works.");
+  });
+});
+
+// Slice 18: which language each word shows.
+describe("language precedence (slice 18)", () => {
+  const twenty = `<p id="p">${"Many thanks again. ".repeat(20)}</p>`;
+  const langs = (spans) => spans().map((s) => s.lang);
+
+  test("20 thanks show the same word, in balanced and in priority mode", async () => {
+    const balanced = await load(twenty);
+    assert.equal(balanced.spans().length, 20);
+    assert.equal(new Set(langs(balanced.spans)).size, 1);
+    const priority = await load(twenty, { mixing: { mode: "priority", priority: ["zh", "ru"] } });
+    assert.deepEqual([...new Set(langs(priority.spans))], ["zh"]);
+  });
+
+  test("adding an unrelated word changes nothing on the page", async () => {
+    const { doc, dom, set, fake } = await load(`<p>many thanks, my house</p><p>thanks again</p>`);
+    let writes = 0;
+    new dom.window.MutationObserver((r) => (writes += r.length)).observe(doc.body, { subtree: true, childList: true, characterData: true, attributes: true });
+    const words = await fake.chrome.storage.local.get("words");
+    await set({ words: [...words.words, word("кошка", "cat")] });
+    await sleep(50);
+    assert.equal(writes, 0);
+  });
+
+  test("mix within the page: occurrences rotate through every language; a re-render keeps them", async () => {
+    const { doc, $, spans } = await load(`<p id="p">Thanks a. Thanks b. Thanks c. Thanks d. Thanks e. Thanks f.</p>`, { mixing: { mode: "mix" } });
+    const first = langs(spans);
+    assert.equal(new Set(first).size, 3, "ru, zh and ar each appear");
+    assert.deepEqual(first.slice(3), first.slice(0, 3), "in rotation");
+    // The site re-renders the paragraph with the same text.
+    $("p").replaceWith(Object.assign(doc.createElement("p"), { id: "p", textContent: "Thanks a. Thanks b. Thanks c. Thanks d. Thanks e. Thanks f." }));
+    await sleep(50);
+    assert.deepEqual(langs(spans), first);
+  });
+
+  test("focus: only the focused language, including over hidden; a word only in others stays", async () => {
+    const { $, spans } = await load(`<p id="p">thanks for the house</p>`, { mixing: { focus: ["zh"] }, hiddenLangs: ["zh"] });
+    assert.deepEqual(langs(spans), ["zh"]);
+    assert.equal($("p").textContent, "谢谢 for the house", "house is only in Russian");
+  });
+
+  test("hiding the winning language moves only that word", async () => {
+    const page = await load(`<p>thanks</p>`);
+    const winner = langs(page.spans)[0];
+    await page.set({ hiddenLangs: [winner] });
+    assert.notEqual(langs(page.spans)[0], winner);
+  });
+
+  test("bases es and en: the Spanish text from Spanish records, the English quote from English ones", async () => {
+    const W = [word("собака", "dog", ["dog"], "ru"), word("犬", "perro", ["perro"], "ja", { base_lang: "es" }), word("dog", "perro", ["perro"], "en", { base_lang: "es" })];
+    const { spans, $ } = await load(`<p id="es">El perro duerme.</p><blockquote id="en" lang="en">The dog sleeps.</blockquote>`, { words: W, lang: "es", baseLangs: ["es", "en"] });
+    assert.equal(spans().length, 2);
+    assert.ok(["El 犬 duerme.", "El dog duerme."].includes($("es").textContent));
+    assert.equal($("en").textContent, "The собака sleeps.");
+  });
+
+  test("a word that is the page's own word is not swapped", async () => {
+    const { $ } = await load(`<p id="p">no thanks</p>`, { words: [word("no", "no", ["no"], "es"), word("спасибо", "thanks")] });
+    assert.equal($("p").textContent, "no спасибо");
+  });
+
+  test("nothing about the page's address is stored", async () => {
+    const { fake } = await load(`<p>thanks</p>`, { url: "https://news.example.org/story?id=7" });
+    assert.doesNotMatch(JSON.stringify(fake.store), /news\.example|story|id=7/);
   });
 });

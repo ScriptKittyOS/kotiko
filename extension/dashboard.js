@@ -56,6 +56,7 @@
     baseLangs: null,
     speech: { allowOnline: false, rate: 0.9, voices: {} },
     prefs: {},
+    mixing: null,
   };
 
   // ---------------------------------------------------------------------------------
@@ -2267,6 +2268,7 @@
     ["connection", "dash_set_connection"],
     ["voices", "settings_voices"],
     ["learning", "dash_set_learning"],
+    ["mixing", "dash_set_mixing"],
     ["pages", "dash_set_pages"],
     ["appearance", "dash_set_appearance"],
     ["about", "dash_set_about"],
@@ -2298,7 +2300,36 @@
     $("aboutVersion").textContent = t("dash_set_version", { version });
     $("celebrations").setAttribute("aria-checked", String(state.s.prefs?.celebrations !== false));
     renderPages();
+    renderMixing();
     renderStory();
+  }
+
+  // Slice 18: one language per page (default), mix within the page, or always in this
+  // order; a weight per language, or the order; new words first for a week.
+  const WEIGHTS = [["0.33", "dash_weight_less"], ["1", "dash_weight_normal"], ["3", "dash_weight_more"], ["0", "dash_weight_backup"]];
+  function renderMixing() {
+    const m = { ...globalThis.KotikoPrecedence.DEFAULTS, ...state.s.mixing };
+    renderSegmented($("mixingMode"), [["balanced", "dash_mixing_balanced"], ["mix", "dash_mixing_mix"], ["priority", "dash_mixing_priority"]], m.mode, (v) => setMixing({ mode: v }));
+    const langs = [...new Set(state.groups.map((g) => g.lang))];
+    const order = [...m.priority.filter((l) => langs.includes(l)), ...langs.filter((l) => !m.priority.includes(l))];
+    const rows = (m.mode === "priority" ? order : langs).map((lang, i) => {
+      const id = `weight-${lang}`;
+      const control = m.mode === "priority"
+        ? el("button", { class: "btn btn-quiet btn-sm", type: "button", disabled: i === 0 ? "" : null, "aria-label": t("dash_priority_up", { language: languageName(lang) }), onclick: () => setMixing({ priority: [...order.slice(0, i - 1), lang, order[i - 1], ...order.slice(i + 1)] }) }, icon("up", 14))
+        : el("div", { class: "segmented", role: "radiogroup", "aria-labelledby": id });
+      if (m.mode !== "priority") renderSegmented(control, WEIGHTS, String(m.weights[lang] ?? 1), (v) => setMixing({ weights: { ...m.weights, [lang]: Number(v) } }));
+      return el("li", { class: "mixing-lang" }, el("span", { id, class: "field-label" }, m.mode === "priority" ? `${i + 1}. ${languageName(lang)}` : languageName(lang)), control);
+    });
+    $("mixingLangs").replaceChildren(...rows);
+    $("freshFirst").setAttribute("aria-checked", String(m.freshDays > 0));
+  }
+
+  async function setMixing(patch) {
+    const { mixing } = await ext.storage.local.get({ mixing: null });
+    const next = { ...mixing, ...patch };
+    state.s.mixing = next;
+    renderSettings();
+    await ext.storage.local.set({ mixing: next });
   }
 
   // Slice 16: sensitive sites (on by default) and the ones the learner runs Kotiko on
@@ -3027,7 +3058,7 @@
       loadDeleted();
     }
     if (changes.hiddenLangs) renderShelf();
-    if (changes.prefs && state.route.view === "settings") renderSettings();
+    if ((changes.prefs || changes.mixing) && state.route.view === "settings") renderSettings();
     if (words) {
       rebuild();
       renderWords();
@@ -3109,6 +3140,7 @@
     $("testLookup").addEventListener("click", testLookup);
     $("celebrations").addEventListener("click", () => setPref("celebrations", state.s.prefs?.celebrations === false));
     $("sensitiveSites").addEventListener("click", () => setPref("sensitiveSites", state.s.prefs?.sensitiveSites === false));
+    $("freshFirst").addEventListener("click", () => setMixing({ freshDays: (state.s.mixing?.freshDays ?? 7) > 0 ? 0 : 7 }));
     $("swapControls").addEventListener("click", () => setPref("swapControls", state.s.prefs?.swapControls !== true));
     $("showWelcome").addEventListener("click", () => send({ type: "welcome.open" }).catch(() => {}));
     $("dataCollection").addEventListener("click", () => setLookup({ dataCollection: $("dataCollection").getAttribute("aria-checked") === "true" ? "allow" : "deny" }));

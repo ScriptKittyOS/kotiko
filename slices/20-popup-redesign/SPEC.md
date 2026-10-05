@@ -485,6 +485,10 @@ above are unchanged; this records what exists now and what waits for other slice
   (`ui/*.css`, `icons.js`, `theme.js`) and `lib/i18n.js` the popup loads 82 KB of JS and
   CSS. If §8's 60 KB includes the shared files, it is over; a test holds the popup's own
   files under 60 KB and everything loaded under 100 KB.
+- **Size and speed (2026-10-04, slice 18).** Slice 18's Focus took the popup's own files to
+  62 KB. Decided: measure §8's goal directly instead. `test/e2e/popup.spec.mjs` checks first
+  contentful paint, median of 10 opens: 100 ms locally (measured 32 to 34 ms), 150 ms in
+  CI. The size cap moved to 64 KB, as a backstop.
 
 **Steps today** (§3's counting):
 

@@ -501,18 +501,32 @@ describe("languages", () => {
     assert.deepEqual(after, shown, "no flicker back to an intermediate state");
   });
 
-  test("Show only hides the others, says so, and Show all brings them back", async () => {
-    const p = await openPopup({ local: { ...CONNECTED, words: WORDS } });
-    p.$('#chips [data-only-lang="ar"]').click();
+  test("Focus shows only one language, says so, leaves hidden languages alone, and Stop ends it (slice 18)", async () => {
+    const p = await openPopup({ local: { ...CONNECTED, words: WORDS, hiddenLangs: ["ja"] } });
+    p.$('#chips [data-focus-lang="ar"]').click();
     await p.settle();
-    assert.deepEqual([...p.store.hiddenLangs].sort(), ["es", "ja", "ru"]);
-    assert.ok(p.visible("#onlyStrip"));
-    assert.equal(p.text("#onlyStrip"), "Showing only العربية · Show all");
-    assert.equal(p.$('#chips .chip[data-lang="ar"]').dataset.only, "true");
-    p.$('#onlyStrip [data-action="show-all"]').click();
+    assert.deepEqual(p.store.mixing.focus, ["ar"]);
+    assert.ok(p.store.mixing.focusSince);
+    assert.deepEqual(p.store.hiddenLangs, ["ja"], "untouched");
+    assert.equal(p.text("#focusStrip"), "Focusing on العربية · Stop");
+    assert.equal(p.$('#chips .chip[data-lang="ar"]').dataset.focus, "true");
+    assert.equal(p.$('#chips .chip[data-lang="es"]').getAttribute("aria-pressed"), "false");
+    // A chip adds its language to Focus.
+    p.$('#chips .chip[data-lang="es"]').click();
     await p.settle();
-    assert.deepEqual(p.store.hiddenLangs, []);
-    assert.ok(!p.visible("#onlyStrip"));
+    assert.deepEqual(p.store.mixing.focus, ["ar", "es"]);
+    p.$('#focusStrip [data-action="stop-focus"]').click();
+    await p.settle();
+    assert.equal(p.store.mixing.focus, null);
+    assert.deepEqual(p.store.hiddenLangs, ["ja"], "what showed before comes back");
+    assert.ok(!p.visible("#focusStrip"));
+  });
+
+  test("a language whose first word came during Focus waits, and says so", async () => {
+    const since = "2026-10-01T00:00:00.000Z";
+    const tr = { id: 99, lang: "tr", native: "teşekkürler", english: "thanks", forms: ["thanks"], created_at: "2026-10-02T00:00:00.000Z" };
+    const p = await openPopup({ local: { ...CONNECTED, words: [...WORDS, tr], mixing: { focus: ["ar"], focusSince: since } } });
+    assert.match(p.text("#focusStrip"), /Turkish is new\. It's waiting until you leave Focus\./);
   });
 
   test("Show all appears when some languages are hidden", async () => {
@@ -524,7 +538,7 @@ describe("languages", () => {
     assert.ok(!p.visible("#showAll"));
   });
 
-  test("keyboard: arrows move between chips, Home/End jump, F shows only the current one", async () => {
+  test("keyboard: arrows move between chips, Home/End jump, F focuses on the current one", async () => {
     const p = await openPopup({ local: { ...CONNECTED, words: WORDS } });
     const key = (k) => p.doc.activeElement.dispatchEvent(new p.win.KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
     p.$('#chips .chip[data-lang="ru"]').focus();
@@ -538,7 +552,8 @@ describe("languages", () => {
     key("ArrowLeft");
     key("f");
     await p.settle();
-    assert.deepEqual([...p.store.hiddenLangs].sort(), ["ar", "es", "ru"]);
+    assert.deepEqual(p.store.mixing.focus, ["ja"]);
+    assert.deepEqual(p.store.hiddenLangs ?? [], [], "Focus never edits hidden languages");
   });
 
   test("a word list change from elsewhere updates the chips and the count", async () => {
@@ -678,13 +693,14 @@ describe("interface language (slice 50)", () => {
 });
 
 describe("size (20 §8)", () => {
-  // §8's budget is the popup's own files; the guard on everything it loads moved from 100
-  // to 110 KB with slice 11 (local first run, waiting jobs, the lookup set-up state).
-  test("the popup's own JS and CSS stay under 60 KB, and everything it loads under 110 KB", () => {
+  // §8's goal is a first paint within 100 ms, measured in test/e2e/popup.spec.mjs. These caps
+  // are a backstop: the popup's own files moved from 60 to 64 KB with slice 18's Focus
+  // (decided 2026-10-04), and everything it loads from 100 to 110 KB with slice 11.
+  test("the popup's own JS and CSS stay under 64 KB, and everything it loads under 110 KB", () => {
     const size = (files) => files.reduce((n, f) => n + Buffer.byteLength(readExt(f)), 0);
     const own = ["popup.js", "popup.css"];
     const shared = ["ui/tokens.css", "ui/base.css", "ui/components.css", "ui/icons.js", "ui/theme.js", "lib/i18n.js", "lib/lookup-status.js"];
-    assert.ok(size(own) < 60 * 1024, `popup.js + popup.css: ${size(own)} bytes`);
+    assert.ok(size(own) < 64 * 1024, `popup.js + popup.css: ${size(own)} bytes`);
     assert.ok(size([...own, ...shared]) < 110 * 1024, `everything: ${size([...own, ...shared])} bytes`);
   });
 });

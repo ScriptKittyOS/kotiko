@@ -148,24 +148,6 @@
       }
     }
   },
-  "popup_only_button": {
-    "message": "Show only $LANG$",
-    "description": "The small button at the end of a language chip that hides every other language.",
-    "placeholders": {
-      "lang": {
-        "content": "{lang}"
-      }
-    }
-  },
-  "popup_only_strip": {
-    "message": "Showing only $ENDONYM$",
-    "description": "Line above the chips when only one of several languages is shown.",
-    "placeholders": {
-      "endonym": {
-        "content": "{endonym}"
-      }
-    }
-  },
   "popup_show_all": {
     "message": "Show all",
     "description": "Link that shows every language again."
@@ -3348,5 +3330,93 @@
         "content": "{word}"
       }
     }
+  },
+  "popup_focus_button": {
+    "message": "Focus on $LANG$",
+    "description": "Popup, the button beside each language (slice 18): only this language shows until Stop. $LANG$ is a language name.",
+    "placeholders": {
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "popup_focus_strip": {
+    "message": "Focusing on $LANGS$",
+    "description": "Popup strip while Focus is on (slice 18). $LANGS$ is the focused languages' own names, separated by commas.",
+    "placeholders": {
+      "langs": {
+        "content": "{langs}"
+      }
+    }
+  },
+  "popup_focus_stop": {
+    "message": "Stop",
+    "description": "Popup: ends Focus; the languages shown before come back."
+  },
+  "popup_focus_waiting": {
+    "message": "$LANG$ is new. It's waiting until you leave Focus.",
+    "description": "Popup, under the Focus strip: a language whose first word was added during Focus isn't shown yet. $LANG$ is a language name.",
+    "placeholders": {
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "dash_set_mixing": {
+    "message": "Your languages on a page",
+    "description": "Settings section (slice 18): which of the learner's languages each word shows."
+  },
+  "dash_mixing_help": {
+    "message": "Kotiko picks one of your languages for each word on a page. “More” makes a language win more of the words your languages share.",
+    "description": "Help at the top of the section."
+  },
+  "dash_mixing_mode": {
+    "message": "Each word",
+    "description": "Label of the mode choice."
+  },
+  "dash_mixing_balanced": {
+    "message": "One language per page",
+    "description": "Mode (default): every occurrence of a word on a page shows the same language, picked per page and day."
+  },
+  "dash_mixing_mix": {
+    "message": "Mix within the page",
+    "description": "Mode: occurrences take turns between languages."
+  },
+  "dash_mixing_priority": {
+    "message": "Always in this order",
+    "description": "Mode: the first language in the learner's order that has the word."
+  },
+  "dash_weight_less": {
+    "message": "Less",
+    "description": "Weight for a language: wins fewer shared words."
+  },
+  "dash_weight_normal": {
+    "message": "Normal",
+    "description": "Weight for a language: the default."
+  },
+  "dash_weight_more": {
+    "message": "More",
+    "description": "Weight for a language: wins about three times as many shared words."
+  },
+  "dash_weight_backup": {
+    "message": "Only when no other language has it",
+    "description": "Weight 0: the language shows a word only when none of the others has it."
+  },
+  "dash_priority_up": {
+    "message": "Move $LANGUAGE$ up",
+    "description": "For screen readers: moves a language one place earlier in the order.",
+    "placeholders": {
+      "language": {
+        "content": "{language}"
+      }
+    }
+  },
+  "dash_fresh_first": {
+    "message": "New words show up first for a week",
+    "description": "Switch: a word added in the last 7 days wins over the learner's other languages."
+  },
+  "dash_fresh_first_help": {
+    "message": "So the words you just added get seen.",
+    "description": "Help under the switch."
   }
 }

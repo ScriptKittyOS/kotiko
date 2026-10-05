@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Built (2026-10-04); see Implementation notes |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week) |
 | **Depends on** | [14-matcher-engine](../14-matcher-engine/SPEC.md), [50](../50-ui-localization-and-base-language/SPEC.md) (base languages); uses `created_at` from [07](../07-word-model-v2/SPEC.md) and canonical tags from [08](../08-language-tags/SPEC.md) |
@@ -327,6 +327,42 @@ these are the meanings each control must convey, with suggested wording.
 - Focus: the "only" link becomes a Focus button on each language, always visible (05 S33), and a
   strip shows while Focus is on, with a way to stop.
 - Fresh words: "New words show up first for a week" (toggle maps to `freshDays` 7 or 0).
+
+## Implementation notes
+
+Built 2026-10-04:
+
+- `extension/lib/precedence.js` follows steps 1 to 5. bryc's `cyrb53` is copied with its
+  notice. The reference vectors reproduce exactly. The 100,000-page simulation gives shares
+  within one point for three weight sets, and adding Turkish moved about 25 % of choices,
+  all to Turkish.
+- **Storage.** `mixing` is in `storage.local`, with `hiddenLangs`, until slice 39 moves both
+  into `s:langs`. `seedSalt` is in `storage.sync`: the background makes it once and copies
+  it to `storage.local` for content scripts. A page that opens before the copy uses a
+  salt for that page view only, never stored.
+- **The index holds every word** (hidden languages included), so a concept never depends on
+  what is hidden. Eligibility is applied in cleanup.
+- **A stale Focus** (its languages lost all their words) is ignored rather than hiding
+  everything. The popup prunes it after a good sync, like `hiddenLangs`.
+- **The no-op rule** compares against the match's key (the page's word through the base's
+  `keyOf`), without diacritics.
+- **Mix within the page.** Occurrences are told apart by 32 characters on each side within
+  their text node, numbered among identical ones in that node. A re-rendered paragraph
+  keeps its languages. Two identical sentences elsewhere on the page share one.
+- **Memo.** One pick per form and candidate set per page session, looked up before cleanup.
+  A new session starts when the page's address changes (single-page navigation) or the
+  words or settings change.
+- **Focus** stores `mixing.focus` and `mixing.focusSince`. A language whose first word is
+  newer than `focusSince` gets the "waiting" notice. In the popup, a chip toggles its
+  language in or out of Focus while Focus is on.
+- **Coverage.** Slice 32 isn't built, so no-ops are returned as `{ known: true }` for it to
+  count. Nothing is counted yet.
+- **Speed (measured).** 100,000 picks without memo hits (each with cleanup, concept,
+  language and word) take about 300 ms, or 3 µs a pick. The spec's 140 ms appears to cover
+  the language draw alone. A page makes a few hundred picks, well under 1 ms. The
+  benchmark's budget is 500 ms.
+- **Not yet:** slice 35's "Words you know well" filter, its review weights, and site rules
+  (38). The hooks (`status`, `site`) are in place.
 
 ## Acceptance criteria
 

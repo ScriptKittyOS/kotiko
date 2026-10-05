@@ -21,7 +21,7 @@
     {
       "matches": ["<all_urls>"],
       "js": [
-        "lib/text.js", "lib/matcher.js", "lib/page-lang.js", "lib/rules.js", "lib/sensitive.js", "lib/casing.js", "lib/controls.js", "lib/i18n.js", "lib/speak.js", "lib/word-card.js",
+        "lib/text.js", "lib/matcher.js", "lib/page-lang.js", "lib/rules.js", "lib/sensitive.js", "lib/casing.js", "lib/precedence.js", "lib/controls.js", "lib/i18n.js", "lib/speak.js", "lib/word-card.js",
         "ui/icons.js", "ui/popover-style.js", "content/popover.js", "content/engine.js", "content.js"
       ],
       "css": ["content.css"],

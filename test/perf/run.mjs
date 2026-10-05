@@ -255,6 +255,37 @@ benchmarks["dashboard.open.20k"] = {
   },
 };
 
+// Slice 18: 100,000 language picks from a 20,000-word vocabulary (5,000 concepts in two to
+// five languages), over 100 page sessions so the per-page memo doesn't hide the work. A real
+// page makes one pick per distinct concept, typically a few hundred.
+benchmarks["precedence.pick.100k"] = {
+  setup: () => {
+    const P = requireExt("lib/precedence.js");
+    const T = requireExt("lib/text.js");
+    const langs = ["es", "ru", "zh", "ja", "ar"];
+    const entries = [];
+    const words = [];
+    for (let i = 0; i < 5000; i++) {
+      const ws = langs.slice(0, 2 + (i % 4)).map((lang, j) => ({ id: `${i}-${j}`, lang, native: `w${i}${lang}`, gloss: `word${i}`, base_lang: "en", status: "active", created_at: "2026-01-01T00:00:00Z" }));
+      words.push(...ws);
+      entries.push({ key: `word${i}`, candidates: ws.map((word) => ({ word, form: `word${i}`, case: "any" })) });
+    }
+    return { P, keyOf: (x, b) => T.keyOf(x, b), words, entries, E: P.eligible({ words }) };
+  },
+  run: ({ P, keyOf, words, entries, E }) => {
+    const counts = {};
+    for (let page = 0; page < 100; page++) {
+      const s = P.createSession({ salt: "bench", pageKey: `https://example.com/${page}`, dayKey: "2026-10-04", eligible: E, words, keyOf, now: Date.parse("2026-10-04T00:00:00Z") });
+      for (let i = 0; i < 1000; i++) {
+        const entry = entries[(page * 1000 + i) % entries.length];
+        const c = s.choose({ base: "en", entry, surface: entry.key });
+        counts[c.lang] = (counts[c.lang] ?? 0) + 1;
+      }
+    }
+    return `${Object.values(counts).reduce((a, b) => a + b, 0)} picks`;
+  },
+};
+
 // Median of several runs after warm-up. A benchmark that takes over a second (today's
 // matcher with 10k forms) gets three runs and no warm-up, so the job stays short.
 async function measure(bench) {

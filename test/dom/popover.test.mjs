@@ -25,7 +25,8 @@ const BACKGROUND = { id: "fake-extension-id", url: "chrome-extension://fake-exte
 
 async function load({ html = PAGE, words = WORDS, locale = "en", voices = voiceLists().macos, local = {} } = {}) {
   const fake = createFakeChrome({
-    local: { words, enabled: true, pausedHosts: [], hiddenLangs: [], ...local },
+    // "Mix within the page" (18), so the page's two "Thanks" show 谢谢 and спасибо.
+    local: { words, enabled: true, pausedHosts: [], hiddenLangs: [], mixing: { mode: "mix" }, seedSalt: "popover-tests", ...local },
     onSendMessage: () => ({ ok: true }),
   });
   fake.chrome.i18n = createI18n(locale);

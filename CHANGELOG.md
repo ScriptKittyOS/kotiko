@@ -5,6 +5,14 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Each word on a page now shows one of your languages, the same everywhere on that page,
+  and stays put while you read; another page or another day may pick a different one.
+  New words show up first for a week. Focus on a language from the popup (a language you
+  add meanwhile waits until you stop), give one language more or less weight, put them in
+  an order, or turn on "Mix within the page" for the old rotation (Settings, Your
+  languages on a page). A word that is the page's own ("no" for "no") is no longer
+  swapped.
+
 - Swapped words now follow each language's own capitals: no more "Lunes" for Monday
   mid-sentence, and English "Monday" and "I" keep their capitals on a Spanish page. Turkish
   gets its dotted İ, Greek capitals drop their accents, and Georgian always stays in its

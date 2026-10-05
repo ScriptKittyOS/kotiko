@@ -2366,3 +2366,20 @@ kbd {
     color: Highlight;
   }
 }
+
+/* Slice 18: a row per language with its weight, or its place in the order. */
+.mixing-langs {
+  display: grid;
+  gap: var(--s-3);
+  margin: var(--s-4) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mixing-lang {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
