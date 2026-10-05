@@ -96,7 +96,7 @@
         </section>
 
         <div class="scrim" id="scrim" hidden></div>
-        <aside class="inspector" id="inspector" hidden tabindex="-1"></aside>
+        <div class="inspector" id="inspector" hidden tabindex="-1"></div>
       </div>
     </main>
 
@@ -238,7 +238,24 @@
             <p class="field-help" id="onlineVoicesHelp" data-i18n="settings_online_voices_help"></p>
           </section>
 
-          <!-- 31, 16, 37, 43: "Reading"; 35, 46 join "Learning"; 33: "Shortcuts". -->
+          <!--
+            27 §2: what screen readers hear on a swapped word, and swaps as Tab stops. 31, 16,
+            37 and 43 join "Reading"; 35, 46 join "Learning"; 33: "Shortcuts".
+          -->
+          <section class="set-section" id="set-reading" data-section="reading" aria-labelledby="setReadingTitle">
+            <h2 class="set-title" id="setReadingTitle" data-i18n="dash_set_reading"></h2>
+            <div class="set-field">
+              <p class="field-label" id="screenReaderLabel" data-i18n="dash_screen_reader"></p>
+              <div class="radio-list" id="screenReaderOptions" role="radiogroup" aria-labelledby="screenReaderLabel" aria-describedby="screenReaderHelp"></div>
+              <p class="field-help" id="screenReaderHelp"></p>
+            </div>
+            <button class="switch-row" id="keyboardSwaps" type="button" role="switch" aria-checked="false" aria-describedby="keyboardSwapsHelp">
+              <span data-i18n="dash_keyboard_swaps"></span>
+              <span class="switch" aria-hidden="true"></span>
+            </button>
+            <p class="field-help" id="keyboardSwapsHelp" data-i18n="dash_keyboard_swaps_help"></p>
+          </section>
+
           <section class="set-section" id="set-learning" data-section="learning" aria-labelledby="setLearningTitle">
             <h2 class="set-title" id="setLearningTitle" data-i18n="dash_set_learning"></h2>
             <button class="switch-row" id="celebrations" type="button" role="switch" aria-checked="true" aria-describedby="celebrationsHelp">
@@ -281,6 +298,11 @@
               <span class="switch" aria-hidden="true"></span>
             </button>
             <p class="field-help" id="swapControlsHelp" data-i18n="dash_swap_controls_help"></p>
+            <!-- 27 §5 (WCAG 2.5.3): a swapped word in a button's name breaks "click Send". -->
+            <p class="field-help" id="swapControlsWarn" hidden>
+              <span data-icon="warning" data-icon-size="16"></span>
+              <span data-i18n="dash_swap_controls_warning"></span>
+            </p>
             <div class="fld">
               <p class="field-label" id="neverSwapLabel" data-i18n="dash_never_swap"></p>
               <ul class="form-chips" id="neverSwap" aria-labelledby="neverSwapLabel" aria-describedby="neverSwapHelp"></ul>

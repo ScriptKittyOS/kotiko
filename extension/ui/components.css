@@ -184,8 +184,9 @@
 /* A link that looks like one: purple and underlined, so it never relies on color alone. */
 .link {
   display: inline;
+  min-width: var(--target-min);
   min-height: auto;
-  padding: 0;
+  padding: var(--target-pad) 0;
   border: 0;
   background: none;
   color: var(--purple-text);
@@ -540,6 +541,7 @@
 
 .details > summary {
   width: max-content;
+  padding-block: var(--target-pad);
   cursor: pointer;
   border-radius: var(--r-xs);
 }

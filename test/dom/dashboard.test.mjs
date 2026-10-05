@@ -343,7 +343,7 @@ describe("the inspector (§5)", () => {
     assert.equal(d.text("#toasts .toast-text"), "Changed the meaning of спасибо.");
     assert.equal(d.row("спасибо").querySelector(".c-meaning").textContent.startsWith("thank you"), true, "the list updates at once");
     assert.equal(d.$("#inspector button[type=submit]"), null);
-    d.$("#gridBody").focus();
+    d.$("#grid").focus();
     d.key("z", { ctrlKey: true }, d.doc.body);
     await d.settle();
     assert.deepEqual(d.writes().at(-1).ops[0].patch, { gloss: "thanks" });
@@ -492,6 +492,28 @@ describe("delete, Undo and Recently deleted (§5, §6)", () => {
     await d.settle();
     assert.equal(d.writes().at(-1).ops[0].op, "restore");
     assert.ok(d.row("café"));
+  });
+
+  test("Esc dismisses a toast: the one focus is in, else the newest once nothing else takes Esc (27 §3)", async () => {
+    const d = await openDashboard();
+    d.row("café").click();
+    await d.settle();
+    d.$(".insp-delete").click();
+    await d.settle();
+    d.row("niño").click();
+    await d.settle();
+    d.$(".insp-delete").click();
+    await d.settle();
+    assert.equal(d.$$("#toasts .toast").length, 2);
+    d.$("#toasts .toast:first-child .toast-undo").focus();
+    d.key("Escape", {}, d.$("#toasts .toast:first-child .toast-undo"));
+    await d.settle();
+    assert.deepEqual(d.$$("#toasts .toast-text").map((n) => n.textContent), ["Deleted niño."], "the focused one");
+    assert.equal(d.doc.activeElement, d.$("#grid"), "focus goes back to the list");
+    d.key("Escape", {}, d.$("#grid"));
+    await d.settle();
+    assert.equal(d.$$("#toasts .toast").length, 0, "then the newest");
+    assert.ok(d.row("niño") === undefined && d.row("café") === undefined, "dismissing isn't undoing");
   });
 
   test("Recently deleted lists tombstones with Restore", async () => {
@@ -812,7 +834,7 @@ describe("settings (§9)", () => {
   test("every built section, each saving on change", async () => {
     const d = await openDashboard({ hash: "#settings" });
     assert.equal(d.$("#settingsView").hidden, false);
-    assert.deepEqual(d.$$("#settingsIndex a").map((a) => a.textContent), ["Languages you read in", "Kotiko’s language", "Word lookups", "Your Kotiko server", "Voices", "Learning", "Your languages on a page", "Pages", "Appearance", "Your data", "About"]);
+    assert.deepEqual(d.$$("#settingsIndex a").map((a) => a.textContent), ["Languages you read in", "Kotiko’s language", "Word lookups", "Your Kotiko server", "Voices", "Reading", "Learning", "Your languages on a page", "Pages", "Appearance", "Your data", "About"]);
     assert.equal(d.$("#accessKey").type, "password", "the key is typed here, hidden by default");
     assert.equal(d.$("#accessKey").value, "", "a saved token is never read back (slice 11)");
     d.$("#serverUrl").value = "http://127.0.0.1:5000";
@@ -832,6 +854,31 @@ describe("settings (§9)", () => {
     await d.settle();
     assert.equal(d.store.prefs.motion, "reduce");
     assert.match(d.text("#aboutVersion"), /^Kotiko /);
+  });
+
+  test("Reading (27 §2, §5): what screen readers hear, swaps as Tab stops, and the voice-control warning", async () => {
+    const d = await openDashboard({ hash: "#settings/reading" });
+    const radios = () => d.$$("#screenReaderOptions [role=radio]");
+    assert.deepEqual(radios().map((b) => [b.textContent, b.getAttribute("aria-checked")]), [["The word I'm learning", "true"], ["The original word", "false"], ["Both", "false"]]);
+    assert.equal(d.$("#screenReaderOptions").getAttribute("aria-describedby"), "screenReaderHelp");
+    assert.match(d.text("#screenReaderHelp"), /^The word you're learning is read in its own language's voice\./);
+    radios()[1].click();
+    await d.settle();
+    assert.equal(d.store.prefs.screenReader, "original");
+    assert.equal(d.text("#screenReaderHelp"), "Sites can read this text: the page's own word goes back into the page, hidden, next to each swapped word.");
+    radios()[1].focus();
+    d.key("ArrowRight", {}, radios()[1]);
+    await d.settle();
+    assert.equal(d.store.prefs.screenReader, "both", "arrows move and apply (27 §3)");
+    assert.equal(d.$("#keyboardSwaps").getAttribute("aria-checked"), "false", "off by default");
+    d.$("#keyboardSwaps").click();
+    await d.settle();
+    assert.equal(d.store.prefs.keyboardSwaps, true);
+    assert.equal(d.$("#swapControlsWarn").hidden, true);
+    d.$("#swapControls").click();
+    await d.settle();
+    assert.equal(d.$("#swapControlsWarn").hidden, false);
+    assert.equal(d.text("#swapControlsWarn"), "Voice control commands that use button names may stop working.");
   });
 
   test("Kotiko's language: switching to Español re-renders in Spanish without a reload", async () => {

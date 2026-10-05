@@ -79,7 +79,7 @@
   // default) and which ones the learner let Kotiko run on anyway, whether words in buttons
   // and menus are swapped (off by default), and the words never to swap.
   const prefs = () => (state.prefs && typeof state.prefs === "object" ? state.prefs : {});
-  const PAGE_PREFS = ["sensitiveSites", "sensitiveAllowed", "swapControls", "neverSwap"];
+  const PAGE_PREFS = ["sensitiveSites", "sensitiveAllowed", "swapControls", "neverSwap", "screenReader", "keyboardSwaps"];
   const pagePrefs = (p) => JSON.stringify(PAGE_PREFS.map((k) => p?.[k] ?? null));
   let neverSwap = new Set();
 
@@ -260,9 +260,27 @@
       const { shouting } = rules.flags(text, ctx);
       // sentenceStart is worked out lazily; only a capitalised word needs it.
       const display = Casing.display({ shape: m.shape, sentenceStart: m.shape === "title" && m.sentenceStart, shouting, native: w.native, lang: w.lang });
-      items.push({ start: m.start, end: m.end, display, lang: w.lang, info: { surface: m.surface, key: m.key, word: w, all, alsoLangs: c.alsoLangs } });
+      items.push({ start: m.start, end: m.end, display, lang: w.lang, read: heard(display, w.lang, text.slice(m.start, m.end), base), tab: prefs().keyboardSwaps === true || null, info: { surface: m.surface, key: m.key, word: w, all, alsoLangs: c.alsoLangs } });
     }
     return items;
+  }
+
+  // What screen readers hear on a swap (27 §2). The default is the word itself, in its own
+  // voice (null: the element's text). "original" puts back the page's own text, tagged with
+  // the language slice 16 resolved for it; "both" reads the word, then the original, joined
+  // the way the interface language joins a list. Either puts page text into the page's DOM,
+  // which the setting says.
+  function heard(display, lang, original, base) {
+    const mode = prefs().screenReader;
+    if (mode !== "original" && mode !== "both") return null;
+    if (mode === "original") return [{ text: original, lang: base }];
+    let parts;
+    try {
+      parts = new Intl.ListFormat(globalThis.KotikoI18n?.locale?.() ?? "en", { type: "unit", style: "short" }).formatToParts(["\u0001", "\u0002"]);
+    } catch {
+      parts = [{ type: "element", value: "\u0001" }, { type: "literal", value: ", " }, { type: "element", value: "\u0002" }];
+    }
+    return parts.map((p) => (p.type === "literal" ? p.value : p.value === "\u0001" ? { text: display, lang } : { text: original, lang: base }));
   }
 
   // Slice 16's element rules, asked by the engine for every element it walks: a part of
@@ -476,7 +494,7 @@
     state = await ext.storage.local.get(state);
     if (torn) return;
     configureSpeech();
-    popover = globalThis.KotikoPopover.createPopover({ infoFor, actions: popoverActions });
+    popover = globalThis.KotikoPopover.createPopover({ infoFor, actions: popoverActions, reduceMotion: () => prefs().motion === "reduce" });
     popover.install();
     engine = globalThis.KotikoEngine.create({ plan, skip, afterSlice: () => rules.settle(), contextValid });
     ext.runtime.onMessage.addListener(onMessage);

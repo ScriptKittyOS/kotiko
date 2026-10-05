@@ -148,6 +148,8 @@
       style = globalThis.KotikoPopoverStyle,
       speak = globalThis.KotikoSpeak,
       actions = [], // [{ id, label: (info) => string, visible?: (info) => bool, run: (info, pop) => void }]
+      // Kotiko's own "Reduce motion" setting (27 §4); the system's preference is a media query.
+      reduceMotion = () => false,
       now = () => (win.performance?.now?.() ?? Date.now()),
     } = opts;
     const setT = (f, ms) => win.setTimeout(f, ms);
@@ -496,6 +498,7 @@
         ranges: keyboard ? (prev?.keyboard ? prev.ranges : saveRanges()) : null,
       };
       root.classList.toggle("k-dark", themeFor(el) === "dark");
+      root.classList.toggle("k-reduce", !!reduceMotion());
       render(info);
       cardEl.hidden = false;
       cardEl.classList.remove("k-enter");

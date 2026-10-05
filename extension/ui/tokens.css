@@ -76,8 +76,10 @@
   --ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
   --ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
 
-  /* Target sizes (06 §10, WCAG 2.5.8). */
+  /* Target sizes (06 §10, WCAG 2.5.8). --target-pad grows a one-line control (a link,
+     a summary) to the minimum: an inline box is about 1em tall plus this on each side. */
   --target-min: 24px;
+  --target-pad: max(0px, (var(--target-min) - 1em) / 2);
 
   /* Language palette (06 §4.5), for 37. Theme-independent: each keeps 3:1 on white and
      on #121212. */

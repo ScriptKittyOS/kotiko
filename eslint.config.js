@@ -65,7 +65,7 @@ export default [
   {
     // Callbacks passed to page.evaluate() run in the browser. Playwright fixtures must
     // destructure their first argument, even when it's empty.
-    files: ["test/e2e/**/*.mjs", "test/visual/**/*.mjs"],
+    files: ["test/e2e/**/*.mjs", "test/visual/**/*.mjs", "test/helpers/axe.mjs", "test/helpers/a11y-checks.mjs"],
     languageOptions: { globals: { ...globals.node, ...globals.browser, ...globals.webextensions } },
     rules: { "no-empty-pattern": ["error", { allowObjectPatternsAsParameters: true }] },
   },

@@ -192,14 +192,15 @@
 
       function render() {
         const c = st.preview.counts;
-        counts.replaceChildren(
+        // replaceChildren() writes a null as the text "null": the optional lines are filtered.
+        counts.replaceChildren(...[
           el("li", { class: "num" }, t("data_restore_new", { count: c.new })),
           el("li", { class: "num" }, t("data_restore_merge", { count: c.merge })),
           el("li", { class: "num" }, t("data_restore_identical", { count: c.identical })),
           c.kept ? el("li", { class: "num" }, t("data_restore_kept", { count: c.kept })) : null,
           el("li", { class: "num" }, t("data_restore_invalid", { count: read.invalid.length })),
           read.dropped.length ? el("li", { class: "num" }, t("data_restore_dropped", { count: read.dropped.length })) : null,
-        );
+        ].filter(Boolean));
         const rows = [];
         if (c.deletedLater) {
           rows.push(el("label", { class: "check-row" }, el("input", { type: "checkbox", checked: st.restoreDeleted, "data-action": "restore-deleted", onchange: (e) => repreview(e.target.checked) }), t("data_restore_deleted", { count: c.deletedLater })));

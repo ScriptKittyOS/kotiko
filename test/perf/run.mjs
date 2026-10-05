@@ -225,7 +225,8 @@ async function dashboardWith(words) {
     vm.runInContext(readExt(rel), dom.getInternalVMContext());
   }
   await dom.window.KotikoDashboard.ready;
-  const body = dom.window.document.getElementById("gridBody");
+  // The grid is the list's scroll container (slice 27).
+  const body = dom.window.document.getElementById("grid");
   let top = 0;
   Object.defineProperty(body, "scrollTop", {
     get: () => top,
