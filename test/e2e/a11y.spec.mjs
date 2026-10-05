@@ -23,6 +23,11 @@ import { dashboardWords } from "../helpers/dashboard-words.mjs";
 import { POPOVER_WORDS } from "../helpers/popover-words.mjs";
 import { readCard, inShadow } from "../helpers/closed-shadow.mjs";
 
+// Each state is audited twice (light and dark), with a full keyboard walk that compares
+// screenshots: the longest state takes about 25 s on a developer machine, and CI runners
+// are slower, so the default 30 s per test is too tight. The walk stays as thorough.
+test.describe.configure({ timeout: 120_000 });
+
 const REPORT = process.env.A11Y_REPORT || null;
 const TAGS = REPORT ? [...WCAG_TAGS, "best-practice"] : WCAG_TAGS;
 const SPEC_DIR = path.resolve(import.meta.dirname, "../../spec");
