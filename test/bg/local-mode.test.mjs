@@ -190,6 +190,8 @@ describe("a fresh install keeps words in this browser (slice 11)", () => {
     };
     const bg = loadBackground({ local });
     await bg.k.ready();
+    // The settings page names the address (slice 28 §7: one only in storage.local isn't trusted).
+    await bg.send({ type: "backend.set", lookup: { kind: "provider", provider: "openrouter", baseUrl: srv.llmUrl } });
     await bg.send({ type: "secrets.set", id: "provider:openrouter", value: KEY });
     const done = await bg.until(() => bg.store.addJobs?.find((j) => j.id === id && j.state === "done"));
     assert.equal(done.results.length, 1);
@@ -282,8 +284,9 @@ describe("a fresh install keeps words in this browser (slice 11)", () => {
 
   test("the provider's errors become slice 25 codes on the job, and quota waits until the reset", async () => {
     srv.reset();
-    const bg = loadBackground({ local: { baseLangs: ["en"], wordsHome: "local", lookup: { kind: "provider", provider: "openrouter", baseUrl: srv.llmUrl } } });
+    const bg = loadBackground({ local: { baseLangs: ["en"], wordsHome: "local" } });
     await bg.k.ready();
+    await bg.send({ type: "backend.set", lookup: { kind: "provider", provider: "openrouter", baseUrl: srv.llmUrl } });
     await bg.send({ type: "secrets.set", id: "provider:openrouter", value: KEY });
     srv.state.llmRemaining = 0;
     await bg.k.client.refreshQuota();

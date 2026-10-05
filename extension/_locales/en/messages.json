@@ -4955,5 +4955,9 @@
   "server_url_unencrypted": {
     "message": "This address starts with http://, so your access key travels unencrypted. If anyone else shares this network, use an https:// address (for example with tailscale serve).",
     "description": "Warning under the server address field when the address uses http:// and isn't on this computer or a Tailscale network. The connection still works. Keep http://, https:// and \"tailscale serve\" as they are."
+  },
+  "error_address_changed": {
+    "message": "Where Kotiko sends your words was changed outside its settings, so it sent nothing there. Open Settings, check your word lookups and server address, and save them again.",
+    "description": "Shown when the settings that say where words and keys are sent were changed by something other than Kotiko's own settings pages (for example a web page), so Kotiko refused to send anything."
   }
 }

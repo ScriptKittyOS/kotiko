@@ -12,9 +12,9 @@ Conventional Commits by release-please.
   delete it. A list of everything Kotiko keeps and sends, with the code that does it, is in
   `docs/privacy/inventory.md`.
 
-- Your AI key and your server's access key now go only to the address you saved them for.
-  If that address is changed anywhere but Kotiko's own settings, Kotiko stops sending the
-  key and asks you to paste it again.
+- Kotiko now sends your words and keys only to the server and AI service you chose in its
+  own settings. If a website manages to change those settings behind your back, Kotiko
+  sends nothing there and puts your choice back.
 
 - Typing a server address that starts with `http://` and isn't on this computer or a
   Tailscale address now shows a note under the field: your access key would travel

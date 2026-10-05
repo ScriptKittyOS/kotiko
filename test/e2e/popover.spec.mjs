@@ -5,17 +5,18 @@
 // extension: hover, click, links, the keyboard command, the top layer against hostile page
 // CSS, the page's theme, what page scripts can see, the interface in Spanish, and speech
 // with a stubbed voice list.
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, connectServer } from "./fixtures.mjs";
 import { POPOVER_WORDS } from "../helpers/popover-words.mjs";
 import { inShadow, readCard } from "../helpers/closed-shadow.mjs";
 import { stubSpeech, voiceLists } from "../helpers/speech-stub.mjs";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Stores the words and the connection directly (the popup's own flow is covered in
-// smoke.spec.mjs); the page's sync then finds the same list on the fake server. The
-// learner reads English and Spanish (slice 50's setting), as their words' meanings say.
-async function setup({ server, serviceWorker }, extra = {}) {
+// Stores the words directly and connects the server through `server.connect`, as the
+// settings do (the popup's own flow is covered in smoke.spec.mjs); the page's sync then
+// finds the same list on the fake server. The learner reads English and Spanish (slice
+// 50's setting), as their words' meanings say.
+async function setup({ server, serviceWorker, context }, extra = {}) {
   await server.control({ words: POPOVER_WORDS });
   // The install's own first-run step writes the browser's languages; it must be done before
   // this test sets its own, or it can overwrite them.
@@ -23,8 +24,9 @@ async function setup({ server, serviceWorker }, extra = {}) {
   await serviceWorker.evaluate(async (o) => {
     await chrome.storage.sync.set({ ui: { uiLang: "auto", baseLangs: ["en", "es"], baseLangsConfirmed: true } });
     // "Mix within the page" (18), so the page's two "thanks" show 谢谢 and спасибо.
-    await chrome.storage.local.set({ serverUrl: o.url, token: o.token, words: o.words, enabled: true, lastSync: Date.now(), mixing: { mode: "mix" }, ...o.extra });
-  }, { url: server.kotikoUrl, token: server.token, words: POPOVER_WORDS, extra });
+    await chrome.storage.local.set({ words: o.words, enabled: true, lastSync: Date.now(), mixing: { mode: "mix" }, ...o.extra });
+  }, { words: POPOVER_WORDS, extra });
+  await connectServer(context, serviceWorker, server.kotikoUrl, server.token);
   // The background writes the rules for both languages for content scripts to read.
   await expect.poll(() => serviceWorker.evaluate(async () => Object.keys((await chrome.storage.local.get("baseRules")).baseRules ?? {}).join())).toBe("en,es");
 }
@@ -53,7 +55,7 @@ async function revealWord(serviceWorker, page) {
 }
 
 test("hovering a word opens the card in the top layer, above hostile page CSS, with the pronunciation block", async ({ context, server, serviceWorker }) => {
-  await setup({ server, serviceWorker });
+  await setup({ server, serviceWorker, context });
   const page = await openPage(context, server);
   await word(page, "пожалуйста").hover();
   await sleep(150);
@@ -85,7 +87,7 @@ test("hovering a word opens the card in the top layer, above hostile page CSS, w
 });
 
 test("page scripts see no vocabulary: no title or data-* on swaps, and the card's root is closed", async ({ context, server, serviceWorker }) => {
-  await setup({ server, serviceWorker });
+  await setup({ server, serviceWorker, context });
   const page = await openPage(context, server);
   await word(page, "谢谢").hover();
   await waitCard(page);
@@ -102,7 +104,7 @@ test("page scripts see no vocabulary: no title or data-* on swaps, and the card'
 });
 
 test("click pins the card; a click inside a link navigates and never opens it", async ({ context, server, serviceWorker }) => {
-  await setup({ server, serviceWorker });
+  await setup({ server, serviceWorker, context });
   const page = await openPage(context, server);
   await word(page, "хорошо").click();
   const card = await waitCard(page);
@@ -120,7 +122,7 @@ test("click pins the card; a click inside a link navigates and never opens it", 
 });
 
 test("touch: a tap opens the card; inside a link a tap navigates and a long press opens it", async ({ context, server, serviceWorker }) => {
-  await setup({ server, serviceWorker });
+  await setup({ server, serviceWorker, context });
   const page = await openPage(context, server);
   const cdp = await context.newCDPSession(page);
   await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 1 });
@@ -156,7 +158,7 @@ test("touch: a tap opens the card; inside a link a tap navigates and a long pres
 });
 
 test("the keyboard command opens the selected word with focus inside; Esc closes and restores the selection", async ({ context, server, serviceWorker }) => {
-  await setup({ server, serviceWorker });
+  await setup({ server, serviceWorker, context });
   const page = await openPage(context, server);
   await stubSpeech(page, voiceLists().macos);
   await page.evaluate(() => getSelection().selectAllChildren([...document.querySelectorAll("kotiko-w")].find((w) => w.textContent === "犬")));
@@ -181,7 +183,7 @@ test("the keyboard command opens the selected word with focus inside; Esc closes
 });
 
 test("a dark page gets the dark card", async ({ context, server, serviceWorker }) => {
-  await setup({ server, serviceWorker });
+  await setup({ server, serviceWorker, context });
   const page = await openPage(context, server, "popover-dark.html");
   await page.emulateMedia({ colorScheme: "light" });
   await word(page, "пожалуйста").hover();
@@ -190,7 +192,7 @@ test("a dark page gets the dark card", async ({ context, server, serviceWorker }
 });
 
 test("speech: the stored word in a matching voice, never the respelling; no voice, no button", async ({ context, server, serviceWorker }) => {
-  await setup({ server, serviceWorker });
+  await setup({ server, serviceWorker, context });
   const page = await openPage(context, server);
   const speech = await stubSpeech(page, voiceLists().macos);
   const say = async (native) => {
@@ -230,7 +232,7 @@ test.describe("with the browser in Spanish", () => {
   test.use({ browserLang: "es" });
 
   test("every label in the card is Spanish, and language names too", async ({ context, server, serviceWorker }) => {
-    await setup({ server, serviceWorker });
+    await setup({ server, serviceWorker, context });
     const page = await openPage(context, server);
     await stubSpeech(page, voiceLists().macos);
     await word(page, "пожалуйста").hover();
@@ -249,7 +251,7 @@ test.describe("with the browser in Spanish", () => {
 });
 
 test("Don't swap this word: the page shows the site's word again, everywhere, with an undo (slice 16 §5)", async ({ context, server, serviceWorker }) => {
-  await setup({ server, serviceWorker });
+  await setup({ server, serviceWorker, context });
   const page = await openPage(context, server);
   await word(page, "хорошо").click();
   await waitCard(page);

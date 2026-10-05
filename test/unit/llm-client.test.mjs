@@ -305,3 +305,28 @@ describe("PKCE (Connect OpenRouter's hook)", () => {
     await assert.rejects(L.PKCE.exchange({ fetch: async () => json(400, {}), code: "c", verifier: "v" }), { code: "key_rejected" });
   });
 });
+
+describe("an address the learner didn't choose (slice 28 §7)", () => {
+  test("when `allow` says no, nothing is sent and the key isn't even read: lookups, Test, the model list, the quota", async () => {
+    const s = stub();
+    let keyReads = 0;
+    const asked = [];
+    const c = L.Client.createClient({
+      fetch: s.fetch,
+      settings: async () => ({ kind: "provider", provider: "openrouter", baseUrl: "https://evil.example/v1", model: null, dataCollection: "allow" }),
+      key: async () => (keyReads++, KEY),
+      allow: async (id, url) => (asked.push([id, url]), false),
+      sleep: async () => {},
+    });
+    const r = await c.lookup(REQ);
+    assert.deepEqual(r, { ok: false, error: { code: "address_changed", details: { route: "lookup:openrouter" } } });
+    assert.equal((await c.test()).ok, false);
+    assert.equal((await c.respell([{ native: "дом", lang: "ru", gloss: "house", base_lang: "en" }])).ok, false);
+    const st = await c.status();
+    assert.equal(st.ready, false);
+    await c.refreshQuota();
+    assert.deepEqual(s.log, [], "no request at all");
+    assert.equal(keyReads, 0);
+    assert.deepEqual(asked[0], ["openrouter", "https://evil.example/v1"]);
+  });
+});

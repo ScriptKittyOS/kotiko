@@ -102,7 +102,7 @@ test("a content script can read neither the key nor the token, and every privile
   expect(secrets.secrets).toEqual({ "provider:custom": "sk-tes…cdef", server: expect.stringMatching(/…/) });
 });
 
-test("settings rewritten from a content script never send the key to a new address", async ({ context, extensionId, server, popup }) => {
+test("settings rewritten from a content script send nothing to the new address, and are put back", async ({ context, extensionId, server, popup }) => {
   await setUpLookups(context, extensionId, server.llmUrl);
   const page = await context.newPage();
   await page.goto(server.page("basic.html"));
@@ -114,12 +114,45 @@ test("settings rewritten from a content script never send the key to a new addre
     await chrome.storage.local.set({ lookup: { ...lookup, baseUrl: url } });
   }, elsewhere);
 
-  await server.control({ reset: true });
   const line = await popup.add("sobaka");
   await expect(line).toHaveText(/^Added собака/);
-  const chats = (await server.state()).log.filter((r) => r.path === "/llm/v1/chat/completions");
+  const log = (await server.state()).log;
+  expect(log.every((r) => r.host.startsWith("127.0.0.1:")), "nothing went to the rewritten address").toBe(true);
+  const chats = log.filter((r) => r.path === "/llm/v1/chat/completions");
   expect(chats.length).toBeGreaterThanOrEqual(1);
-  expect(chats.every((r) => r.auth === null), "the lookup went to the rewritten address, without the key").toBe(true);
+  expect(chats.every((r) => r.auth === `Bearer ${KEY}`)).toBe(true);
+  const settings = await inContentScript(context, page, extensionId, async () => (await chrome.storage.local.get("lookup")).lookup);
+  expect(settings.baseUrl, "the address the learner chose is back").toBe(server.llmUrl);
+});
+
+test("a hidden address planted for a hosted service: the key pasted afterwards never reaches it", async ({ context, extensionId, server, popup, blocked }) => {
+  // The learner chooses OpenAI; the dashboard has no address field for it.
+  const dash = await context.newPage();
+  await dash.goto(`chrome-extension://${extensionId}/dashboard.html#settings/lookups`);
+  await dash.getByRole("radio", { name: "OpenAI" }).click();
+  await expect(dash.locator("#lookupBaseUrl")).toBeHidden();
+
+  const page = await context.newPage();
+  await page.goto(server.page("basic.html"));
+  await expect(page.locator("#p1")).toBeVisible();
+  const planted = server.llmUrl.replace("127.0.0.1", "localhost");
+  await inContentScript(context, page, extensionId, async (url) => {
+    const { lookup } = await chrome.storage.local.get("lookup");
+    await chrome.storage.local.set({ lookup: { ...lookup, baseUrl: url, model: "fake/model-a:free" } });
+  }, planted);
+
+  await dash.bringToFront();
+  await dash.locator("#lookupKey").fill(KEY);
+  await dash.locator("#saveKey").click();
+  await expect(dash.locator("#lookupKeyMasked")).toContainText("sk-tes…cdef");
+  const p = await popup.page();
+  await p.locator("#addText").fill("sobaka");
+  await p.locator("#addText").press("Enter");
+  await expect.poll(() => blocked.filter((u) => u.startsWith("https://api.openai.com/")).length, { timeout: 15_000 }).toBeGreaterThan(0);
+  expect((await server.state()).log, "nothing reached the planted address").toEqual([]);
+  // The lookup went to OpenAI's own address (blocked here, as every outside request is).
+  expect(blocked.every((u) => u.startsWith("https://api.openai.com/"))).toBe(true);
+  blocked.length = 0;
 });
 
 const SPANISH = [

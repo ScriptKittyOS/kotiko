@@ -148,6 +148,8 @@
         return { severity: "blocking", text: t("error_server_key_rejected"), details, actions: ["settings"] };
       case "server_address_invalid":
         return { severity: "blocking", text: t("error_server_address_invalid"), details, actions: ["settings"] };
+      case "address_changed":
+        return { severity: "blocking", text: t("error_address_changed"), details, actions: ["settings"] };
       case "not_kotiko_server":
         return { severity: "blocking", text: t("error_not_kotiko_server"), details, actions: ["settings"] };
       default:
@@ -169,7 +171,7 @@
     const local = lookupKind(state.s) !== "server";
     const lookup = LookupStatus.lookupProblem(code, res?.details, { locale: I18n.locale(), local });
     if (lookup) {
-      const fix = local && (code === "key_rejected" || code === "lookup_not_set_up") ? ["setupLookups"] : [];
+      const fix = code === "address_changed" ? (String(res?.details?.route ?? "").startsWith("lookup:") ? ["setupLookups"] : ["settings"]) : local && (code === "key_rejected" || code === "lookup_not_set_up") ? ["setupLookups"] : [];
       return line(lookup.key, RETRYABLE.has(code) ? ["retry"] : fix, lookup.params);
     }
     switch (code) {

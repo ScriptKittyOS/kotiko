@@ -78,7 +78,7 @@ and once in the background for words saved earlier. Wikimedia's privacy policy:
 
 **Your key and your server's access key** are kept in a part of the extension's storage
 that web pages and Kotiko's own page scripts can't read. Each is sent only to the service
-it belongs to, at the address you saved it for.
+it belongs to, at the address you chose in Kotiko's settings.
 
 **Listening to a word.** Kotiko uses the voices on your computer. If you turn on "Allow
 online voices" in Settings (it's off by default), your browser may send the word you play

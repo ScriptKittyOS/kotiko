@@ -80,6 +80,17 @@ async function settled(fake, store, id, states = ["done", "failed", "waiting", "
   throw new Error(`job ${id} never settled: ${JSON.stringify(store.addJobs)}`);
 }
 
+// Waits until `n` requests were made (the worker's start-up binds routes first, so a fixed
+// sleep isn't enough under load), then a little longer, so an extra request would show.
+async function requested(fake, requests, n) {
+  for (let i = 0; i < 200 && requests.length < n; i++) {
+    await fake.idle();
+    await sleep(5);
+  }
+  await fake.idle();
+  await sleep(10);
+}
+
 const serverWith = (words) => stubFetch((url, init) => {
   if ((init.method ?? "GET") === "GET") return json(200, { words });
   return json(404, { error: "No such route." });
@@ -197,12 +208,12 @@ describe("a profile with no token (slice 11: words in this browser)", () => {
 });
 
 describe("triggers", () => {
-  test("install keeps the one-minute alarm and syncs", async () => {
+  // An update: a new install has no 0.2 server to sync with (slice 28 §7 drops any it finds).
+  test("an update keeps the one-minute alarm and syncs", async () => {
     const { fetch, requests } = serverWith(WORDS);
     const { fake, store } = loadBackground({ fetch });
-    await fake.fireInstalled();
-    await fake.idle();
-    await sleep(10);
+    await fake.fireInstalled({ reason: "update", previousVersion: "0.2.0" });
+    await requested(fake, requests, 1);
     assert.deepEqual(await fake.chrome.alarms.get("kotiko-sync"), {
       name: "kotiko-sync",
       scheduledTime: fake.clock.now() + 60_000,
@@ -230,7 +241,7 @@ describe("triggers", () => {
     const { fetch, requests } = serverWith(WORDS);
     const { fake } = loadBackground({ fetch });
     await fake.fireStartup();
-    await sleep(10);
+    await requested(fake, requests, 1);
     assert.ok(await fake.chrome.alarms.get("kotiko-sync"));
     assert.equal(requests.length, 1);
   });
@@ -242,20 +253,20 @@ describe("triggers", () => {
     await sleep(10);
     assert.equal(requests.length, 0);
     await fake.fireAlarm("kotiko-sync");
-    await sleep(10);
+    await requested(fake, requests, 1);
     assert.equal(requests.length, 1);
   });
 
   test("changing the token or address syncs; other settings don't", async () => {
     const { fetch, requests } = serverWith(WORDS);
-    const { fake } = loadBackground({ fetch });
+    const { fake, send } = loadBackground({ fetch });
     await fake.chrome.storage.local.set({ enabled: false, hiddenLangs: ["ru"] });
     await fake.idle();
     await sleep(10);
     assert.equal(requests.length, 0);
-    await fake.chrome.storage.local.set({ token: "new-token" });
-    await fake.idle();
-    await sleep(10);
+    // A new token comes from a Kotiko page (slice 28 §7: never from storage.local).
+    await send({ type: "server.connect", token: "new-token" }, POPUP);
+    await requested(fake, requests, 1);
     assert.equal(requests.length, 1);
     assert.equal(requests[0].headers.Authorization, "Bearer new-token");
   });
@@ -484,7 +495,7 @@ describe("sync correctness (slice 26)", () => {
     const { send, store, fake } = loadBackground({ fetch, local: { token: "bad" } });
     send({ type: "sync", force: true });
     await sleep(10);
-    await fake.chrome.storage.local.set({ token: "good" });
+    send({ type: "server.connect", token: "good" }, POPUP);
     await fake.idle();
     await sleep(250);
     assert.equal(store.syncError, null);
@@ -578,7 +589,7 @@ describe("sync correctness (slice 26)", () => {
     // comes from the secrets store, so how soon that request starts depends on the machine.
     for (let i = 0; i < 200 && seen.length === 0; i++) await sleep(5);
     assert.equal(seen.length, 1, "the first sync started");
-    await fake.chrome.storage.local.set({ token: "good" });
+    send({ type: "server.connect", token: "good" }, POPUP);
     await fake.idle();
     assert.deepEqual(await first, { ok: true });
     await sleep(150);
@@ -608,19 +619,22 @@ describe("sync correctness (slice 26)", () => {
     assert.deepEqual(store.words, WORDS);
   });
 
-  test("slice 28 §7: an address written straight to storage.local (as a content script can) never gets the stored token", async () => {
+  test("slice 28 §7: an address or token written straight to storage.local (as a content script can) is never used", async () => {
     const { fetch, requests } = stubFetch(async () => json(200, { words: WORDS }));
     const { send, store, fake } = loadBackground({ fetch });
     await send({ type: "sync", force: true });
     assert.equal(requests.length, 1);
-    for (const patch of [{ serverUrl: "http://127.0.0.1:6666" }, { server: { url: "http://127.0.0.1:6666" } }]) {
+    for (const patch of [{ serverUrl: "http://127.0.0.1:6666" }, { server: { url: "http://127.0.0.1:6666" } }, { token: "planted", serverUrl: "http://127.0.0.1:6666" }]) {
       await fake.chrome.storage.local.set(patch);
       await fake.idle();
       await send({ type: "sync", force: true });
       await fake.idle();
       assert.ok(requests.every((r) => !r.url.includes(":6666")), JSON.stringify(patch));
-      assert.equal(store.syncError.code, "server_key_rejected");
-      assert.equal(store.syncError.details.reason, "address_changed");
+      assert.ok(requests.every((r) => r.headers.Authorization === "Bearer good-token"), JSON.stringify(patch));
+      // The trusted address is put back; the 0.2 keys are removed, not adopted.
+      assert.equal(store.server.url, "http://127.0.0.1:4999");
+      assert.equal(store.token, undefined);
+      assert.equal(store.serverUrl, undefined);
     }
     // A Kotiko page that names the address moves the token there.
     await send({ type: "server.connect", url: "http://127.0.0.1:6666" }, POPUP);

@@ -526,6 +526,8 @@
         return t("error_server_key_rejected");
       case "server_address_invalid":
         return t("error_server_address_invalid");
+      case "address_changed":
+        return t("error_address_changed");
       case "not_kotiko_server":
         return t("error_not_kotiko_server");
       case "server_outdated":
@@ -588,7 +590,7 @@
     if (!state.online) return { severity: "info", text: t("dash_offline") };
     const err = state.loadError ?? (s.syncError?.code && s.syncError.code !== "server_key_rejected" ? s.syncError : null) ?? (s.syncError?.code === "server_key_rejected" && s.syncError.details?.reason !== "no_token" ? s.syncError : null);
     if (!err) return null;
-    const blocking = ["server_key_rejected", "server_address_invalid", "not_kotiko_server"].includes(err.code);
+    const blocking = ["server_key_rejected", "server_address_invalid", "not_kotiko_server", "address_changed"].includes(err.code);
     return {
       severity: blocking ? "blocking" : "state",
       text: problemText(err),

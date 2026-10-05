@@ -480,27 +480,52 @@ only `class,dir,lang,translate` and none of the original words. The unit test ch
 `externally_connectable`, no `web_accessible_resources`, no `setUninstallURL`, no
 `console.log`, and no `console.*` call mentioning a key or token.
 
-**A finding, fixed here.** Content scripts couldn't read the secrets, but they could send
-them anywhere: the server address and the provider's `baseUrl` live in `storage.local`,
-which content scripts can write, and the background sent the token or key to whatever was
-there (`connection()` even preferred a legacy `serverUrl` written there). A subverted
-content script could have collected both. Now each secret is bound to the origin it was
-saved for (`secretOrigin:<id>` in the store's `meta`, beside the secret): a Kotiko page
-that saves a secret or names an address (`secrets.set`, `server.connect`, `backend.set`
-with a `baseUrl`, the OpenRouter sign-in) moves the binding; an address changed any other
-way gets no secret (`server_key_rejected` with `reason: "address_changed"`, whose banner
-says to paste the key again; for a provider the key isn't sent, and a preset that needs
-one waits as not set up). An
-upgrade binds existing secrets to their current addresses once. `test/bg/privacy.test.mjs`
-and the e2e fail without the fix. The 0.2-era test in `background.test.mjs` that changed
-the address through `storage.local` now does it through `server.connect`.
+**A finding, fixed here.** Content scripts couldn't read the secrets, but could send them
+anywhere: the server address, the lookup service and its `baseUrl` live in
+`storage.local`, which content scripts can write, and the background sent the token, the
+key and the learner's typed words to whatever was there. The lead's review also found
+that binding the key to "where the settings point when it's saved" let a planted, hidden
+`baseUrl` (no field is shown for hosted services) capture a key pasted afterwards.
 
-**Known limit (not fixed).** The other settings are still in `storage.local`, so a
-subverted content script can still point lookups at another address (without the key),
-so text typed afterwards would go there, switch Kotiko off, or set a server address with a
-token of its own. Fixing that means moving the settings that route requests into the
-store, a change to slice 11's design; recorded in the inventory (§3) for slice 54's
-reviewers.
+The fix binds the destination, not the secret:
+
+- **Trusted values.** The background keeps the trusted destinations in IndexedDB `meta`:
+  - `route:server`;
+  - `route:lookup:<provider>`, the address for each service;
+  - `route:lookupProvider`, the service chosen.
+- **Who sets them.** Only Kotiko's pages: `server.connect` with a `url`; `backend.set` with
+  a provider or `baseUrl` (a provider without an address means the preset's own); the
+  OpenRouter sign-in; `toLocal`'s forget.
+- **At upgrade.** Once, during the upgrade: a fresh install trusts only built-in addresses;
+  an older install trusts what its settings hold then. Until a page names one, a route
+  trusts its built-in address (each preset's own, `http://localhost:4747`).
+- **Checking.**
+  - Every server request (`connection()`) and every client request (lookups, respell,
+    Test, model lists, quota; through the client's new `allow` hook) checks its address
+    and service first. A mismatch sends nothing and fails with `address_changed`
+    (`error_address_changed`; add jobs wait for it like `lookup_not_set_up`).
+  - Secrets are released only for an allowed address (`secretFor`).
+  - Writes to `server`/`lookup` from elsewhere are put back (`healRoutes`, also run on any
+    refusal).
+  - Route changes and the repair run one at a time (`underRoutes`), so the repair never
+    writes a stale copy over a page's change.
+- **Legacy keys.** 0.2 `token`/`serverUrl` keys are adopted only by the one-time storage
+  upgrade. Later writes are removed unused (`dropLegacy`; `connection()` no longer reads
+  them). Anything the upgrade adopts on a brand-new install, where nothing older can
+  exist, is dropped (`discardPlanted`): token, address and seeded words.
+- **Tests updated.** Tests that set the token or address through `storage.local` now go
+  through `server.connect`: `background.test.mjs`, `local-mode.test.mjs`, and the
+  popover, casing and visual setups via `connectServer` in `test/e2e/fixtures.mjs`. The
+  fixture server's log now records the `Host` header.
+- **Proof.** `test/bg/privacy.test.mjs` (9 tests) and the e2e cases fail on the previous
+  code.
+
+**Still open.** Content scripts can still write the other settings in `storage.local`:
+turn Kotiko off, pause sites, edit the cached page list, or add an entry to `addJobs`,
+which the queue would look up with the learner's own service and save. None sends
+anything to a new destination; fixing them means moving those settings and the queue
+out of `storage.local` (slices 11 and 24's design). An install updating from a version
+before this one trusts its settings' addresses once, at that moment.
 
 **§8 Listing and assets.** `store/listing/en.json` (description opening with slice 05's
 short listing line, five captions, promo text); `store/assets.md` (sizes, what exists,

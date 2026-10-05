@@ -29,6 +29,18 @@ export function isExternal(url) {
   }
 }
 
+// Connects Kotiko to a server the way its settings do: `server.connect` from one of its own
+// pages (slice 28 §7: an address or token written straight to storage.local is ignored).
+// privacy.html is used because opening it has no side effects.
+export async function connectServer(context, serviceWorker, url, token) {
+  const page = await context.newPage();
+  await page.goto(`chrome-extension://${new URL(serviceWorker.url()).host}/privacy.html`);
+  const res = await page.evaluate((m) => chrome.runtime.sendMessage(m), { type: "server.connect", url, token });
+  await page.close();
+  if (res?.error) throw new Error(`server.connect: ${JSON.stringify(res)}`);
+  return res;
+}
+
 export const test = base.extend({
   // The fixture server started in global-setup.mjs.
   server: async ({}, use) => {

@@ -15,9 +15,11 @@
 //   await client.status()                  {provider, quota, models, models_source, skipped}
 //   await client.quotaLow()                 the reset time when 10 or fewer are left, else null
 //
-// `settings()` resolves to {provider, baseUrl, model, dataCollection}; `key(providerId,
-// baseUrl)` to the stored key, or null (also when the key wasn't saved for that address;
-// the background reads it from the store's secrets; nothing here logs or keeps it).
+// `settings()` resolves to {provider, baseUrl, model, dataCollection}; `allow(providerId,
+// baseUrl)` to whether requests may go to that address at all (slice 28 §7: when it says
+// no, nothing is sent and every call fails with `address_changed`); `key(providerId,
+// baseUrl)` to the stored key or null (the background reads it from the store's secrets;
+// nothing here logs or keeps it).
 // Failures carry slice 25's codes: lookup_not_set_up, key_rejected, quota_exhausted,
 // rate_limited, model_unavailable, lookup_timeout, bad_lookup_result.
 (() => {
@@ -59,6 +61,7 @@
     store = null,
     settings,
     key,
+    allow = async () => true,
     now = () => Date.now(),
     sleep = (ms) => new Promise((r) => setTimeout(r, ms)),
     timeScale = 1,
@@ -77,9 +80,9 @@
     async function config() {
       const s = (await settings()) ?? {};
       const { preset: p, baseUrl } = endpoint(s);
-      // The address goes with the question, so the key's owner can refuse an address it
-      // wasn't saved for (slice 28 §7).
-      const k = await key(p.id, baseUrl);
+      // An address the learner didn't choose in Kotiko gets no request and no key.
+      const blocked = !!baseUrl && !(await allow(p.id, baseUrl));
+      const k = blocked ? null : await key(p.id, baseUrl);
       return {
         preset: p,
         baseUrl,
@@ -87,10 +90,12 @@
         key: typeof k === "string" && k ? k : null,
         openrouter: p.id === "openrouter",
         deny: s.dataCollection === "deny",
+        blocked,
       };
     }
 
     function notSetUp(cfg) {
+      if (cfg.blocked) return coded("address_changed", { route: `lookup:${cfg.preset.id}` });
       if (!cfg.baseUrl) return coded("lookup_not_set_up", { reason: "no_url" });
       if (cfg.preset.keyRequired && !cfg.key) return coded("lookup_not_set_up", { reason: "no_key" });
       return null;

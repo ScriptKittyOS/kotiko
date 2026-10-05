@@ -22,7 +22,7 @@ Last checked against the code: 2026-10-05 (extension 0.2.0, spec 2.0.0).
 | Text you type or paste to add words (the popup, the dashboard, the welcome page, bulk add), plus your base languages, up to five of your recent target languages and a language hint | Add jobs in `storage.local` (kept 7 days after they finish, at most 20); the checked result in a lookup cache in IndexedDB (30 days, at most 5,000) | Yes, when you add a word that needs a lookup. Never for "word = meaning" lines | The provider you chose (OpenRouter by default; OpenAI, Anthropic, Google Gemini, Groq, a local Ollama or LM Studio, or any address you enter), or your Kotiko server, which asks its own provider | `lib/llm/client.js` `call()`, `background.js` `lookupJob()` |
 | Your saved words (word, meaning, sense, base language), to write their pronunciations | Nothing new | Yes, for words saved without a pronunciation (added by hand, imported, or from an older version), at most twice per word, in the background, when words live in this browser and a provider is set up | The provider you chose | `lib/refresh-job.js` → `client.respell()` |
 | A word you add in a language with word stress (Russian, Ukrainian, Spanish and others in `spec/pronunciation.json`): the word only | The Wiktionary page's pronunciation section, 30 days, in the lookup cache | Yes, when you add the word with a lookup or as "word = meaning", and once in the background for words saved earlier | The Wikimedia Foundation (en.wiktionary.org), with a `Api-User-Agent` header naming Kotiko and `hello@scriptkittyos.com` | `background.js` `wiktionaryPage()`, `lib/wiktionary-pass.js` |
-| Your provider key and your server's access token | IndexedDB (`secrets`), which only the background reads. Never in `storage.local`, `storage.sync` or `storage.session`; never shown again in full (the settings show the first six and last four characters) | Only to the service it belongs to, and only to the address it was saved for (slice 28 §7) | Your provider; your Kotiko server | `background.js` `secret()`, `secretFor()` |
+| Your provider key and your server's access token | IndexedDB (`secrets`), which only the background reads. Never in `storage.local`, `storage.sync` or `storage.session`; never shown again in full (the settings show the first six and last four characters) | Only to the service it belongs to, and only at an address chosen on one of Kotiko's own pages (slice 28 §7) | Your provider; your Kotiko server | `background.js` `secret()`, `secretFor()`, `routeAllows()` |
 | Which provider, model and server address you use; whether a key is saved (yes or no, never the key) | `storage.local` | Each request goes to that address | Your provider or your server | `lib/local-mode.js` `readSettings()` |
 | The model list (any provider whose models Kotiko lists) and your remaining free lookups (OpenRouter only) | IndexedDB `meta`; the list refreshed at most daily, the count at most every 5 minutes while lookups run | The request itself, with your key | Your provider (`/models`); OpenRouter (`/key`) | `lib/llm/client.js`, `lib/llm/catalog.js` |
 | The Test button's lookup | Nothing | The word "hello" and your base languages | Your provider | `lib/llm/client.js` `test()` |
@@ -62,15 +62,24 @@ two messages to the background: `sync` and `sensitiveSites`.
 - They can't read your key or your token: those are only in the background's IndexedDB,
   which content scripts can't open (they get the page's IndexedDB, not Kotiko's), and
   `storage.session` is not used.
-- They can't make the background send your key or token anywhere new. Each secret is
-  bound to the origin it was saved for, and the binding lives with the secret; an address
-  changed in `storage.local` without a Kotiko page gets no secret
-  (`test/bg/privacy.test.mjs`).
-- **Known limit.** Because the settings live in `storage.local`, a content script that a
-  page managed to subvert could still point Kotiko's lookups at another address (without
-  your key), so text you type afterwards would go there, or turn Kotiko off. Moving the
-  settings out of content-script reach is follow-up work (see slice 28's Implementation
-  notes).
+- They can't make Kotiko send anything somewhere new. Where requests go is kept in the
+  background's IndexedDB (`meta`): the server's address, the lookup service the learner
+  chose, and each service's address. Only Kotiko's own pages change them (by naming an
+  address or choosing a service). Every request checks its address against them and sends
+  nothing on a mismatch, and the background puts the chosen values back into
+  `storage.local`. So a rewritten server address, service or service address gets no
+  request, no typed word and no key; 0.2-era `token`/`serverUrl` keys written later are
+  removed unused, and ones found on a brand-new install are dropped
+  (`test/bg/privacy.test.mjs`, `test/e2e/privacy.spec.mjs`).
+- **Still open.** Content scripts can still change the other settings in `storage.local`.
+  None of these sends data anywhere new, but they affect what Kotiko does:
+  - turn Kotiko off, pause sites or hide languages;
+  - change the cached word list a page shows until the next update;
+  - add an entry to the add queue (`addJobs`), which Kotiko would then look up with the
+    learner's own service and save as a word.
+
+  And an install updating from a version before this one trusts the addresses its
+  settings hold at that moment, once.
 
 ## 4. Hosts in the code
 
@@ -93,6 +102,7 @@ at run time.
 | `github.com` | No; links you can open | Source code, license, language data docs; also the `HTTP-Referer` Kotiko sends to OpenRouter to name itself |
 | `platform.openai.com`, `console.anthropic.com`, `aistudio.google.com`, `console.groq.com` | No; links you can open | "Get a key" links for each provider |
 | `openai.com`, `www.anthropic.com`, `ai.google.dev`, `groq.com`, `telegram.org`, `foundation.wikimedia.org` | No; links in the bundled privacy policy | Each service's own privacy policy |
+| `docs.ankiweb.net` | No | Where the Anki note-type name in `data/anki-notetypes.json` comes from (a note in the file) |
 | `192.168.1.5`, `user` | No | Examples in code comments |
 | `www.w3.org` | No | The SVG namespace name, not an address |
 | `.` | No | The "https://." in an error message's example |
@@ -114,6 +124,7 @@ differs from this table.
 | `extension/popup-more.js` | 2 | Kotiko's own `spec/languages.json` and `spec/lang/*/respelling.json` (from the package) |
 | `extension/bulk/sheet.js` | 1 | Kotiko's own `stopwords.json` (from the package) |
 | `extension/privacy.js` | 1 | Kotiko's own `privacy/en.md` (from the package) |
+| `extension/data-tools.js` | 1 | Kotiko's own `data/anki-notetypes.json` (from the package), for the Anki export |
 
 ## 6. Permissions
 

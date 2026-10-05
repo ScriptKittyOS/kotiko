@@ -47,6 +47,7 @@
     server_unreachable: "error_server_unreachable_empty",
     server_address_invalid: "error_server_address_invalid",
     not_kotiko_server: "error_not_kotiko_server",
+    address_changed: "error_address_changed",
   };
 
   const state = {

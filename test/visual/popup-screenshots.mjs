@@ -103,6 +103,8 @@ async function shoot({ context, url }, name, { scheme, setup, act, waitMs = 250,
 }
 
 const set = (page, items) => page.evaluate((i) => chrome.storage.local.set(i), items);
+// Connects as the settings do (slice 28: an address or token written to storage.local is ignored).
+const connect = (page, url, token) => page.evaluate((m) => chrome.runtime.sendMessage(m), { type: "server.connect", url, token });
 
 async function run() {
   await fs.mkdir(OUT, { recursive: true });
@@ -111,9 +113,8 @@ async function run() {
   const connected = (extra = {}) => async (page) => {
     await control({ reset: true });
     await control({ words: extra.words ?? WORDS });
+    await connect(page, `${srv.url}/kotiko`, srv.token);
     await set(page, {
-      serverUrl: `${srv.url}/kotiko`,
-      token: srv.token,
       words: extra.words ?? WORDS,
       lastSync: Date.now() - 120_000,
       syncError: null,
@@ -159,7 +160,8 @@ async function run() {
         await s("G-unsupported", { setup: connected(), tabUrl: "chrome://newtab/" });
         await s("J-unreachable", {
           setup: async (page) => {
-            await set(page, { serverUrl: "http://127.0.0.1:9", token: "x", words: WORDS, lastSync: Date.now() - 3_600_000, syncError: { code: "server_unreachable", message: "Can't reach http://127.0.0.1:9. Is the server running?", details: { reason: "network" }, at: Date.now() } });
+            await connect(page, "http://127.0.0.1:9", "x");
+            await set(page, { words: WORDS, lastSync: Date.now() - 3_600_000, syncError: { code: "server_unreachable", message: "Can't reach http://127.0.0.1:9. Is the server running?", details: { reason: "network" }, at: Date.now() } });
           },
           act: async (page) => {
             await page.locator("#banners .banner").waitFor();
@@ -169,7 +171,8 @@ async function run() {
           setup: async (page) => {
             await control({ reset: true });
             await control({ words: WORDS, kotiko: "401" });
-            await set(page, { serverUrl: `${srv.url}/kotiko`, token: "wrong", words: WORDS, lastSync: Date.now() - 600_000 });
+            await connect(page, `${srv.url}/kotiko`, "wrong");
+            await set(page, { words: WORDS, lastSync: Date.now() - 600_000 });
           },
           act: async (page) => {
             await page.locator("#banners .banner").waitFor();
@@ -187,7 +190,8 @@ async function run() {
         });
         await s("S-settings-error", {
           setup: async (page) => {
-            await set(page, { serverUrl: "me:secret@localhost:4747", token: "x", words: [], syncError: { code: "server_address_invalid", message: "Leave the user name and password out of the address; paste the token in the API token field.", details: { hint: "Leave the user name and password out of the address." }, at: Date.now() } });
+            await connect(page, "me:secret@localhost:4747", "x");
+            await set(page, { words: [], syncError: { code: "server_address_invalid", message: "Leave the user name and password out of the address; paste the token in the API token field.", details: { hint: "Leave the user name and password out of the address." }, at: Date.now() } });
           },
           act: async (page) => {
             await page.locator("#openSettings").click();

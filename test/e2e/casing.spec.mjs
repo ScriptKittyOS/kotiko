@@ -7,19 +7,20 @@
 import fs from "node:fs";
 import path from "node:path";
 import { firefox } from "@playwright/test";
-import { test, expect, EXT_DIR } from "./fixtures.mjs";
+import { test, expect, EXT_DIR, connectServer } from "./fixtures.mjs";
 
 const w = (id, lang, native, english, base_lang = "en") => ({ id, lang, language: null, native, romanization: null, english, forms: [english], note: null, base_lang });
 
-// Stores the words and the connection directly, as popover.spec.mjs does, for a learner
-// who reads `bases`.
-async function setup({ server, serviceWorker }, words, bases) {
+// Stores the words directly and connects the server as the settings do, like
+// popover.spec.mjs, for a learner who reads `bases`.
+async function setup({ server, serviceWorker, context }, words, bases) {
   await server.control({ words });
   await expect.poll(() => serviceWorker.evaluate(async () => !!(await chrome.storage.local.get("onboarding")).onboarding)).toBe(true);
   await serviceWorker.evaluate(async (o) => {
     await chrome.storage.sync.set({ ui: { uiLang: "auto", baseLangs: o.bases, baseLangsConfirmed: true } });
-    await chrome.storage.local.set({ serverUrl: o.url, token: o.token, words: o.words, enabled: true, lastSync: Date.now() });
-  }, { url: server.kotikoUrl, token: server.token, words, bases });
+    await chrome.storage.local.set({ words: o.words, enabled: true, lastSync: Date.now() });
+  }, { words, bases });
+  await connectServer(context, serviceWorker, server.kotikoUrl, server.token);
   await expect.poll(() => serviceWorker.evaluate(async () => Object.keys((await chrome.storage.local.get("baseRules")).baseRules ?? {}).sort().join())).toBe([...bases].sort().join());
 }
 
@@ -32,7 +33,7 @@ const TALL = [
 ];
 
 test("swapped Chinese, Japanese, Devanagari, Thai and Myanmar words keep every line's height (normal and 1.6)", async ({ context, server, serviceWorker }) => {
-  await setup({ server, serviceWorker }, TALL, ["en"]);
+  await setup({ server, serviceWorker, context }, TALL, ["en"]);
   const page = await context.newPage();
   await page.goto(server.page("scripts-line-height.html"));
   await expect(page.locator("kotiko-w")).toHaveCount(10);
@@ -66,7 +67,7 @@ const edges = (page, id) =>
   }, id);
 
 test("right-to-left swaps keep the page's punctuation on the correct side", async ({ context, server, serviceWorker }) => {
-  await setup({ server, serviceWorker }, [w(1, "ar", "شكرا", "thanks"), w(2, "es", "gracias", "شكرا", "ar")], ["en", "ar"]);
+  await setup({ server, serviceWorker, context }, [w(1, "ar", "شكرا", "thanks"), w(2, "es", "gracias", "شكرا", "ar")], ["en", "ar"]);
   const page = await context.newPage();
   await page.goto(server.page("rtl.html"));
   await expect(page.locator("#en-bang kotiko-w")).toHaveText("شكرا");
