@@ -20,6 +20,7 @@
   ],
   "packages": {
     ".": {
+      "release-as": "1.0.0",
       "extra-files": [
         { "type": "json", "path": "extension/manifest.json", "jsonpath": "$.version" },
         { "type": "generic", "path": "server/mix.exs" }
