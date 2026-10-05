@@ -9,6 +9,10 @@
 | **Unblocks** | [13-bulk-add](../13-bulk-add/SPEC.md), [20-popup-redesign](../20-popup-redesign/SPEC.md), [21-dashboard](../21-dashboard/SPEC.md), [22-first-run-onboarding](../22-first-run-onboarding/SPEC.md), [24-add-flow-safety](../24-add-flow-safety/SPEC.md), [41-telegram-improvements](../41-telegram-improvements/SPEC.md) |
 | **Sources** | [DECISIONS 2026-10-01, base language and localized interface](../DECISIONS.md); [05 §1, S1, S19, S34, S35, §3.5](../../docs/research/05-learner-ux.md); [06 F09, F14, F30, F31, F32](../../docs/research/06-adversarial-qa.md); [03 C4, C6](../../docs/research/03-browser-extension.md) |
 
+> **Note (2026-10-05):** Spanish copy in this spec (listings, policy, messages, release
+> notes, acceptance criteria) is optional, not a must-have. Only English is required at
+> launch; see [DECISIONS 2026-10-05](../DECISIONS.md).
+
 ## Problem
 
 Errors reach the learner straight from internals, in red, with no next step:

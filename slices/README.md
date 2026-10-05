@@ -44,8 +44,9 @@ phases that can overlap:
    languages are swapped, others left alone), casing per language, language precedence.
 3. **Local first, beautifully**: brand, design system, popup, dashboard, bulk add,
    onboarding around the learner's own first word (asked in their own language), the word
-   popover with its pronunciation and audio (34), all in English and Spanish from day one.
-4. **Release**: privacy, store readiness and listings in English and Spanish, a security
+   popover with its pronunciation and audio (34), with every string in translation files (English required; other
+   languages optional, see [DECISIONS 2026-10-05](DECISIONS.md)).
+4. **Release**: privacy, store readiness and listings in English, a security
    review by three independent reviewers who must prove every claim (54), release
    pipeline, and the OpenSSF passing badge on the day the repository goes public (53).
 
@@ -53,7 +54,8 @@ English is not special anywhere: it is one possible base language and one possib
 ([DECISIONS](DECISIONS.md), [50](50-ui-localization-and-base-language/SPEC.md)). Nor is
 Spanish: Kotiko works in every language the browser can split into words through shared
 rules and data, not a pack per language; English and Spanish are simply the two that also
-get hand-written extras at launch. Every slice follows 50's cross-cutting rules.
+get hand-written extras for readers at launch (respelling keys, welcome words). Only the
+English interface is required at launch. Every slice follows 50's cross-cutting rules.
 
 ## All slices
 
@@ -83,10 +85,10 @@ get hand-written extras at launch. Every slice follows 50's cross-cutting rules.
 | 22 | [First-run onboarding](22-first-run-onboarding/SPEC.md) | P0 | M | 11, 20, 24, 50 | Welcome tab on install as a short conversation in the learner's language: confirm the languages you read in (detected from the browser), connect your own AI (key typed only on full pages), ask for the first word you'd love to learn in any language ("¿cómo se dice hola en japonés?" works), confirm it, confetti, live preview in your own language with the real matcher. "native = meaning" works with no key. Nothing is saved until the learner confirms. Maintainer; 05. |
 | 23 | ~~[Starter packs](23-starter-packs/SPEC.md)~~ | – | – | – | **Dropped** (2026-10-01): Kotiko never adds words the learner didn't choose ([DECISIONS](DECISIONS.md)). Replaced by 13, 22 and 12. |
 | 24 | [Add flow safety](24-add-flow-safety/SPEC.md) | P0 | M | 07, 50 | Report created/updated/unchanged; per-word undo that restores rather than deletes; results survive the popup closing; manual add without the model; idempotent add with a client id. 05, 06 F05, F09, F30. |
-| 25 | [Plain-language errors](25-plain-language-errors/SPEC.md) | P0 | S | 50 | Error codes from every backend; localized messages (English and Spanish at launch) that say what still works and the next step; offline cached words keep working. 05. |
+| 25 | [Plain-language errors](25-plain-language-errors/SPEC.md) | P0 | S | 50 | Error codes from every backend; localized messages (English at launch, other languages optional) that say what still works and the next step; offline cached words keep working. 05. |
 | 26 | [Background sync correctness](26-background-sync-correctness/SPEC.md) | P0 | S | – | Sync generations, abort on credential change, response validation, URL checks, alarm re-creation, sender checks on messages. 03, 06 F10, F11, F31, F32, F39. |
 | 27 | [Accessibility baseline](27-accessibility-baseline/SPEC.md) | P0 | M | 06, 50 | WCAG 2.2 AA across popup, dashboard and popover; keyboard and screen reader paths; what screen readers hear on swapped words; reduced motion; target sizes. 03, 05. |
-| 28 | [Privacy and store readiness](28-privacy-and-store-readiness/SPEC.md) | P0 | M | 11, 50 | Privacy policy and store listings in English and Spanish; Chrome Web Store disclosures and single-purpose text; Firefox `data_collection_permissions`, permission checks and CSP; listing assets; token kept out of content-script reach. 03, 04. |
+| 28 | [Privacy and store readiness](28-privacy-and-store-readiness/SPEC.md) | P0 | M | 11, 50 | Privacy policy and store listings in English; Chrome Web Store disclosures and single-purpose text; Firefox `data_collection_permissions`, permission checks and CSP; listing assets; token kept out of content-script reach. 03, 04. |
 | 29 | [Server ops hardening](29-server-ops-hardening/SPEC.md) | P0 | S | – | `start_permanent`, always `deps.get`, config validation with clear errors, unit file quoting, `chmod 600 .env`, quieter logs, versioned JSON `/health`. 06 F19, F20, F34, F35, F40. |
 | 30 | [Release pipeline](30-release-pipeline/SPEC.md) | P0 | M | 02, 03, 50 | release-please, extension zips, Chrome Web Store upload, Firefox signing, checksums and attestations. 04. |
 | 31 | [Density and amount](31-density-and-amount/SPEC.md) | P1 | M | 18, 50 | Per-block ratio cap, no adjacent swaps, per-word page cap, an Amount control (Light, Medium, Heavy, Everything). 01, 05. |

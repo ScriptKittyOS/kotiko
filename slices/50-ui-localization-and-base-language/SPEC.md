@@ -9,6 +9,10 @@
 | **Unblocks** | Every slice with user-facing text or base-side language rules, first of all [09](../09-shared-word-spec-and-prompt/SPEC.md), [13](../13-bulk-add/SPEC.md), [14](../14-matcher-engine/SPEC.md), [16](../16-what-not-to-swap/SPEC.md), [17](../17-casing-and-script-display/SPEC.md), [20](../20-popup-redesign/SPEC.md), [21](../21-dashboard/SPEC.md), [22](../22-first-run-onboarding/SPEC.md), [25](../25-plain-language-errors/SPEC.md), [28](../28-privacy-and-store-readiness/SPEC.md), [32](../32-page-coverage-and-celebrations/SPEC.md), [41](../41-telegram-improvements/SPEC.md) (its section 9, localized bot and bases, ships with this slice), [44](../44-docs-site/SPEC.md) |
 | **Sources** | [DECISIONS 2026-10-01, "English is not the base language"](../DECISIONS.md); [05 S38, open question 8](../../docs/research/05-learner-ux.md); [02 summary, B3](../../docs/research/02-linguistics.md); [03 B6](../../docs/research/03-browser-extension.md) |
 
+> **Note (2026-10-05):** Spanish copy in this spec (listings, policy, messages, release
+> notes, acceptance criteria) is optional, not a must-have. Only English is required at
+> launch; see [DECISIONS 2026-10-05](../DECISIONS.md).
+
 ## Problem
 
 Kotiko assumes the person using it reads English, twice over: in its interface, and in the
