@@ -3566,5 +3566,134 @@
         "content": "{text}"
       }
     }
+  },
+  "popup_hint_label": {
+    "message": "Idioma de la palabra",
+    "description": "The add box's language chip (slice 24 §8): Auto, or the language the next word is in. Spanish pending native review (slice 50 §9)."
+  },
+  "popup_hint_auto": {
+    "message": "Auto",
+    "description": "Language chip: Kotiko works out the word's language. Spanish pending native review (slice 50 §9)."
+  },
+  "popup_hint_more": {
+    "message": "Otro idioma…",
+    "description": "Language chip: opens a search of every language. Spanish pending native review (slice 50 §9)."
+  },
+  "popup_pages_in": {
+    "message": "Para páginas en:",
+    "description": "Under the add box, with two or more languages read: which ones the next word gets a meaning in. Spanish pending native review (slice 50 §9)."
+  },
+  "add_change_lang": {
+    "message": "$NATIVE$ está en $LANG$. Elegir otro idioma",
+    "description": "For screen readers: the language chip on a saved word, which re-adds it in another language (slice 24 §6). Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "native": {
+        "content": "{native}"
+      },
+      "lang": {
+        "content": "{lang}"
+      }
+    }
+  },
+  "add_manual": {
+    "message": "Agrégala tú",
+    "description": "Opens a small form to save the word without a lookup (slice 24 §7). Spanish pending native review (slice 50 §9)."
+  },
+  "manual_native": {
+    "message": "Palabra",
+    "description": "Manual form: the word in the language being learned. Spanish pending native review (slice 50 §9)."
+  },
+  "manual_meaning": {
+    "message": "Significado en $BASE$",
+    "description": "Manual form: the meaning in one of the learner's languages; several separated by commas. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "manual_language": {
+    "message": "Idioma",
+    "description": "Manual form: the word's language. Spanish pending native review (slice 50 §9)."
+  },
+  "manual_choose_language": {
+    "message": "Elegir un idioma",
+    "description": "Manual form: the language button before one is chosen. Spanish pending native review (slice 50 §9)."
+  },
+  "manual_romanization": {
+    "message": "Romanización",
+    "description": "Manual form, optional: the word in Latin letters. Spanish pending native review (slice 50 §9)."
+  },
+  "manual_pronunciation": {
+    "message": "Pronunciación",
+    "description": "Manual form, optional: how to say it, with the stressed syllable in capitals. Spanish pending native review (slice 50 §9)."
+  },
+  "manual_note": {
+    "message": "Nota",
+    "description": "Manual form, optional. Spanish pending native review (slice 50 §9)."
+  },
+  "manual_save": {
+    "message": "Guardar",
+    "description": "Manual form: saves the word. Spanish pending native review (slice 50 §9)."
+  },
+  "manual_save_anyway": {
+    "message": "Guardar de todos modos",
+    "description": "Manual form, after the same-spelling warning. Spanish pending native review (slice 50 §9)."
+  },
+  "manual_need_native": {
+    "message": "Escribe la palabra.",
+    "description": "Manual form: the word is empty. Spanish pending native review (slice 50 §9)."
+  },
+  "manual_need_meaning": {
+    "message": "Escribe su significado en $BASE$.",
+    "description": "Manual form: the first meaning is empty. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "manual_need_language": {
+    "message": "Elige el idioma de la palabra.",
+    "description": "Manual form: no language chosen. Spanish pending native review (slice 50 §9)."
+  },
+  "manual_same_base": {
+    "message": "Una palabra no puede estar en $BASE$, el idioma de su significado.",
+    "description": "Manual form: the chosen language is one the learner reads the meaning in. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "manual_too_short": {
+    "message": "“$FORM$” es demasiado corto para un significado.",
+    "description": "Manual form: a meaning of one letter (allowed only for Chinese and Japanese). Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "form": {
+        "content": "{form}"
+      }
+    }
+  },
+  "manual_same_spelling": {
+    "message": "Se escribe igual que en $BASE$. ¿Guardar de todos modos?",
+    "description": "Manual form: the word equals its meaning, as with loanwords. Spanish pending native review (slice 50 §9).",
+    "placeholders": {
+      "base": {
+        "content": "{base}"
+      }
+    }
+  },
+  "lang_picker_title": {
+    "message": "Elige un idioma",
+    "description": "The language picker's name, for screen readers. Spanish pending native review (slice 50 §9)."
+  },
+  "lang_search": {
+    "message": "Buscar idiomas",
+    "description": "The language picker's search box. Spanish pending native review (slice 50 §9)."
+  },
+  "lang_none": {
+    "message": "Ningún idioma coincide.",
+    "description": "The language picker, when the search finds nothing. Spanish pending native review (slice 50 §9)."
   }
 }

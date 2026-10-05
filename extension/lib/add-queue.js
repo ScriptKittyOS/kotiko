@@ -103,6 +103,9 @@
         hintLang: input.hintLang ?? null,
         baseLangs: input.baseLangs ?? [],
         manual: input.manual ?? null,
+        // 24 §6: the job this one re-adds in another language, {id, key}; its word is
+        // retired once this one succeeds.
+        replaces: input.replaces ?? null,
         state: "queued",
         createdAt: now(),
         startedAt: null,
@@ -294,6 +297,8 @@
         if (next.length !== jobs.length) await storage.set({ addJobs: next });
       }),
       choose,
+      // Sets fields on a job (replacedBy, after a re-add in another language succeeded).
+      patch: (id, fields) => change(id, (j) => ({ ...j, ...fields })),
       markUndo: (id, wordId, undo) => change(id, (j) => ({ ...j, results: j.results.map((r) => (r.wordId === wordId ? { ...r, undo } : r)) })),
       // An Undo's outcome on every record of one word: {undo: "pending" | "done" | "failed",
       // undoError?, word?} (word: the restored record, after "Add it back").

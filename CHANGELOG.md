@@ -5,6 +5,13 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Got the wrong language? Click the language on the result and pick another: Kotiko adds
+  it again in that language and removes the first. Lookups not working? "Add it yourself"
+  saves a word from a small form, with a meaning in each language you read. A language
+  chip beside the add box says which language the next word is in, "For pages in" picks
+  which of your languages it gets meanings for, a half-typed word survives closing the
+  popup, and a saved word has a speak button when your device has a voice for it.
+
 - Adding words is safer. With a Kotiko server, adds now finish even if you close the
   popup, and a retry never saves twice. Re-adding a word you have says "Already in your
   list" with Open; adding forms says "Updated … new forms: …", and its Undo puts the word

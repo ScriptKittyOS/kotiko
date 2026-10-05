@@ -98,11 +98,13 @@ test.describe("with the browser in Spanish", () => {
   });
 });
 
-// Slice 20 §8's goal, measured: the popup paints within 100 ms, median of 10 opens, with
-// words, a connection and Focus on. CI's runners are about 4.5 times slower (measured
-// 2026-10-05: 136 to 172 ms, median 148, where this machine takes 32), so CI's budget is
-// 200 ms. The size cap in test/dom/popup.test.mjs is only a backstop for this.
-test("the popup paints within 100 ms (200 ms in CI), median of 10 opens", async ({ server, popup, context }) => {
+// Slice 20 §8's goal, measured: the popup paints within 100 ms on a mid-range device,
+// median of 10 opens, with words, a connection and Focus on. Locally the CPU is slowed 4×,
+// Lighthouse's standard for a mid-tier device from a fast desktop; CI's runners are already
+// about that slow (measured 2026-10-05: 92 to 148 ms unslowed), so CI gets no slowdown and
+// a 200 ms budget. A low-end device (6×) is measured too. The popup starts from scratch on
+// every open, so the byte caps in test/dom/popup.test.mjs are only a backstop for this.
+async function firstPaint({ server, popup, context }, rate) {
   await server.control({ words: WORDS });
   const first = await popup.connect(server.kotikoUrl, server.token);
   await first.evaluate(() => chrome.storage.local.set({ mixing: { focus: ["ru"], focusSince: new Date().toISOString() } }));
@@ -110,6 +112,7 @@ test("the popup paints within 100 ms (200 ms in CI), median of 10 opens", async 
   for (let i = 0; i < 10; i++) {
     const p = await context.newPage();
     await p.setViewportSize({ width: 360, height: 600 });
+    if (rate > 1) await (await p.context().newCDPSession(p)).send("Emulation.setCPUThrottlingRate", { rate });
     // A page in a background tab doesn't paint, so it reports no paint timing.
     await p.bringToFront();
     await p.goto(popup.url);
@@ -121,7 +124,20 @@ test("the popup paints within 100 ms (200 ms in CI), median of 10 opens", async 
   }
   times.sort((a, b) => a - b);
   const median = (times[4] + times[5]) / 2;
-  const budget = process.env.CI ? 200 : 100;
-  console.log(`popup first contentful paint: median ${median.toFixed(1)} ms (${times.map((t) => t.toFixed(0)).join(", ")})`);
-  expect(median, `median of ${times.map((t) => t.toFixed(0)).join(", ")} ms`).toBeLessThanOrEqual(budget);
+  console.log(`popup first contentful paint at ${rate}× CPU: median ${median.toFixed(1)} ms (${times.map((t) => t.toFixed(0)).join(", ")})`);
+  return { median, times };
+}
+
+test("the popup paints within 100 ms on a mid-range device (4× CPU; 200 ms on CI's runners), median of 10 opens", async ({ server, popup, context }) => {
+  const { median, times } = await firstPaint({ server, popup, context }, process.env.CI ? 1 : 4);
+  expect(median, `median of ${times.map((t) => t.toFixed(0)).join(", ")} ms`).toBeLessThanOrEqual(process.env.CI ? 200 : 100);
+});
+
+// Measured 2026-10-05 at 104 to 124 ms (median 120): over the 100 ms goal before slice 24
+// too, from the page's own start-up (navigation, HTML, styles), not the popup's scripts.
+// Held where it is until that start-up is made lighter.
+test("a low-end device (6× CPU) keeps its first paint under 150 ms", async ({ server, popup, context }) => {
+  test.skip(!!process.env.CI, "CI's runners are already slow; slowing them 6× more measures nothing real");
+  const { median } = await firstPaint({ server, popup, context }, 6);
+  expect(median).toBeLessThanOrEqual(150);
 });

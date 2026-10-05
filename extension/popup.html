@@ -22,13 +22,21 @@
     <section class="add" aria-labelledby="addLabel">
       <form class="add-form" id="addForm" autocomplete="off">
         <label class="sr-only" id="addLabel" for="addText" data-i18n="popup_add_label"></label>
-        <input class="field add-field" id="addText" type="text" dir="auto" spellcheck="false" maxlength="200"
-               enterkeyhint="done" data-i18n-placeholder="popup_add_placeholder" />
-        <!-- 24 §8: the language hint chip ("Auto ▾") goes here when slice 24 ships. -->
-        <button class="add-submit" id="addBtn" type="submit" data-i18n-aria-label="popup_add_submit" data-i18n-title="popup_add_submit">
-          <span data-icon="enter" data-icon-size="18"></span>
-        </button>
+        <span class="add-box">
+          <input class="field add-field" id="addText" type="text" dir="auto" spellcheck="false" maxlength="200"
+                 enterkeyhint="done" data-i18n-placeholder="popup_add_placeholder" />
+          <button class="add-submit" id="addBtn" type="submit" data-i18n-aria-label="popup_add_submit" data-i18n-title="popup_add_submit">
+            <span data-icon="enter" data-icon-size="18"></span>
+          </button>
+        </span>
+        <!-- 24 §8: the word's language, Auto by default; kept for the browser session. -->
+        <select class="hint-chip" id="hintLang" data-i18n-aria-label="popup_hint_label" data-i18n-title="popup_hint_label"></select>
       </form>
+      <!-- 24 §8: with two or more languages read, which ones the next add gets meanings in. -->
+      <fieldset class="pages-in" id="pagesIn" hidden>
+        <legend data-i18n="popup_pages_in"></legend>
+        <span class="pages-in-chips" id="pagesInChips"></span>
+      </fieldset>
       <!-- Slice 10: free lookups left today, from the server's /api/v1/llm/status. -->
       <p class="add-quota" id="lookupsLeft" hidden></p>
       <ul class="jobs" id="jobs" aria-live="polite"></ul>
