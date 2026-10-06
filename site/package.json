@@ -12,7 +12,7 @@
     "build": "node scripts/import-docs.mjs && ASTRO_TELEMETRY_DISABLED=1 astro build",
     "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview",
     "check": "node scripts/check-dist.mjs",
-    "test": "node --test 'tests/*.test.mjs'",
+    "test": "node scripts/test.mjs",
     "e2e": "playwright test"
   },
   "devDependencies": {
