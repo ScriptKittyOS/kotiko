@@ -10,8 +10,10 @@ import assert from "node:assert/strict";
 import { createFakeChrome } from "../helpers/fake-chrome.mjs";
 import { runInVm, sleep } from "../helpers/load-script.mjs";
 
-function loadBackground({ local = {}, sync = {} } = {}) {
-  const fake = createFakeChrome({ local, sync });
+const PAGE = { id: "fake-extension-id", url: "chrome-extension://fake-extension-id/dashboard.html" };
+
+function loadBackground({ local = {}, sync = {}, accessLevels = false } = {}) {
+  const fake = createFakeChrome({ local, sync, accessLevels });
   fake.chrome.i18n = { getUILanguage: () => "en-US", getMessage: () => "" };
   const fetches = [];
   const ctx = runInVm("background.js", { chrome: fake.chrome, fetch: (u) => (fetches.push(String(u)), Promise.reject(new TypeError("offline"))) });
@@ -48,7 +50,7 @@ describe("base rules for content scripts", () => {
     const first = bg.store.baseRules;
     await bg.k.mirrorBaseRules();
     assert.equal(bg.store.baseRules, first, "the same languages: not written");
-    await bg.fake.chrome.storage.sync.set({ ui: { baseLangs: ["en", "zh-Hant"], baseLangsConfirmed: true } });
+    await bg.fake.deliver({ type: "settings.set", merge: { ui: { baseLangs: ["en", "zh-Hant"], baseLangsConfirmed: true } } }, PAGE);
     await bg.until(() => bg.store.baseRules?.["zh-Hant"]);
     assert.equal(bg.store.baseRules["zh-Hant"].boundaries.spaces, false);
     assert.ok(bg.store.baseRules["zh-Hant"].stopwords.length > 100, "zh-Hant falls back to zh's list");
@@ -96,11 +98,23 @@ describe("the seed salt", () => {
     assert.equal(bg.store.seedSalt, first, "never replaced");
   });
 
-  test("another device's salt wins", async () => {
+  test("another device's salt wins where only Kotiko can write storage.sync (Chrome 140+)", async () => {
+    const other = "0123456789abcdef0123456789abcdef";
+    const bg = loadBackground({ accessLevels: true, sync: { seedSalt: other, ui: { baseLangs: ["en"], baseLangsConfirmed: true } }, local: { seedSalt: "ffffffffffffffffffffffffffffffff" } });
+    await bg.until(() => bg.store.seedSalt === other);
+    assert.deepEqual(bg.fake.calls.accessLevel, [{ area: "sync", accessLevel: "TRUSTED_CONTEXTS" }]);
+    await bg.fake.chrome.storage.sync.set({ seedSalt: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" });
+    await bg.until(() => bg.store.seedSalt === "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+  });
+
+  test("where content scripts can write storage.sync (Firefox), a new install takes it once, then keeps its own", async () => {
     const other = "0123456789abcdef0123456789abcdef";
     const bg = loadBackground({ sync: { seedSalt: other, ui: { baseLangs: ["en"], baseLangsConfirmed: true } }, local: { seedSalt: "ffffffffffffffffffffffffffffffff" } });
     await bg.until(() => bg.store.seedSalt === other);
     await bg.fake.chrome.storage.sync.set({ seedSalt: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" });
-    await bg.until(() => bg.store.seedSalt === "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    await bg.k.ensureSeedSalt();
+    await bg.fake.idle();
+    assert.equal(bg.store.seedSalt, other);
+    assert.equal(bg.fake.store.sync.seedSalt, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "and leaves the synced one alone");
   });
 });

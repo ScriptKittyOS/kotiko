@@ -48,14 +48,14 @@ function loadBackground({ local = {}, fetch: f = offline } = {}) {
 }
 
 describe("who may send what (slice 28 §7 item 4)", () => {
-  test("content scripts may only ask for a sync and the sensitive-sites list; every other type refuses them", async () => {
+  test("content scripts may only ask for a sync and the sensitive-sites list, and mark a word never to swap; every other type refuses them", async () => {
     const bg = loadBackground();
     await bg.k.ready();
     const [listener] = bg.fake.chrome.runtime.onMessage.listeners;
     const routes = listener.routes;
     assert.ok(routes && Object.keys(routes).length > 30, "the router lists its routes");
     const allowed = (kind) => Object.keys(routes).filter((t) => routes[t].includes(kind)).sort();
-    assert.deepEqual(allowed("content"), ["sensitiveSites", "sync"]);
+    assert.deepEqual(allowed("content"), ["neverSwap", "sensitiveSites", "sync"]);
     assert.deepEqual(allowed("docs"), ["oauth.code"]);
     for (const type of Object.keys(routes)) {
       if (!routes[type].includes("content")) assert.deepEqual(await bg.send({ type }, CONTENT), { error: { code: "forbidden" } }, `content: ${type}`);

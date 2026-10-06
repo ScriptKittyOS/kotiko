@@ -104,8 +104,8 @@ async function openPopup(context, extensionId, { tabUrl = "https://en.wikipedia.
 async function popupConnected({ context, server, serviceWorker }, local = {}, words = POPUP_WORDS, bases = ["en"]) {
   await server.control({ words });
   await connectServer(context, serviceWorker, server.kotikoUrl, server.token);
-  await serviceWorker.evaluate((o) => chrome.storage.sync.set({ ui: { uiLang: "auto", baseLangs: o.bases, baseLangsConfirmed: true } }), { bases });
-  await serviceWorker.evaluate((o) => chrome.storage.local.set({ words: o.words, baseLangs: o.bases, enabled: true, pausedHosts: [], lastSync: Date.now() - 60_000, syncError: null, onboarding: { completedAt: Date.now(), skipped: false, version: 2 }, ...o.local }), { words, local, bases });
+  await serviceWorker.evaluate((o) => globalThis.__kotiko.seed({ ui: { uiLang: "auto", baseLangs: o.bases, baseLangsConfirmed: true } }), { bases });
+  await serviceWorker.evaluate((o) => globalThis.__kotiko.seed({ words: o.words, baseLangs: o.bases, enabled: true, pausedHosts: [], lastSync: Date.now() - 60_000, syncError: null, onboarding: { completedAt: Date.now(), skipped: false, version: 2 }, ...o.local }), { words, local, bases });
 }
 
 test.describe("popup", () => {
@@ -211,8 +211,8 @@ test.describe("popup", () => {
 async function dashboard({ context, extensionId, server, serviceWorker }, { hash = "#words", size = { width: 1280, height: 900 }, v1Words, local = {} } = {}) {
   const words = v1Words ?? dashboardWords(Date.now());
   await server.control({ v1Words: words, job: { state: "running", done: 40, total: 120 } });
-  await serviceWorker.evaluate((l) => chrome.storage.local.set({ lastSync: Date.now() - 60_000, syncError: null, onboarding: { completedAt: Date.now(), skipped: false, version: 2 }, ...l }), local);
-  await serviceWorker.evaluate(() => chrome.storage.sync.set({ ui: { uiLang: "auto", baseLangs: ["en", "es"], baseLangsConfirmed: true } }));
+  await serviceWorker.evaluate((l) => globalThis.__kotiko.seed({ lastSync: Date.now() - 60_000, syncError: null, onboarding: { completedAt: Date.now(), skipped: false, version: 2 }, ...l }), local);
+  await serviceWorker.evaluate(() => globalThis.__kotiko.seed({ ui: { uiLang: "auto", baseLangs: ["en", "es"], baseLangsConfirmed: true } }));
   await connectServer(context, serviceWorker, server.kotikoUrl, server.token);
   const page = await context.newPage();
   await page.setViewportSize(size);
@@ -355,7 +355,7 @@ test.describe("dashboard", () => {
 // ---------------------------------------------------------------- welcome and privacy
 
 async function welcome(context, extensionId, serviceWorker, { size = { width: 1100, height: 1000 } } = {}) {
-  await serviceWorker.evaluate(() => chrome.storage.local.set({ onboarding: { completedAt: null, skipped: false, version: 2 }, celebrations: null }));
+  await serviceWorker.evaluate(() => globalThis.__kotiko.seed({ onboarding: { completedAt: null, skipped: false, version: 2 }, celebrations: null }));
   const page = await context.newPage();
   await page.setViewportSize(size);
   await page.goto(`chrome-extension://${extensionId}/welcome.html`);
@@ -558,7 +558,7 @@ for (const how of ["system", "setting"]) {
 
     // The word card on a page.
     await popoverSetup({ server, serviceWorker, context });
-    if (how === "setting") await serviceWorker.evaluate(() => chrome.storage.local.set({ prefs: { motion: "reduce" } }));
+    if (how === "setting") await serviceWorker.evaluate(() => globalThis.__kotiko.seed({ prefs: { motion: "reduce" } }));
     const page2 = await context.newPage();
     await page2.emulateMedia({ reducedMotion: how === "system" ? "reduce" : "no-preference" });
     await page2.goto(server.page("popover-light.html"));
@@ -576,8 +576,8 @@ async function popoverSetup({ server, serviceWorker, context }) {
   await server.control({ words: POPOVER_WORDS });
   await expect.poll(() => serviceWorker.evaluate(async () => !!(await chrome.storage.local.get("onboarding")).onboarding)).toBe(true);
   await serviceWorker.evaluate(async (words) => {
-    await chrome.storage.sync.set({ ui: { uiLang: "auto", baseLangs: ["en", "es"], baseLangsConfirmed: true } });
-    await chrome.storage.local.set({ words, enabled: true, lastSync: Date.now(), mixing: { mode: "mix" } });
+    await globalThis.__kotiko.seed({ ui: { uiLang: "auto", baseLangs: ["en", "es"], baseLangsConfirmed: true } });
+    await globalThis.__kotiko.seed({ words, enabled: true, lastSync: Date.now(), mixing: { mode: "mix" } });
   }, POPOVER_WORDS);
   await connectServer(context, serviceWorker, server.kotikoUrl, server.token);
   await expect.poll(() => serviceWorker.evaluate(async () => Object.keys((await chrome.storage.local.get("baseRules")).baseRules ?? {}).join())).toBe("en,es");

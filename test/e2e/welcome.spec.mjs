@@ -100,8 +100,8 @@ test("an update never opens the welcome tab, and an existing learner gets no fir
   // The install's own projection writes the (empty) word list; let it land before ours.
   await expect.poll(() => serviceWorker.evaluate(async () => !!(await chrome.storage.local.get("wordsVersion")).wordsVersion)).toBe(true);
   await serviceWorker.evaluate(async () => {
-    await chrome.storage.local.remove(["onboarding"]);
-    await chrome.storage.local.set({ words: [{ id: "1", lang: "ru", native: "дом", base_lang: "en", gloss: "house", forms: ["house"] }] });
+    await globalThis.__kotiko.area.remove(["onboarding"]);
+    await globalThis.__kotiko.seed({ words: [{ id: "1", lang: "ru", native: "дом", base_lang: "en", gloss: "house", forms: ["house"] }] });
   });
   // An unpacked extension can't be updated in this harness (a reload disables it), so the
   // worker's own onInstalled listener runs with what Chrome sends on an update, against the

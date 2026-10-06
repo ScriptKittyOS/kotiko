@@ -11,7 +11,7 @@
 //   store.changesSince(iso) / recentLangs(5) / replaceAll(words) / seed(words)
 //   store.importWords(backupWords, {restoreDeleted}) / undoImport()   (slice 12)
 //   store.secrets.get(id) / set(id, value) / remove(id) / ids()
-//   store.meta.get(key) / set(key, value)
+//   store.meta.get(key) / set(key, value) / remove(key) / entries(prefix) / write(puts, deletes)
 //   store.cache.get(key) / put(key, value) / prune()
 //   store.onCommit(fn)                fn({reason, by}) after any committed word write
 //   KotikoStore.wipe({ indexedDB })    deletes the whole database (slice 12's delete everything)
@@ -459,6 +459,14 @@
       get: async (key) => (await tx("meta", "readonly", ({ meta: m }) => request(m.get(key))))?.value ?? null,
       set: (key, value) => tx("meta", "readwrite", ({ meta: m }) => request(m.put({ key, value }))),
       remove: (key) => tx("meta", "readwrite", ({ meta: m }) => request(m.delete(key))),
+      // Every row whose key starts with `prefix` (lib/settings.js keeps one per setting).
+      entries: (prefix) => tx("meta", "readonly", ({ meta: m }) => request(m.getAll(globalThis.IDBKeyRange.bound(prefix, `${prefix}￿`)))),
+      // Rows put and removed in one transaction.
+      write: (puts, deletes) =>
+        tx("meta", "readwrite", async ({ meta: m }) => {
+          for (const row of puts) await request(m.put(row));
+          for (const key of deletes) await request(m.delete(key));
+        }),
     };
 
     // The lookup cache (slice 10 section 5): checked results only, 30 days, the 5,000 used

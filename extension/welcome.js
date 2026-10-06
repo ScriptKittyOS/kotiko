@@ -183,15 +183,16 @@
     n.textContent = key ? t(key) : "";
   }
 
+  // Settings are changed by the background, which keeps the real copy (SCR-448).
+  async function saveSettings(change) {
+    const res = await call({ type: "settings.set", ...change });
+    if (failed(res)) throw Object.assign(new Error(String(res?.error?.message ?? res?.error ?? "settings")), { code: codeOf(res) });
+  }
+
   async function writeBases() {
     const bases = state.bases.slice();
     state.ui = { uiLang: "auto", ...state.ui, baseLangs: bases, baseLangsDetected: state.detected };
-    try {
-      await ext.storage.sync.set({ ui: state.ui });
-    } catch {
-      // no storage.sync: the local copy below still works
-    }
-    await ext.storage.local.set({ baseLangs: bases });
+    await saveSettings({ merge: { ui: { uiLang: state.ui.uiLang, baseLangs: bases, baseLangsDetected: state.detected.slice() } }, set: { baseLangs: bases } });
     // A connected server's Telegram bot follows them (slice 41 §9).
     call({ type: "profile.sync" });
   }
@@ -828,13 +829,9 @@
 
   async function finishOnboarding(skipped) {
     const { onboarding } = await ext.storage.local.get({ onboarding: null });
-    if (!onboarding?.completedAt || skipped) await ext.storage.local.set({ onboarding: { ...(onboarding ?? {}), completedAt: Date.now(), skipped: !!skipped, version: 2 } });
     state.ui = { uiLang: "auto", ...state.ui, baseLangs: state.bases.slice(), baseLangsDetected: state.detected, baseLangsConfirmed: true };
-    try {
-      await ext.storage.sync.set({ ui: state.ui });
-    } catch {
-      // no storage.sync
-    }
+    const done = !onboarding?.completedAt || skipped ? { merge: { onboarding: { completedAt: Date.now(), skipped: !!skipped, version: 2 } } } : { merge: {} };
+    await saveSettings({ ...done, merge: { ...done.merge, ui: { uiLang: state.ui.uiLang, baseLangs: state.bases.slice(), baseLangsDetected: state.detected.slice(), baseLangsConfirmed: true } } }).catch(() => {});
   }
 
   function miniCard(rec) {
@@ -952,9 +949,8 @@
 
   async function celebrationsOff() {
     state.confetti?.stop();
-    const { prefs = {} } = await ext.storage.local.get({ prefs: {} });
-    state.prefs = { ...prefs, celebrations: false };
-    await ext.storage.local.set({ prefs: state.prefs });
+    state.prefs = { ...state.prefs, celebrations: false };
+    await saveSettings({ merge: { prefs: { celebrations: false } } }).catch(() => {});
     $("celebrationsOff").hidden = true;
     $("celebrationsOffDone").hidden = false;
     announce(t("celebrations_off_done"));
@@ -1028,12 +1024,8 @@
   }
 
   async function loadBases(local) {
-    let ui;
-    try {
-      ({ ui = {} } = await ext.storage.sync.get({ ui: {} }));
-    } catch {
-      ui = {};
-    }
+    // The background's copy of storage.sync's `ui` (SCR-448).
+    const { ui } = await ext.storage.local.get({ ui: {} });
     state.ui = ui && typeof ui === "object" ? ui : {};
     let bases = Array.isArray(ui.baseLangs) && ui.baseLangs.length ? ui.baseLangs : Array.isArray(local.baseLangs) && local.baseLangs.length ? local.baseLangs : null;
     let detected = Array.isArray(ui.baseLangsDetected) && ui.baseLangsDetected.length ? ui.baseLangsDetected : null;

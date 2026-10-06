@@ -26,11 +26,11 @@ test("the badge says off on a paused site and nothing elsewhere; off everywhere 
   for (const url of [paused, other]) await (await context.newPage()).goto(url);
 
   await expect.poll(() => badgeOn(serviceWorker, paused)).toBe("");
-  await p.evaluate(() => chrome.storage.local.set({ pausedHosts: ["127.0.0.1"] }));
+  await p.evaluate(() => chrome.runtime.sendMessage({ type: "settings.set", set: { pausedHosts: ["127.0.0.1"] } }));
   await expect.poll(() => badgeOn(serviceWorker, paused)).toBe("off");
   await expect.poll(() => badgeOn(serviceWorker, other)).toBe("");
 
-  await p.evaluate(() => chrome.storage.local.set({ pausedHosts: [], enabled: false }));
+  await p.evaluate(() => chrome.runtime.sendMessage({ type: "settings.set", set: { pausedHosts: [], enabled: false } }));
   await expect.poll(() => badgeOn(serviceWorker, other)).toBe("off");
   await expect.poll(() => badgeOn(serviceWorker, paused)).toBe("off");
 });
@@ -107,7 +107,7 @@ test.describe("with the browser in Spanish", () => {
 async function firstPaint({ server, popup, context }, rate) {
   await server.control({ words: WORDS });
   const first = await popup.connect(server.kotikoUrl, server.token);
-  await first.evaluate(() => chrome.storage.local.set({ mixing: { focus: ["ru"], focusSince: new Date().toISOString() } }));
+  await first.evaluate(() => chrome.runtime.sendMessage({ type: "settings.set", set: { mixing: { focus: ["ru"], focusSince: new Date().toISOString() } } }));
   const times = [];
   for (let i = 0; i < 10; i++) {
     const p = await context.newPage();

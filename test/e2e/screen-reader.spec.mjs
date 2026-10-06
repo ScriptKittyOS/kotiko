@@ -15,14 +15,14 @@ async function setup({ server, serviceWorker, context }, prefs = {}) {
   await server.control({ words: POPOVER_WORDS });
   await expect.poll(() => serviceWorker.evaluate(async () => !!(await chrome.storage.local.get("onboarding")).onboarding)).toBe(true);
   await serviceWorker.evaluate(async (o) => {
-    await chrome.storage.sync.set({ ui: { uiLang: "auto", baseLangs: ["en", "es"], baseLangsConfirmed: true } });
-    await chrome.storage.local.set({ words: o.words, enabled: true, lastSync: Date.now(), mixing: { mode: "mix" }, prefs: o.prefs });
+    await globalThis.__kotiko.seed({ ui: { uiLang: "auto", baseLangs: ["en", "es"], baseLangsConfirmed: true } });
+    await globalThis.__kotiko.seed({ words: o.words, enabled: true, lastSync: Date.now(), mixing: { mode: "mix" }, prefs: o.prefs });
   }, { words: POPOVER_WORDS, prefs });
   await connectServer(context, serviceWorker, server.kotikoUrl, server.token);
   await expect.poll(() => serviceWorker.evaluate(async () => Object.keys((await chrome.storage.local.get("baseRules")).baseRules ?? {}).join())).toBe("en,es");
 }
 
-const setPrefs = (serviceWorker, prefs) => serviceWorker.evaluate((p) => chrome.storage.local.set({ prefs: p }), prefs);
+const setPrefs = (serviceWorker, prefs) => serviceWorker.evaluate((p) => globalThis.__kotiko.seed({ prefs: p }), prefs);
 
 // The page as it lays out, and the swap's markup, for one word.
 const look = (page, native) =>

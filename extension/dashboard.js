@@ -97,7 +97,7 @@
     testing: false,
     lookupTest: null,
     move: null, // {to, count, server, busy, error}
-    ui: {}, // storage.sync `ui`: baseLangs, baseLangsDetected, uiLang (slice 50)
+    ui: {}, // `ui` (slice 50: baseLangs, baseLangsDetected, uiLang), the background's copy in storage.local
     langList: null, // every language a learner can read in, named in the interface language
   };
 
@@ -134,6 +134,12 @@
     node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement || node?.isContentEditable === true;
   // After "delete everything" this page asks for nothing more, so nothing is recreated.
   const send = (msg) => (state.wiped && msg.type !== "data.deleteAll" && msg.type !== "welcome.open" ? Promise.reject(Object.assign(new Error("Everything was deleted."), { code: "storage_full", details: { reason: "deleted" } })) : Promise.resolve().then(() => ext.runtime.sendMessage(msg)));
+  // A settings change, made by the background, which keeps the real copy (SCR-448):
+  // storage.local is only its mirror. {set, merge, add, remove}.
+  async function saveSettings(change) {
+    const res = await send({ type: "settings.set", ...change });
+    if (res?.error) throw Object.assign(new Error(typeof res.error === "string" ? res.error : res.error.code), { code: res.code ?? "internal" });
+  }
 
   // Slice 11: where words live and whether new ones can be looked up.
   const legacyToken = (s) => !!String(s?.token ?? "").trim();
@@ -678,13 +684,13 @@
   }
 
   async function toggleHidden(lang) {
-    const { hiddenLangs = [] } = await ext.storage.local.get({ hiddenLangs: [] });
-    const set = new Set(hiddenLangs);
-    if (set.has(lang)) set.delete(lang);
-    else set.add(lang);
+    const set = new Set(state.s.hiddenLangs ?? []);
+    const hide = !set.has(lang);
+    if (hide) set.add(lang);
+    else set.delete(lang);
     state.s.hiddenLangs = [...set];
     renderShelf();
-    await ext.storage.local.set({ hiddenLangs: [...set] });
+    await saveSettings({ [hide ? "add" : "remove"]: { hiddenLangs: [lang] } });
   }
 
   // The one confirmed action (§6): one click affecting a whole language.
@@ -2514,11 +2520,9 @@
   }
 
   async function setMixing(patch) {
-    const { mixing } = await ext.storage.local.get({ mixing: null });
-    const next = { ...mixing, ...patch };
-    state.s.mixing = next;
+    state.s.mixing = { ...state.s.mixing, ...patch };
     renderSettings();
-    await ext.storage.local.set({ mixing: next });
+    await saveSettings({ merge: { mixing: patch } });
   }
 
   // Slice 16: sensitive sites (on by default) and the ones the learner runs Kotiko on
@@ -2563,8 +2567,9 @@
 
   // --- Languages you read in (slice 50 §2) ------------------------------------------------
   // Kotiko swaps words on pages in these languages, primary first. Changes save at once to
-  // storage.sync `ui` (the background projects the words again) and to the local mirror
-  // content scripts read. Removing a language keeps its meanings; they stop swapping.
+  // the background's `ui` (storage.sync's, which it projects the words again for) and the
+  // local copy content scripts read. Removing a language keeps its meanings; they stop
+  // swapping.
 
   const LANG_README = "https://github.com/ScriptKittyOS/kotiko/blob/main/spec/lang/README.md";
 
@@ -2574,13 +2579,8 @@
 
   async function writeBases(next) {
     state.ui = { uiLang: "auto", ...state.ui, baseLangs: next.slice(), baseLangsConfirmed: true };
-    try {
-      await ext.storage.sync.set({ ui: state.ui });
-    } catch {
-      // no storage.sync: the local copy below still works
-    }
     state.s.baseLangs = next.slice();
-    await ext.storage.local.set({ baseLangs: next.slice() });
+    await saveSettings({ merge: { ui: { uiLang: state.ui.uiLang, baseLangs: next.slice(), baseLangsConfirmed: true } } });
     syncProfile();
     rebuild();
     renderWords();
@@ -2775,21 +2775,14 @@
   const renderSegmented = (box, options, current, onPick) => renderRadios(box, options.map(([v, k]) => [v, t(k)]), current, onPick, "segment");
 
   async function setPref(key, value) {
-    const { prefs = {} } = await ext.storage.local.get({ prefs: {} });
-    const next = { ...prefs, [key]: value };
-    state.s.prefs = next;
+    state.s.prefs = { ...state.s.prefs, [key]: value };
     renderSettings();
-    await ext.storage.local.set({ prefs: next });
+    await saveSettings({ merge: { prefs: { [key]: value } } });
   }
 
   async function setUiLang(value) {
     state.uiLang = value;
-    try {
-      const { ui = {} } = await ext.storage.sync.get({ ui: {} });
-      await ext.storage.sync.set({ ui: { ...ui, uiLang: value } });
-    } catch {
-      // storage.sync unavailable: this page still switches
-    }
+    await saveSettings({ merge: { ui: { uiLang: value } } }).catch(() => {});
     syncProfile();
     await applyUiLang(value);
   }
@@ -3109,12 +3102,11 @@
   }
 
   async function setOnlineVoices(on) {
-    const { speech = LOCAL_DEFAULTS.speech } = await ext.storage.local.get({ speech: LOCAL_DEFAULTS.speech });
-    const next = { ...LOCAL_DEFAULTS.speech, ...speech, allowOnline: on };
+    const next = { ...LOCAL_DEFAULTS.speech, ...state.s.speech, allowOnline: on };
     state.s.speech = next;
     Speak?.configure?.(next);
     $("onlineVoices").setAttribute("aria-checked", String(on));
-    await ext.storage.local.set({ speech: next });
+    await saveSettings({ merge: { speech: next } });
   }
 
   // ---------------------------------------------------------------------------------
@@ -3233,7 +3225,7 @@
 
   function onStorage(changes, area) {
     if (state.wiped) return;
-    if (area === "sync" && changes.ui) {
+    if (area === "local" && changes.ui) {
       const prev = JSON.stringify(state.ui?.baseLangs ?? null);
       state.ui = changes.ui.newValue ?? {};
       const v = state.ui.uiLang ?? "auto";
@@ -3245,7 +3237,6 @@
         renderWords();
         if (state.route.view === "settings") renderBases();
       }
-      return;
     }
     if (area !== "local") return;
     let words = false;
@@ -3297,11 +3288,7 @@
 
     const skeleton = setTimeout(showSkeleton, SKELETON_MS);
     Object.assign(state.s, await ext.storage.local.get(LOCAL_DEFAULTS));
-    try {
-      state.ui = (await ext.storage.sync.get({ ui: {} })).ui ?? {};
-    } catch {
-      state.ui = {};
-    }
+    state.ui = (await ext.storage.local.get({ ui: {} })).ui ?? {};
     Speak?.configure?.(state.s.speech);
 
     $("search").addEventListener("input", (e) => setParams({ q: e.target.value || null }));

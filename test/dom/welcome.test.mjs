@@ -60,6 +60,9 @@ async function openWelcome({ locale = "en", accept = null, bases = null, local =
   };
   const bg = runInVm("background.js", { chrome: fake.chrome, fetch: bgFetch });
   await bg.__kotiko.ready();
+  // A new store takes nothing from storage.local (SCR-448): the settings go in as the
+  // background keeps them.
+  await bg.__kotiko.seed({ ...FRESH, baseLangs: b, ...local });
 
   const tabs = { created: [], removed: [] };
   const page = {

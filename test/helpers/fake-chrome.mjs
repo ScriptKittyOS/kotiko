@@ -6,9 +6,21 @@
 // Events fire asynchronously, as in browsers; `await fake.idle()` waits for them.
 //
 //   const fake = createFakeChrome({ local: { token: "t" } });
+//   createFakeChrome({ accessLevels: true })   storage areas have setAccessLevel (Chrome 140+;
+//                                              without it, as in Firefox, they don't)
+//
+// With `onSendMessage` (a page or content script tested without the real background), the
+// fake also does the background's part for settings: it answers `settings.set` and
+// `neverSwap` by changing storage.local (and storage.sync for `ui`) as lib/settings.js
+// says, and copies storage.sync's `ui` to storage.local, as the background's copy is.
 //   window.chrome = fake.chrome;
 //   await fake.chrome.storage.local.set({ enabled: false });
 //   await fake.idle();                     // onChanged listeners have run
+
+import { requireExt } from "./load-script.mjs";
+
+// lib/settings.js: how the background applies a page's `settings.set` (SCR-448).
+const Settings = requireExt("lib/settings.js");
 
 // Values cross a JSON boundary in Chrome's storage, so copies come back, `undefined`
 // values are dropped, and objects from another realm (a vm context) become plain objects
@@ -62,6 +74,7 @@ export function createFakeChrome(options = {}) {
     tabs = [{ id: 1, active: true, url: "https://example.com/" }],
     clock = createClock(),
     onSendMessage = null,
+    accessLevels = false,
   } = options;
 
   const pending = new Set();
@@ -74,7 +87,7 @@ export function createFakeChrome(options = {}) {
   };
 
   const onChanged = createEvent();
-  const calls = { set: [], remove: [], sendMessage: [], alarms: [] };
+  const calls = { set: [], remove: [], sendMessage: [], alarms: [], accessLevel: [] };
 
   function area(name, initial) {
     const data = clone(initial);
@@ -131,6 +144,13 @@ export function createFakeChrome(options = {}) {
           emit(changes);
         },
         onChanged: areaChanged,
+        ...(accessLevels
+          ? {
+            async setAccessLevel({ accessLevel }) {
+              calls.accessLevel.push({ area: name, accessLevel });
+            },
+          }
+          : {}),
       },
     };
   }
@@ -171,6 +191,20 @@ export function createFakeChrome(options = {}) {
   const alarms = new Map();
   const onAlarm = createEvent();
 
+  // The background's part for settings, when there is no background (see the top).
+  async function settingsMessage(msg) {
+    const change = msg.type === "neverSwap" ? { [msg.on ? "add" : "remove"]: { "prefs.neverSwap": [msg.key] } } : msg;
+    const r = Settings.edit(clone(areas.local.data), change);
+    if (r.error) return { error: r.error, code: "invalid_message" };
+    if (r.patch.ui) {
+      if (r.patch.ui.baseLangs && !r.patch.baseLangs) r.patch.baseLangs = r.patch.ui.baseLangs;
+      await areas.sync.api.set({ ui: r.patch.ui });
+    }
+    await areas.local.api.set(r.patch);
+    return { ok: true };
+  }
+  if (onSendMessage && areas.sync.data.ui !== undefined && areas.local.data.ui === undefined) areas.local.data.ui = clone(areas.sync.data.ui);
+
   const chrome = {
     storage: {
       local: areas.local.api,
@@ -185,6 +219,7 @@ export function createFakeChrome(options = {}) {
       getManifest: () => ({ manifest_version: 3, version: "0.0.0-test" }),
       sendMessage(msg) {
         calls.sendMessage.push(clone(msg));
+        if (onSendMessage && (msg?.type === "settings.set" || msg?.type === "neverSwap")) return Promise.resolve().then(() => settingsMessage(clone(msg))).then(clone);
         if (onSendMessage) return Promise.resolve().then(() => onSendMessage(clone(msg))).then(clone);
         return deliver(msg);
       },

@@ -41,6 +41,11 @@ export async function connectServer(context, serviceWorker, url, token) {
   return res;
 }
 
+// Writes settings as Kotiko's own code does (SCR-448): storage.local is only the
+// background's mirror, and anything else written there is put back. Inside a
+// `serviceWorker.evaluate`, call `globalThis.__kotiko.seed(items)` directly.
+export const seed = (serviceWorker, items) => serviceWorker.evaluate((i) => globalThis.__kotiko.seed(i), items);
+
 export const test = base.extend({
   // The fixture server started in global-setup.mjs.
   server: async ({}, use) => {

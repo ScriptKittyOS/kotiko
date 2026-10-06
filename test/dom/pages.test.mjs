@@ -25,8 +25,8 @@ async function until(fn, ms = 5000) {
 describe("privacy page (slice 28 §2)", () => {
   // The page as the browser opens it. `files` answers the extension's own files by path
   // (missing ones are a 404); `failing` paths make fetch reject, as a blocked request does.
-  function openPrivacy({ locale = "en", sync = {}, files = null, failing = [] } = {}) {
-    const fake = createFakeChrome({ sync });
+  function openPrivacy({ locale = "en", local = {}, files = null, failing = [] } = {}) {
+    const fake = createFakeChrome({ local });
     // The browser's language; a locale Kotiko has no translation for shows English text.
     const i18n = createI18n(locale === "es" ? "es" : "en");
     fake.chrome.i18n = { ...i18n, getMessage: (key, subs) => (key === "@@ui_locale" || key === "ui_locale" ? locale.replace("-", "_") : i18n.getMessage(key, subs)) };
@@ -80,7 +80,7 @@ describe("privacy page (slice 28 §2)", () => {
   });
 
   test("follows Kotiko's language setting, and falls back to English when the policy isn't translated", async () => {
-    const { root, asked, done, doc } = openPrivacy({ sync: { ui: { uiLang: "es" } }, files: { "privacy/es.md": null } });
+    const { root, asked, done, doc } = openPrivacy({ local: { ui: { uiLang: "es" } }, files: { "privacy/es.md": null } });
     await done();
     assert.equal(doc.documentElement.lang, "es");
     assert.equal(doc.title, createI18n("es").getMessage("privacy_title"));

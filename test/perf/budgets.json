@@ -85,6 +85,16 @@
     "ci_factor": 3,
     "note": "Slice 11 §2 and its acceptance: building and writing it (into the fake storage area, which copies values like Chrome's) for 5,000 words."
   },
+  "local.projection.write.trusted.5k": {
+    "budget_ms": 50,
+    "ci_factor": 3,
+    "note": "SCR-448: the same write through the background's trusted copy (IndexedDB meta, then the mirror), in fake-indexeddb. About 21 ms locally; slice 11's 50 ms write budget still holds."
+  },
+  "local.projection.heal-check.5k": {
+    "budget_ms": 50,
+    "ci_factor": 3,
+    "note": "SCR-448: the change event of that write, compared with the trusted copy (two canonical JSON passes over 5,000 words); it matches, so nothing is written back. About 21 ms locally, in the background, after the pages have the words."
+  },
   "precedence.pick.100k": {
     "budget_ms": 500,
     "ci_factor": 3,

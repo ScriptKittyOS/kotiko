@@ -129,8 +129,9 @@ describe("a fresh install keeps words in this browser (slice 11)", () => {
   });
 
   test("Focus on one language decides a 'native = meaning' word's language", async () => {
-    const bg = loadBackground({ local: { baseLangs: ["en"], mixing: { focus: ["it"] } } });
+    const bg = loadBackground({ local: { baseLangs: ["en"] } });
     await bg.k.ready();
+    await bg.send({ type: "settings.set", set: { mixing: { focus: ["it"] } } });
     const res = await bg.send({ type: "add", text: "gatto = cat" }, POPUP);
     const job = await bg.until(() => bg.store.addJobs?.find((j) => j.id === res.job.id && j.state === "done"));
     assert.equal(job.results[0].word.lang, "it");
@@ -182,14 +183,11 @@ describe("a fresh install keeps words in this browser (slice 11)", () => {
 
   test("a job left looking up by a stopped worker runs again with the same id and saves once", async () => {
     const id = "01900000-0000-7000-8000-00000000abcd";
-    const local = {
-      baseLangs: ["en"],
-      wordsHome: "local",
-      lookup: { kind: "provider", provider: "openrouter", baseUrl: srv.llmUrl, model: null, dataCollection: "allow" },
-      addJobs: [{ id, surface: "popup", text: "sobaka", hintLang: null, baseLangs: ["en"], manual: null, state: "looking_up", createdAt: Date.now() - 1000, startedAt: Date.now() - 900, attempts: 1, waits: 0, error: null, results: [], rejected: [], missingBases: [], retryAt: null, seen: false }],
-    };
-    const bg = loadBackground({ local });
+    const bg = loadBackground({ local: { baseLangs: ["en"] } });
     await bg.k.ready();
+    // What a worker that stopped mid-lookup left in the store; the next one resumes it.
+    await bg.k.seed({ addJobs: [{ id, surface: "popup", text: "sobaka", hintLang: null, baseLangs: ["en"], manual: null, state: "looking_up", createdAt: Date.now() - 1000, startedAt: Date.now() - 900, attempts: 1, waits: 0, error: null, results: [], rejected: [], missingBases: [], retryAt: null, seen: false }] });
+    await bg.k.queue.resume();
     // The settings page names the address (slice 28 §7: one only in storage.local isn't trusted).
     await bg.send({ type: "backend.set", lookup: { kind: "provider", provider: "openrouter", baseUrl: srv.llmUrl } });
     await bg.send({ type: "secrets.set", id: "provider:openrouter", value: KEY });
@@ -216,11 +214,11 @@ describe("a fresh install keeps words in this browser (slice 11)", () => {
     await bg.k.projector.flush();
     assert.deepEqual(bg.store.words.map((w) => w.base_lang).sort(), ["en", "es"]);
     // Removing en drops its records from the projection and keeps them in the store.
-    await bg.fake.chrome.storage.local.set({ baseLangs: ["es"] });
+    await bg.send({ type: "settings.set", set: { baseLangs: ["es"] } });
     await bg.until(() => bg.store.words.length === 1);
     assert.equal(bg.store.words[0].gloss, "perro");
     assert.equal((await store.list()).length, 2);
-    await bg.fake.chrome.storage.local.set({ baseLangs: ["es", "en"] });
+    await bg.send({ type: "settings.set", set: { baseLangs: ["es", "en"] } });
     await bg.until(() => bg.store.words.length === 2);
   });
 

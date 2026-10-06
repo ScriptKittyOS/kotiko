@@ -43,7 +43,7 @@ test("Focus: only the focused language; a language added during Focus waits, and
   // A Turkish word arrives from elsewhere while focusing.
   await serviceWorker.evaluate(async () => {
     const { words } = await chrome.storage.local.get("words");
-    await chrome.storage.local.set({ words: [...words, { id: 99, lang: "tr", native: "ev", english: "house", forms: ["house"], base_lang: "en", status: "active", created_at: new Date().toISOString() }] });
+    await globalThis.__kotiko.seed({ words: [...words, { id: 99, lang: "tr", native: "ev", english: "house", forms: ["house"], base_lang: "en", status: "active", created_at: new Date().toISOString() }] });
   });
   await expect(p.locator("#focusStrip")).toContainText("Turkish is new. It's waiting until you leave Focus.");
   await expect(page.locator("#p1")).toHaveText("Many 谢谢 for the house. The 狗 likes the house.");

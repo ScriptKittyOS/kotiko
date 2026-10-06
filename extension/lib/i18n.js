@@ -18,7 +18,8 @@
 // them), falling back to `<key>_other`.
 //
 // The interface-language override (50 §8, "Kotiko's language" in the dashboard's settings,
-// stored as `ui.uiLang` in storage.sync): `await KotikoI18n.loadPreference()` reads it and,
+// stored as `ui.uiLang` in storage.sync, of which the background keeps the copy pages read in
+// storage.local): `await KotikoI18n.loadPreference()` reads it and,
 // when it names a shipped locale, fetches `_locales/<locale>/messages.json` once and looks
 // keys up itself (the browser's getMessage can't switch at runtime); missing keys fall
 // back to English. Pages that await it before rendering follow the setting; the rest
@@ -195,10 +196,11 @@
     return true;
   }
 
-  // The stored preference (storage.sync `ui.uiLang`): "auto" or a shipped locale.
+  // The stored preference (`ui.uiLang`, the background's copy in storage.local, which only
+  // Kotiko's own pages change; SCR-448): "auto" or a shipped locale.
   async function preference() {
     try {
-      const { ui } = await ext.storage.sync.get({ ui: {} });
+      const { ui } = await ext.storage.local.get({ ui: {} });
       return typeof ui?.uiLang === "string" ? ui.uiLang : "auto";
     } catch {
       return "auto";
