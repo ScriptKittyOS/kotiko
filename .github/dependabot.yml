@@ -14,6 +14,14 @@ updates:
     groups:
       npm-minor-and-patch:
         update-types: [minor, patch]
+  # The docs site (slice 44) has its own package.json and lockfile.
+  - package-ecosystem: npm
+    directory: /site
+    schedule: { interval: weekly, day: monday }
+    commit-message: { prefix: "chore(deps)" }
+    groups:
+      site-npm-minor-and-patch:
+        update-types: [minor, patch]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly, day: monday }
