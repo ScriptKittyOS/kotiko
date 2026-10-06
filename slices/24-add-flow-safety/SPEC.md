@@ -427,6 +427,10 @@ Built 2026-10-05 (§§1-5, from slice 11's queue):
   - Cancel on a lookup.
 
   The direct path (`state.jobs`, `runJob`) is gone.
+`addJobs` lives in the background's IndexedDB store since SCR-448 (2026-10-06), with a
+copy in `storage.local` that the popup renders from and that content scripts can no longer
+change: a job written there is put back and never run (slice 28's notes).
+
 Built 2026-10-05 (§§6-9):
 
 - **Wrong language (§6).** The language on a created line is a chip. It opens the picker:

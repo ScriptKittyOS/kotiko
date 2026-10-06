@@ -11,7 +11,7 @@ and the store forms in the same pull request.** `test/unit/store-readiness.test.
 fails when a network call, a host name or a permission appears in the extension without
 a line here or in the store form.
 
-Last checked against the code: 2026-10-05 (extension 0.2.0, spec 2.0.0).
+Last checked against the code: 2026-10-06 (extension 0.2.0, spec 2.0.0).
 
 ## 1. Data, where it's kept, and where it goes
 
@@ -19,15 +19,15 @@ Last checked against the code: 2026-10-05 (extension 0.2.0, spec 2.0.0).
 |---|---|---|---|---|
 | Text of the pages you read, and their addresses | Not kept. Read in memory to find words to swap; the address seeds which language a word shows in (slice 18) and is checked against your paused sites | Never | Nobody | `content.js`, `content/engine.js`, `lib/precedence.js` |
 | Your words (the word, its meaning in your languages, pronunciation, your note, the text you typed to add it, status) | In this browser: IndexedDB (`kotiko` database) and a copy in `storage.local` that Kotiko's page scripts read. Or on your own Kotiko server, if you connect one | Only if you connect a server | Your own Kotiko server (sync every minute, and every add, edit and delete) | `lib/store.js`, `lib/projection.js`, `background.js` `request()` |
-| Text you type or paste to add words (the popup, the dashboard, the welcome page, bulk add), plus your base languages, up to five of your recent target languages and a language hint | Add jobs in `storage.local` (kept 7 days after they finish, at most 20); the checked result in a lookup cache in IndexedDB (30 days, at most 5,000) | Yes, when you add a word that needs a lookup. Never for "word = meaning" lines | The provider you chose (OpenRouter by default; OpenAI, Anthropic, Google Gemini, Groq, a local Ollama or LM Studio, or any address you enter), or your Kotiko server, which asks its own provider | `lib/llm/client.js` `call()`, `background.js` `lookupJob()` |
+| Text you type or paste to add words (the popup, the dashboard, the welcome page, bulk add), plus your base languages, up to five of your recent target languages and a language hint | Add jobs in IndexedDB (`meta`), with a copy in `storage.local` for the popup (kept 7 days after they finish, at most 20); the checked result in a lookup cache in IndexedDB (30 days, at most 5,000) | Yes, when you add a word that needs a lookup. Never for "word = meaning" lines | The provider you chose (OpenRouter by default; OpenAI, Anthropic, Google Gemini, Groq, a local Ollama or LM Studio, or any address you enter), or your Kotiko server, which asks its own provider | `lib/llm/client.js` `call()`, `background.js` `lookupJob()` |
 | Your saved words (word, meaning, sense, base language), to write their pronunciations | Nothing new | Yes, for words saved without a pronunciation (added by hand, imported, or from an older version), at most twice per word, in the background, when words live in this browser and a provider is set up | The provider you chose | `lib/refresh-job.js` → `client.respell()` |
 | A word you add in a language with word stress (Russian, Ukrainian, Spanish and others in `spec/pronunciation.json`): the word only | The Wiktionary page's pronunciation section, 30 days, in the lookup cache | Yes, when you add the word with a lookup or as "word = meaning", and once in the background for words saved earlier | The Wikimedia Foundation (en.wiktionary.org), with a `Api-User-Agent` header naming Kotiko and `hello@scriptkittyos.com` | `background.js` `wiktionaryPage()`, `lib/wiktionary-pass.js` |
 | Your provider key and your server's access token | IndexedDB (`secrets`), which only the background reads. Never in `storage.local`, `storage.sync` or `storage.session`; never shown again in full (the settings show the first six and last four characters) | Only to the service it belongs to, and only at an address chosen on one of Kotiko's own pages (slice 28 §7) | Your provider; your Kotiko server | `background.js` `secret()`, `secretFor()`, `routeAllows()` |
-| Which provider, model and server address you use; whether a key is saved (yes or no, never the key) | `storage.local` | Each request goes to that address | Your provider or your server | `lib/local-mode.js` `readSettings()` |
+| Which provider, model and server address you use; whether a key is saved (yes or no, never the key) | IndexedDB (`meta`), with a copy in `storage.local` that pages read | Each request goes to that address | Your provider or your server | `lib/local-mode.js` `readSettings()` |
 | The model list (any provider whose models Kotiko lists) and your remaining free lookups (OpenRouter only) | IndexedDB `meta`; the list refreshed at most daily, the count at most every 5 minutes while lookups run | The request itself, with your key | Your provider (`/models`); OpenRouter (`/key`) | `lib/llm/client.js`, `lib/llm/catalog.js` |
 | The Test button's lookup | Nothing | The word "hello" and your base languages | Your provider | `lib/llm/client.js` `test()` |
-| Settings: Kotiko on or off, paused sites (host names you paused), words you chose never to swap, languages hidden, amount, speech, celebrations, add jobs | `storage.local` | Never | Nobody | `popup.js`, `dashboard.js`, `content.js` |
-| Your base languages, Kotiko's interface language, and a random 32-character value that keeps word choices the same across your devices (`seedSalt`) | `storage.sync` | Through your browser's own sync, if you turned it on | Google or Mozilla, under their sync terms. Stays in your browser account after an uninstall | `background.js` `ensureSeedSalt()`, `welcome.js`, `dashboard.js` |
+| Settings: Kotiko on or off, paused sites (host names you paused), words you chose never to swap, languages hidden, amount, speech, celebrations, add jobs | IndexedDB (`meta`), with a copy in `storage.local` that content scripts and pages read | Never | Nobody | `lib/settings.js`, `background.js` `saveSettings()` |
+| Your base languages, Kotiko's interface language, and a random 32-character value that keeps word choices the same across your devices (`seedSalt`) | `storage.sync`, and IndexedDB (`meta`) with a copy in `storage.local` | Through your browser's own sync, if you turned it on | Google or Mozilla, under their sync terms. Stays in your browser account after an uninstall | `background.js` `ensureSeedSalt()`, `welcome.js`, `dashboard.js` |
 | The browser's languages (to suggest your base languages) | Your base languages, above | Never | Nobody | `background.js` `detectBrowserBases()` |
 | A word you ask to hear | Not kept | Only if you turn on "Online voices" in Settings (off by default); then your browser may send it to its speech service | Your browser's or operating system's speech service (for example Google, Microsoft or Apple) | `lib/speak.js` (`localService`) |
 | "Try it on a page" on the welcome page | Nothing | Only if you click it: it opens a Wikipedia search for your word in a new tab | Wikipedia (the Wikimedia Foundation), as any link you open | `lib/welcome-model.js` `wikipediaUrl()` |
@@ -55,32 +55,56 @@ dictionaries, the model list and words are data, checked by the word spec before
 ## 3. What Kotiko's own page scripts (content scripts) can reach
 
 Content scripts run inside every page you open, so they are the part of Kotiko a hostile
-page is closest to. They can read and write `storage.local` and `storage.sync`, and send
-two messages to the background: `sync` and `sensitiveSites`.
+page is closest to. Browsers let them read and write `storage.local` and `storage.sync`
+(Chrome 140 and later can close an area to them with `setAccessLevel`; Firefox can't, see
+[bug 1724754](https://bugzil.la/1724754)). They can send three messages to the background:
+`sync`, `sensitiveSites` and `neverSwap` (the word card's "Don't swap this word", one word
+at a time).
 
 - They can read your words, your add jobs (the text you typed, for 7 days) and your
   settings, which they need to swap words.
 - They can't read your key or your token: those are only in the background's IndexedDB,
   which content scripts can't open (they get the page's IndexedDB, not Kotiko's), and
-  `storage.session` is not used.
+  `storage.session` is not used for them.
+- They can't change your settings, your word list or your add queue (SCR-448). The real
+  copy of every setting, of the pages' word list and of the add jobs is in the
+  background's IndexedDB (`meta`, `area:<name>` rows, `lib/settings.js`); `storage.local`
+  holds only a copy of it for content scripts and Kotiko's pages to read. The background
+  reads nothing it acts on from `storage.local`; Kotiko's pages change settings with the
+  `settings.set` message, which only they may send. A value a content script writes to
+  `storage.local` is put back as soon as the background sees the change (and at every
+  start of the background, for changes made while it wasn't running), and a key it adds is
+  removed. So a content script can't turn Kotiko off, pause sites, hide languages, change
+  the list pages show, queue an add (which would spend the learner's lookups and change
+  their list), or choose another model, data policy or words home
+  (`test/bg/settings.test.mjs`, `test/e2e/privacy.spec.mjs`).
+- Your base languages and interface language go to your server's Telegram bot only from
+  the background's copy, which only Kotiko's pages change. In Chrome 140 and later Kotiko
+  closes `storage.sync` to content scripts, so a change there came from Kotiko on this or
+  another of your browsers and is taken. In Firefox, and older Chrome, a content script
+  could write there, so this browser keeps its own copy: languages changed in Kotiko on
+  another device don't follow until you change them here.
 - They can't make Kotiko send anything somewhere new. Where requests go is kept in the
   background's IndexedDB (`meta`): the server's address, the lookup service the learner
   chose, and each service's address. Only Kotiko's own pages change them (by naming an
   address or choosing a service). Every request checks its address against them and sends
-  nothing on a mismatch, and the background puts the chosen values back into
-  `storage.local`. So a rewritten server address, service or service address gets no
-  request, no typed word and no key; 0.2-era `token`/`serverUrl` keys written later are
-  removed unused, and ones found on a brand-new install are dropped
-  (`test/bg/privacy.test.mjs`, `test/e2e/privacy.spec.mjs`).
-- **Still open.** Content scripts can still change the other settings in `storage.local`.
-  None of these sends data anywhere new, but they affect what Kotiko does:
-  - turn Kotiko off, pause sites or hide languages;
-  - change the cached word list a page shows until the next update;
-  - add an entry to the add queue (`addJobs`), which Kotiko would then look up with the
-    learner's own service and save as a word.
-
-  And an install updating from a version before this one trusts the addresses its
-  settings hold at that moment, once.
+  nothing on a mismatch. 0.2-era `token`/`serverUrl` keys written later are removed
+  unused, and ones found on a brand-new install are dropped with everything else found
+  there (`test/bg/privacy.test.mjs`, `test/e2e/privacy.spec.mjs`).
+- **Still open.**
+  - "Don't swap this word" is a content-script message by design (the word card is on the
+    page), so a subverted content script could add words to that list, one at a time. The
+    list is in Settings, where each can be taken off.
+  - Between a content script's write and the background putting it back, other open
+    pages can briefly act on the written value (for example, take their swaps off and put
+    them back). One that writes again and again keeps them doing so; nothing is saved or
+    sent.
+  - An install updating from a build before this one takes what its `storage.local` holds
+    at that moment, once, as Kotiko's own (there is no way to tell what a content script
+    wrote before). There have been no releases yet, so this concerns only builds run from
+    source. Updating from before slice 28, an address saved for a hosted service, where no
+    page shows an address field, is dropped; a server address and the address of a
+    service on your computer or "custom" are visible in Settings and are kept.
 
 ## 4. Hosts in the code
 

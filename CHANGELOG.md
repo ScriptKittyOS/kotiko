@@ -5,6 +5,16 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Security: a web page that managed to run code inside Kotiko's page script could change
+  Kotiko's settings, because browsers let that script write Kotiko's storage. It could turn
+  Kotiko off, pause sites, hide languages, change the words pages show, queue a word to be
+  looked up with your own AI key and saved, pick another model, or change the languages
+  your server's Telegram bot answers in. Kotiko now keeps the real copy of all of these
+  where page scripts can't reach, puts back anything changed elsewhere, and only its own
+  pages change settings. Nothing to do on your side; your settings move over on update.
+  In Firefox (and Chrome before 140), the languages you read no longer follow from
+  Kotiko in your other browsers: set them in each one.
+
 - Self-hosted server: your keys can now live in their own files instead of `.env`. Set
   `LLM_API_KEY_FILE=/path/to/file` in place of `LLM_API_KEY=...`, and the same for
   `API_TOKEN`, `TELEGRAM_BOT_TOKEN` and `TRANSCRIBE_API_KEY`; this is how Docker secrets
