@@ -45,6 +45,12 @@ credit, we'll name you in the release notes.
 If the problem is in a dependency, we report it upstream and ship a pinned or patched
 version in the meantime.
 
+We also look for problems ourselves: every pull request and every release is checked for
+known vulnerabilities in our dependencies and for security weaknesses in our code. What
+blocks a merge or a release, how fast findings are fixed, and how a false positive is
+accepted are in the
+[dependency and static analysis policy](docs/security/dependency-and-static-analysis-policy.md).
+
 The security response lead named in [MAINTAINERS.md](MAINTAINERS.md) runs this process;
 [GOVERNANCE.md](GOVERNANCE.md) describes the role.
 
