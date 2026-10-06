@@ -14,7 +14,8 @@ export const SITE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 export const ROOT = path.resolve(SITE, "..");
 export const DIST = path.join(SITE, "dist");
 
-// Builds the site once per test run unless SITE_SKIP_BUILD=1 and dist/ exists.
+// Builds the site unless SITE_SKIP_BUILD=1 and dist/ exists: for running one test file on
+// its own. `npm test` (scripts/test.mjs) builds once and sets SITE_SKIP_BUILD for every file.
 let built = false;
 export function ensureBuilt() {
   if (built) return DIST;
