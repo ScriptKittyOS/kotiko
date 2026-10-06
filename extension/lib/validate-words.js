@@ -121,7 +121,21 @@
       }
     }
     const dropped = Object.values(reasons).reduce((a, b) => a + b, 0);
+    if (globalThis.__KOTIKO_ASSERT__ === true) checkFiltered(list, words, dropped);
     return { words, dropped, reasons, droppedForms };
+  }
+
+  // Assertion mode (test/helpers/assert-mode.mjs): every word is kept or counted, and every
+  // kept word passes the checks again. Under the tests only.
+  function checkFiltered(list, words, dropped) {
+    const fail = (what) => {
+      throw new Error(`WordValidator.filterWords invariant: ${what}`);
+    };
+    if (words.length + dropped !== list.length) fail(`${words.length} kept and ${dropped} dropped of ${list.length}`);
+    for (const w of words) {
+      if (checkWord(w) !== null || extraFixes(w) !== null) fail(`a kept word fails the checks (${JSON.stringify(w).slice(0, 200)})`);
+      if ((w.forms ?? []).length !== cleanForms(w.forms ?? []).length) fail("a kept word has a bad form");
+    }
   }
 
   const error = (code, message, details = {}) => ({ ok: false, code, message, details });

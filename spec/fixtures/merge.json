@@ -50,6 +50,12 @@
       "changes": { "forms": [{ "text": "dog", "enabled": true, "case": "any", "ambiguous": false }, { "text": "hound", "enabled": true, "case": "any", "ambiguous": false }, { "text": "hounds", "enabled": true, "case": "any", "ambiguous": false }] }
     },
     {
+      "name": "the same gloss is not a new form: a form the learner removed stays removed",
+      "existing": { "status": "active", "gloss": "cat", "forms": [{ "text": "kitty" }] },
+      "incoming": { "status": "active", "gloss": "Cat", "forms": [{ "text": "kitty" }] },
+      "changes": {}
+    },
+    {
       "name": "the cap keeps existing forms and drops only new ones",
       "existing": { "status": "active", "gloss": "a", "forms": [{ "text": "f1" }, { "text": "f2" }, { "text": "f3" }, { "text": "f4" }, { "text": "f5" }, { "text": "f6" }, { "text": "f7" }, { "text": "f8" }, { "text": "f9" }] },
       "incoming": { "status": "active", "gloss": "f1", "forms": [{ "text": "n1" }, { "text": "n2" }] },

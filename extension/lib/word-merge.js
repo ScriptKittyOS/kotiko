@@ -47,10 +47,12 @@
       out.pronunciation_source = incoming.pronunciation_source || "model";
     }
     // Union by case-insensitive text; existing forms keep their flags and are never dropped
-    // by the cap; a different incoming gloss becomes a form.
+    // by the cap; a different incoming gloss becomes a form (the same one doesn't, so a
+    // form the learner removed stays removed).
     const old = (existing.forms ?? []).map(form);
     const seen = new Set(old.filter((f) => f.text !== null).map((f) => fold(f.text)));
-    const candidates = [...(incoming.forms ?? []).map(form), ...(incoming.gloss ? [form({ text: incoming.gloss })] : [])];
+    const newGloss = incoming.gloss && !(typeof existing.gloss === "string" && fold(existing.gloss) === fold(incoming.gloss));
+    const candidates = [...(incoming.forms ?? []).map(form), ...(newGloss ? [form({ text: incoming.gloss })] : [])];
     const added = [];
     for (const f of candidates) {
       if (f.text === null || seen.has(fold(f.text))) continue;

@@ -116,9 +116,18 @@ jobs:
           echo "Building $v with Node $(node --version)"
       - run: node scripts/check-versions.mjs
       - run: npm ci
-      # The same checks as CI, on the tree being released.
+      # The same checks as CI, on the tree being released: the extension's and the server's
+      # tests with their coverage gates. The property tests run in both, so the dynamic
+      # analysis runs before every release.
       - run: npm run lint
-      - run: npm test
+      - run: npm run coverage
+      - name: Server tests
+        working-directory: server
+        env:
+          MIX_ENV: test
+        run: |
+          mix deps.get
+          mix test --cover
       - name: Build the zips twice and compare
         env:
           VERSION: ${{ steps.version.outputs.version }}

@@ -27,7 +27,12 @@ defmodule Kotiko.Transcriber do
       response_format: "json"
     ]
 
-    case Req.post(url, form_multipart: form, headers: headers, receive_timeout: 120_000) do
+    # The options are empty in production; tests route the request to a Req.Test stub.
+    options =
+      [form_multipart: form, headers: headers, receive_timeout: 120_000] ++
+        Application.get_env(:kotiko, :transcribe_req_options, [])
+
+    case Req.post(url, options) do
       {:ok, %Req.Response{status: 200, body: %{"text" => text}}} ->
         {:ok, String.trim(text)}
 

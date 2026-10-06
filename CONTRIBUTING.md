@@ -20,11 +20,11 @@ You need Elixir 1.15 or newer and Node 22.
 # server
 cd server
 mix deps.get
-mix test
+mix test            # or mix test --cover, with the coverage gate
 
 # extension and end-to-end tests (from the repository root)
 npm ci
-npm test
+npm test            # or npm run coverage, with the coverage gate
 npx playwright install chromium
 npm run e2e
 ```
@@ -61,7 +61,51 @@ site in `site/` (its own `package.json`, build and tests), in
   practical, say why in the pull request; a maintainer has to agree.
 - Tests never use the network: the server stubs HTTP with `Req.Test`, and the extension
   tests serve their own pages.
-- How to run them is under [Setup](#setup); CI runs them on every pull request.
+- How to run them is under [Setup](#setup); CI runs them on every pull request, and the
+  release workflow runs them again on the tree it releases.
+
+### Coverage gates
+
+CI fails when coverage drops below these numbers, and prints them on every run:
+
+| Part | Command | Gate |
+|---|---|---|
+| Extension | `npm run coverage` | 90 % of lines and 80 % of branches in `extension/` (Node's built-in coverage) |
+| Server | `cd server && mix test --cover` | 90 % of lines (`test_coverage` in `server/mix.exs`; the helpers in `test/support` don't count) |
+
+Elixir's cover tool counts lines, not branches, so the server has no branch number. The
+server gate runs on the newest Elixir in the CI matrix only, because line counts differ a
+little between compiler versions. A gate is never lowered; raise it when coverage grows.
+Coverage comes from tests of behaviour: a test that only runs code without checking what
+it does is not accepted.
+
+### Property tests
+
+Besides examples, both halves have property-based tests, which check a rule on many
+generated inputs:
+
+- Extension: [fast-check](https://fast-check.dev/) (a dev dependency) in
+  `test/unit/properties/`, for the matcher, server address checks, the bulk list reader,
+  the backup, casing, the word-list check and the policy page's Markdown.
+- Server: StreamData in `server/test/**/*_property_test.exs`, for word validation and
+  input preparation, the v1 routes, `.env` parsing, language tags, text cleaning, UUIDv7,
+  log redaction and backups; shared generators are in `server/test/support/gen.ex`.
+
+They run as part of `npm test` and `mix test`, so in CI and before every release. Each run
+uses a new random seed. When one fails, it prints the seed and the smallest input it found;
+replay it with `FC_SEED=<seed> FC_PATH=<path> npm test` (extension; `FC_NUM_RUNS=<n>`
+tries more inputs) or `mix test --seed <seed>` (server). Fix the bug and add a plain
+regression test with that input, so the case is checked on every run.
+
+### Assertion mode
+
+`npm test` and `npm run coverage` load `test/helpers/assert-mode.mjs`, which turns on the
+extension's invariant checks in every test process, jsdom window and vm context: the
+matcher checks each scan's matches, the backup each restore plan, and the word-list check
+each filtered list, and they throw when an invariant breaks. The shipped extension never
+turns them on, and `npm run perf` measures the code as it ships. Add a check to this mode
+when a function makes a promise its callers rely on. The end-to-end tests run the real
+extension, which has no way to turn the mode on.
 
 ## Commits and pull requests
 

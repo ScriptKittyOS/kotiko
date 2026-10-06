@@ -29,7 +29,8 @@ From the repository root:
 ```bash
 npm ci
 npm run lint            # ESLint and web-ext lint
-npm test                # unit, DOM and background tests
+npm test                # unit, DOM, background and property tests
+npm run coverage        # the same, failing below 90 % of lines or 80 % of branches
 npx playwright install chromium
 npm run e2e             # end-to-end tests in Chromium with the unpacked extension
 ```
@@ -42,7 +43,7 @@ CI runs more checks (the shared spec, versions, licenses, the old name); the ful
 ```bash
 cd server
 mix deps.get
-mix test
+mix test                # or mix test --cover: fails below 90 % of lines
 cp .env.example .env && chmod 600 .env   # then fill in LLM_API_KEY
 ./run.sh
 ```

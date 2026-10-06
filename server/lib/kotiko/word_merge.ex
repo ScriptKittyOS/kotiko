@@ -54,10 +54,16 @@ defmodule Kotiko.WordMerge do
 
   # Union by case-insensitive text. Existing forms keep their flags (a disabled form stays
   # disabled); new ones are appended with theirs. A different incoming gloss becomes a
-  # form. Existing forms win when the cap is hit, and are never dropped by it.
+  # form; the same one doesn't, so a form the learner removed stays removed. Existing
+  # forms win when the cap is hit, and are never dropped by it.
   defp forms(acc, existing, incoming) do
     old = Enum.map(existing[:forms] || [], &Forms.form/1)
-    gloss = if incoming[:gloss], do: [Forms.form(%{text: incoming[:gloss]})], else: []
+
+    gloss =
+      if new_gloss?(existing[:gloss], incoming[:gloss]),
+        do: [Forms.form(%{text: incoming[:gloss]})],
+        else: []
+
     seen = MapSet.new(old, &Text.fold(&1.text))
 
     new =
@@ -68,6 +74,13 @@ defmodule Kotiko.WordMerge do
 
     if new == [], do: acc, else: Map.put(acc, :forms, old ++ new)
   end
+
+  defp new_gloss?(_existing, nil), do: false
+
+  defp new_gloss?(existing, incoming) when is_binary(existing),
+    do: Text.fold(existing) != Text.fold(incoming)
+
+  defp new_gloss?(_existing, _incoming), do: true
 
   defp status(acc, existing, incoming, opts) do
     to =
