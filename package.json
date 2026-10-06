@@ -8,6 +8,7 @@
   },
   "scripts": {
     "test": "node --test --import ./test/helpers/assert-mode.mjs 'test/{unit,dom,bg}/**/*.test.mjs'",
+    "coverage": "node --test --import ./test/helpers/assert-mode.mjs --experimental-test-coverage --test-coverage-include='extension/**' --test-coverage-lines=90 --test-coverage-branches=80 'test/{unit,dom,bg}/**/*.test.mjs'",
     "e2e": "playwright test",
     "lint": "eslint . && web-ext lint --source-dir extension --self-hosted",
     "perf": "node test/perf/run.mjs"

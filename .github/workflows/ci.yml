@@ -73,6 +73,11 @@ jobs:
       - run: mix deps.audit
       - run: mix deps.unlock --check-unused
       - run: mix test
+        if: ${{ !matrix.current }}
+      # The coverage gate (90 % of lines, mix.exs) on one compiler only: line counts differ
+      # a little between Elixir versions, and cover makes the run slower.
+      - run: mix test --cover
+        if: matrix.current
 
   extension:
     runs-on: ubuntu-24.04
@@ -84,7 +89,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
-      - run: npm test
+      # Every unit, DOM and background test (property tests and assertion mode included),
+      # failing below 90 % line or 80 % branch coverage of extension/.
+      - run: npm run coverage
       - run: npm run perf
 
   # Slices 08 and 09: the shared spec. The extension's copy is current, the CLDR-derived
