@@ -45,6 +45,16 @@ test("field names keep their case, as the form matches them exactly", () => {
   assert.match(link.url, /\/projects\/42\/gold\/edit\?/);
 });
 
+test("the page shows the metal series unless Baseline is asked for", () => {
+  const text = doc(["| `floss_license` | MUST | Met | Apache-2.0. | – | – |"]) +
+    "\n## Baseline 1: General\n\n| Criterion | Level | Status | Answer | Evidence | Needs |\n|---|---|---|---|---|---|\n" +
+    "| `osps_ac_01_01` | MUST | Met | Org requires 2FA. | – | – |\n";
+  const parsed = parse(text);
+  assert.equal(page(parsed).match(/class="cta"/g).length, 1);
+  assert.doesNotMatch(page(parsed), /baseline-1\/edit/);
+  assert.equal(page(parsed, { baseline: true }).match(/class="cta"/g).length, 2);
+});
+
 test("baseline headings map to the baseline sections", () => {
   const parsed = parse(doc(["| `osps_ac_01_01` | MUST [N/A J] | Met | Org requires 2FA. | gh api | – |"], "## Baseline 1: Access Control"));
   assert.equal(parsed.groups[0].section, "baseline-1");

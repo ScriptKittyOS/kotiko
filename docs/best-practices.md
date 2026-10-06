@@ -11,7 +11,8 @@ request, then on the form. The plan behind it is slice
 - **Entry:** <https://www.bestpractices.dev/en/projects/15259>, created.
 - **Filling the form:** `node scripts/bestpractices-links.mjs` turns every table below into
   bestpractices.dev links that open the form with these answers filled in (its "automation
-  proposals"), one per group, and writes a local page listing them. The maintainer reviews each
+  proposals"), one per group, and writes a local page listing them: passing, silver and gold,
+  the badge the README shows (`--baseline` adds the Baseline levels). The maintainer reviews each
   form and saves it; nothing is sent until then. CI runs it with `--check`, so an answer that
   can't go on the form as written fails the build.
 - **Criteria version:** passing, silver and gold from `criteria.yml` and the Baseline

@@ -6,7 +6,8 @@
 // and writes a local page with one button per form section. A maintainer opens a link,
 // reviews the highlighted answers and saves; nothing is sent until they press Save.
 //
-//   node scripts/bestpractices-links.mjs             # writes the page, prints its path
+//   node scripts/bestpractices-links.mjs             # writes the page (passing, silver, gold)
+//   node scripts/bestpractices-links.mjs --baseline  # also the OpenSSF Baseline levels
 //   node scripts/bestpractices-links.mjs --out x.html
 //   node scripts/bestpractices-links.mjs --check     # validates the answers (CI)
 //
@@ -160,8 +161,10 @@ export function links({ project, groups }) {
 const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-export function page({ project, groups }) {
-  const all = links({ project, groups });
+// The metal series (passing, silver, gold) is the badge the README shows; the Baseline levels
+// are on the page only when asked for.
+export function page({ project, groups }, { baseline = false } = {}) {
+  const all = links({ project, groups }).filter((l) => baseline || !l.section.startsWith("baseline"));
   const sections = SECTIONS.map(([name, slug]) => ({ name, slug, links: all.filter((l) => l.section === slug) }))
     .filter((s) => s.links.length);
   const count = (rows, s) => rows.filter((r) => r.status === s).length;
@@ -271,7 +274,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   } else {
     const i = args.indexOf("--out");
     const out = resolve(i >= 0 ? args[i + 1] : join(tmpdir(), "kotiko-bestpractices.html"));
-    writeFileSync(out, page(parsed));
-    console.log(`${links(parsed).length} links for ${rows} answers. Open:\n${pathToFileURL(out).href}`);
+    const html = page(parsed, { baseline: args.includes("--baseline") });
+    writeFileSync(out, html);
+    console.log(`${html.match(/class="cta"/g).length} links. Open:\n${pathToFileURL(out).href}`);
   }
 }
