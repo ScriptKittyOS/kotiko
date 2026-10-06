@@ -163,11 +163,13 @@ defmodule Kotiko.LLM.Cache do
   def count, do: Repo.aggregate("lookup_cache", :count)
 
   # The checked result is an Elixir map with atom keys; term_to_binary keeps it exactly.
+  # Reading it back refuses new atoms (`:safe`) and any function, so a row changed on disk
+  # can't hand the server code to run (Sobelow's Misc.BinToTerm).
   defp encode(result), do: result |> :erlang.term_to_binary() |> Base.encode64()
 
   defp decode(text) do
     with {:ok, bin} <- Base.decode64(text),
-         %{words: [_ | _]} = result <- :erlang.binary_to_term(bin, [:safe]) do
+         %{words: [_ | _]} = result <- Plug.Crypto.non_executable_binary_to_term(bin, [:safe]) do
       result
     else
       _ -> nil

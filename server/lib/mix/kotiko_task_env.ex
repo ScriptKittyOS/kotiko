@@ -9,6 +9,8 @@ defmodule Kotiko.TaskEnv do
   """
 
   @doc "The environment, overridden by the .env file as run.sh does. Blank values are unset."
+  # Sobelow: the .env file an operator's mix task names (default `.env`), not a request.
+  # sobelow_skip ["Traversal.FileModule"]
   def read_env(file) do
     dotenv =
       case File.read(file) do

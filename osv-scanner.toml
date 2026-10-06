@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
+# SPDX-License-Identifier: Apache-2.0
+#
+# OSV-Scanner settings for .github/workflows/dependency-scan.yml (all three lockfiles).
+#
+# Accepted findings only. Each one needs all three fields and a review before it expires;
+# after ignoreUntil the finding fails CI again. The rules for accepting one are in
+# docs/security/dependency-and-static-analysis-policy.md. Example:
+#
+# [[IgnoredVulns]]
+# id = "GHSA-xxxx-xxxx-xxxx"
+# ignoreUntil = 2026-11-05  # at most 30 days for high or critical, 90 for the rest
+# reason = "Dev-only (site build). The vulnerable function is never called: <evidence>. Fixed upstream in x.y.z, waiting for <package> to update."
+#
+# None accepted today.
