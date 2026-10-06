@@ -1,9 +1,13 @@
 # Maintainers
 
-Last reviewed: 2026-10-05.
+Last reviewed: 2026-10-06.
 
 Who holds which role in Kotiko. The roles and how people join or leave them are in
-[GOVERNANCE.md](GOVERNANCE.md). Changes to this file are made by pull request.
+[GOVERNANCE.md](GOVERNANCE.md). Changes to this file are made by pull request. The GitHub team
+[`@ScriptKittyOS/kotiko-maintainers`](https://github.com/orgs/ScriptKittyOS/teams/kotiko-maintainers)
+holds exactly the active maintainers below: it owns every file (`.github/CODEOWNERS`), has
+admin access to the repository, and is the only bypass on the release-tag ruleset. Adding
+or removing a maintainer changes this file and the team in the same step.
 
 ## Active
 

@@ -106,7 +106,7 @@ All of these are the maintainer's to do; nothing in the repository can do them.
   only. Secrets: the read-only Chrome Web Store credentials below.
 - **Settings, Rules, Rulesets** (set up 2026-10-05): a tag ruleset for `refs/tags/v*` with
   "Restrict creations", "Restrict updates" and "Restrict deletions", bypassed only by
-  repository admins (switch the bypass to the `kotiko-maintainers` team once it exists).
+  the `kotiko-maintainers` team (since 2026-10-06).
   Only maintainers can start a release; nobody else can create, move or delete a release
   tag. Two more rulesets: `main` takes changes only through pull requests whose CI checks
   pass (no force pushes or deletion, no bypass), and a push ruleset rejects `.env`,
