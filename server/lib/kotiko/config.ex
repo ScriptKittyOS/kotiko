@@ -29,6 +29,12 @@ defmodule Kotiko.Config do
   # legacy-name-ok
   @prefixes ~w(KOTIKO_ SLOVO_)
   @secret_vars ~w(API_TOKEN LLM_API_KEY TELEGRAM_BOT_TOKEN TRANSCRIBE_API_KEY)
+  # Each secret can come from a file instead (Docker secrets, systemd credentials):
+  # LLM_API_KEY_FILE=/run/secrets/llm_api_key. See read_secret_files/2.
+  @secret_file_vars Enum.map(@secret_vars, &(&1 <> "_FILE"))
+  # A key or token is a few hundred bytes at most; this stops a wrong path such as a log
+  # file or a disk image from being read into memory.
+  @max_secret_file_bytes 64 * 1024
   # The other settings, without the KOTIKO_ prefix. config/runtime.exs copies them into
   # the app env by name or by their LLM_ and TRANSCRIBE_ prefixes.
   @plain_vars ~w(PORT BIND ALLOWED_HOSTS PUBLIC_URL ALLOWED_TELEGRAM_IDS LLM_URL LLM_MODEL
@@ -45,7 +51,8 @@ defmodule Kotiko.Config do
   Every setting this module reads, by its current name: what
   `docs/reference/configuration.md` must describe (`Kotiko.DocsTest` checks both).
   """
-  def documented_vars, do: Enum.sort(@plain_vars ++ @secret_vars ++ @prefixed_vars)
+  def documented_vars,
+    do: Enum.sort(@plain_vars ++ @secret_vars ++ @secret_file_vars ++ @prefixed_vars)
 
   @doc """
   Parses and applies the settings in the app env's `:env`. Problems print one block to
@@ -130,7 +137,7 @@ defmodule Kotiko.Config do
   (path to `:ok` or `{:error, reason}`) and `:default_data_dir`.
   """
   def parse(vars, opts \\ []) do
-    vars = clean(vars)
+    {vars, file_problems, file_warnings} = vars |> clean() |> read_secret_files()
     resolver = Keyword.get(opts, :resolver, &resolve_host/1)
     ensure_dir = Keyword.get(opts, :ensure_dir, &ensure_dir/1)
     default_dir = Keyword.get_lazy(opts, :default_data_dir, &Kotiko.DataDir.default_dir/0)
@@ -156,8 +163,8 @@ defmodule Kotiko.Config do
       pronounce_enabled: boolean("KOTIKO_WIKTIONARY", vars["KOTIKO_WIKTIONARY"], true)
     ]
 
-    problems = for {_key, {:error, problem}} <- results, do: problem
-    warnings = warnings(vars, llm_url)
+    problems = file_problems ++ for {_key, {:error, problem}} <- results, do: problem
+    warnings = file_warnings ++ warnings(vars, llm_url)
 
     if problems == [] do
       {:ok, build(results, vars) ++ [data_dir_source: data_dir_source(data_dir_raw)], warnings}
@@ -214,6 +221,100 @@ defmodule Kotiko.Config do
   # Trimmed; blanks are unset (sourcing .env exports empty values).
   defp clean(vars) do
     for {k, v} <- vars, is_binary(v), v = String.trim(v), v != "", into: %{}, do: {k, v}
+  end
+
+  @doc """
+  Reads each secret that's given as a file (`NAME_FILE=/path`) into `NAME`, for the
+  secrets in `names` (default: all of them). `vars` must already be trimmed, with blanks
+  removed. Returns `{vars, problems, warnings}`; the values never appear in either list.
+
+  The file holds only the value. One line ending at its end is dropped (most editors and
+  `echo` add one); anything else is kept as written. Setting both `NAME` and `NAME_FILE`,
+  a file that can't be read, isn't a regular file, is empty, is over 64 KiB or has more
+  than one line are problems. A file other users can read or change is a warning.
+  """
+  def read_secret_files(vars, names \\ @secret_vars) do
+    Enum.reduce(names, {vars, [], []}, fn name, {vars, problems, warnings} ->
+      file_var = name <> "_FILE"
+
+      case {vars[name], vars[file_var]} do
+        {_, nil} ->
+          {vars, problems, warnings}
+
+        {value, path} when is_binary(value) ->
+          problem =
+            {"#{name} and #{file_var}=#{path} (both set)",
+             [
+               "Set only one: #{name} holds the value itself, #{file_var} the path of a " <>
+                 "file that holds it. Delete one of the two lines."
+             ]}
+
+          {vars, problems ++ [problem], warnings}
+
+        {nil, path} ->
+          case read_secret_file(path) do
+            {:ok, value, mode} ->
+              {Map.put(vars, name, value), problems,
+               warnings ++ secret_file_warnings(file_var, path, mode)}
+
+            {:error, reason} ->
+              problem =
+                {"#{file_var}=#{path}",
+                 ["Can't use this file for #{name}: #{reason}. Put only the value in it."]}
+
+              {vars, problems ++ [problem], warnings}
+          end
+      end
+    end)
+  end
+
+  # {:ok, value, mode} or {:error, why}; `why` never contains the file's contents.
+  # Sobelow: the path is a NAME_FILE setting the server's owner wrote in .env, never a request's.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp read_secret_file(path) do
+    path = Path.expand(path)
+
+    with {:ok, %File.Stat{type: :regular, size: size, mode: mode}} <- File.stat(path),
+         :ok <- secret_size(size),
+         {:ok, contents} <- File.read(path),
+         {:ok, value} <- secret_value(contents) do
+      {:ok, value, mode}
+    else
+      {:ok, %File.Stat{}} ->
+        {:error, "it isn't a regular file"}
+
+      {:error, reason} when is_atom(reason) ->
+        {:error, reason |> :file.format_error() |> to_string()}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp secret_size(size) when size > @max_secret_file_bytes,
+    do: {:error, "it's #{size} bytes, too big for a key (at most #{@max_secret_file_bytes})"}
+
+  defp secret_size(_size), do: :ok
+
+  defp secret_value(contents) do
+    value = contents |> String.replace_suffix("\n", "") |> String.replace_suffix("\r", "")
+
+    cond do
+      String.trim(value) == "" -> {:error, "it's empty"}
+      value =~ ~r/[\r\n]/ -> {:error, "it has more than one line"}
+      true -> {:ok, value}
+    end
+  end
+
+  defp secret_file_warnings(file_var, path, mode) do
+    if Bitwise.band(mode, 0o077) != 0 do
+      [
+        "#{file_var}: other users of this computer can read or change #{path}. Make it " <>
+          "private: chmod 600 #{path}"
+      ]
+    else
+      []
+    end
   end
 
   # {name actually set, value}: the current name, else its old name, else {name, nil}.

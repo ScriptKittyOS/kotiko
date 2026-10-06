@@ -21,7 +21,7 @@ defmodule Kotiko.DataDirTest do
     %{
       root: root,
       home: home,
-      target: DataDir.default_dir(home),
+      target: DataDir.default_dir(home, nil),
       legacy_dir: DataDir.legacy_default_dir(home)
     }
   end
@@ -95,8 +95,40 @@ defmodule Kotiko.DataDirTest do
   # ── tests ───────────────────────────────────────────────────────────
 
   test "defaults live in the home folder", %{home: home} do
-    assert DataDir.default_dir(home) == Path.join(home, ".local/share/kotiko")
-    assert DataDir.database(DataDir.default_dir(home)) =~ ~r"/kotiko/kotiko\.db$"
+    assert DataDir.default_dir(home, nil) == Path.join(home, ".local/share/kotiko")
+    assert DataDir.database(DataDir.default_dir(home, nil)) =~ ~r"/kotiko/kotiko\.db$"
+  end
+
+  describe "XDG_DATA_HOME" do
+    test "an absolute path moves the default folder", %{root: root, home: home} do
+      xdg = Path.join(root, "xdg-data")
+      assert DataDir.default_dir(home, xdg) == Path.join(xdg, "kotiko")
+    end
+
+    test "empty or relative is ignored, as the XDG spec says", %{home: home} do
+      for value <- ["", "relative/data", "~/data"] do
+        assert DataDir.default_dir(home, value) == Path.join(home, ".local/share/kotiko")
+      end
+    end
+
+    test "words already in ~/.local/share/kotiko stay there", %{root: root, home: home} do
+      xdg = Path.join(root, "xdg-data")
+      old = Path.join(home, ".local/share/kotiko")
+      File.mkdir_p!(old)
+      File.write!(DataDir.database(old), "")
+
+      assert DataDir.default_dir(home, xdg) == old
+
+      # Once the new folder has a database of its own, it wins.
+      File.mkdir_p!(Path.join(xdg, "kotiko"))
+      File.write!(DataDir.database(Path.join(xdg, "kotiko")), "")
+      assert DataDir.default_dir(home, xdg) == Path.join(xdg, "kotiko")
+    end
+
+    test "XDG_DATA_HOME set to the usual place is the same folder", %{home: home} do
+      usual = Path.join(home, ".local/share/")
+      assert DataDir.default_dir(home, usual) == Path.join(home, ".local/share/kotiko")
+    end
   end
 
   test "fresh install: creates the folder and nothing else", ctx do
