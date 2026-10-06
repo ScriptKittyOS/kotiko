@@ -11,6 +11,7 @@
 <p align="center">
   <a href="https://github.com/ScriptKittyOS/kotiko/actions/workflows/ci.yml"><img src="https://github.com/ScriptKittyOS/kotiko/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License: Apache-2.0"></a>
+  <a href="https://www.bestpractices.dev/projects/15259"><img src="https://www.bestpractices.dev/projects/15259/badge" alt="OpenSSF Best Practices"></a>
 </p>
 
 Learn a word in any language, and Kotiko slips it into the pages you already read, in
