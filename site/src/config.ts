@@ -17,3 +17,11 @@ export const site = {
   releases: "https://github.com/ScriptKittyOS/kotiko/releases",
   issues: "https://github.com/ScriptKittyOS/kotiko/issues",
 };
+
+// The OpenSSF Best Practices badge (https://www.bestpractices.dev/projects/15259). The site
+// loads nothing from other hosts, so it shows the level as text instead of the live image
+// the README uses: when the entry reaches a new level, change `level` here.
+export const openssf = {
+  level: "silver" as "passing" | "silver" | "gold",
+  url: "https://www.bestpractices.dev/projects/15259",
+};
