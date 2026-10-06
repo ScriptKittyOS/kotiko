@@ -3,12 +3,13 @@
 
 // "Connect OpenRouter" without copying a key (slice 11 section 4): OAuth PKCE with an S256
 // challenge. The background keeps the verifier in the store's secrets (`pkce:pending`, 10
-// minutes); the callback page on the docs site (slice 44, not built yet) is where Kotiko's
-// content script reads `?code=` and sends `{type: "oauth.code", code}`, the one extra
-// content-script message this slice allows, accepted only from that origin. The code is
-// useless without the verifier, which never leaves the background.
+// minutes); the callback page on the docs site (slice 44, site/src/pages/connect/) is where
+// Kotiko's content script for that page (content/connect.js) reads `?code=` and sends
+// `{type: "oauth.code", code}`, the one extra content-script message this slice allows,
+// accepted only from that origin. The code is useless without the verifier, which never
+// leaves the background.
 //
-// The button stays hidden until the docs site serves the callback page; pasting a key is
+// The button stays hidden until the docs site is live at kotiko.org; pasting a key is
 // always available. No DOM, so it runs in the background (globalThis.KotikoPKCE) and in
 // Node tests.
 //

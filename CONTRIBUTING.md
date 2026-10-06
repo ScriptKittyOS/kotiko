@@ -30,8 +30,10 @@ npm run e2e
 ```
 
 To try the extension, open `chrome://extensions`, turn on Developer mode, choose
-**Load unpacked** and pick the `extension` folder. The [README](README.md) covers running
-the server.
+**Load unpacked** and pick the `extension` folder. Running the server is covered at
+[kotiko.org/server](https://kotiko.org/server/), and everything else, including the docs
+site in `site/` (its own `package.json`, build and tests), in
+[Developer setup](https://kotiko.org/contribute/setup/).
 
 ## Rules that protect users
 

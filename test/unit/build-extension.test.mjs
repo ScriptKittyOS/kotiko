@@ -236,7 +236,7 @@ test("the real extension: tools stay out, runtime files go in", () => {
   // Every file the manifest names ships.
   const m = JSON.parse(readFileSync(join(ROOT, "extension/manifest.json"), "utf8"));
   const named = [
-    ...m.background.scripts, m.background.service_worker, ...m.content_scripts.flatMap((c) => [...c.js, ...c.css]),
+    ...m.background.scripts, m.background.service_worker, ...m.content_scripts.flatMap((c) => [...c.js, ...(c.css ?? [])]),
     m.action.default_popup, m.options_ui.page, ...Object.values(m.icons),
   ];
   for (const f of named) assert.ok(files.includes(f), `${f} is in the zip`);

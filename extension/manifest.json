@@ -26,6 +26,11 @@
       ],
       "css": ["content.css"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://kotiko.org/connect/*"],
+      "js": ["lib/i18n.js", "content/connect.js"],
+      "run_at": "document_idle"
     }
   ],
   "options_ui": { "page": "dashboard.html", "open_in_tab": true },

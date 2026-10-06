@@ -5048,5 +5048,21 @@
   "dash_swap_controls_warning": {
     "message": "Voice control commands that use button names may stop working.",
     "description": "Warning under the buttons-and-menus switch while it is on (slice 27 §5, WCAG 2.5.3): a swapped word in a button's name breaks commands like “click Send”."
+  },
+  "connect_working": {
+    "message": "Finishing your sign-in to OpenRouter…",
+    "description": "On the docs site's \"Connect OpenRouter\" return page (kotiko.org/connect/, slice 11 §4), while Kotiko trades the sign-in for a key."
+  },
+  "connect_done": {
+    "message": "Connected. Kotiko now looks words up with OpenRouter's free models. You can close this tab.",
+    "description": "On the docs site's \"Connect OpenRouter\" return page, once the key is saved."
+  },
+  "connect_expired": {
+    "message": "This sign-in has expired. Open Kotiko's settings and select Connect OpenRouter again.",
+    "description": "On the docs site's \"Connect OpenRouter\" return page, when the sign-in was started more than 10 minutes ago or was already used. Keep \"Connect OpenRouter\" as the button says it."
+  },
+  "connect_failed": {
+    "message": "Kotiko couldn't finish connecting to OpenRouter. Try again from Kotiko's settings, or paste a key there instead.",
+    "description": "On the docs site's \"Connect OpenRouter\" return page, when OpenRouter didn't give a key or something else went wrong."
   }
 }

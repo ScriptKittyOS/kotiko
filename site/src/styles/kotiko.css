@@ -1,0 +1,80 @@
+/* SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/*
+ * Slice 06's tokens (extension/ui/tokens.css) mapped onto Starlight's custom properties.
+ * Kotiko purple is #8E5EFA; text and links use the darker or lighter purple from the same
+ * palette that meets WCAG AA on each theme's background. Fonts are the system's own, as in
+ * the extension: nothing is downloaded.
+ */
+
+:root {
+  /* Dark theme (Starlight's default block). */
+  --sl-color-accent-low: #2b2148;
+  --sl-color-accent: #8e5efa;
+  --sl-color-accent-high: #c9bbf7;
+  --sl-color-white: #ffffff;
+  --sl-color-gray-1: #f2eef8;
+  --sl-color-gray-2: #c4bcd4;
+  --sl-color-gray-3: #a39bb5;
+  --sl-color-gray-4: #7e7693;
+  --sl-color-gray-5: #2e2940;
+  --sl-color-gray-6: #1c1928;
+  --sl-color-black: #14121c;
+
+  --sl-font: system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", Roboto, "Noto Sans", Ubuntu,
+    Cantarell, "Helvetica Neue", Arial, sans-serif;
+  --sl-font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", "Noto Sans Mono", Menlo, Consolas,
+    monospace;
+}
+
+:root[data-theme="light"] {
+  --sl-color-accent-low: #efecfe;
+  --sl-color-accent: #7a46e1;
+  --sl-color-accent-high: #4a2499;
+  --sl-color-white: #1f1a2b;
+  --sl-color-gray-1: #2a2338;
+  --sl-color-gray-2: #3d354b;
+  --sl-color-gray-3: #544c63;
+  --sl-color-gray-4: #8a8299;
+  --sl-color-gray-5: #e4dcd0;
+  --sl-color-gray-6: #f3ede4;
+  --sl-color-gray-7: #faf6f0;
+  --sl-color-black: #ffffff;
+}
+
+/* The home page's logo, in its own wide shape. */
+.kotiko-hero-logo {
+  width: 100%;
+  height: auto;
+}
+
+/* Screenshots and illustrations in the text. */
+.sl-markdown-content img {
+  border-radius: 12px;
+}
+.kotiko-demo {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-inline: auto;
+}
+
+/* Store buttons and "coming soon" lines on the install and home pages. */
+.store-list {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+.store-list li {
+  margin: 0;
+}
+.store-soon {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--sl-color-gray-4);
+  border-radius: 999px;
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-2);
+}

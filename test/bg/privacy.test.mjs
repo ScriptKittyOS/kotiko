@@ -84,10 +84,15 @@ describe("requests go only where a Kotiko page said (slice 28 §7)", () => {
     srv.state.log.length = 0;
     evil.state.log.length = 0;
   };
-  const add = async (bg, text) => {
+  const add = async (bg, text, states = ["done", "waiting", "failed"], ms = 5000) => {
     const res = await bg.send({ type: "add", text }, POPUP);
-    return bg.until(() => bg.store.addJobs?.find((j) => j.id === res.job.id && (j.state === "done" || j.state === "waiting" || j.state === "failed")));
+    return bg.until(() => bg.store.addJobs?.find((j) => j.id === res.job.id && states.includes(j.state)), ms);
   };
+  // An add that may first wait: right after a rewrite, the lookup can be refused
+  // (address_changed) before the trusted address is put back, and then finishes once the
+  // queue wakes. Wait for the end, not the first pause.
+  // Under a full parallel run the queue's wake-up can take a few seconds.
+  const finished = (bg, text) => add(bg, text, ["done", "failed"], 20_000);
   // Waiting jobs keep a retry timer; cancel them so the test file can end.
   const FINISHED = new Set(["done", "failed", "cancelled"]);
   const settle = async (bg) => {
@@ -169,14 +174,14 @@ describe("requests go only where a Kotiko page said (slice 28 §7)", () => {
     await bg.send({ type: "backend.set", lookup: { kind: "provider", provider: "custom", baseUrl: srv.llmUrl } });
     await bg.send({ type: "secrets.set", id: "provider:custom", value: KEY });
     await poison(bg, { lookup: { ...bg.store.lookup, baseUrl: evil.llmUrl } });
-    assert.equal((await add(bg, "shukran")).state, "done");
+    assert.equal((await finished(bg, "shukran")).state, "done");
     assert.deepEqual(evil.state.log, []);
     assert.ok(chats(srv).length >= 1 && chats(srv).every((r) => r.auth === `Bearer ${KEY}`));
     assert.equal(bg.store.lookup.baseUrl, srv.llmUrl.replace(/\/+$/, ""));
 
     // A page that names the address (the settings field) moves the route and the key there.
     await bg.send({ type: "backend.set", lookup: { baseUrl: evil.llmUrl } });
-    assert.equal((await add(bg, "kniga")).state, "done");
+    assert.equal((await finished(bg, "kniga")).state, "done");
     assert.ok(chats(evil).length >= 1 && chats(evil).every((r) => r.auth === `Bearer ${KEY}`));
     // Let this background's own work finish, so none of it reaches the next test's log.
     await settle(bg);

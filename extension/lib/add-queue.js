@@ -36,8 +36,9 @@
   // busy provider is never asked in a tight loop.
   const MIN_WAIT_MS = 2_000;
   // Slice 24 section 2: these wait and retry; everything else fails.
-  // address_changed (slice 28 §7): the settings point somewhere the learner didn't choose;
-  // the job waits, untouched, until Kotiko's own settings are saved again.
+  // address_changed (slice 28 §7): the settings pointed somewhere the learner didn't choose.
+  // The background puts the trusted address back at once, so the job tries again shortly
+  // (the gate still sends nothing anywhere else).
   const WAIT = new Set(["offline", "server_unreachable", "rate_limited", "model_unavailable", "lookup_timeout", "quota_exhausted", "user_quota_exhausted", "lookup_not_set_up", "address_changed"]);
   const FINISHED = new Set(["done", "failed", "cancelled"]);
   // Slice 24 section 2: a lookup that finds this many target words asks before saving.
@@ -174,10 +175,12 @@
       const tooLong = now() - job.createdAt > MAX_WAIT_MS;
       if (tooLong) return { ...job, state: "failed", error, finishedAt: now(), retryAt: null };
       const at = Date.parse(error.details?.retry_at ?? "");
-      // No provider yet, or an address to confirm: wait until settings are saved (wake),
-      // not on a timer. Offline: the `online` event wakes it; the alarm looks again after
-      // OFFLINE_MS in case the event came while the worker slept.
-      const retryAt = error.code === "lookup_not_set_up" || error.code === "address_changed" ? null : error.code === "offline" ? now() + OFFLINE_MS : Number.isFinite(at) ? Math.max(at, now() + MIN_WAIT_MS) : now() + BACKOFF_MS[Math.min(job.waits, BACKOFF_MS.length - 1)];
+      // No provider yet: wait until settings are saved (wake), not on a timer. A changed
+      // address retries after MIN_WAIT_MS: the repair's wake can come before this job is
+      // marked waiting, so waiting for a wake alone could wait forever. Offline: the
+      // `online` event wakes it; the alarm looks again after OFFLINE_MS in case the event
+      // came while the worker slept.
+      const retryAt = error.code === "lookup_not_set_up" ? null : error.code === "address_changed" ? now() + MIN_WAIT_MS : error.code === "offline" ? now() + OFFLINE_MS : Number.isFinite(at) ? Math.max(at, now() + MIN_WAIT_MS) : now() + BACKOFF_MS[Math.min(job.waits, BACKOFF_MS.length - 1)];
       return { ...job, state: "waiting", error, retryAt, waits: job.waits + 1 };
     }
 

@@ -5,6 +5,16 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- New documentation site, ready to publish at kotiko.org: install guides for Chrome, Edge,
+  Brave and Firefox (with "coming soon" in place of the store links until the listings are
+  live), how to start with or without an AI key, one guide per word lookup service, help
+  for every message Kotiko can show, the guide to running your own server, and the privacy
+  policy, published from the same file the extension shows so the two can't differ. The
+  site sets no cookies, has no analytics and loads nothing from any other site. It also
+  has the page OpenRouter returns to after "Connect OpenRouter"; Kotiko reads the sign-in
+  code there and nowhere else (the button itself stays hidden until the site is live).
+  The README is now a short introduction that points to the site.
+
 - The Telegram bot no longer assumes you read English. It gives meanings in the languages
   you read: the extension now tells your connected server which ones (and Kotiko's
   interface language, if you chose one), and until it does, the bot uses your Telegram

@@ -1,0 +1,25 @@
+{
+  "name": "kotiko-site",
+  "private": true,
+  "description": "The docs site at https://kotiko.org (slice 44). Development only: nothing here reaches the extension.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "import": "node scripts/import-docs.mjs",
+    "dev": "node scripts/import-docs.mjs && ASTRO_TELEMETRY_DISABLED=1 astro dev",
+    "build": "node scripts/import-docs.mjs && ASTRO_TELEMETRY_DISABLED=1 astro build",
+    "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview",
+    "check": "node scripts/check-dist.mjs",
+    "test": "node --test 'tests/*.test.mjs'",
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@astrojs/starlight": "0.42.5",
+    "@playwright/test": "1.63.0",
+    "astro": "7.3.6",
+    "axe-core": "4.13.0",
+    "sharp": "0.35.5"
+  }
+}

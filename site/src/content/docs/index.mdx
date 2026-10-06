@@ -1,0 +1,99 @@
+---
+title: Kotiko
+description: Kotiko swaps words on the pages you read for the words you're learning, in any language.
+template: splash
+editUrl: false
+hero:
+  title: Read the web in the words you're learning
+  tagline: Learn a word in any language, and Kotiko slips it into the pages you already read, in whatever language you read them.
+  image:
+    html: '<img src="/brand/kotiko-logo-640.webp" width="640" height="347" alt="Kotiko" class="kotiko-hero-logo" />'
+  actions:
+    - text: Install Kotiko
+      link: /install/
+      icon: right-arrow
+    - text: How to start
+      link: /start/
+      variant: minimal
+---
+
+{/* SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors */}
+{/* SPDX-License-Identifier: Apache-2.0 */}
+
+import { Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
+import { Image } from "astro:assets";
+import StoreLinks from "../../components/StoreLinks.astro";
+import hero from "../../assets/brand/hero-words-moon.png";
+
+Kotiko is a browser extension. You read the news, a recipe or a forum as you always do, and
+here and there a word you chose appears in the language you're learning: perro, 猫, спасибо.
+Point at it, or tap it, to see what it means in your language and how it's said.
+
+It works on pages in the languages you read, whichever they are. A reader in Madrid sees
+"perro" become 犬 on Spanish pages; a reader in Toronto sees "dog" become 犬 on English pages.
+Kotiko never assumes you read English.
+
+<details open class="kotiko-demo-box">
+  <summary>Demo: Kotiko on a page (select to hide)</summary>
+  <img
+    class="kotiko-demo"
+    src="/brand/kotiko-demo.gif"
+    width="800"
+    height="407"
+    alt="An article about a morning walk, first as written; then the same page with a few words swapped for the reader's words: perro, agua, 猫, 本, дом, ありがとう; then the card for perro, with its pronunciation PEH-rro, Spanish, and its meaning, dog."
+  />
+</details>
+
+## Three ways to start
+
+<CardGrid>
+  <Card title="Type a word and its meaning" icon="pencil">
+    Write `perro = dog` and it's yours. No account, no key, nothing leaves your browser.
+  </Card>
+  <Card title="Connect a free AI key" icon="rocket">
+    With a free OpenRouter key, ask in your own words: "how do you say cat in Japanese".
+    [Set up OpenRouter](/providers/openrouter/).
+  </Card>
+  <Card title="Use your own model or server" icon="laptop">
+    Another AI service, a model on your own computer, or [your own Kotiko server](/server/)
+    with a Telegram bot.
+  </Card>
+</CardGrid>
+
+[How to start, step by step](/start/)
+
+## Get Kotiko
+
+<StoreLinks />
+
+Until the store listings are live, you can [install Kotiko from its source](/install/#from-source).
+
+## Private by design
+
+- The text of the pages you read never leaves your browser.
+- A word you add goes only to the AI service you chose, or to your own server.
+- Kotiko has no servers of its own, no accounts, no ads and no tracking. Neither does this site.
+
+Read the [privacy policy](/privacy/): it takes about two minutes.
+
+{/* legacy-name-ok-start: Mira is the mascot (slices/05-brand-identity) */}
+
+## Meet Mira
+
+<Image
+  src={hero}
+  width={960}
+  alt="Mira, a black kitten with orange eyes, peeking over a purple moon while greetings in six languages float around her: Hola, Привет, Ciao, 你好, مرحبا, こんにちは."
+/>
+
+Kotiko's mascot is a small black kitten. *Kotiko* bends котик (kotik), Russian for "kitty",
+the way a learner bends a word they're still getting to know. And Mira's name is a clue: in
+Spanish it means "look", in Latin "wonderful", in Russian "of the world" and "of peace".
+[Read the whole story](/why/).
+
+{/* legacy-name-ok-end */}
+
+<CardGrid>
+  <LinkCard title="Get help" description="What a message means and what to do." href="/help/" />
+  <LinkCard title="Contribute" description="Code, translations and ideas are welcome." href="/contribute/" />
+</CardGrid>
