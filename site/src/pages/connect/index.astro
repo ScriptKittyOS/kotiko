@@ -1,0 +1,59 @@
+---
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
+// SPDX-License-Identifier: Apache-2.0
+
+// The page OpenRouter returns to after "Connect OpenRouter" (slice 11 §4):
+// https://kotiko.org/connect/?code=…
+//
+// It has no script of its own and loads nothing but its stylesheet. Kotiko's content script
+// for exactly this origin and path (extension/content/connect.js) reads `?code=` from the
+// address, sends it to Kotiko's background as {type: "oauth.code", code}, and writes the
+// outcome into #kotiko-connect-status. The code is useless without the verifier, which
+// never leaves Kotiko's background. Nothing on this page sends it anywhere: the Content
+// Security Policy below forbids scripts, connections and forms, and `no-referrer` keeps the
+// address out of any link's Referer header.
+//
+// Without Kotiko the page is plain text that explains what to do.
+const csp = [
+  "default-src 'none'",
+  "style-src 'self'",
+  "img-src 'self'",
+  "base-uri 'none'",
+  "form-action 'none'",
+].join("; ");
+---
+
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content={csp} />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="robots" content="noindex" />
+    <title>Connecting to OpenRouter | Kotiko</title>
+    <link rel="icon" href="/brand/icon-32.png" type="image/png" />
+    <link rel="stylesheet" href="/connect.css" />
+  </head>
+  <body>
+    <main>
+      <img src="/brand/icon-128.png" width="64" height="64" alt="" />
+      <h1>Connecting Kotiko to OpenRouter</h1>
+      <p id="kotiko-connect-status" class="status" role="status">
+        If Kotiko is installed in this browser, it is finishing your sign-in now, and this line will say when it's done.
+      </p>
+      <p>
+        If this line doesn't change, Kotiko isn't installed or is turned off in this browser. <a href="/install/"
+          >Install Kotiko</a
+        >, or turn it on, then select <strong>Connect OpenRouter</strong> in Kotiko's settings again. You can also <a
+          href="/providers/openrouter/">paste an OpenRouter key</a
+        > instead.
+      </p>
+      <p class="note">
+        This page has no scripts and sends nothing anywhere. The code in its address only works for the Kotiko that
+        started this sign-in, for 10 minutes.
+      </p>
+      <p class="note"><a href="/">kotiko.org</a> · <a href="/privacy/">Privacy policy</a></p>
+    </main>
+  </body>
+</html>

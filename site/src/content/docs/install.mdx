@@ -1,0 +1,107 @@
+---
+title: Install Kotiko
+description: Install Kotiko in Chrome, Edge, Brave or Firefox, from a store or from its source.
+---
+
+{/* SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors */}
+{/* SPDX-License-Identifier: Apache-2.0 */}
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+import StoreLinks from "../../components/StoreLinks.astro";
+import { stores } from "../../config";
+
+Kotiko runs in Chrome, Edge, Brave and other Chromium browsers, and in Firefox. It's free.
+
+## Chrome, Edge and Brave
+
+<StoreLinks only="chrome" />
+
+{stores.chrome ? (
+  <Steps>
+    <ol>
+      <li>Open <a href={stores.chrome}>Kotiko in the Chrome Web Store</a>. Edge and Brave use the same store.</li>
+      <li>Select <strong>Add to Chrome</strong> (in Edge, <strong>Get</strong>), then <strong>Add extension</strong>.</li>
+      <li>Kotiko opens its welcome page. Follow it to choose your first word: <a href="/start/">Get started</a> explains each step.</li>
+    </ol>
+  </Steps>
+) : (
+  <p>Until then, <a href="#from-source">install it from its source</a>. It takes about two minutes.</p>
+)}
+
+## Firefox
+
+<StoreLinks only="firefox" />
+
+{stores.firefox ? (
+  <Steps>
+    <ol>
+      <li>Open <a href={stores.firefox}>Kotiko on Firefox Add-ons</a>.</li>
+      <li>Select <strong>Add to Firefox</strong>, then <strong>Add</strong>.</li>
+      <li>When Firefox asks, allow Kotiko to access your data on all websites. It needs this to swap words; page text never leaves your browser.</li>
+      <li>Kotiko opens its welcome page: <a href="/start/">Get started</a> explains each step.</li>
+    </ol>
+  </Steps>
+) : (
+  <p>Until then, <a href="#firefox-from-source">try it in Firefox from its source</a>. Firefox removes add-ons installed this way when it restarts.</p>
+)}
+
+## From source
+
+Every release on GitHub has the same packages the stores get. You can install one by hand,
+for example before a store listing exists or to try a new version early. Updates don't
+arrive by themselves this way: install each new release the same way.
+
+### Chrome, Edge and Brave from source
+
+<Steps>
+
+1. Download `kotiko-chrome-<version>.zip` from the [latest release](https://github.com/ScriptKittyOS/kotiko/releases).
+   To make sure it's genuine, see [Checking a download](/install/verify/).
+
+2. Unzip it into a folder you'll keep. The browser loads Kotiko from that folder each time
+   it starts, so don't move or delete it.
+
+3. Open `chrome://extensions` (Edge: `edge://extensions`, Brave: `brave://extensions`).
+
+4. Turn on **Developer mode** (top right in Chrome and Brave, on the left in Edge).
+
+5. Select **Load unpacked** and choose the folder from step 2.
+
+6. Pin Kotiko: select the puzzle piece in the toolbar, then the pin next to Kotiko. Then
+   [get started](/start/).
+
+</Steps>
+
+To update, unzip the new release over the same folder, then select the reload button on
+Kotiko's card in `chrome://extensions`. Keep the same folder: the browser ties the
+extension's settings to it.
+
+### Firefox from source
+
+<Steps>
+
+1. Download `kotiko-firefox-<version>.zip` from the [latest release](https://github.com/ScriptKittyOS/kotiko/releases).
+
+2. Open `about:debugging#/runtime/this-firefox`.
+
+3. Select **Load Temporary Add-on…** and choose the zip file.
+
+4. Open `about:addons`, select Kotiko, open its **Permissions** tab and allow access to all
+   websites.
+
+</Steps>
+
+<Aside type="caution">
+Firefox removes temporary add-ons, and everything they saved, when it restarts. Use this to
+try Kotiko; for everyday use, wait for the Firefox Add-ons listing.
+</Aside>
+
+### From the repository
+
+Developers can load the `extension` folder of a clone of the repository directly. See
+[Developer setup](/contribute/setup/).
+
+## Safari and phones
+
+Firefox for Android and Safari are planned. Follow the
+[roadmap](/contribute/roadmap/) for news.

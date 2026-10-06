@@ -1,0 +1,54 @@
+/* SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+/* The OpenRouter sign-in return page (src/pages/connect/index.astro). Kotiko's palette
+   (extension/ui/tokens.css), system fonts, light and dark. */
+:root {
+  color-scheme: light dark;
+  --canvas: #faf6f0;
+  --ink: #1f1a2b;
+  --ink-2: #544c63;
+  --link: #7a46e1;
+  --soft: #efecfe;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #14121c;
+    --ink: #f2eef8;
+    --ink-2: #c4bcd4;
+    --link: #c9bbf7;
+    --soft: #2b2148;
+  }
+}
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font: 400 1rem/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif;
+}
+main {
+  max-width: 36rem;
+  margin: 0 auto;
+  padding: 3rem 1.25rem;
+}
+h1 {
+  font-size: 1.75rem;
+  line-height: 1.25;
+}
+a {
+  color: var(--link);
+}
+a:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}
+.status {
+  padding: 1rem;
+  border-radius: 12px;
+  background: var(--soft);
+  font-weight: 600;
+}
+.note {
+  color: var(--ink-2);
+  font-size: 0.875rem;
+}

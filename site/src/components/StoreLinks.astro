@@ -1,0 +1,38 @@
+---
+// SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
+// SPDX-License-Identifier: Apache-2.0
+
+// One line per store: a link when the listing is live (src/config.ts), otherwise
+// "Coming soon". `only` shows one store.
+import { stores } from "../config";
+
+interface Props {
+  only?: "chrome" | "firefox";
+}
+const { only } = Astro.props;
+const all = [
+  { id: "chrome", url: stores.chrome, name: "the Chrome Web Store", browsers: "Chrome, Edge, Brave and other Chromium browsers" },
+  { id: "firefox", url: stores.firefox, name: "Firefox Add-ons", browsers: "Firefox" },
+] as const;
+const shown = only ? all.filter((s) => s.id === only) : all;
+---
+
+<ul class="store-list">
+  {
+    shown.map((s) => (
+      <li data-store={s.id}>
+        {s.url ? (
+          <a href={s.url}>
+            Get Kotiko from {s.name}
+          </a>
+        ) : (
+          <span>
+            <strong>Coming soon to {s.name}</strong> <span class="store-soon">Not listed yet</span>
+          </span>
+        )}
+        <br />
+        <span>{s.browsers}</span>
+      </li>
+    ))
+  }
+</ul>

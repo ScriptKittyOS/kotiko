@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Built (2026-10-06), English only, not yet live; see Implementation notes and "Going live" |
 | **Priority** | P1 (soon after release) |
 | **Size** | M (about a week) |
 | **Depends on** | [28-privacy-and-store-readiness](../28-privacy-and-store-readiness/SPEC.md); uses [07](../07-word-model-v2/SPEC.md)'s respelling keys (`spec/lang/<base>/respelling.json`), [05-brand-identity](../05-brand-identity/SPEC.md), [06-design-system](../06-design-system/SPEC.md) and [50](../50-ui-localization-and-base-language/SPEC.md)'s locales, glossary and translation workflow |
@@ -320,3 +320,146 @@ Added by [53](../53-openssf-best-practices/SPEC.md).
 - More docs locales through Weblate, and Spanish for the remaining learner pages.
 - A "what's new" page per release with short clips.
 - Server API reference generated from route definitions.
+
+## Implementation notes
+
+Built 2026-10-06 in English only (DECISIONS 2026-10-05 overrides section 3's Spanish launch
+set and the Spanish acceptance criteria). Nothing is published: Pages, DNS and Cloudflare
+are switched on by the maintainer ("Going live" below).
+
+**What's there.** `site/` is Astro 7.3.6 with Starlight 0.42.5 (exact pins, its own
+`package.json` and lockfile; sharp 0.35.5, Playwright 1.63.0 and axe-core 4.13.0 are dev
+dependencies of the site only). Pages: `/` (what Kotiko is, the demo GIF in an open
+`<details>` so it can be hidden, the three ways to start, the store lines, Mira), `/install/`
+(and `/install/verify/` from `docs/verify.md`), `/start/`, `/use/` (adding words, bulk add,
+languages, sites and pages, your data), `/providers/` plus one page per preset in
+`spec/providers.json`, `/help/` and `/help/errors/` (one anchor per slice 25 code),
+`/server/` (start, service, Telegram, remote access, models, updates and backups, the
+configuration and API references), `/privacy/`, `/why/`, `/changelog/`, `/contribute/`
+(CONTRIBUTING.md, developer setup, architecture, coding standards, governance, roadmap,
+security requirements, assurance case), `/connect/`, and redirects from `/troubleshooting/`,
+`/download/` and `/errors/`.
+
+**One source per document.** `site/scripts/import-docs.mjs` runs before every build and
+writes git-ignored copies of the privacy policy, the two references, `docs/verify.md`, the
+story, the changelog and the contributor documents into `src/content/docs/`, rewriting
+relative links to the page that publishes the target or to the file on GitHub; a missing
+source fails the build. It also copies the brand files the site shows from `brand/` (so the
+site keeps no copies in git) and writes a 640 px WebP of the wide logo for the home page.
+Markdown smart quotes are off so the policy reads exactly as written.
+
+**Store links.** `site/src/config.ts` has `stores.chrome` and `stores.firefox`, both `null`.
+While null, the install and home pages say "Coming soon to the Chrome Web Store" / "Coming
+soon to Firefox Add-ons"; setting the URL is the whole change. The README's two "coming
+soon" lines are plain text and need the same one-line edit each.
+
+**The sign-in return page.** `/connect/` is a standalone page with no script (Starlight's
+link prefetching is turned off site-wide so nothing is injected), its own CSP
+(`default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action
+'none'`), `no-referrer` and `noindex`. Without Kotiko it is plain instructions. The
+extension had only the receiving half (`oauth.code` in `background.js`, `lib/pkce.js`);
+slice 11 §4 says Kotiko's content script reads the code, and none did. This slice adds
+`extension/content/connect.js` as its own `content_scripts` entry matching only
+`https://kotiko.org/connect/*` (no new permission; a justification row in
+`store/chrome-web-store.md`), with four strings (`connect_*`). It sends `{type:
+"oauth.code", code}`, writes the outcome into `#kotiko-connect-status`, and then removes the
+code from the address. The "Connect OpenRouter" button stays hidden: showing it is slice
+11's call once the site is live.
+
+**Privacy of the site.** No cookies, analytics, web fonts or embeds. Every Starlight page
+carries a CSP `<meta>` allowing only the site itself (`'unsafe-inline'` for Starlight's
+inline scripts and style attributes, `'wasm-unsafe-eval'` for Pagefind search). Astro's own
+hashed CSP was tried and dropped: Starlight relies on `style="…"` attributes that hashes
+can't allow. Astro telemetry is disabled in every npm script and in CI. The footer says
+GitHub Pages and Cloudflare see visitors' IP addresses; the policy text itself (slice 28)
+doesn't mention the site yet, so section 8's "the privacy policy says so" is open for
+slice 28.
+
+**Checks.** `npm run check` (`scripts/check-dist.mjs`, no dependencies): every path and
+anchor in `stable-urls.txt`, every `/help/errors/#<code>` for the codes in
+`extension/lib/errors.js`, every `/providers/<id>/`, every internal link and anchor, no
+external `src`/`srcset`/stylesheet/icon/preload or CSS `url()`/`@import`, and `CNAME`.
+`npm test`: the privacy page shows the same blocks in the same order as the extension's
+`privacy.html` renders from its copy (via `lib/policy.js`), `/connect/` is at
+`KotikoPKCE.CALLBACK_URL` and has no script and a strict CSP, the store lines follow
+`config.ts`, the importer's link rewriting, the checker catching each kind of problem, and
+every README link. `npm run e2e`: every built page in Chromium, light and dark, axe WCAG
+2.0 to 2.2 A and AA (none found at all, not only none serious), no request to any other
+host (blocked and logged), nothing refused by the CSP; search works; `/connect/` without
+Kotiko. In the extension's suite, `test/e2e/connect.spec.mjs` runs the whole hand-off with
+the unpacked extension: `oauth.start`, the return page, the stubbed key exchange, the key
+saved and OpenRouter chosen; an expired sign-in; and the same path on another site ignored.
+`.github/workflows/site.yml` runs all of that on pull requests touching the site or what
+it publishes.
+
+**Deviations.**
+- Errors live at `/help/errors/#<code>` as section 2 says; `/troubleshooting/` redirects to
+  `/help/`. Each code's heading is an `<h3 id="code">` so the anchors equal the codes; the
+  page's table of contents lists its groups.
+- No `/help/faq/` page: its few answers are on `/help/`.
+- The README's quick-start link is `/start/` as section 9 asks; `stable-urls.txt` lists it.
+- The README's `#updating-from-slovo` anchor still works (a short section); the full steps
+  are at `/server/updates/#updating-from-slovo`.
+- `public/CNAME` is there as asked, but GitHub ignores it for Actions deployments: the
+  custom domain is set in the repository's Pages settings.
+- The deploy runs only on a push to `main` that touches the site's paths, with
+  `PAGES_ENABLED` set to `'true'`; there is no manual trigger.
+
+**Deferred.**
+- `/use/pronunciations/` (section 2's seven sections and the tables generated from
+  `respelling.json`), the per-locale screenshots script (section 6), the `since:` front
+  matter (section 7), the bestpractices.dev footer badge (no entry exists yet), lychee
+  external link checks, and the "Why Kotiko?" page rendering per locale.
+- Spanish and other locales: the config has only the root locale; adding one is a
+  `locales` entry plus pages under `src/content/docs/<locale>/`. The custom `/connect/` page
+  and the store component are English.
+- The extension doesn't link to the site yet ("Learn more" from slice 25, the privacy
+  fallback already names kotiko.org/privacy).
+- The two people-outside-the-project checks and following each provider page end to end
+  with a real account (acceptance criteria) are for the maintainer before launch. Provider
+  pages were written from `spec/providers.json` and the dashboard's strings; OpenRouter's
+  limits were checked on its docs on 2026-10-06.
+
+### Going live
+
+For the maintainer, in this order. Nothing here is done yet.
+
+1. **Verify the domain for the organization** (prevents another account claiming it):
+   GitHub, ScriptKittyOS organization settings, Pages, "Add a domain", `kotiko.org`. GitHub
+   shows a TXT record to add in Cloudflare DNS: name `_github-pages-challenge-ScriptKittyOS`,
+   value as shown. Wait for "Verified".
+2. **DNS in Cloudflare** for `kotiko.org`, at first **DNS only** (grey cloud) so GitHub can
+   issue its certificate:
+   - `A` `@` → `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`
+   - `AAAA` `@` → `2606:50c0:8000::153`, `2606:50c0:8001::153`, `2606:50c0:8002::153`,
+     `2606:50c0:8003::153`
+   - `CNAME` `www` → `scriptkittyos.github.io`
+3. **Repository Pages settings** (Settings, Pages): Source "GitHub Actions"; Custom domain
+   `kotiko.org`, Save; once the certificate is issued (can take up to a day), tick
+   "Enforce HTTPS". The `github-pages` environment is created on the first deploy; keep
+   its deployment branch rule to `main`.
+4. **Switch the deploy on**: Settings, Secrets and variables, Actions, Variables, new
+   repository variable `PAGES_ENABLED` = `true`. The next push to `main` that touches the
+   site deploys it (merging this slice's PR after setting the variable does).
+5. **Check it**: `https://kotiko.org/`, `/privacy/`, `/connect/` and `/help/errors/#offline`
+   load; `https://scriptkittyos.github.io/kotiko/` redirects to `kotiko.org`.
+6. **Then turn on Cloudflare's proxy** (orange cloud) for the `A`, `AAAA` and `www` records,
+   with SSL/TLS mode **Full (strict)**, and add the headers from slice 53 §8:
+   - SSL/TLS, Edge Certificates: Always Use HTTPS on; HSTS on (`max-age` 1 year,
+     include subdomains only if every subdomain serves HTTPS).
+   - Rules, Transform Rules, "Modify response header" for hostname `kotiko.org`:
+     `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy:
+     no-referrer`, and `Content-Security-Policy: default-src 'self'; script-src 'self'
+     'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self'
+     data:; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'`
+     (the site's `<meta>` policy plus `frame-ancestors`). A second rule, before it, for
+     URI path `/connect/`: `Content-Security-Policy: default-src 'none'; style-src 'self';
+     img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`.
+   - Keep off everything that adds scripts or third-party requests to pages: Web Analytics
+     (and its automatic setup), Rocket Loader, Email Address Obfuscation (it injects a
+     script on pages with an email address, like `/privacy/`), Zaraz, and any app or
+     "Speed" feature that rewrites HTML.
+7. **Afterwards**: run the site's checks against the live host (or open each page with the
+   browser's network panel) to confirm nothing else is loaded; then slice 11 can show the
+   "Connect OpenRouter" button, and the store listings' support and privacy URLs work.
+

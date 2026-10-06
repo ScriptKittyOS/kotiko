@@ -1,0 +1,32 @@
+# Paths the extension, the store listings, the README or other people may link to (slice
+# 44 §2). `npm run check` fails if the build no longer has one, or a listed #anchor. A page
+# that moves keeps its old path as a redirect in astro.config.mjs.
+#
+# Every /help/errors/#<code> anchor for slice 25's codes (extension/lib/errors.js) and every
+# /providers/<id>/ page for spec/providers.json are checked as well, without being listed.
+/
+/install/
+/install/#from-source
+/install/verify/
+/start/
+/privacy/
+/privacy/#changelog
+/help/
+/help/errors/
+/connect/
+/providers/
+/use/adding-words/
+/use/bulk-add/
+/use/languages/
+/use/sites/
+/use/your-data/
+/server/
+# legacy-name-ok: the README linked to this section before the rename
+/server/updates/#updating-from-slovo
+/server/configuration/
+/server/api/
+/contribute/
+/contribute/setup/
+/changelog/
+/why/
+/troubleshooting/

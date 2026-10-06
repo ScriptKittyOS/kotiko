@@ -1,0 +1,24 @@
+# Build output and Astro's cache
+dist/
+.astro/
+node_modules/
+test-results/
+playwright-report/
+
+# Written by scripts/import-docs.mjs from the repository's own files before every build.
+# Edit the sources (docs/, CHANGELOG.md, CONTRIBUTING.md, ...), not these.
+src/assets/brand/
+public/brand/
+src/content/docs/privacy.md
+src/content/docs/why.md
+src/content/docs/changelog.md
+src/content/docs/install/verify.md
+src/content/docs/server/configuration.md
+src/content/docs/server/api.md
+src/content/docs/contribute/index.md
+src/content/docs/contribute/architecture.md
+src/content/docs/contribute/coding-standards.md
+src/content/docs/contribute/governance.md
+src/content/docs/contribute/roadmap.md
+src/content/docs/contribute/security-requirements.md
+src/content/docs/contribute/assurance-case.md

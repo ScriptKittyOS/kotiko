@@ -21,6 +21,11 @@ export default [
       "playwright-report/",
       "blob-report/",
       "test/fixtures/vendor/",
+      // The docs site's build output and caches (slice 44).
+      "site/dist/",
+      "site/.astro/",
+      "site/test-results/",
+      "site/playwright-report/",
     ],
   },
   js.configs.recommended,
@@ -65,7 +70,7 @@ export default [
   {
     // Callbacks passed to page.evaluate() run in the browser. Playwright fixtures must
     // destructure their first argument, even when it's empty.
-    files: ["test/e2e/**/*.mjs", "test/visual/**/*.mjs", "test/helpers/axe.mjs", "test/helpers/a11y-checks.mjs"],
+    files: ["test/e2e/**/*.mjs", "test/visual/**/*.mjs", "test/helpers/axe.mjs", "test/helpers/a11y-checks.mjs", "site/tests/**/*.spec.mjs"],
     languageOptions: { globals: { ...globals.node, ...globals.browser, ...globals.webextensions } },
     rules: { "no-empty-pattern": ["error", { allowObjectPatternsAsParameters: true }] },
   },

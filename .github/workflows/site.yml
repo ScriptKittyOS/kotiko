@@ -1,0 +1,112 @@
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The docs site at https://kotiko.org (slice 44): build and check it on every pull request
+# that touches it or a file it publishes; on main, also deploy it to GitHub Pages, but only
+# once the repository variable PAGES_ENABLED is 'true' (Settings, Secrets and variables,
+# Actions, Variables). Until Pages is switched on, main runs the same checks and deploys
+# nothing. The steps to go live are in slices/44-docs-site/SPEC.md, "Going live".
+name: Site
+
+on:
+  pull_request:
+    paths:
+      - "site/**"
+      - "docs/**"
+      - "brand/**"
+      - "CHANGELOG.md"
+      - "CONTRIBUTING.md"
+      - "GOVERNANCE.md"
+      - "ROADMAP.md"
+      - "extension/lib/errors.js"
+      - "extension/lib/pkce.js"
+      - "extension/lib/policy.js"
+      - "extension/privacy/**"
+      - "spec/providers.json"
+      - "scripts/sync-privacy.mjs"
+      - ".github/workflows/site.yml"
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "docs/**"
+      - "brand/**"
+      - "CHANGELOG.md"
+      - "CONTRIBUTING.md"
+      - "GOVERNANCE.md"
+      - "ROADMAP.md"
+      - "extension/lib/errors.js"
+      - "extension/lib/pkce.js"
+      - "extension/lib/policy.js"
+      - "extension/privacy/**"
+      - "spec/providers.json"
+      - "scripts/sync-privacy.mjs"
+      - ".github/workflows/site.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-${{ github.ref }}
+  # A newer pull request push replaces the old run; a deploy is never cut off halfway.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  ASTRO_TELEMETRY_DISABLED: "1"
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # The extension's copy of the privacy policy matches the one this site publishes.
+      - run: node scripts/sync-privacy.mjs --check
+        working-directory: .
+      - run: npm run build
+      # Stable URLs, error anchors, provider pages, internal links, no third-party loads.
+      - run: npm run check
+      - run: npm test
+        env:
+          SITE_SKIP_BUILD: "1"
+      # Every page in light and dark: axe, the request log, the Content Security Policy.
+      - run: npm run e2e
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: site-playwright-report
+          path: |
+            site/playwright-report/
+            site/test-results/
+          retention-days: 7
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.PAGES_ENABLED == 'true'
+        with:
+          path: site/dist
+
+  deploy:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.PAGES_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
