@@ -1,6 +1,6 @@
 # Kotiko privacy policy
 
-Version 1 · 5 October 2026
+Version 2 · 6 October 2026
 
 Kotiko is a browser extension that swaps words on the web pages you read for words you're
 learning in other languages. This page says exactly what it keeps, what it sends, and to
@@ -68,6 +68,16 @@ privacy policy applies to what it receives:
 Kotiko also asks the service for its list of models (with OpenRouter, its free models),
 and OpenRouter for how many free lookups you have left today. "Test" in the settings
 sends the word "hello".
+
+**Connecting OpenRouter.** If you choose "Connect OpenRouter", Kotiko opens OpenRouter's
+sign-in page, where you sign in to OpenRouter directly; Kotiko never sees your OpenRouter
+password. OpenRouter then sends your browser to <https://kotiko.org/connect/> with a
+one-time code in the page address. That page is part of Kotiko's website: it sets no
+cookies, loads nothing from other sites, and only shows the sign-in's progress. Kotiko
+reads the code there and trades it with OpenRouter for your key, which it keeps as
+described below. The code works only once, expires after ten minutes, and is useless
+without a second secret that never leaves your browser. Like any website, kotiko.org's
+hosts (GitHub Pages and Cloudflare) see each visit, including that address.
 
 **Pronunciations from Wiktionary.** For a word in a language with word stress (such as
 Russian, Ukrainian or Spanish), Kotiko asks English Wiktionary, run by the Wikimedia
@@ -158,4 +168,6 @@ everything in Kotiko's Settings.
 
 ## Changelog
 
+- **Version 2, 6 October 2026.** Added "Connecting OpenRouter": the one-time sign-in code
+  passes through kotiko.org.
 - **Version 1, 5 October 2026.** First version.

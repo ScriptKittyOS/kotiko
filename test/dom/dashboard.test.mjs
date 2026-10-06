@@ -1115,6 +1115,9 @@ describe("Word lookups and the words' home (slice 11)", () => {
         case "backend.test":
           b.sent.push(clone(msg));
           return { ok: true, model: "fake/model-a:free", ms: 1234, quota: { remaining: 41, limit: 50 } };
+        case "oauth.start":
+          b.sent.push(clone(msg));
+          return st.oauthError ? { error: "Couldn't reach OpenRouter.", code: "offline" } : { ok: true, url: "https://openrouter.ai/auth?callback_url=https%3A%2F%2Fkotiko.org%2Fconnect%2F" };
         case "migrate.preview":
           b.sent.push(clone(msg));
           return { to: msg.to, count: 23, server: st.server.url };
@@ -1149,6 +1152,9 @@ describe("Word lookups and the words' home (slice 11)", () => {
     assert.equal(d.text("#providerNote"), "Free models by default. A key with a credit limit is the safest choice.");
     assert.equal(d.text("#lookupState"), "Paste a key to start looking words up.");
     assert.equal(d.$("#dataCollectionRow").hidden, false);
+    assert.equal(d.$("#oauthRow").hidden, false, "Connect OpenRouter is shown now that kotiko.org/connect/ is live");
+    assert.equal(d.text("#connectOpenRouter"), "Connect OpenRouter");
+    assert.equal(d.text("#oauthHelp"), "Sign in to OpenRouter in a new tab and Kotiko gets a key, with nothing to copy. Or paste a key below.");
 
     d.$("#lookupKey").value = "sk-or-v1-abcdefghijklmnopqrstuvwxyz-a1b2";
     d.$("#saveKey").click();
@@ -1157,6 +1163,7 @@ describe("Word lookups and the words' home (slice 11)", () => {
     assert.equal(d.$("#lookupKey").value, "", "the page keeps nothing");
     assert.equal(d.text("#lookupKeyMasked"), "Saved key: sk-or-…a1b2");
     assert.equal(d.$("#lookupKeyEntry").hidden, true);
+    assert.equal(d.$("#oauthRow").hidden, true, "a saved key hides Connect OpenRouter");
     assert.equal(d.text("#lookupState"), "Ready to look words up.");
     assert.equal(d.$("#banners").children.length, 0, "the banner goes once lookups work");
     assert.equal(JSON.stringify(d.store).includes("abcdefghijklmnop"), false, "never in storage");
@@ -1167,10 +1174,51 @@ describe("Word lookups and the words' home (slice 11)", () => {
 
     d.$("#replaceKey").click();
     assert.equal(d.$("#lookupKeyEntry").hidden, false);
+    assert.equal(d.$("#oauthRow").hidden, false, "replacing the key offers Connect OpenRouter again");
     d.$("#removeKey").click();
     await d.settle();
     assert.deepEqual(backend.sent.find((m) => m.type === "secrets.remove"), { type: "secrets.remove", id: "provider:openrouter" });
     assert.equal(d.text("#lookupState"), "Paste a key to start looking words up.");
+  });
+
+  test("Connect OpenRouter: the sign-in opens in a new tab, the section waits, and the key arriving from the return page shows masked", async () => {
+    const backend = withSettings(fakeBackend(), { ...LOCAL, lookup: { ...LOCAL.lookup, kind: "provider" } });
+    const d = await openDashboard({ local: LOCAL, hash: "#settings/lookups", backend });
+    assert.equal(d.$("#oauthRow").hidden, false);
+    d.$("#connectOpenRouter").click();
+    await d.settle();
+    assert.deepEqual(backend.sent.filter((m) => m.type === "oauth.start"), [{ type: "oauth.start" }]);
+    assert.equal(d.text("#lookupState"), "Waiting for OpenRouter… Finish signing in on the other tab.");
+    assert.equal(d.$("#lookupKeyEntry").hidden, false, "pasting a key stays available while waiting");
+
+    // The background traded the return page's code for a key: it saves it and says so in storage.
+    backend.st.masked["provider:openrouter"] = "sk-or-…c3d4";
+    backend.st.keys.providers.openrouter = true;
+    await d.fake.chrome.storage.local.set({ keys: clone(backend.st.keys), lookup: clone(backend.st.lookup) });
+    await d.settle(10);
+    assert.equal(d.text("#lookupKeyMasked"), "Saved key: sk-or-…c3d4");
+    assert.equal(d.$("#oauthRow").hidden, true);
+    assert.equal(d.text("#lookupState"), "Ready to look words up.");
+    assert.match(d.text("#toasts") ?? d.doc.body.textContent, /Connected to OpenRouter\./);
+  });
+
+  test("Connect OpenRouter: a sign-in that can't start says why; choosing another service stops waiting", async () => {
+    const backend = withSettings(fakeBackend(), { ...LOCAL, lookup: { ...LOCAL.lookup, kind: "provider" } });
+    backend.st.oauthError = true;
+    const d = await openDashboard({ local: LOCAL, hash: "#settings/lookups", backend });
+    d.$("#connectOpenRouter").click();
+    await d.settle();
+    assert.equal(d.$("#lookupState .conn-bad") !== null, true);
+    assert.doesNotMatch(d.text("#lookupState"), /Waiting for OpenRouter/);
+
+    backend.st.oauthError = false;
+    d.$("#connectOpenRouter").click();
+    await d.settle();
+    assert.equal(d.text("#lookupState"), "Waiting for OpenRouter… Finish signing in on the other tab.");
+    d.$$("#providerOptions [role=radio]")[1].click();
+    await d.settle();
+    assert.equal(d.$("#oauthRow").hidden, true, "only OpenRouter has the sign-in");
+    assert.doesNotMatch(d.text("#lookupState"), /Waiting for OpenRouter/);
   });
 
   test("Ollama needs no key, shows its one setting and an editable address; the model is optional", async () => {

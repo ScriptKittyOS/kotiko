@@ -2840,11 +2840,7 @@
   },
   "welcome_ai_connect": {
     "message": "Connect OpenRouter (free)",
-    "description": "One-click sign-in with OpenRouter (slice 11 §4). Shown once the docs site's callback page exists."
-  },
-  "welcome_ai_paste_primary": {
-    "message": "Paste an OpenRouter key (free)",
-    "description": "The main button of the AI step while the one-click connect isn't available: opens the key field."
+    "description": "One-click sign-in with OpenRouter (slice 11 §4)."
   },
   "welcome_ai_paste": {
     "message": "Paste a key instead",
@@ -5064,5 +5060,25 @@
   "connect_failed": {
     "message": "Kotiko couldn't finish connecting to OpenRouter. Try again from Kotiko's settings, or paste a key there instead.",
     "description": "On the docs site's \"Connect OpenRouter\" return page, when OpenRouter didn't give a key or something else went wrong."
+  },
+  "welcome_ai_waiting": {
+    "message": "Waiting for OpenRouter… Finish signing in on the other tab.",
+    "description": "Welcome tab, under Connect OpenRouter while OpenRouter's sign-in tab is open (slice 22 §4)."
+  },
+  "dash_connect_openrouter": {
+    "message": "Connect OpenRouter",
+    "description": "Settings, Word lookups, with OpenRouter chosen: opens OpenRouter's sign-in in a new tab; the key arrives without copying it (slice 11 §4)."
+  },
+  "dash_connect_openrouter_help": {
+    "message": "Sign in to OpenRouter in a new tab and Kotiko gets a key, with nothing to copy. Or paste a key below.",
+    "description": "Settings, Word lookups: next to Connect OpenRouter (slice 11 §4)."
+  },
+  "dash_connect_waiting": {
+    "message": "Waiting for OpenRouter… Finish signing in on the other tab.",
+    "description": "Settings, Word lookups: status line while OpenRouter's sign-in tab is open (slice 11 §4)."
+  },
+  "dash_connect_done": {
+    "message": "Connected to OpenRouter.",
+    "description": "Settings: short notice when the Connect OpenRouter sign-in finished in the other tab (slice 11 §4)."
   }
 }

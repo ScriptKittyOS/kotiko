@@ -6,8 +6,9 @@
 //
 // 1. The languages they read: detected from the browser (slice 50), confirmed by doing
 //    nothing; ticking and unticking writes them at once.
-// 2. Their own AI (slice 11): a pasted OpenRouter key, another service or a local model, or
-//    their Kotiko server; each checked once. Or no AI at all.
+// 2. Their own AI (slice 11): Connect OpenRouter (its sign-in in a new tab), a pasted
+//    OpenRouter key, another service or a local model, or their Kotiko server; each checked
+//    once. Or no AI at all.
 // 3. The first word: anything the add box takes. "native = meaning" is parsed here, with
 //    no model and no network. Everything else is looked up with `words.preview`, which
 //    saves nothing; only "Make it my first word" saves (`words.save`).
@@ -49,7 +50,7 @@
     detected: [],
     ui: {},
     backend: null,
-    check: null, // { status: "busy" | "ok" | "bad", panel, text }
+    check: null, // { status: "busy" | "ok" | "bad", panel, text }; panel "connect" is the sign-in
     panel: null, // "paste" | "other" | "server"
     changing: false,
     aiSkipped: false,
@@ -316,7 +317,7 @@
       $(btn).setAttribute("aria-expanded", String(state.panel === panel));
     }
     renderOther();
-    for (const panel of ["paste", "other", "server"]) renderStatus(panel);
+    for (const panel of ["connect", "paste", "other", "server"]) renderStatus(panel);
     renderAskExtras();
   }
 
@@ -365,6 +366,28 @@
     // The key stays saved: an offline learner can finish, and Kotiko checks again on use.
     retryPending();
     return false;
+  }
+
+  // Connect OpenRouter (11 §4): the background keeps the PKCE verifier and opens OpenRouter's
+  // sign-in in a new tab. OpenRouter returns to kotiko.org/connect/, whose content script
+  // hands the code to the background; this page learns the key arrived when `lookup` and
+  // `keys` change (onStorage). Until then it says it's waiting, and every other way to
+  // connect still works. Selecting it again starts a new sign-in.
+  async function connectOpenRouter() {
+    state.panel = null;
+    const res = await call({ type: "oauth.start" });
+    state.check = failed(res) ? { status: "bad", panel: "connect", text: problemText(codeOf(res), detailsOf(res)) } : { status: "busy", panel: "connect", text: t("welcome_ai_waiting") };
+    renderAi();
+    announce(state.check.text);
+  }
+
+  // The sign-in finished on the other tab: OpenRouter now looks words up.
+  function connectArrived() {
+    if (state.check?.panel !== "connect" || state.check.status !== "busy") return;
+    if (!ready() || state.backend?.lookup?.provider !== "openrouter") return;
+    state.check = { status: "ok", panel: "connect", text: connectedText() };
+    state.changing = false;
+    announce(connectedText());
   }
 
   // Saves a pasted key for a provider (11 §3: the background keeps it; this page never sees
@@ -1013,6 +1036,7 @@
       if (changes.prefs) state.prefs = changes.prefs.newValue ?? {};
       if (changes.lookup || changes.keys || changes.wordsHome || changes.server) {
         refreshBackend().then(() => {
+          connectArrived();
           renderAi();
           retryPending();
         });
@@ -1088,6 +1112,7 @@
     });
     $("skip").addEventListener("click", skip);
     $("allow").addEventListener("click", allow);
+    $("aiConnect").addEventListener("click", connectOpenRouter);
     $("aiPaste").addEventListener("click", () => openPanel("paste"));
     $("aiOther").addEventListener("click", () => openPanel("other"));
     $("aiServer").addEventListener("click", () => openPanel("server"));
@@ -1103,7 +1128,7 @@
       state.aiSkipped = false;
       state.check = null;
       renderAi();
-      $("aiPaste").focus();
+      $("aiConnect").focus();
     });
     $("pasteShow").addEventListener("click", () => {
       const input = $("pasteKey");
