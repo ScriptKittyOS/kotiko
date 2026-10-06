@@ -1009,7 +1009,8 @@ describe("Languages you read in (slice 50 §2)", () => {
 
   test("a change from the welcome tab or another device shows at once", async () => {
     const d = await open();
-    await d.fake.chrome.storage.sync.set({ ui: { ...UI, baseLangs: ["es"] } });
+    // The background's copy changes (SCR-448: pages read `ui` from storage.local).
+    await d.fake.chrome.storage.local.set({ ui: { ...UI, baseLangs: ["es"] } });
     await d.settle();
     assert.deepEqual(langs(d), ["es"]);
   });

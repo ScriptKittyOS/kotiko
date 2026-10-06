@@ -520,12 +520,87 @@ The fix binds the destination, not the secret:
 - **Proof.** `test/bg/privacy.test.mjs` (9 tests) and the e2e cases fail on the previous
   code.
 
-**Still open.** Content scripts can still write the other settings in `storage.local`:
-turn Kotiko off, pause sites, edit the cached page list, or add an entry to `addJobs`,
-which the queue would look up with the learner's own service and save. None sends
-anything to a new destination; fixing them means moving those settings and the queue
-out of `storage.local` (slices 11 and 24's design). An install updating from a version
-before this one trusts its settings' addresses once, at that moment.
+**Settings content scripts could change, fixed after (SCR-448, 2026-10-06).** The fix
+above left the other settings in `storage.local` writable by content scripts: turn Kotiko
+off, pause sites, hide languages, edit the cached page list, add an entry to `addJobs`
+(which the queue would look up with the learner's own service and save), or change the
+bases and trigger a sync that pushes them as the profile to the learner's server. Also
+the lookup's model, data policy and kind, and `wordsHome`.
+
+Primary sources, checked 2026-10-06:
+
+- Chrome's [storage API](https://developer.chrome.com/docs/extensions/reference/api/storage)
+  and Chromium's schema (`extensions/common/api/storage.json`): `local` and `sync` are
+  open to content scripts by default; `setAccessLevel` sets an area's level, stored in the
+  extension's prefs (`storage_utils.cc` `SetAccessLevelForArea`), so it outlasts restarts.
+- MDN [browser-compat-data](https://github.com/mdn/browser-compat-data/blob/main/webextensions/api/storage.json)
+  (mdn/browser-compat-data#29536, from [crbug 40949182](https://issues.chromium.org/issues/40949182)):
+  `setAccessLevel` works on `session` from Chrome 102 and on every area from Chrome 140.
+  Slice 11 §2's "Chrome 102+" for `local` was about `session` only.
+- Firefox: not implemented ([bug 1724754](https://bugzil.la/1724754), open); its schema
+  (`toolkit/components/extensions/schemas/storage.json`) allows the `storage` namespace
+  in content scripts and limits only `session` to privileged contexts. So content
+  scripts can write `local` and `sync` in Firefox, and nothing can stop them.
+
+Design: one that works in both, since Firefox can't close `storage.local` and content
+scripts need to read it.
+
+- **The trusted copy.** `lib/settings.js` `createArea`:
+  - every key Kotiko keeps in `storage.local` is a row `area:<key>` in the store's `meta`
+    (no new database version); the background reads only from there;
+  - a write goes to `meta` first, then to `storage.local`;
+  - `heal` compares `storage.local` with it, puts back differing values, removes keys it
+    doesn't hold, and restores ones removed. It runs on every `storage.onChanged` and at
+    each start of the background. Values are compared with sorted keys, since Chrome hands
+    objects back in its own key order; equal values are left alone, so it can't loop.
+  - Writes and heals run one at a time, so a heal never puts back a value a write just
+    replaced. Reads wait for the one-time adoption below.
+- **Page changes.** `settings.set` (pages only): `set`, `merge`, `add`, `remove` on an
+  allowlist (`enabled`, `pausedHosts`, `hiddenLangs`, `baseLangs`, `mixing`, `prefs`,
+  `speech`, `onboarding`, `backupSnooze`, `ui`), each with its shape and size checked
+  (`edit`). The popup, the dashboard, the welcome page and the backup restore
+  (`settings.restore`, through `settingsPatch`) use it; the bulk sheet's undo record moved
+  to `storage.session`. Bases changed in `ui` are written to the pages' `baseLangs` and to
+  `storage.sync`. Pages read `ui` from `storage.local` (the background's copy), not from
+  `storage.sync`.
+- **Content scripts** write nothing; the word card's "Don't swap this word" is the
+  `neverSwap` message, one word at a time.
+- **storage.sync.** Chrome 140+: the background closes it to content scripts
+  (`setAccessLevel({accessLevel: "TRUSTED_CONTEXTS"})`, at each start); a change there is
+  then Kotiko's, here or on another device, and is taken (`adoptSync`). Elsewhere it isn't:
+  this browser keeps its own `ui` and seed salt, and never overwrites another device's.
+- **Adoption, once** (`adoptOnce`, marker `settingsTrusted`):
+  - a new store (an install, or after "delete everything") takes nothing from
+    `storage.local`, only `ui` and the seed salt from `storage.sync`, as the first run did;
+  - an install from before takes `storage.local`'s Kotiko keys as they are.
+  - A brand-new install where planted 0.2 keys made the upgrade adopt (`discardPlanted`)
+    drops everything adopted, every lookup route and the chosen service, not only the
+    server's.
+- **The one-time trust at upgrade.** What an older install's `storage.local` holds can't
+  be told apart from what a content script wrote, so it is taken once (as the route
+  upgrade above takes addresses).
+  - What could be closed is: a pre-28 install's lookup address for a hosted service is
+    dropped, since no page shows an address field for one (dashboard and welcome show it
+    only for local services and "custom");
+  - a server address and a local or custom service's address are visible in Settings and
+    kept.
+  - No release exists, so only builds from source take this path.
+
+Tests: `test/bg/settings.test.mjs` (a test per attack, each failing on the previous code;
+pages still can; upgrades), `test/unit/settings.test.mjs`, and a Chromium e2e case in
+`test/e2e/privacy.spec.mjs` from the real content-script world (values put back, no
+rewrite loop, the planted job spends no lookup, `storage.sync` refuses the write). Tests
+that set up state now go through `settings.set` or the background's `seed` hook
+(`globalThis.__kotiko.seed`, which only the background's own context can reach), and DOM
+tests without a background get `settings.set` answered by the fake chrome. The
+`test/visual/` scripts seed the same way.
+
+**Still open.**
+
+- "Don't swap this word" stays a content-script message by design.
+- Other open pages can act for a moment on a value a content script wrote, until it is put
+  back (repeatedly, if it writes in a loop); nothing is saved or sent.
+- In Firefox, base languages changed on another device don't follow.
 
 **§8 Listing and assets.** `store/listing/en.json` (description opening with slice 05's
 short listing line, five captions, promo text); `store/assets.md` (sizes, what exists,

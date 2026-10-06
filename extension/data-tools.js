@@ -59,15 +59,10 @@
 
     // ── exports ────────────────────────────────────────────────────────
 
+    // storage.local holds the background's copy of every setting, `ui` (storage.sync's) too.
     async function settingsNow() {
       const local = await ext.storage.local.get(null);
-      let sync = {};
-      try {
-        sync = await ext.storage.sync.get({ ui: {} });
-      } catch {
-        // no storage.sync here
-      }
-      return B().settingsOf({ local, sync });
+      return B().settingsOf({ local, sync: { ui: local.ui ?? {} } });
     }
 
     // The JSON backup of every word (section 2), straight from where the words live.
@@ -277,18 +272,9 @@
       go.focus();
     }
 
+    // The background applies them to its own copy (SCR-448), as lib/backup.js picks them.
     async function restoreSettings(s) {
-      const current = await ext.storage.local.get(null);
-      const { local, sync } = B().settingsPatch(s, { current });
-      if (Object.keys(local).length) await ext.storage.local.set(local);
-      if (Object.keys(sync).length) {
-        try {
-          const { ui = {} } = await ext.storage.sync.get({ ui: {} });
-          await ext.storage.sync.set({ ui: { uiLang: "auto", ...ui, ...sync, ...(sync.baseLangs ? { baseLangsConfirmed: true } : {}) } });
-        } catch {
-          // no storage.sync: the local copy of the bases still works
-        }
-      }
+      await send({ type: "settings.restore", settings: s });
     }
 
     async function undoRestore() {

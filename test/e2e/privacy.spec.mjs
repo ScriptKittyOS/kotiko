@@ -125,6 +125,43 @@ test("settings rewritten from a content script send nothing to the new address, 
   expect(settings.baseUrl, "the address the learner chose is back").toBe(server.llmUrl);
 });
 
+// SCR-448: content scripts can write storage.local, so it only mirrors the background's own
+// copy. What one writes there is put back, a planted add job is never looked up, and in
+// Chromium 140+ storage.sync refuses them outright.
+test("settings, the add queue and the bases written from a content script are put back and never used", async ({ context, extensionId, server, popup, serviceWorker }) => {
+  await setUpLookups(context, extensionId, server.llmUrl);
+  const p = await popup.page();
+  const before = await p.evaluate(() => chrome.storage.local.get(["enabled", "pausedHosts", "hiddenLangs", "baseLangs", "addJobs", "prefs"]));
+  const page = await context.newPage();
+  await page.goto(server.page("basic.html"));
+  await expect(page.locator("#p1")).toBeVisible();
+  const job = { id: "01900000-0000-7000-8000-00000000c0de", surface: "popup", text: "shukran", hintLang: null, baseLangs: ["en"], manual: null, state: "queued", createdAt: Date.now(), startedAt: null, attempts: 0, waits: 0, error: null, results: [], rejected: [], missingBases: [], retryAt: null, seen: false };
+  const sync = await inContentScript(context, page, extensionId, async (planted) => {
+    await chrome.storage.local.set({ enabled: false, pausedHosts: ["127.0.0.1"], hiddenLangs: ["ru"], baseLangs: ["ja"], addJobs: [planted], prefs: { neverSwap: ["house"] }, planted: true });
+    return chrome.storage.sync.set({ ui: { uiLang: "ru", baseLangs: ["ru"] } }).then(() => "written", (e) => String(e?.message ?? e));
+  }, job);
+  expect(sync, "storage.sync is closed to content scripts").not.toBe("written");
+  const keys = ["enabled", "pausedHosts", "hiddenLangs", "baseLangs", "addJobs", "prefs"];
+  await expect.poll(() => inContentScript(context, page, extensionId, (k) => chrome.storage.local.get([...k, "planted"]), keys), { timeout: 10_000 }).toEqual(before);
+  // Put back once, and left alone: no loop of rewrites (Chrome hands objects back with its
+  // own key order). A loop would rewrite them many times a second.
+  const writes = await serviceWorker.evaluate((k) => new Promise((resolve) => {
+    let n = 0;
+    const count = (c, area) => void (area === "local" && Object.keys(c).some((key) => k.includes(key)) && n++);
+    chrome.storage.onChanged.addListener(count);
+    setTimeout(() => {
+      chrome.storage.onChanged.removeListener(count);
+      resolve(n);
+    }, 1000);
+  }), keys);
+  expect(writes).toBe(0);
+  await (await context.newPage()).goto(server.page("basic.html"));
+  expect((await server.state()).log.filter((r) => r.path === "/llm/v1/chat/completions"), "the planted job spent no lookup").toEqual([]);
+  // The popup's own change still works.
+  await p.evaluate(() => chrome.runtime.sendMessage({ type: "settings.set", set: { enabled: false } }));
+  await expect.poll(() => p.evaluate(async () => (await chrome.storage.local.get("enabled")).enabled)).toBe(false);
+});
+
 test("a hidden address planted for a hosted service: the key pasted afterwards never reaches it", async ({ context, extensionId, server, popup, blocked }) => {
   // The learner chooses OpenAI; the dashboard has no address field for it.
   const dash = await context.newPage();
@@ -172,7 +209,7 @@ for (const [name, base, words, file, originals] of [
 ]) {
   test(`page scripts see the swaps but no original word and no Kotiko data: ${name} page`, async ({ context, extensionId, server, serviceWorker }) => {
     await expect.poll(() => serviceWorker.evaluate(async () => !!(await chrome.storage.local.get("onboarding")).onboarding)).toBe(true);
-    await serviceWorker.evaluate((b) => chrome.storage.sync.set({ ui: { uiLang: "auto", baseLangs: [b], baseLangsConfirmed: true } }), base);
+    await serviceWorker.evaluate((b) => globalThis.__kotiko.seed({ ui: { uiLang: "auto", baseLangs: [b], baseLangsConfirmed: true } }), base);
     const dash = await context.newPage();
     await dash.goto(`chrome-extension://${extensionId}/dashboard.html`);
     expect((await dash.evaluate((w) => chrome.runtime.sendMessage({ type: "words.save", words: w }), words)).error).toBeUndefined();

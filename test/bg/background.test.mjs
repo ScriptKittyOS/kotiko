@@ -52,9 +52,10 @@ function loadBackground({ local = {}, fetch, alarms = null, globals = {} } = {})
     local: { serverUrl: "http://127.0.0.1:4999", token: "good-token", ...local },
   });
   if (alarms) for (const a of alarms) fake.alarms.set(a.name, a);
-  runInVm("background.js", { chrome: fake.chrome, fetch, Date: fake.clock.Date, ...globals });
+  const ctx = runInVm("background.js", { chrome: fake.chrome, fetch, Date: fake.clock.Date, ...globals });
   return {
     fake,
+    k: ctx.__kotiko,
     store: fake.store.local,
     // Content-script sender by default, like a page load; pass POPUP for popup actions.
     send: (msg, sender) => fake.deliver(msg, sender),
@@ -127,12 +128,16 @@ describe("sync", () => {
 
   test("doesn't rewrite unchanged words, so open tabs don't redo work", async () => {
     const { fetch } = serverWith(WORDS);
-    const { send, fake } = loadBackground({ fetch, local: { words: WORDS } });
+    const { send, fake, k } = loadBackground({ fetch, local: { words: WORDS } });
+    // The one-time upgrade copies the words it found into the trusted store and back.
+    await k.ready();
+    await fake.idle();
+    const start = fake.calls.set.length;
     await send({ type: "sync", force: true });
-    // (The one-time upgrade writes its settings too; none of those writes is `words`.)
-    const writes = fake.calls.set.filter((c) => c.area === "local" && "lastSync" in c.items);
+    const since = fake.calls.set.slice(start);
+    const writes = since.filter((c) => c.area === "local" && "lastSync" in c.items);
     assert.equal(writes.length, 1);
-    assert.equal(fake.calls.set.some((c) => "words" in c.items), false);
+    assert.equal(since.some((c) => "words" in c.items), false);
   });
 
   test("skips a page-load sync within 5 s of the last one, unless forced", async () => {
@@ -232,7 +237,7 @@ describe("the learner's languages on the server (slice 41 §9)", () => {
   test("a sync sends the bases and the interface language once; a page's change sends them again", async () => {
     const { fetch, profile } = serverWith(WORDS);
     const { send, fake } = loadBackground({ fetch });
-    await fake.chrome.storage.sync.set({ ui: { uiLang: "auto", baseLangs: ["es", "en"] } });
+    assert.deepEqual(await send({ type: "settings.set", merge: { ui: { uiLang: "auto", baseLangs: ["es", "en"] } } }, PAGE), { ok: true });
     await send({ type: "sync", force: true });
     await settle(fake);
     assert.deepEqual(sentProfiles(profile), [["PUT", "http://127.0.0.1:4999/api/v1/profile", { base_langs: ["es", "en"], ui_lang: null }]]);
@@ -245,7 +250,7 @@ describe("the learner's languages on the server (slice 41 §9)", () => {
     assert.equal(profile.length, 1);
 
     // The dashboard changed them: it asks, and the new ones go out.
-    await fake.chrome.storage.sync.set({ ui: { uiLang: "es", baseLangs: ["ja"] } });
+    await send({ type: "settings.set", merge: { ui: { uiLang: "es", baseLangs: ["ja"] } } }, PAGE);
     assert.deepEqual(await send({ type: "profile.sync" }, PAGE), { ok: true });
     assert.deepEqual(JSON.parse(profile[1].body), { base_langs: ["ja"], ui_lang: "es" });
     assert.deepEqual(await send({ type: "profile.sync" }, PAGE), { ok: true, unchanged: true });
@@ -956,13 +961,16 @@ describe("language tags (slice 08)", () => {
   test("on update, languages hidden under an old code stay hidden under the canonical one", async () => {
     const { fake, store } = loadBackground({ fetch: () => Promise.reject(new TypeError("offline")), local: { hiddenLangs: ["cmn", "iw", "zh", "ja", "not a tag"] } });
     await fake.fireInstalled({ reason: "update", previousVersion: "0.2.0" });
-    await fake.idle();
-    await sleep(10);
+    for (let i = 0; i < 500 && store.hiddenLangs?.[0] !== "zh"; i++) {
+      await fake.idle();
+      await sleep(5);
+    }
     assert.deepEqual(store.hiddenLangs, ["zh", "he", "ja", "not a tag"]);
   });
 
   test("a fresh install leaves hidden languages alone", async () => {
-    const { fake, store } = loadBackground({ fetch: () => Promise.reject(new TypeError("offline")), local: { hiddenLangs: ["cmn"] } });
+    const { fake, store, k } = loadBackground({ fetch: () => Promise.reject(new TypeError("offline")), local: { token: "", serverUrl: null } });
+    await k.seed({ hiddenLangs: ["cmn"] });
     await fake.fireInstalled({ reason: "install" });
     await fake.idle();
     await sleep(10);
@@ -1004,18 +1012,26 @@ describe("toolbar badge (slice 20 §5)", () => {
 
   test("pausing a site marks its tabs off, and turning Kotiko off marks every tab", async () => {
     const { fake, badges, titles } = withAction();
-    await fake.idle();
-    await sleep(10);
+    const POPUP_PAGE = { id: EXT_ID, url: `chrome-extension://${EXT_ID}/popup.html` };
+    const until = async (fn) => {
+      for (let i = 0; i < 500 && !fn(); i++) {
+        await fake.idle();
+        await sleep(5);
+      }
+      assert.ok(fn(), "timed out waiting");
+    };
+    await until(() => badges.get(1) === "");
+    // A content script's write changes nothing (SCR-448), and is put back.
+    await fake.chrome.storage.local.set({ enabled: false });
+    await until(() => !("enabled" in fake.store.local));
     assert.equal(badges.get(1), "");
-    await fake.chrome.storage.local.set({ pausedHosts: ["en.wikipedia.org"] });
-    await fake.idle();
-    await sleep(10);
-    assert.equal(badges.get(1), "off");
+    // The popup's do.
+    await fake.deliver({ type: "settings.set", add: { pausedHosts: ["en.wikipedia.org"] } }, POPUP_PAGE);
+    await until(() => badges.get(1) === "off");
     assert.equal(badges.get(2), "");
     assert.equal(titles.get(1), "Kotiko · paused on en.wikipedia.org");
-    await fake.chrome.storage.local.set({ enabled: false, pausedHosts: [] });
-    await fake.idle();
-    await sleep(10);
+    await fake.deliver({ type: "settings.set", set: { enabled: false, pausedHosts: [] } }, POPUP_PAGE);
+    await until(() => badges.get(2) === "off");
     assert.deepEqual([badges.get(1), badges.get(2)], ["off", "off"]);
     assert.equal(titles.get(2), "Kotiko · off");
   });

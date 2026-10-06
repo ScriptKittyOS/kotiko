@@ -315,13 +315,11 @@
   }
 
   // "Don't swap this word" (slice 16 §5): the form's key joins the never-swap list, with an
-  // undo. The storage change re-applies every page.
+  // undo. The background changes the list (content scripts write no settings, SCR-448); the
+  // storage change re-applies every page.
   async function setNeverSwap(key, on) {
-    const { prefs: p = {} } = await ext.storage.local.get({ prefs: {} });
-    const list = new Set(Array.isArray(p.neverSwap) ? p.neverSwap : []);
-    if (on) list.add(key);
-    else list.delete(key);
-    await ext.storage.local.set({ prefs: { ...p, neverSwap: [...list] } });
+    const r = await ext.runtime.sendMessage({ type: "neverSwap", key, on });
+    if (!r?.ok) throw new Error("not saved");
   }
 
   const popoverActions = [

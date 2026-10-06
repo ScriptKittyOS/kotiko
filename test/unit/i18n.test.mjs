@@ -161,7 +161,7 @@ describe("KotikoI18n.t", () => {
 
   test("Kotiko's language (50 §8): a shipped locale overrides the browser's, missing keys fall back to English", async () => {
     const ctx = vm.createContext({
-      chrome: { i18n: createI18n("en"), storage: { sync: { get: async () => ({ ui: { uiLang: "es" } }) } } },
+      chrome: { i18n: createI18n("en"), storage: { local: { get: async () => ({ ui: { uiLang: "es" } }) } } },
       Intl,
       console,
     });

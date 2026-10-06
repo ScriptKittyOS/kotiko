@@ -6,7 +6,10 @@
 // storage.local, as before). New words are looked up by the learner's own provider, by
 // the server, or typed with their meaning, through add jobs that never block a page.
 // Secrets (the lookup key, the server token) live only in the store, which content
-// scripts can't reach, and only this file reads them.
+// scripts can't reach, and only this file reads them. So do the real copies of every
+// setting and of the add queue (lib/settings.js): storage.local, which content scripts can
+// write, is only a mirror of them, and a change made there by anything but this file is
+// put back.
 //
 // The libraries load through importScripts in Chrome's service worker, and through the
 // manifest's background.scripts list (before this file) in Firefox's event page.
@@ -14,7 +17,7 @@ if (!globalThis.SyncController && typeof importScripts === "function") {
   importScripts(
     "lib/url.js", "lib/errors.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js", "lib/i18n.js", "lib/badge.js",
     "spec/spec.js", "lib/text.js", "lib/lang.js", "lib/words-v1.js", "lib/wordspec.js", "lib/word-merge.js", "lib/store.js",
-    "lib/backup.js", "lib/projection.js", "lib/llm/policy.js", "lib/llm/catalog.js", "lib/llm/client.js", "lib/add-queue.js",
+    "lib/settings.js", "lib/backup.js", "lib/projection.js", "lib/llm/policy.js", "lib/llm/catalog.js", "lib/llm/client.js", "lib/add-queue.js",
     "lib/refresh-job.js", "lib/local-mode.js", "lib/pkce.js", "lib/celebrations.js", "lib/welcome-model.js",
     "lib/pronounce.js", "lib/wiktionary-pass.js",
   );
@@ -30,6 +33,7 @@ const { badgeFor, OFF_COLOR } = globalThis.KotikoBadge;
 const { t } = globalThis.KotikoI18n;
 const { createWordHandlers } = globalThis.KotikoWordsV1;
 const Local = globalThis.KotikoLocal;
+const Settings = globalThis.KotikoSettings;
 
 const ALARM = "kotiko-sync";
 // The sync alarm's name before the rename; cleared on update. Remove in the next release.
@@ -74,10 +78,21 @@ let readyP = null;
 function ready() {
   readyP ??= (async () => {
     const store = await getStore();
-    const r = await Local.migrate({ store, storage: ext.storage.local, uiLanguage: uiLanguage() });
+    // A brand-new store (an install, or after "delete everything") takes nothing from
+    // storage.local: it is marked before the upgrade counts as done.
+    const r = await Local.migrate({
+      store,
+      storage: trustedCopy,
+      legacy: ext.storage.local,
+      uiLanguage: uiLanguage(),
+      beforeDone: async (from) => from === "new" && (await store.meta.get(TRUSTED)) !== true && store.meta.set(TRUSTED, "fresh"),
+    });
+    await adoptOnce(store);
     if (r.migrated && r.home === "local" && r.seeded) projector.schedule();
     if (r.migrated) refresh.nudge().catch(() => {});
     await bindRoutesOnce(store, { fresh: r.migrated && (await store.meta.get("migratedFrom")) === "new" });
+    // Whatever was written to storage.local while no worker was listening.
+    trustedCopy.heal().catch(() => {});
   })().catch((e) => {
     readyP = null;
     console.warn("Kotiko couldn't open its word store:", e?.message ?? e);
@@ -101,15 +116,148 @@ async function setSecret(id, value) {
   if (value) await store.secrets.set(id, value);
   else await store.secrets.remove(id);
   secretCache.set(id, value || null);
-  const s = await Local.readSettings(ext.storage.local);
+  const s = await Local.readSettings(area);
   const keys = { server: s.keys.server, providers: { ...s.keys.providers } };
   if (id === "server") keys.server = !!value;
   else keys.providers[id.slice("provider:".length)] = !!value;
-  await ext.storage.local.set({ keys });
+  await area.set({ keys });
+}
+
+// ── settings only Kotiko may change (SCR-448) ────────────────────────────────────
+
+// The trusted copy of everything Kotiko keeps in storage.local, in the store's `meta`,
+// mirrored to storage.local for content scripts and pages to read. Every read below is from
+// here, never from storage.local, which content scripts can write.
+const trustedCopy = Settings.createArea({
+  meta: {
+    entries: async (prefix) => (await getStore()).meta.entries(prefix),
+    write: async (puts, deletes) => (await getStore()).meta.write(puts, deletes),
+  },
+  mirror: ext.storage.local,
+  onChange: (keys) => settingsChanged(keys),
+});
+// Everything outside the upgrade itself waits for it, so an install from before this
+// version never reads its settings before they were taken over (`adoptOnce`).
+const area = Object.fromEntries(["get", "set", "remove", "heal", "has"].map((op) => [op, async (...a) => (await ready().catch(() => {}), trustedCopy[op](...a))]));
+area.reset = () => trustedCopy.reset();
+
+// What Kotiko keeps in storage.local; an install from before the trusted copy has these to
+// take once (`adoptOnce`). The 0.2 `token` and `serverUrl` are the storage upgrade's.
+const ADOPT = new Set([
+  "words", "wordsVersion", "baseLangs", "baseRules", "baseRulesFor", "sensitiveSites", "enabled", "pausedHosts", "hiddenLangs", "mixing", "prefs", "speech",
+  "onboarding", "celebrations", "backupSnooze", "backupSince", "lastBackupAt", "lookupStatus", "syncError", "lastSync", "syncWarnings", "keys", "wordsHome",
+  "lookup", "server", "addJobs", "recentlyDeleted", "seedSalt",
+]);
+const TRUSTED = "settingsTrusted";
+const isTag = (tag) => globalThis.KotikoLang.canonical(tag).ok;
+const validSalt = (s) => typeof s === "string" && /^[0-9a-f]{32}$/.test(s);
+// A value of a key Kotiko's pages may change, if it has the shape they write.
+const pageValue = (key, value) => Settings.edit({}, { set: { [key]: value } }, { isTag }).patch?.[key];
+
+// Once per store. An install from before this version kept everything in storage.local,
+// where its pages and its background wrote, and where a content script could have too; the
+// two can't be told apart, so what is there now is taken as it is (the keys Kotiko writes),
+// the same moment slice 28 takes the addresses. A new store takes nothing from
+// storage.local, only the languages synced from the learner's other browsers (slice 50),
+// as the first run always has.
+const UI_FIELDS = ["uiLang", "baseLangs", "baseLangsDetected", "baseLangsConfirmed"];
+async function adoptOnce(store) {
+  const mark = await store.meta.get(TRUSTED);
+  if (mark === true) return;
+  const patch = {};
+  if (mark !== "fresh") {
+    const raw = await ext.storage.local.get(null);
+    for (const [k, v] of Object.entries(raw)) if (ADOPT.has(k) && !(await trustedCopy.has(k))) patch[k] = v;
+  }
+  try {
+    const synced = await ext.storage.sync.get({ ui: null, seedSalt: null });
+    const ui = synced.ui && typeof synced.ui === "object" && !Array.isArray(synced.ui) ? Object.fromEntries(UI_FIELDS.filter((f) => synced.ui[f] !== undefined).map((f) => [f, synced.ui[f]])) : null;
+    if (ui && !(await trustedCopy.has("ui"))) patch.ui = ui;
+    if (validSalt(synced.seedSalt) && !(await trustedCopy.has("seedSalt"))) patch.seedSalt = synced.seedSalt;
+  } catch {
+    // no storage.sync here
+  }
+  await trustedCopy.set(patch);
+  await store.meta.set(TRUSTED, true);
+}
+
+// Chrome 140 and later can keep content scripts out of storage.sync (`setAccessLevel`;
+// before 140, and in Firefox, they can write it). Then a change there was made by Kotiko,
+// here or in the learner's other browsers, and is taken; otherwise it is left alone, and
+// this browser keeps its own copy. The level is kept by the browser, so asking again at
+// each start is harmless.
+const syncLocked = (async () => {
+  if (typeof ext.storage.sync?.setAccessLevel !== "function") return false;
+  try {
+    await ext.storage.sync.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
+    return true;
+  } catch {
+    return false;
+  }
+})();
+
+async function adoptSync(changes) {
+  if (!(await syncLocked)) return;
+  await ready();
+  const patch = {};
+  const current = await area.get({ ui: null, seedSalt: null });
+  const ui = changes.ui ? pageValue("ui", changes.ui.newValue) : undefined;
+  if (ui && !Settings.same(ui, current.ui)) {
+    patch.ui = ui;
+    if (ui.baseLangs) patch.baseLangs = ui.baseLangs;
+  }
+  const salt = changes.seedSalt?.newValue;
+  if (validSalt(salt) && salt !== current.seedSalt) patch.seedSalt = salt;
+  await area.set(patch);
+}
+
+// storage.sync's `ui` (slice 50) follows the trusted copy, for the learner's other browsers.
+async function saveUi(ui) {
+  await area.set({ ui });
+  await Promise.resolve().then(() => ext.storage.sync.set({ ui })).catch(() => {});
+}
+
+// Reactions to a change of the trusted copy, whoever in this file made it.
+function settingsChanged(keys) {
+  const k = new Set(keys);
+  if (k.has("ui")) {
+    projector.schedule();
+    mirrorBaseRules().catch(() => {});
+  }
+  if (k.has("wordsHome")) home().then((h) => h === "local" && projector.schedule()).catch(() => {});
+  if (k.has("enabled") || k.has("pausedHosts")) updateAllBadges();
+  if (k.has("words")) area.get({ words: [] }).then(({ words }) => Array.isArray(words) && words.length && noteFirstWord()).catch(() => {});
+}
+
+// A page's change (`settings.set`), one at a time: checked against the allowlist and the
+// shapes in lib/settings.js, applied to the trusted values, then mirrored. Bases changed
+// in `ui` are copied to the pages' `baseLangs`, and go to storage.sync.
+let settingsChain = Promise.resolve();
+function saveSettings(m) {
+  const run = settingsChain.then(async () => {
+    await ready();
+    const names = new Set([...Object.keys(m.set ?? {}), ...Object.keys(m.merge ?? {}), ...[...Object.keys(m.add ?? {}), ...Object.keys(m.remove ?? {})].map((p) => p.split(".")[0])]);
+    const r = Settings.edit(await area.get([...names]), m, { isTag });
+    if (r.error) throw codedError("invalid_message", r.error);
+    const patch = r.patch;
+    if (patch.ui?.baseLangs && !patch.baseLangs) patch.baseLangs = patch.ui.baseLangs;
+    const { ui } = patch;
+    delete patch.ui;
+    await area.set(patch);
+    if (ui) await saveUi(ui);
+    if (patch.baseLangs) {
+      projector.schedule();
+      mirrorBaseRules().catch(() => {});
+    }
+    return { ok: true };
+  });
+  settingsChain = run.catch(() => {});
+  return run;
 }
 
 // Where requests may go (slice 28 §7). The settings that say where Kotiko sends words and
-// keys live in storage.local, which content scripts can write as well as read. So each
+// keys lived in storage.local, which content scripts can write as well as read; they now
+// live in the trusted copy above, and the routes stay as a second check. Each
 // route's trusted address is kept in the store (`meta`, out of their reach): "server", and
 // "lookup:<provider>" for each lookup service. Only Kotiko's own pages set it, by naming an
 // address (`server.connect`, `backend.set`, the OpenRouter sign-in), plus once at the
@@ -199,17 +347,22 @@ async function secretFor(id, url) {
 // The upgrade to routes, once, right after the storage upgrade. A fresh install trusts only
 // the built-in addresses (the default server, each preset's own), never what storage.local
 // says, since a content script may already have written there. An install from before
-// this version trusts the addresses its settings hold at that moment, which only its own
-// pages could have chosen until now.
+// this version trusts the addresses its settings hold at that moment, where its pages and
+// content scripts could both write, except where no page could have: Kotiko's pages show
+// an address field only for a service on the learner's computer and "custom", so an
+// address saved for a hosted service (OpenRouter, OpenAI and the like) that isn't its own
+// is dropped (SCR-448).
 async function bindRoutesOnce(store, { fresh = false } = {}) {
   if ((await store.meta.get("routesBound")) === true) return;
   if (fresh) {
     await bindRoute("server", Local.DEFAULT_SERVER);
   } else {
-    const s = await Local.readSettings(ext.storage.local);
+    const s = await Local.readSettings(trustedCopy);
     await bindRoute("server", s.server.url);
     const ep = globalThis.KotikoLLMClient.endpoint(s.lookup);
-    if (s.lookup.baseUrl) await bindRoute(`lookup:${ep.preset.id}`, ep.baseUrl);
+    const typed = ep.preset.local || ep.preset.id === "custom";
+    if (s.lookup.baseUrl && typed) await bindRoute(`lookup:${ep.preset.id}`, ep.baseUrl);
+    else if (s.lookup.baseUrl) await trustedCopy.set({ lookup: { ...s.lookup, baseUrl: null } });
     await chooseProvider(ep.preset.id);
   }
   await store.meta.set("routesBound", true);
@@ -223,20 +376,16 @@ function mask(v) {
 
 const settings = async () => {
   await ready().catch(() => {});
-  return Local.readSettings(ext.storage.local);
+  return Local.readSettings(area);
 };
 const home = async () => (await settings()).wordsHome ?? "local";
 
-// The learner's base languages: slice 50's synced list when it exists, else the local
-// copy, else the browser's language.
+// The learner's base languages: slice 50's list (`ui`, the trusted copy of what
+// storage.sync holds) when it exists, else the pages' copy, else the browser's language.
 async function currentBases() {
-  try {
-    const { ui } = await ext.storage.sync.get({ ui: {} });
-    if (Array.isArray(ui?.baseLangs) && ui.baseLangs.length) return ui.baseLangs.slice(0, 4);
-  } catch {
-    // no storage.sync here
-  }
-  const { baseLangs } = await ext.storage.local.get({ baseLangs: null });
+  await ready().catch(() => {});
+  const { ui, baseLangs } = await area.get({ ui: null, baseLangs: null });
+  if (Array.isArray(ui?.baseLangs) && ui.baseLangs.length) return ui.baseLangs.slice(0, 4);
   if (Array.isArray(baseLangs) && baseLangs.length) return baseLangs.slice(0, 4);
   return Local.detectBases(uiLanguage());
 }
@@ -275,7 +424,7 @@ async function mirrorBaseRules({ force = false } = {}) {
   const spec = globalThis.KOTIKO_SPEC;
   const bases = await currentBases();
   const stamp = `${ext.runtime.getManifest?.().version ?? ""}|${spec?.version ?? ""}|${bases.join(",")}`;
-  const { baseRulesFor } = await ext.storage.local.get({ baseRulesFor: null });
+  const { baseRulesFor } = await area.get({ baseRulesFor: null });
   if (!force && baseRulesFor === stamp) return;
   const imported = await importedStopwords();
   const out = {};
@@ -290,7 +439,7 @@ async function mirrorBaseRules({ force = false } = {}) {
   }
   // Content scripts read the sensitive-sites list here too; it changes only with a release.
   const sites = await sensitiveSites();
-  await ext.storage.local.set({ baseRules: out, baseRulesFor: sites ? stamp : null, ...(sites ? { sensitiveSites: sites } : {}) });
+  await area.set({ baseRules: out, baseRulesFor: sites ? stamp : null, ...(sites ? { sensitiveSites: sites } : {}) });
 }
 
 // ── the server connection ───────────────────────────────────────────────────
@@ -300,7 +449,7 @@ async function connection() {
   await ready().catch(() => {});
   const stored = await secret("server").catch(() => null);
   if (!stored) throw codedError("server_key_rejected", "Paste your API token to connect.", { reason: "no_token" });
-  const n = normalizeServerUrl((await Local.readSettings(ext.storage.local)).server.url);
+  const n = normalizeServerUrl((await Local.readSettings(area)).server.url);
   if (!n.ok) throw codedError(n.code, n.hint, { hint: n.hint });
   // Only the address a Kotiko page named gets the token (slice 28 §7).
   const token = await secretFor("server", n.url);
@@ -354,10 +503,10 @@ async function refreshLookupStatus() {
       quota: s.quota && typeof s.quota === "object" ? s.quota : null,
       at: Date.now(),
     };
-    await ext.storage.local.set({ lookupStatus: status });
+    await area.set({ lookupStatus: status });
     return status;
   } catch (e) {
-    if (e?.code === "server_outdated") await ext.storage.local.set({ lookupStatus: null });
+    if (e?.code === "server_outdated") await area.set({ lookupStatus: null });
     throw e;
   }
 }
@@ -368,7 +517,7 @@ async function lookupStatus() {
   if (s.lookup.kind === "server") return refreshLookupStatus();
   const st = await client.status();
   const status = { provider: s.lookup.kind === "provider" ? st.provider : null, quota: s.lookup.kind === "provider" ? st.quota : null, ready: s.lookup.kind === "provider" && st.ready, at: Date.now() };
-  await ext.storage.local.set({ lookupStatus: status });
+  await area.set({ lookupStatus: status });
   return status;
 }
 
@@ -413,12 +562,7 @@ async function sendProfile() {
   try {
     await ready().catch(() => {});
     if (!(await secret("server").catch(() => null))) return { ok: true, skipped: "no_server" };
-    let ui = {};
-    try {
-      ({ ui = {} } = await ext.storage.sync.get({ ui: {} }));
-    } catch {
-      // no storage.sync here
-    }
+    const { ui } = await area.get({ ui: {} });
     const body = { base_langs: await currentBases(), ui_lang: typeof ui?.uiLang === "string" && ui.uiLang !== "auto" ? ui.uiLang : null };
     const stamp = JSON.stringify([(await connection()).base, body]);
     const store = await getStore();
@@ -457,11 +601,11 @@ const sync = createSyncController({
     if ((await home()) === "local") return;
     if (!result.ok) {
       const { code, message, details } = result;
-      await ext.storage.local.set({ syncError: { code, message, details, at: Date.now() } });
+      await area.set({ syncError: { code, message, details, at: Date.now() } });
       return;
     }
     // Only write words when they changed, so open tabs don't redo work every minute.
-    const { words: old = [] } = await ext.storage.local.get("words");
+    const { words: old = [] } = await area.get("words");
     const patch = {
       lastSync: Date.now(),
       syncError: null,
@@ -469,7 +613,7 @@ const sync = createSyncController({
     };
     if (JSON.stringify(old) !== JSON.stringify(result.words)) patch.words = result.words;
     if (result.dropped) console.warn("Skipped words the server sent that can't be shown:", result.reasons);
-    await ext.storage.local.set(patch);
+    await area.set(patch);
     pushProfile();
   },
 });
@@ -485,12 +629,11 @@ async function requestSync(opts) {
 
 const projector = globalThis.KotikoProjection.createProjector({
   list: async () => (await getStore()).list(),
-  storage: ext.storage.local,
+  storage: area,
   bases: currentBases,
   enabled: async () => !wiped && (await home()) === "local",
   onError: (e) => console.warn("Kotiko couldn't update the page word list:", e?.message ?? e),
 });
-let lastBases = null;
 
 const client = globalThis.KotikoLLMClient.createClient({
   fetch: (...a) => fetch(...a),
@@ -501,7 +644,7 @@ const client = globalThis.KotikoLLMClient.createClient({
   key: (providerId, baseUrl) => secretFor(`provider:${providerId}`, baseUrl).catch(() => null),
   now,
   onQuota: (quota) => {
-    settings().then((s) => s.lookup.kind === "provider" && ext.storage.local.set({ lookupStatus: { provider: s.lookup.provider, quota, ready: true, at: Date.now() } })).catch(() => {});
+    settings().then((s) => s.lookup.kind === "provider" && area.set({ lookupStatus: { provider: s.lookup.provider, quota, ready: true, at: Date.now() } })).catch(() => {});
   },
 });
 
@@ -572,7 +715,7 @@ async function lookupJob(job, signal) {
   const base = job.baseLangs[0] ?? (await currentBases())[0];
   if (parsed) {
     // The hint, else Focus on one language (18), else the recent languages (24 §7).
-    const { mixing } = await ext.storage.local.get({ mixing: null });
+    const { mixing } = await area.get({ mixing: null });
     const focus = Array.isArray(mixing?.focus) && mixing.focus.length === 1 ? mixing.focus[0] : null;
     const lang = Local.manualLang(parsed.native, { hintLang: job.hintLang ?? focus, recent: await store.recentLangs(5), base });
     const word = lang ? Local.manualWord(parsed, { lang, base, text: job.text }) : null;
@@ -648,7 +791,7 @@ async function saveOrOffline(job, words) {
 }
 
 const queue = globalThis.KotikoAddQueue.createAddQueue({
-  storage: ext.storage.local,
+  storage: area,
   lookup: lookupOrOffline,
   save: saveOrOffline,
   isFunctionWord,
@@ -714,7 +857,7 @@ async function toServer() {
   }
   await underRoutes(async () => {
     const s = await settings();
-    await ext.storage.local.set({ wordsHome: "server", lookup: { ...s.lookup, kind: s.lookup.kind === "none" ? "server" : s.lookup.kind } });
+    await area.set({ wordsHome: "server", lookup: { ...s.lookup, kind: s.lookup.kind === "none" ? "server" : s.lookup.kind } });
   });
   await sync.credentialsChanged();
   return { ok: true, total: words.length, ...counts };
@@ -732,20 +875,16 @@ async function toLocal({ forget = false, serverLookups = false } = {}) {
   await underRoutes(async () => {
     const { lookup } = await settings();
     const kind = lookup.kind === "server" && !(serverLookups && !forget) ? "none" : lookup.kind;
-    await ext.storage.local.set({ wordsHome: "local", lookup: { ...lookup, kind }, baseLangs: nextBases, syncError: null });
+    await area.set({ wordsHome: "local", lookup: { ...lookup, kind }, baseLangs: nextBases, syncError: null });
   });
-  // Slice 50's synced list, when there is one, is what currentBases() reads first.
-  try {
-    const { ui } = await ext.storage.sync.get({ ui: null });
-    if (Array.isArray(ui?.baseLangs) && JSON.stringify(ui.baseLangs) !== JSON.stringify(nextBases)) await ext.storage.sync.set({ ui: { ...ui, baseLangs: nextBases } });
-  } catch {
-    // no storage.sync here
-  }
+  // Slice 50's list, when there is one, is what currentBases() reads first.
+  const { ui } = await area.get({ ui: null });
+  if (Array.isArray(ui?.baseLangs) && JSON.stringify(ui.baseLangs) !== JSON.stringify(nextBases)) await saveUi({ ...ui, baseLangs: nextBases });
   if (forget) {
     await setSecret("server", null);
     await underRoutes(async () => {
       await bindRoute("server", Local.DEFAULT_SERVER);
-      await ext.storage.local.set({ server: { url: Local.DEFAULT_SERVER } });
+      await area.set({ server: { url: Local.DEFAULT_SERVER } });
     });
   }
   await projector.flush();
@@ -754,6 +893,32 @@ async function toLocal({ forget = false, serverLookups = false } = {}) {
 }
 
 // ── backups and "delete everything" (slice 12) ─────────────────────────────
+
+// A backup file's settings: what lib/backup.js `settingsPatch` takes from it (never where
+// requests go, nor the lookup service), each checked as a page's change would be.
+async function restoreSettings(s) {
+  await ready();
+  return underRoutes(async () => {
+    const current = await area.get(null);
+    const { local, sync: ui } = Backup.settingsPatch(s, { current });
+    const patch = {};
+    for (const [k, v] of Object.entries(local)) {
+      const value = k === "lookup" || k === "seedSalt" ? v : pageValue(k, v);
+      if (value !== undefined) patch[k] = value;
+    }
+    if (Object.keys(ui).length) {
+      const next = pageValue("ui", { uiLang: "auto", ...current.ui, ...ui, ...(ui.baseLangs ? { baseLangsConfirmed: true } : {}) });
+      if (next) await saveUi(next);
+    }
+    await area.set(patch);
+    if (patch.lookup) lookupChanged();
+    if (patch.baseLangs) {
+      projector.schedule();
+      mirrorBaseRules().catch(() => {});
+    }
+    return { ok: true };
+  });
+}
 
 const Backup = globalThis.KotikoBackup;
 const RESTORE_OPS = 1000; // words.write's limit per call
@@ -789,7 +954,7 @@ async function existingRecords() {
   if ((await home()) === "local") return (await getStore()).all();
   const live = await serverWords();
   const ids = new Set(live.map((w) => w.id));
-  const { recentlyDeleted = [] } = await ext.storage.local.get({ recentlyDeleted: [] });
+  const { recentlyDeleted = [] } = await area.get({ recentlyDeleted: [] });
   const gone = (Array.isArray(recentlyDeleted) ? recentlyDeleted : [])
     .filter((e) => e?.word?.id && !ids.has(e.word.id))
     .map((e) => ({ ...e.word, deleted_at: e.word.deleted_at ?? new Date(e.at ?? now()).toISOString() }));
@@ -865,7 +1030,7 @@ async function backupRestore(m) {
     sync.request({ reason: "edit", force: true }).catch?.(() => {});
     out = { ok: true, home: "server", counts: r.counts, restoreDeleted: r.restoreDeleted };
   }
-  await ext.storage.local.set({ lastBackupAt: now() });
+  await area.set({ lastBackupAt: now() });
   return out;
 }
 
@@ -889,7 +1054,7 @@ async function backupUndo() {
 }
 
 async function backupStatus() {
-  const { lastBackupAt = null } = await ext.storage.local.get({ lastBackupAt: null });
+  const { lastBackupAt = null } = await area.get({ lastBackupAt: null });
   const last = await (await getStore()).meta.get("lastImport").catch(() => null);
   const fresh = last && now() - last.at <= 86_400_000;
   return { lastBackupAt, lastImport: fresh ? { at: last.at, label: last.label ?? null, counts: last.counts ?? null, home: last.home ?? "local" } : null };
@@ -913,7 +1078,7 @@ async function dataDescribe() {
   const s = await settings();
   const store = await getStore();
   const ids = await store.secrets.ids().catch(() => []);
-  const words = s.wordsHome === "local" ? await store.count() : ((await ext.storage.local.get({ words: [] })).words ?? []).length;
+  const words = s.wordsHome === "local" ? await store.count() : ((await area.get({ words: [] })).words ?? []).length;
   let serverCount = null;
   if (s.keys.server) {
     try {
@@ -961,6 +1126,7 @@ async function wipeEverything(m) {
   store?.close();
   storeP = null;
   readyP = null;
+  area.reset();
   secretCache.clear();
   client.reset();
   await globalThis.KotikoStore.wipe({ indexedDB: globalThis.indexedDB });
@@ -983,19 +1149,22 @@ ensureAlarm();
 mirrorBaseRules().catch(() => {});
 
 // Slice 18's seed salt: 32 random hex characters, made once and synced, so a page shows the
-// same languages on every device; content scripts read the copy in storage.local.
+// same languages on every device; content scripts read the copy in storage.local. The
+// synced one wins where storage.sync takes only Kotiko's writes (`syncLocked`); elsewhere
+// this browser keeps its own, and fills storage.sync only when it has none.
 async function ensureSeedSalt() {
-  const valid = (s) => typeof s === "string" && /^[0-9a-f]{32}$/.test(s);
+  await ready();
   let synced = null;
   try {
     ({ seedSalt: synced } = await ext.storage.sync.get({ seedSalt: null }));
   } catch {
     // no storage.sync here
   }
-  const { seedSalt: local } = await ext.storage.local.get({ seedSalt: null });
-  const salt = valid(synced) ? synced : valid(local) ? local : [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, "0")).join("");
-  if (salt !== synced) await ext.storage.sync.set({ seedSalt: salt }).catch(() => {});
-  if (salt !== local) await ext.storage.local.set({ seedSalt: salt });
+  const { seedSalt: local } = await area.get({ seedSalt: null });
+  const takeSynced = validSalt(synced) && (!validSalt(local) || (await syncLocked));
+  const salt = takeSynced ? synced : validSalt(local) ? local : [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  if (!validSalt(synced)) await Promise.resolve().then(() => ext.storage.sync.set({ seedSalt: salt })).catch(() => {});
+  if (salt !== local) await area.set({ seedSalt: salt });
 }
 ensureSeedSalt().catch(() => {});
 
@@ -1003,18 +1172,18 @@ ensureSeedSalt().catch(() => {});
 // so nobody is reminded on day one.
 async function ensureBackupClock() {
   if (wiped) return;
-  const { backupSince } = await ext.storage.local.get({ backupSince: null });
-  if (typeof backupSince !== "number") await ext.storage.local.set({ backupSince: now() });
+  const { backupSince } = await area.get({ backupSince: null });
+  if (typeof backupSince !== "number") await area.set({ backupSince: now() });
 }
 ensureBackupClock().catch(() => {});
 
 // Slice 08: languages hidden under an old code stay hidden under the canonical one, so a
 // hidden "cmn" is a hidden "zh" once the server re-tags its words.
 async function migrateHiddenLangs() {
-  const { hiddenLangs = [] } = await ext.storage.local.get({ hiddenLangs: [] });
+  const { hiddenLangs = [] } = await area.get({ hiddenLangs: [] });
   const canonical = (tag) => globalThis.KotikoLang.canonical(tag);
   const mapped = [...new Set(hiddenLangs.map((tag) => (canonical(tag).ok ? canonical(tag).tag : tag)))];
-  if (JSON.stringify(mapped) !== JSON.stringify(hiddenLangs)) await ext.storage.local.set({ hiddenLangs: mapped });
+  if (JSON.stringify(mapped) !== JSON.stringify(hiddenLangs)) await area.set({ hiddenLangs: mapped });
 }
 
 // At every worker start: finish the upgrade, pick up jobs a stopped worker left behind.
@@ -1066,7 +1235,8 @@ async function detectBrowserBases() {
 // welcome tab. Never on update: existing learners keep what they have.
 // A new install has nothing from an older version, so a 0.2 token, address or word list
 // the one-time upgrade found was written by a web page's content script in the moments
-// before the upgrade ran (slice 28 §7): drop all of it.
+// before the upgrade ran (slice 28 §7): drop all of it, with every address and setting
+// taken along with it (SCR-448). Only the synced languages stay.
 async function discardPlanted() {
   const store = await getStore();
   const from = await store.meta.get("migratedFrom");
@@ -1075,33 +1245,30 @@ async function discardPlanted() {
   await store.replaceAll([]);
   await underRoutes(async () => {
     await bindRoute("server", Local.DEFAULT_SERVER);
-    const { lookup } = await settings();
-    await ext.storage.local.set({ wordsHome: "local", server: { url: Local.DEFAULT_SERVER }, lookup: { ...lookup, kind: lookup.kind === "server" ? "none" : lookup.kind }, words: [] });
+    await store.meta.remove(CHOSEN);
+    for (const p of globalThis.KOTIKO_SPEC.providers.providers) await store.meta.remove(routeKey(`lookup:${p.id}`));
+    await area.remove(Object.keys(await area.get(null)).filter((k) => k !== "ui"));
+    await area.set({ wordsHome: "local", server: { url: Local.DEFAULT_SERVER }, lookup: { ...Local.DEFAULT_LOOKUP }, keys: { server: false, providers: {} }, words: [] });
   });
   await store.meta.set("migratedFrom", "new");
   sync.credentialsChanged();
+  ensureSeedSalt().catch(() => {});
 }
 
 async function firstInstall() {
   await ready().catch(() => {});
   await discardPlanted().catch((e) => console.warn("Kotiko install:", e?.message ?? e));
   const bases = await detectBrowserBases();
-  let ui;
-  try {
-    ({ ui = {} } = await ext.storage.sync.get({ ui: {} }));
-  } catch {
-    ui = null;
-  }
-  // storage.sync can outlive an uninstall; a learner who confirmed before keeps their list.
+  // storage.sync can outlive an uninstall (the new store took its `ui`, adoptOnce); a
+  // learner who confirmed before keeps their list.
+  const { ui } = await area.get({ ui: {} });
   const keep = ui?.baseLangsConfirmed === true && Array.isArray(ui.baseLangs) && ui.baseLangs.length;
   const next = keep ? ui.baseLangs.slice(0, 4) : bases;
-  if (ui) {
-    await ext.storage.sync.set({ ui: { uiLang: "auto", ...ui, baseLangs: next, baseLangsDetected: bases, baseLangsConfirmed: !!keep } }).catch(() => {});
-  }
-  const { onboarding } = await ext.storage.local.get({ onboarding: null });
+  await saveUi({ uiLang: "auto", ...ui, baseLangs: next, baseLangsDetected: bases, baseLangsConfirmed: !!keep });
+  const { onboarding } = await area.get({ onboarding: null });
   const patch = { baseLangs: next };
   if (!onboarding) patch.onboarding = { completedAt: null, skipped: false, version: 2 };
-  await ext.storage.local.set(patch);
+  await area.set(patch);
   projector.schedule();
   await openWelcome();
 }
@@ -1112,16 +1279,11 @@ async function firstInstall() {
 // A learner who has a setting keeps it untouched.
 async function upgradeBases() {
   await ready().catch(() => {});
-  let ui;
-  try {
-    ({ ui = {} } = await ext.storage.sync.get({ ui: {} }));
-  } catch {
-    ui = null;
-  }
+  const { ui } = await area.get({ ui: null });
   if (Array.isArray(ui?.baseLangs) && ui.baseLangs.length) return;
   const detected = await detectBrowserBases();
   const records = await getStore().then((s) => s.list()).catch(() => []);
-  const { words = [] } = await ext.storage.local.get({ words: [] });
+  const { words = [] } = await area.get({ words: [] });
   const present = [];
   for (const w of [...records, ...(Array.isArray(words) ? words : [])]) {
     const b = w?.base_lang ?? (w?.english ? "en" : null);
@@ -1133,8 +1295,8 @@ async function upgradeBases() {
   // Over four: drop detected languages no word uses, from the end.
   for (let i = next.length - 1; next.length > 4 && i >= 0; i--) if (!present.includes(next[i])) next.splice(i, 1);
   const bases = next.slice(0, 4);
-  if (ui) await ext.storage.sync.set({ ui: { uiLang: "auto", ...ui, baseLangs: bases, baseLangsDetected: detected, baseLangsConfirmed: false } }).catch(() => {});
-  await ext.storage.local.set({ baseLangs: bases });
+  await saveUi({ uiLang: "auto", ...ui, baseLangs: bases, baseLangsDetected: detected, baseLangsConfirmed: false });
+  await area.set({ baseLangs: bases });
   projector.schedule();
 }
 
@@ -1142,7 +1304,7 @@ async function upgradeBases() {
 // a learner who already has words never gets a first-word or first-swap celebration.
 async function upgradeOnboarding() {
   await ready().catch(() => {});
-  const { onboarding, celebrations, words } = await ext.storage.local.get({ onboarding: null, celebrations: null, words: [] });
+  const { onboarding, celebrations, words } = await area.get({ onboarding: null, celebrations: null, words: [] });
   const patch = {};
   if (!onboarding) patch.onboarding = { completedAt: now(), skipped: false, version: 2, upgraded: true };
   const stored = await getStore().then((s) => s.count()).catch(() => 0);
@@ -1150,15 +1312,15 @@ async function upgradeOnboarding() {
     const next = Celebrations.markDone(celebrations, ["vocab:first", "page:first-swap"], now());
     if (JSON.stringify(next) !== JSON.stringify(celebrations)) patch.celebrations = next;
   }
-  if (Object.keys(patch).length) await ext.storage.local.set(patch);
+  if (Object.keys(patch).length) await area.set(patch);
 }
 
 // The first word saved anywhere (the popup too) finishes the first run.
 let finishing = Promise.resolve();
 function noteFirstWord() {
   finishing = finishing.then(async () => {
-    const { onboarding } = await ext.storage.local.get({ onboarding: null });
-    if (onboarding && !onboarding.completedAt) await ext.storage.local.set({ onboarding: { ...onboarding, completedAt: now() } });
+    const { onboarding } = await area.get({ onboarding: null });
+    if (onboarding && !onboarding.completedAt) await area.set({ onboarding: { ...onboarding, completedAt: now() } });
   }).catch(() => {});
   return finishing;
 }
@@ -1167,9 +1329,9 @@ function noteFirstWord() {
 let claiming = Promise.resolve();
 function claimMilestone(key) {
   const run = claiming.then(async () => {
-    const { celebrations, prefs } = await ext.storage.local.get({ celebrations: null, prefs: {} });
+    const { celebrations, prefs } = await area.get({ celebrations: null, prefs: {} });
     const r = Celebrations.claim(celebrations, key, { now: now() });
-    if (r.claimed) await ext.storage.local.set({ celebrations: r.next });
+    if (r.claimed) await area.set({ celebrations: r.next });
     return { claimed: r.claimed, reason: r.reason ?? null, celebrate: r.claimed && Celebrations.enabled(prefs) };
   });
   claiming = run.catch(() => {});
@@ -1252,7 +1414,7 @@ const PRESETS = () => globalThis.KOTIKO_SPEC.providers.providers.map(({ id, labe
 
 const serverHandlers = createWordHandlers({
   call: apiV1,
-  storage: ext.storage.local,
+  storage: area,
   afterWrite: () => sync.request({ reason: "edit", force: true }),
 });
 const localHandlers = Local.createLocalWordHandlers({
@@ -1267,7 +1429,7 @@ const localHandlers = Local.createLocalWordHandlers({
     recentLangs: async (n) => (await getStore()).recentLangs(n),
   },
   client,
-  storage: ext.storage.local,
+  storage: area,
   refresh,
   now,
 });
@@ -1318,6 +1480,25 @@ ext.runtime.onMessage.addListener(
         from: ["content"],
         run: async () => ({ sites: (await sensitiveSites()) ?? [] }),
       },
+      // "Don't swap this word" from the word card on a page (slice 16 §5): the one setting
+      // a content script may change, one word at a time.
+      neverSwap: {
+        from: ["content"],
+        check: (m) => (typeof m.key === "string" && m.key.length >= 1 && m.key.length <= 200 && typeof m.on === "boolean" ? null : "key must name a word, and on be true or false"),
+        run: (m) => saveSettings({ [m.on ? "add" : "remove"]: { "prefs.neverSwap": [m.key] } }),
+      },
+      // Settings Kotiko's pages change (SCR-448): checked, kept in the trusted copy, mirrored.
+      "settings.set": {
+        from: ["page"],
+        check: (m) => (["set", "merge", "add", "remove"].some((o) => m[o] !== undefined) ? null : "nothing to change"),
+        run: saveSettings,
+      },
+      // A backup's settings (slice 12 §7), as lib/backup.js picks them.
+      "settings.restore": {
+        from: ["page"],
+        check: (m) => (m.settings && typeof m.settings === "object" && !Array.isArray(m.settings) ? null : "settings must be an object"),
+        run: (m) => restoreSettings(m.settings),
+      },
       // The free lookups left today, for the popup and the dashboard (slice 10).
       llmStatus: {
         from: ["page"],
@@ -1361,9 +1542,9 @@ ext.runtime.onMessage.addListener(
           if (typeof msg.jobId === "string") await queue.markUndo(msg.jobId, msg.id, "done");
           await sync.update(
             async () => {
-              const { words = [] } = await ext.storage.local.get("words");
+              const { words = [] } = await area.get("words");
               const rest = words.filter((w) => !sameId(w.id, msg.id));
-              if (rest.length !== words.length) await ext.storage.local.set({ words: rest });
+              if (rest.length !== words.length) await area.set({ words: rest });
             },
             { reason: "remove" },
           );
@@ -1457,7 +1638,7 @@ ext.runtime.onMessage.addListener(
             await bindRoute(`lookup:${ep.preset.id}`, ep.baseUrl);
             await chooseProvider(ep.preset.id);
           }
-          await ext.storage.local.set({ lookup: next });
+          await area.set({ lookup: next });
           lookupChanged();
           return { ok: true, lookup: next };
         }),
@@ -1485,7 +1666,7 @@ ext.runtime.onMessage.addListener(
           if (typeof m.url === "string") {
             await underRoutes(async () => {
               await bindRoute("server", m.url.trim() || Local.DEFAULT_SERVER);
-              await ext.storage.local.set({ server: { url: m.url.trim() || Local.DEFAULT_SERVER } });
+              await area.set({ server: { url: m.url.trim() || Local.DEFAULT_SERVER } });
             });
           }
           if (typeof m.token === "string") await setSecret("server", m.token.trim() || null);
@@ -1496,7 +1677,7 @@ ext.runtime.onMessage.addListener(
             if (s.keys.server) {
               await underRoutes(async () => {
                 const { lookup } = await settings();
-                await ext.storage.local.set({ wordsHome: "server", lookup: { ...lookup, kind: lookup.kind === "provider" ? "provider" : "server" } });
+                await area.set({ wordsHome: "server", lookup: { ...lookup, kind: lookup.kind === "provider" ? "provider" : "server" } });
               });
             }
           }
@@ -1528,7 +1709,7 @@ ext.runtime.onMessage.addListener(
       "backup.saved": {
         from: ["page"],
         async run() {
-          await ext.storage.local.set({ lastBackupAt: now() });
+          await area.set({ lastBackupAt: now() });
           return { ok: true };
         },
       },
@@ -1568,7 +1749,7 @@ ext.runtime.onMessage.addListener(
             await bindRoute("lookup:openrouter", globalThis.KotikoLLMClient.endpoint({ provider: "openrouter" }).baseUrl);
             await chooseProvider("openrouter");
             const s = await settings();
-            await ext.storage.local.set({ lookup: { ...s.lookup, kind: "provider", provider: "openrouter", baseUrl: null } });
+            await area.set({ lookup: { ...s.lookup, kind: "provider", provider: "openrouter", baseUrl: null } });
           });
           lookupChanged();
           return { ok: true };
@@ -1582,7 +1763,7 @@ ext.runtime.onMessage.addListener(
 // When it succeeds, the old job's word is removed (retireReplaced); undoing the new one
 // brings the old one back.
 async function relang(m) {
-  const { addJobs = [] } = await ext.storage.local.get({ addJobs: [] });
+  const { addJobs = [] } = await area.get({ addJobs: [] });
   const old = addJobs.find((j) => j.id === m.id);
   if (!old) return { error: "That add is gone.", code: "job_gone" };
   const id = globalThis.KotikoStore.uuid7(now());
@@ -1642,9 +1823,9 @@ function cacheWord(w) {
   return out;
 }
 async function replaceCached(gone, added = []) {
-  const { words = [] } = await ext.storage.local.get("words");
+  const { words = [] } = await area.get("words");
   const rest = words.filter((w) => !gone.some((g) => sameWord(g, w)));
-  if (rest.length !== words.length || added.length) await ext.storage.local.set({ words: [...added, ...rest] });
+  if (rest.length !== words.length || added.length) await area.set({ words: [...added, ...rest] });
 }
 
 // Undo for one word of a finished add job (slice 24 §5), on every record the job saved
@@ -1656,7 +1837,7 @@ function checkJobWord(m) {
 }
 const RESTORABLE = ["gloss", "forms", "romanization", "native_vocalized", "pronunciation", "pronunciation_careful", "pronunciation_source", "note", "status", "sense"];
 const jobWords = async (id, key) => {
-  const { addJobs = [] } = await ext.storage.local.get({ addJobs: [] });
+  const { addJobs = [] } = await area.get({ addJobs: [] });
   const job = addJobs.find((j) => j.id === id);
   return (job?.results ?? []).filter((r) => r.word && globalThis.KotikoAddQueue.keyOf(r.word) === key);
 };
@@ -1684,7 +1865,7 @@ async function undoWord(id, key) {
   if (removed.length && (await home()) === "server") await sync.update(() => replaceCached(removed), { reason: "remove" });
   await queue.setUndo(id, key, bad ? { undo: "failed", undoError: { code: bad.code, details: bad.details ?? {} } } : { undo: "done", undoError: null });
   // Undoing a re-add in another language brings back the word it replaced (24 §6).
-  const { addJobs = [] } = await ext.storage.local.get({ addJobs: [] });
+  const { addJobs = [] } = await area.get({ addJobs: [] });
   const job = addJobs.find((j) => j.id === id);
   if (!bad && job?.replaces) {
     await redoWord(job.replaces.id, job.replaces.key);
@@ -1723,17 +1904,9 @@ ext.commands?.onCommand?.addListener((command, tab) => {
   else Promise.resolve(ext.tabs.query({ active: true, currentWindow: true })).then(([active]) => active?.id && send(active.id), () => {});
 });
 
-// The address and token of a 0.2 install are adopted once, by the storage upgrade
-// (lib/local-mode.js `migrate`). After an update no page from before it is left, so these
-// keys written later can only come from a content script: they are removed, never used.
-async function dropLegacy() {
-  await ready().catch(() => {});
-  await ext.storage.local.remove(["token", "serverUrl"]);
-}
-
-// Kotiko's own code writes `server` and `lookup` only after setting their routes, so a
-// copy in storage.local that disagrees was written by something else: put the trusted
-// address back, so the settings show what Kotiko really uses, and wake waiting adds.
+// Kotiko's own code writes `server` and `lookup` only after setting their routes, so
+// settings that disagree with the routes come from a path that forgot to (a bug): put the
+// trusted address back, so the settings show what Kotiko really uses, and wake waiting adds.
 let healing = null;
 function healRoutes() {
   healing ??= underRoutes(healOnce).finally(() => {
@@ -1743,7 +1916,7 @@ function healRoutes() {
 }
 async function healOnce() {
   await ready().catch(() => {});
-  const s = await Local.readSettings(ext.storage.local);
+  const s = await Local.readSettings(area);
   const patch = {};
   const server = await trustedUrl("server");
   if (server && !sameAddress("server", s.server.url, server)) patch.server = { url: server.startsWith(RAW) ? server.slice(RAW.length) : server };
@@ -1755,30 +1928,26 @@ async function healOnce() {
     patch.lookup = { ...s.lookup, provider: chosen, baseUrl: trusted && trusted !== own ? trusted : null };
   }
   if (!Object.keys(patch).length) return;
-  await ext.storage.local.set(patch);
+  await area.set(patch);
   client.reset();
   queue.wake();
   if (patch.server) sync.credentialsChanged();
 }
 
-ext.storage.onChanged.addListener((changes, area) => {
+// storage.local is the trusted copy's mirror: a change the background didn't make is put
+// back, and a key it doesn't keep (a 0.2 `token` or `serverUrl` written after the upgrade,
+// say) is removed unused. storage.sync's changes are taken only where content scripts
+// can't write there (`adoptSync`).
+ext.storage.onChanged.addListener((changes, areaName) => {
   if (wiped) return;
-  if (area === "sync" && changes.ui) {
-    projector.schedule();
-    mirrorBaseRules().catch(() => {});
-  }
-  if (area === "sync" && changes.seedSalt) ensureSeedSalt().catch(() => {});
-  if (area !== "local") return;
-  if (changes.token?.newValue !== undefined || changes.serverUrl?.newValue !== undefined) dropLegacy().catch(() => {});
-  if (changes.server || changes.lookup) healRoutes().catch(() => {});
-  // Bases changed by a page (not the projection's own mirror): project again.
-  if (changes.baseLangs && JSON.stringify(changes.baseLangs.newValue) !== lastBases) {
-    lastBases = JSON.stringify(changes.baseLangs.newValue);
-    projector.schedule();
-    mirrorBaseRules().catch(() => {});
-  }
-  if (changes.wordsHome && changes.wordsHome.newValue === "local") projector.schedule();
-  if (Array.isArray(changes.words?.newValue) && changes.words.newValue.length) noteFirstWord();
+  if (areaName === "sync") adoptSync(changes).catch(() => {});
+  if (areaName !== "local") return;
+  ready()
+    .then(() => area.heal(changes))
+    .then((r) => {
+      if (r.restored.length || r.removed.length) console.warn("Kotiko put back settings changed outside its pages:", [...r.restored, ...r.removed].join(", "));
+    })
+    .catch(() => {});
 });
 
 // The toolbar badge and tooltip per tab (slice 20 §5): "off" when Kotiko is off everywhere
@@ -1788,7 +1957,7 @@ async function updateBadge(tab) {
   const action = ext.action;
   if (!action?.setBadgeText || !tab?.id) return;
   try {
-    const s = await ext.storage.local.get({ enabled: true, pausedHosts: [] });
+    const s = await area.get({ enabled: true, pausedHosts: [] });
     const b = badgeFor({ enabled: s.enabled, pausedHosts: s.pausedHosts, url: tab.url ?? "" });
     await action.setBadgeText({ tabId: tab.id, text: b.text ? t("badge_off") : "" });
     if (b.text) {
@@ -1815,10 +1984,9 @@ ext.tabs?.onActivated?.addListener(({ tabId }) => {
 ext.tabs?.onUpdated?.addListener((_id, change, tab) => {
   if (change.url || change.status === "loading") updateBadge(tab);
 });
-ext.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && (changes.enabled || changes.pausedHosts)) updateAllBadges();
-});
 updateAllBadges();
 
 // For tests: the parts a test drives directly.
-globalThis.__kotiko = { ensureSeedSalt, ready, getStore, queue, refresh, projector, client, settings, currentBases, mirrorBaseRules, injectOpenTabs, toServer, toLocal, openWelcome, claimMilestone, onInstalled };
+// `seed` writes the trusted copy, as Kotiko's own code does (tests can't write storage.local
+// and have it stay, any more than a content script can).
+globalThis.__kotiko = { ensureSeedSalt, adoptSync, ready, getStore, queue, refresh, projector, client, settings, currentBases, mirrorBaseRules, injectOpenTabs, toServer, toLocal, openWelcome, claimMilestone, onInstalled, area, seed: async (items) => (await ready(), area.set(items)) };

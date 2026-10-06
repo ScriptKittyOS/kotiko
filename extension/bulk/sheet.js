@@ -294,7 +294,8 @@
       const pending = st.rows.filter((r) => r.state === "looking");
       if (pending.length) await later(pending);
       const batch = { id: globalThis.crypto.randomUUID(), at: Date.now(), results: results.map((r) => ({ id: r.word?.id, result: r.result, previous: r.previous ?? null, updated_at: r.word?.updated_at ?? null })) };
-      await ctx.ext.storage.local.set({ bulkBatch: batch }).catch(() => {});
+      // storage.session: kept by the browser for this session, out of content scripts' reach.
+      await Promise.resolve(ctx.ext.storage.session?.set({ bulkBatch: batch })).catch(() => {});
       if (st.pron && results.some((r) => r.result === "created" && !r.word?.pronunciation)) ctx.source.refreshJob?.("start").catch(() => {});
       const count = (k) => results.filter((r) => r.result === k).length;
       st.summary = { batch, created: count("created"), updated: count("updated"), unchanged: count("unchanged"), pending: pending.length, lang: st.target, error };
@@ -313,7 +314,7 @@
       );
       const failed = [];
       for (let i = 0; i < ops.length; i += 1000) failed.push(...(await ctx.source.write(ops.slice(i, i + 1000))).filter((x) => !x.ok && x.code !== "word_gone"));
-      await ctx.ext.storage.local.remove("bulkBatch").catch(() => {});
+      await Promise.resolve(ctx.ext.storage.session?.remove("bulkBatch")).catch(() => {});
       st.summary = { ...st.summary, undone: true, undoFailed: failed.length };
       render();
     }

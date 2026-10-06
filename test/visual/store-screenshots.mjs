@@ -99,10 +99,16 @@ async function launch() {
 
 // Past the first run, the learner's words saved, one language read, words mixed per page,
 // and lookups set up (the fixture server's fake model) through the settings' own messages.
+// Settings go in through the background's own copy (`__kotiko.seed`): storage.local is only
+// its mirror, and anything else written there is put back (SCR-448). The install's first
+// run writes its own first, so this waits for it.
 async function seed(env, srv) {
   await env.sw.evaluate(async (base) => {
-    await chrome.storage.sync.set({ ui: { uiLang: "auto", baseLangs: [base], baseLangsConfirmed: true }, seedSalt: "0123456789abcdef0123456789abcdef" });
-    await chrome.storage.local.set({ onboarding: { completedAt: Date.now(), skipped: false, version: 2 }, mixing: { mode: "mix" }, celebrations: null });
+    for (let i = 0; i < 100 && !(await globalThis.__kotiko.area.get("onboarding")).onboarding; i++) await new Promise((r) => setTimeout(r, 50));
+    const ui = { uiLang: "auto", baseLangs: [base], baseLangsConfirmed: true };
+    const seedSalt = "0123456789abcdef0123456789abcdef";
+    await chrome.storage.sync.set({ ui, seedSalt });
+    await globalThis.__kotiko.seed({ ui, seedSalt, baseLangs: [base], onboarding: { completedAt: Date.now(), skipped: false, version: 2 }, mixing: { mode: "mix" }, celebrations: null });
   }, LOCALE);
   const page = await env.context.newPage();
   await page.goto(`${env.base}dashboard.html`);

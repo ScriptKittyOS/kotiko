@@ -23,7 +23,7 @@ The extension works in one of two modes, chosen in its settings (`wordsHome` in
 **Server mode**: your words live on a Kotiko server you run yourself.
 
 ```
- web page ── content script ◀── storage.local (the words pages need)
+ web page ── content script ◀── storage.local (a copy of the words and settings pages need)
                                      ▲
  popup, dashboard, welcome ──▶ background ──HTTP + token──▶ Kotiko server ──▶ model API
                                                               │  (Elixir,  ──▶ en.wiktionary.org
@@ -37,7 +37,7 @@ itself, with your own key for a model service or a model on your machine. No ser
 needed.
 
 ```
- web page ── content script ◀── storage.local (the words pages need)
+ web page ── content script ◀── storage.local (a copy of the words and settings pages need)
                                      ▲
  popup, dashboard, welcome ──▶ background ──▶ IndexedDB "kotiko" (words, keys)
                                      │
@@ -72,6 +72,10 @@ code at runtime; every script is a classic script that attaches one namespace to
   shadow root. [`content.js`](../extension/content.js) ties them together. Content
   scripts read only `storage.local`; keys and the server token live in the background's
   own store, out of their reach (an older install's token is moved there on upgrade).
+  Browsers let content scripts write `storage.local` too, so it is only a mirror: the
+  background keeps the real copy of every setting, of the pages' word list and of the add
+  jobs in its IndexedDB store, reads only that, and puts back any change it didn't make
+  ([`lib/settings.js`](../extension/lib/settings.js), SCR-448).
 - **The background** is [`background.js`](../extension/background.js): a service worker
   in Chrome, an event page in Firefox (the manifest lists both forms). It is the only part
   that opens the word store, reads secrets, calls the server or a model, and runs
@@ -89,8 +93,10 @@ code at runtime; every script is a classic script that attaches one namespace to
   type to a handler that names who may call it: `page` (an extension page) or `content`
   (a content script in a web page), plus `docs` (a content script on Kotiko's docs site,
   only for the "Connect OpenRouter" sign-in code). Content scripts may only ask for a sync
-  and the sensitive-site list. Adding, editing and deleting words, and anything that
-  touches keys, are for extension pages only; a content script asking gets `forbidden`.
+  and the sensitive-site list, and put one word on the never-swap list (`neverSwap`, the
+  word card's action). Adding, editing and deleting words, changing settings
+  (`settings.set`, `settings.restore`) and anything that touches keys are for extension
+  pages only; a content script asking gets `forbidden`.
 - **Local mode** ([`lib/local-mode.js`](../extension/lib/local-mode.js)): settings, the
   one-time upgrade of older installs, and the word routes over the extension's own store
   ([`lib/store.js`](../extension/lib/store.js)). The lookup client
@@ -176,7 +182,7 @@ Where it is kept:
 
 | Mode | Words | Keys and tokens |
 |---|---|---|
-| Server | SQLite at `<data dir>/kotiko.db` (default `$XDG_DATA_HOME/kotiko`, else `~/.local/share/kotiko`); the extension keeps a copy of the words pages need in `storage.local` | The server's token in `<data dir>/api-token` or `.env`; model and Telegram keys in `.env`. Any of them can be in its own file instead (`NAME_FILE`, docs/reference/configuration.md). In the extension, the server token is in the IndexedDB store |
+| Server | SQLite at `<data dir>/kotiko.db` (default `$XDG_DATA_HOME/kotiko`, else `~/.local/share/kotiko`); the extension keeps a copy of the words pages need in its IndexedDB store, mirrored to `storage.local` | The server's token in `<data dir>/api-token` or `.env`; model and Telegram keys in `.env`. Any of them can be in its own file instead (`NAME_FILE`, docs/reference/configuration.md). In the extension, the server token is in the IndexedDB store |
 | Local | IndexedDB database `kotiko`, opened only by the background ([`lib/store.js`](../extension/lib/store.js)); a projection of the active words in `storage.local` for content scripts ([`lib/projection.js`](../extension/lib/projection.js)) | Model keys in the same IndexedDB store's `secrets`, which content scripts can't reach |
 
 The server also keeps a lookup cache, kept add responses (24 hours) and background-job
@@ -217,8 +223,8 @@ answers with a card: `add …` saves at once with Undo; a question shows Add and
 
 **Sync (server mode).** The background asks the server for the words every minute (a
 browser alarm), on page loads and after a change, keeps one request running at a time,
-checks the answer, and writes the words to `storage.local`. Content scripts pick up the
-change. The page sync still reads the older `GET /api/words` route; the dashboard reads
+checks the answer, and keeps the words in its own store, mirrored to `storage.local`.
+Content scripts pick up the change. The page sync still reads the older `GET /api/words` route; the dashboard reads
 and edits through `/api/v1`.
 
 **Swapping words on a page.** The content script works out which parts of the page are
@@ -233,7 +239,8 @@ content.
 Kotiko treats these as untrusted and checks what crosses them:
 
 - the web page and its scripts (the page DOM is read as text and never written as HTML);
-- content scripts, which may only send the messages `messages.js` allows them;
+- content scripts, which may only send the messages `messages.js` allows them, and whose
+  writes to `storage.local` and `storage.sync` the background never acts on;
 - the network between the extension and the server (bearer token, Host check; plain
   HTTP only if you set `BIND` to a network address, with a warning at startup);
 - the model's answers, which are checked against the spec before anything is saved;

@@ -634,6 +634,12 @@ a fresh profile looks a word up with the fake model and swaps it, a manual word 
 network, an add finishing with the popup closed, a worker stopped mid-lookup, a server
 install upgraded with nothing changed). Screenshots: `node test/visual/local-screenshots.mjs <dir>`.
 
+*2026-10-06 (SCR-448).* §2's table: `setAccessLevel` restricts `storage.local` from Chrome
+140, not 102 (102 was `session` only); Firefox still has none. Settings, the pages' word
+list and `addJobs` now have their real copy in the store's `meta` (`area:<key>` rows,
+`lib/settings.js`), with `storage.local` as a mirror the background puts back; see slice
+28's notes.
+
 *2026-10-06, Connect OpenRouter shown (branch `feat/connect-openrouter-and-screenshots`).*
 The docs site is live: `curl https://kotiko.org/connect/` answers 200 over HTTPS with
 `#kotiko-connect-status` (`role="status"`), no script and its own CSP `<meta>`; `/connect`

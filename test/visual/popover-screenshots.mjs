@@ -66,7 +66,8 @@ async function run() {
   try {
     for (const lang of ["en", "es"]) {
       const { context, sw, userDataDir } = await launch(lang);
-      await sw.evaluate((o) => chrome.storage.local.set({ words: o.words, enabled: true, lastSync: Date.now() }), { words: POPOVER_WORDS });
+      // Through the background's own copy: storage.local is only its mirror (SCR-448).
+      await sw.evaluate((o) => globalThis.__kotiko.seed({ words: o.words, enabled: true, lastSync: Date.now() }), { words: POPOVER_WORDS });
       // Connects as the settings do (slice 28: an address written to storage.local is ignored).
       const setupPage = await context.newPage();
       await setupPage.goto(`chrome-extension://${new URL(sw.url()).host}/privacy.html`);

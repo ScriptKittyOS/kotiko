@@ -6,8 +6,10 @@
 // banners (slice 25). Every string comes from _locales through KotikoI18n.
 //
 // Talks to the background (`add`, `remove`, `sync`, `jobs.*`, `server.connect`) and reads
-// storage.local (slice 11 adds wordsHome, lookup, server, keys and addJobs). The AI key is
-// never typed here (DECISIONS). Hooks for later slices are marked with their number.
+// storage.local (slice 11 adds wordsHome, lookup, server, keys and addJobs), the
+// background's mirror of its settings: changes go to it as `settings.set` (SCR-448). The
+// AI key is never typed here (DECISIONS). Hooks for later slices are marked with their
+// number.
 (() => {
   const ext = globalThis.browser ?? globalThis.chrome;
   const I18n = globalThis.KotikoI18n;
@@ -198,6 +200,12 @@
     return p;
   }
 
+  // A settings change, made by the background (SCR-448): {set, merge, add, remove}.
+  async function save(change) {
+    const res = await send({ type: "settings.set", ...change });
+    if (res?.error) throw new Error(typeof res.error === "string" ? res.error : res.error.code);
+  }
+
   // Sends at once; a failure to reach the background becomes an ordinary error answer.
   function send(msg) {
     const failed = (e) => ({ error: String(e?.message ?? e), code: "internal" });
@@ -242,7 +250,7 @@
       case "backupNow":
         return el("button", { class: "btn btn-secondary btn-sm", type: "button", onclick: () => openDashboardAt("#settings/data/backup"), "data-action": "backup-now" }, t("popup_backup_now"));
       case "notNow":
-        return el("button", { class: "link link-quiet", type: "button", onclick: () => ext.storage.local.set({ backupSnooze: Date.now() + BACKUP_DAYS * DAY_MS }), "data-action": "not-now" }, t("popup_backup_not_now"));
+        return el("button", { class: "link link-quiet", type: "button", onclick: () => save({ set: { backupSnooze: Date.now() + BACKUP_DAYS * DAY_MS } }).catch(() => {}), "data-action": "not-now" }, t("popup_backup_not_now"));
       default:
         return null;
     }
@@ -411,10 +419,7 @@
     const stale = s.hiddenLangs.filter((x) => !all.includes(x));
     const trusted = s.lastSync && !s.syncError;
     if (stale.length && trusted && !inFlight.has("hiddenLangs")) {
-      write(["hiddenLangs"], async () => {
-        const { hiddenLangs } = await ext.storage.local.get({ hiddenLangs: [] });
-        await ext.storage.local.set({ hiddenLangs: hiddenLangs.filter((x) => !stale.includes(x)) });
-      });
+      write(["hiddenLangs"], () => save({ remove: { hiddenLangs: stale } }));
     }
     const kept = focus?.filter((x) => all.includes(x));
     if (kept?.length < focus?.length && trusted && !inFlight.has("mixing")) saveFocus(kept.length ? kept : null);
@@ -907,13 +912,7 @@
     else hidden.add(lang);
     state.s.hiddenLangs = [...hidden];
     renderLangs();
-    return write(["hiddenLangs"], async () => {
-      const { hiddenLangs } = await ext.storage.local.get({ hiddenLangs: [] });
-      const set = new Set(hiddenLangs);
-      if (set.has(lang)) set.delete(lang);
-      else set.add(lang);
-      await ext.storage.local.set({ hiddenLangs: [...set] });
-    });
+    return write(["hiddenLangs"], () => save({ [hidden.has(lang) ? "add" : "remove"]: { hiddenLangs: [lang] } }));
   }
 
   // Focus on one language (18); again on the only focused one stops.
@@ -926,34 +925,28 @@
     const since = focus ? (focusOf(state.s) && state.s.mixing.focusSince) || new Date().toISOString() : null;
     state.s.mixing = { ...state.s.mixing, focus, focusSince: since };
     renderLangs();
-    return write(["mixing"], async () => {
-      const { mixing } = await ext.storage.local.get({ mixing: null });
-      await ext.storage.local.set({ mixing: { ...mixing, focus, focusSince: since } });
-    });
+    return write(["mixing"], () => save({ merge: { mixing: { focus, focusSince: since } } }));
   }
 
   function showAll() {
     state.s.hiddenLangs = [];
     renderLangs();
     $("chips").querySelector('.chip[tabindex="0"]')?.focus();
-    return write(["hiddenLangs"], () => ext.storage.local.set({ hiddenLangs: [] }));
+    return write(["hiddenLangs"], () => save({ set: { hiddenLangs: [] } }));
   }
 
   // "Swap words here anyway" (16 §4).
   function allowSensitive() {
     state.pageStatus = { ...state.pageStatus, sensitive: null };
     renderPage();
-    return write(["prefs"], async () => {
-      const { prefs } = await ext.storage.local.get({ prefs: {} });
-      await ext.storage.local.set({ prefs: { ...prefs, sensitiveAllowed: [...new Set([...(prefs.sensitiveAllowed ?? []), state.host])] } });
-    });
+    return write(["prefs"], () => save({ add: { "prefs.sensitiveAllowed": [state.host] } }));
   }
 
   function setEnabled(on) {
     state.s.enabled = on;
     renderHeader();
     renderBanners();
-    return write(["enabled"], () => ext.storage.local.set({ enabled: on }));
+    return write(["enabled"], () => save({ set: { enabled: on } }));
   }
 
   function setPaused(paused) {
@@ -965,13 +958,7 @@
     state.s.pausedHosts = [...set];
     renderPage();
     (paused ? $("resume") : $("pauseRow")).focus();
-    return write(["pausedHosts"], async () => {
-      const { pausedHosts } = await ext.storage.local.get({ pausedHosts: [] });
-      const next = new Set(pausedHosts);
-      if (paused) next.add(host);
-      else next.delete(host);
-      await ext.storage.local.set({ pausedHosts: [...next] });
-    });
+    return write(["pausedHosts"], () => save({ [paused ? "add" : "remove"]: { pausedHosts: [host] } }));
   }
 
   async function syncNow() {
@@ -1040,10 +1027,7 @@
   function setOnlineVoices(on) {
     state.s.speech = { ...DEFAULTS.speech, ...state.s.speech, allowOnline: on };
     renderVoices();
-    return write(["speech"], async () => {
-      const { speech } = await ext.storage.local.get({ speech: DEFAULTS.speech });
-      await ext.storage.local.set({ speech: { ...DEFAULTS.speech, ...speech, allowOnline: on } });
-    });
+    return write(["speech"], () => save({ merge: { speech: { ...DEFAULTS.speech, ...state.s.speech, allowOnline: on } } }));
   }
 
   function renderSettingsFields() {

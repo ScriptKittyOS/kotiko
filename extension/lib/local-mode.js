@@ -6,14 +6,18 @@
 // the background's word routes over the extension's own store. No DOM, so it runs in the
 // background (globalThis.KotikoLocal) and in Node tests (module.exports).
 //
-// Settings (storage.local is the working copy; slice 39 syncs the non-secret ones):
+// Settings (the background's trusted copy, lib/settings.js, mirrored to storage.local;
+// slice 39 syncs the non-secret ones):
 //   wordsHome   "local" (this browser keeps the words) | "server" (a Kotiko server does)
 //   lookup      {kind: "provider" | "server" | "none", provider, baseUrl, model, dataCollection}
 //   server      {url}                      the token is a secret, never here
 //   keys        {server: bool, providers: {id: bool}}  which secrets exist (no key material)
 //
 //   await KotikoLocal.readSettings(storage)
-//   await KotikoLocal.migrate({ store, storage, uiLanguage })   idempotent; meta.schema = 1
+//   await KotikoLocal.migrate({ store, storage, legacy, uiLanguage, beforeDone })
+//                                            idempotent; meta.schema = 1. Reads a 0.2
+//                                            install's keys from `legacy` (storage.local)
+//                                            and writes the settings to `storage`
 //   KotikoLocal.parseManual("犬 = perro")    -> {native, gloss, romanization, pronunciation}
 //   KotikoLocal.createLocalWordHandlers({...}) -> MessageRouter handlers (words.*, job.refresh)
 (() => {
@@ -46,9 +50,13 @@
   // Slice 11 section 8. Runs on install and update, and on any worker start until
   // meta.schema is set, so an interrupted run resumes. Every step is idempotent; no step
   // deletes a word.
-  async function migrate({ store, storage, uiLanguage = "en", log = () => {} }) {
+  // `storage` gets the settings (the background's trusted copy); `legacy` is where an older
+  // install kept them (storage.local; the same area when they are one). `beforeDone(from)`
+  // runs before the upgrade is marked done, so whatever it records is redone if the worker
+  // stops in between.
+  async function migrate({ store, storage, legacy: legacyArea = storage, uiLanguage = "en", beforeDone = async () => {}, log = () => {} }) {
     if ((await store.meta.get("schema")) === SCHEMA) return { migrated: false };
-    const legacy = await storage.get({ token: "", serverUrl: null, words: [], wordsHome: null, lookup: null, server: null, baseLangs: null, keys: null });
+    const legacy = await legacyArea.get({ token: "", serverUrl: null, words: [], wordsHome: null, lookup: null, server: null, baseLangs: null, keys: null });
     const token = String(legacy.token ?? "").trim();
     const patch = {};
     // Step 2: a token means today's setup: words on that server, which also looks them up.
@@ -71,15 +79,17 @@
     if (home === "local") {
       let bases = Array.isArray(legacy.baseLangs) && legacy.baseLangs.length ? legacy.baseLangs : detectBases(uiLanguage);
       if (seeded && !bases.includes("en")) bases = [...bases, "en"];
-      if (JSON.stringify(bases) !== JSON.stringify(legacy.baseLangs)) patch.baseLangs = bases;
+      patch.baseLangs = bases;
     }
     const keys = { server: !!token || legacy.keys?.server === true, providers: { ...(legacy.keys?.providers ?? {}) } };
     patch.keys = keys;
     await storage.set(patch);
     // Step 6: the token and address leave the area content scripts can read.
-    await storage.remove(["token", "serverUrl"]);
+    await legacyArea.remove(["token", "serverUrl"]);
+    const from = token ? "server" : legacy.words?.length ? "cache" : "new";
+    await beforeDone(from);
     await store.meta.set("schema", SCHEMA);
-    await store.meta.set("migratedFrom", token ? "server" : legacy.words?.length ? "cache" : "new");
+    await store.meta.set("migratedFrom", from);
     log(`Kotiko storage ready (${home}; ${seeded} cached word(s) kept)`);
     return { migrated: true, home, seeded };
   }

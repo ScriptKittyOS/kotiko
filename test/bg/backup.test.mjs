@@ -99,11 +99,11 @@ describe("delete everything (§6)", () => {
 
   async function full({ server = false } = {}) {
     const bg = loadBackground({
-      local: { baseLangs: ["en"], prefs: { theme: "dark" }, hiddenLangs: ["ja"] },
       sync: { ui: { baseLangs: ["en"], uiLang: "auto" } },
       session: { addDraft: "hola", addHint: "es" },
     });
     await bg.k.ready();
+    await bg.k.seed({ baseLangs: ["en"], prefs: { theme: "dark" }, hiddenLangs: ["ja"] });
     await bg.send({ type: "secrets.set", id: "provider:openrouter", value: KEY });
     await bg.send({ type: "backup.restore", words: backupWords("multi-script.json") });
     await bg.send({ type: "add", text: "gracias = thanks", hintLang: "es" });

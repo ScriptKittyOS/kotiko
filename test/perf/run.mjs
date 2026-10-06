@@ -205,6 +205,34 @@ benchmarks["local.projection.write.5k"] = {
     return `${words.length}`;
   },
 };
+// SCR-448: the projection goes to the background's trusted copy (IndexedDB `meta`, here
+// fake-indexeddb) and then to the mirror; the change event of that write is checked against
+// the trusted copy (a match, so nothing is written back).
+const Settings = requireExt("lib/settings.js");
+const { IDBFactory, IDBKeyRange } = await import("fake-indexeddb");
+globalThis.IDBKeyRange ??= IDBKeyRange;
+const trustedArea = async () => {
+  const store = await requireExt("lib/store.js").open({ indexedDB: new IDBFactory() });
+  const mirror = fakeChrome().chrome.storage.local;
+  return { area: Settings.createArea({ meta: store.meta, mirror }), mirror };
+};
+benchmarks["local.projection.write.trusted.5k"] = {
+  setup: trustedArea,
+  run: async ({ area }) => {
+    const words = Projection.project(localRecords, ["en", "es"]);
+    await area.set({ words, baseLangs: ["en", "es"], wordsVersion: { n: 1, at: 0, by: null } });
+    return `${words.length}`;
+  },
+};
+benchmarks["local.projection.heal-check.5k"] = {
+  setup: async () => {
+    const t = await trustedArea();
+    const words = Projection.project(localRecords, ["en", "es"]);
+    await t.area.set({ words });
+    return { ...t, change: { words: { newValue: JSON.parse(JSON.stringify(words)) } } };
+  },
+  run: async ({ area, change }) => `${(await area.heal(change)).restored.length}`,
+};
 
 const { JSDOM } = await import("jsdom");
 const { createFakeChrome } = await import("../helpers/fake-chrome.mjs");
@@ -306,7 +334,7 @@ benchmarks["bulk.parse.5k"] = {
 async function measure(bench) {
   const { setup = () => undefined, run } = typeof bench === "function" ? { run: bench } : bench;
   const once = async () => {
-    const input = setup();
+    const input = await setup();
     const t = performance.now();
     const result = await run(input);
     return { ms: performance.now() - t, result };

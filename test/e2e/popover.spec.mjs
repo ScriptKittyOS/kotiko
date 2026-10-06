@@ -22,9 +22,9 @@ async function setup({ server, serviceWorker, context }, extra = {}) {
   // this test sets its own, or it can overwrite them.
   await expect.poll(() => serviceWorker.evaluate(async () => !!(await chrome.storage.local.get("onboarding")).onboarding)).toBe(true);
   await serviceWorker.evaluate(async (o) => {
-    await chrome.storage.sync.set({ ui: { uiLang: "auto", baseLangs: ["en", "es"], baseLangsConfirmed: true } });
+    await globalThis.__kotiko.seed({ ui: { uiLang: "auto", baseLangs: ["en", "es"], baseLangsConfirmed: true } });
     // "Mix within the page" (18), so the page's two "thanks" show 谢谢 and спасибо.
-    await chrome.storage.local.set({ words: o.words, enabled: true, lastSync: Date.now(), mixing: { mode: "mix" }, ...o.extra });
+    await globalThis.__kotiko.seed({ words: o.words, enabled: true, lastSync: Date.now(), mixing: { mode: "mix" }, ...o.extra });
   }, { words: POPOVER_WORDS, extra });
   await connectServer(context, serviceWorker, server.kotikoUrl, server.token);
   // The background writes the rules for both languages for content scripts to read.

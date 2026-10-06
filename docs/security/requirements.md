@@ -56,9 +56,15 @@ Kotiko has two parts: the browser extension, and an optional server you run your
   `textContent` and DOM methods; the linter fails the build on `innerHTML` and similar.
 - **Web pages can't use the extension to change your words.** Messages are checked by
   sender: content scripts running in web pages may only ask for a sync and for the list of
-  sensitive sites (and, on Kotiko's own docs site only, hand over the "Connect OpenRouter"
-  sign-in code); adding, editing and deleting words, and setting keys, are allowed only
+  sensitive sites, and put one word on the never-swap list from its word card (and, on
+  Kotiko's own docs site only, hand over the "Connect OpenRouter" sign-in code); adding, editing and deleting words, and setting keys, are allowed only
   from the extension's own pages.
+- **Web pages can't change your settings, your word list or what you're adding.** Even if
+  a page subverted Kotiko's own script in it, Kotiko keeps the real copy of its settings,
+  of the words pages show and of the words waiting to be looked up where that script can't
+  write, and puts back anything it changes. Only Kotiko's own pages change settings. (In
+  Firefox, base languages you change in Kotiko on another device don't follow until you
+  change them in that browser too.)
 - **Your model key and server token are out of reach of content scripts.** They are kept in
   the extension's own database, which content scripts can't open. An older install that
   kept the token where content scripts could read it is moved on upgrade.

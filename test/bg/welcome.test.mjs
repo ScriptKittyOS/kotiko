@@ -130,14 +130,15 @@ describe("milestones and the end of the first run", () => {
     assert.deepEqual([a.claimed, b.claimed].sort(), [false, true]);
     assert.equal((a.claimed ? a : b).celebrate, true);
     assert.ok(bg.store.celebrations.done["vocab:first"]);
-    const off = loadBackground({ local: { prefs: { celebrations: false } } });
+    const off = loadBackground();
+    await off.k.seed({ prefs: { celebrations: false } });
     assert.deepEqual(plain(await off.send({ type: "celebrations.claim", key: "vocab:first" })), { claimed: true, reason: null, celebrate: false });
     assert.deepEqual(plain(await bg.send({ type: "celebrations.claim", key: "nope" })).error.code, "invalid_message");
   });
 
   test("the first word saved anywhere (here, the popup's add) finishes the first run", async () => {
-    const bg = loadBackground({ local: { onboarding: { completedAt: null, skipped: false, version: 2 }, baseLangs: ["en"] } });
-    await bg.k.ready();
+    const bg = loadBackground();
+    await bg.k.seed({ onboarding: { completedAt: null, skipped: false, version: 2 }, baseLangs: ["en"] });
     const r = await bg.send({ type: "add", text: "ありがとう = thanks" }, { id: EXT_ID, url: `chrome-extension://${EXT_ID}/popup.html` });
     assert.equal(r.ok, true);
     await bg.until(() => bg.store.onboarding?.completedAt);

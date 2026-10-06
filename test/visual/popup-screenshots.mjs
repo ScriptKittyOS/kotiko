@@ -91,7 +91,7 @@ async function shoot({ context, url }, name, { scheme, setup, act, waitMs = 250,
     }
   }, { tabUrl, noPermission, slowStorage });
   await page.goto(url);
-  await page.evaluate(() => chrome.storage.local.clear());
+  await clear(page);
   if (setup) await setup(page);
   await page.reload();
   if (act) await act(page);
@@ -102,7 +102,14 @@ async function shoot({ context, url }, name, { scheme, setup, act, waitMs = 250,
   return file;
 }
 
-const set = (page, items) => page.evaluate((i) => chrome.storage.local.set(i), items);
+// Settings go in through the background's own copy (`__kotiko`, in its service worker):
+// storage.local is only its mirror, and anything else written there is put back (SCR-448).
+const worker = (page) => page.context().serviceWorkers()[0];
+const set = (page, items) => worker(page).evaluate((i) => globalThis.__kotiko.seed(i), items);
+const clear = (page) => worker(page).evaluate(async () => {
+  const { area } = globalThis.__kotiko;
+  await area.remove(Object.keys(await area.get(null)));
+});
 // Connects as the settings do (slice 28: an address or token written to storage.local is ignored).
 const connect = (page, url, token) => page.evaluate((m) => chrome.runtime.sendMessage(m), { type: "server.connect", url, token });
 

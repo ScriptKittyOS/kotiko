@@ -73,6 +73,11 @@ async function shoot(env, name, { scheme, page: kind, size, hash = "", setup, ac
   return out;
 }
 
+// Settings go in through the background's own copy (`__kotiko`, in its service worker):
+// storage.local is only its mirror, and anything else written there is put back (SCR-448).
+const worker = (page) => page.context().serviceWorkers()[0];
+const seed = (page, items) => worker(page).evaluate((i) => globalThis.__kotiko.seed(i), items);
+
 async function run() {
   await fs.mkdir(OUT, { recursive: true });
   const srv = await startFixtureServer();
@@ -82,13 +87,14 @@ async function run() {
   // A fresh local profile: storage and the word store emptied, words in this browser.
   const fresh = async (page) => {
     await control({ reset: true });
+    await seed(page, { wordsHome: "local", addJobs: [] });
     await page.evaluate(async () => {
-      await chrome.storage.local.set({ wordsHome: "local", lookup: { kind: "none", provider: "openrouter", baseUrl: null, model: null, dataCollection: "allow" }, addJobs: [] });
+      await chrome.runtime.sendMessage({ type: "backend.set", lookup: { kind: "none", provider: "openrouter", baseUrl: null, model: null, dataCollection: "allow" } });
       for (const id of ["provider:openrouter", "provider:custom", "server"]) await chrome.runtime.sendMessage({ type: "secrets.remove", id });
       const { words } = await chrome.runtime.sendMessage({ type: "words.list" });
       if (words.length) await chrome.runtime.sendMessage({ type: "words.write", ops: words.map((w) => ({ op: "delete", id: w.id })) });
-      await chrome.storage.local.set({ addJobs: [] });
     });
+    await seed(page, { addJobs: [] });
   };
   const withWords = async (page) => {
     await fresh(page);
@@ -97,7 +103,7 @@ async function run() {
       const { addJobs = [] } = await chrome.storage.local.get("addJobs");
       return addJobs.length >= 4 && addJobs.every((j) => j.state === "done");
     }, null, { timeout: 10_000 });
-    await page.evaluate(() => chrome.storage.local.get("addJobs").then(({ addJobs }) => chrome.storage.local.set({ addJobs: addJobs.map((j) => ({ ...j, seen: true })) })));
+    await page.evaluate(() => chrome.storage.local.get("addJobs").then(({ addJobs }) => chrome.runtime.sendMessage({ type: "jobs.seen", ids: addJobs.map((j) => j.id) })));
   };
   const provider = (lookup, key) => async (page) => {
     await fresh(page);
@@ -141,11 +147,11 @@ async function run() {
       page: "popup",
       setup: async (p) => {
         await withWords(p);
-        await p.evaluate(async () => {
+        await worker(p).evaluate(async () => {
           const now = Date.now();
           const job = (id, text, error, retryAt) => ({ id, surface: "popup", text, hintLang: null, baseLangs: ["en"], manual: null, state: "waiting", createdAt: now - Number(id.slice(-1)), startedAt: now - 5000, attempts: 1, waits: 1, error, results: [], rejected: [], missingBases: [], retryAt, seen: false });
-          const { addJobs = [] } = await chrome.storage.local.get("addJobs");
-          await chrome.storage.local.set({
+          const { addJobs = [] } = await globalThis.__kotiko.area.get({ addJobs: [] });
+          await globalThis.__kotiko.seed({
             addJobs: [
               job("01900000-0000-7000-8000-000000000001", "shukran", { code: "lookup_not_set_up", details: {} }, null),
               job("01900000-0000-7000-8000-000000000002", "kniga", { code: "quota_exhausted", details: { retry_at: new Date(Date.UTC(2026, 9, 3, 0, 0)).toISOString() } }, Date.UTC(2026, 9, 3)),

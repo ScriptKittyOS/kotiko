@@ -243,7 +243,8 @@ describe("restoring a backup (§5)", () => {
     const sent = d.api.sent.find((m) => m.type === "backup.restore");
     assert.equal(sent.words.length, 13);
     assert.equal(sent.restoreDeleted, true);
-    assert.equal(d.store.hiddenLangs?.[0], "hy", "settings restored");
+    // The background applies them (SCR-448; test/bg/settings.test.mjs).
+    assert.equal(d.api.sent.find((m) => m.type === "settings.restore")?.settings.hiddenLangs?.[0], "hy", "settings restored");
     assert.match(d.text("#toasts"), /Restored 13 words\./);
     d.$("#toasts .toast-undo").click();
     await d.settle();
