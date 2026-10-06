@@ -72,11 +72,11 @@ defmodule Kotiko.VoiceTest do
 
   describe "Transcriber.transcribe/1" do
     test "uploads the audio with the model and the key, and trims the text" do
-      put_app_env(:transcribe_api_key, "whisper-key-123")
+      put_app_env(:transcribe_api_key, "whisper-key-0123456789")
       stub_transcriber(&Req.Test.json(&1, %{text: "  shukran \n"}))
 
       assert Transcriber.transcribe("OggS") == {:ok, "shukran"}
-      assert_received {:transcribe, ["Bearer whisper-key-123"], body}
+      assert_received {:transcribe, ["Bearer whisper-key-0123456789"], body}
       assert body =~ ~s(name="file"; filename="voice.ogg")
       assert body =~ "whisper-1"
     end

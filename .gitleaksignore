@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Findings gitleaks may skip. Each line is a fingerprint (commit:file:rule:line) of a value
+# that is not a secret, with the reason above it. New test keys follow CONTRIBUTING.md
+# ("0123456789" in every fake key), so this list should stay short.
+
+# A fake Whisper key in a test, written before it followed that rule; renamed since.
+bd016da4200b0d28093d8360304e46d844ef8f23:server/test/kotiko/voice_test.exs:generic-api-key:75
