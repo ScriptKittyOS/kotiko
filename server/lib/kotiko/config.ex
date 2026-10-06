@@ -449,6 +449,8 @@ defmodule Kotiko.Config do
   end
 
   @doc false
+  # Sobelow: the folder is KOTIKO_DATA_DIR or the default, never from a request.
+  # sobelow_skip ["Traversal.FileModule"]
   def ensure_dir(dir) do
     with :ok <- File.mkdir_p(dir),
          {:ok, %File.Stat{type: :directory, access: :read_write}} <- File.stat(dir) do

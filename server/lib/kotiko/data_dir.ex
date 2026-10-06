@@ -97,6 +97,8 @@ defmodule Kotiko.DataDir do
   a token the old server made keeps working. Returns `{:ok, copied_from_path}`,
   `{:ok, nil}` when there was nothing to copy, or `{:error, message}`.
   """
+  # Sobelow: both folders come from the server's own settings at startup, never a request.
+  # sobelow_skip ["Traversal.FileModule"]
   def copy_legacy_token(from_dir, to_dir) do
     from = Token.path(from_dir)
     to = Token.path(to_dir)
@@ -126,6 +128,8 @@ defmodule Kotiko.DataDir do
     end
   end
 
+  # Sobelow: the data folder comes from the server's settings, never from a request.
+  # sobelow_skip ["Traversal.FileModule"]
   defp fresh(target) do
     case File.mkdir_p(target) do
       :ok -> {:ok, :fresh}
@@ -135,6 +139,8 @@ defmodule Kotiko.DataDir do
 
   # ── the copy ────────────────────────────────────────────────────────
 
+  # Sobelow: the data folder comes from the server's settings, never from a request.
+  # sobelow_skip ["Traversal.FileModule"]
   defp copy(legacy, target) do
     database = database(target)
 
@@ -166,6 +172,8 @@ defmodule Kotiko.DataDir do
   end
 
   # With the old database locked, so nothing can write to it until the copy is in place.
+  # Sobelow: the data folder comes from the server's settings, never from a request.
+  # sobelow_skip ["Traversal.FileModule"]
   defp copy_locked(conn, legacy, target) do
     database = database(target)
     partial = database <> ".partial"
@@ -252,6 +260,8 @@ defmodule Kotiko.DataDir do
     end
   end
 
+  # Sobelow: the old database's folder comes from the server's settings, not a request.
+  # sobelow_skip ["Traversal.FileModule"]
   defp write_note(legacy, database) do
     dir = Path.dirname(legacy)
     at = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
@@ -280,6 +290,8 @@ defmodule Kotiko.DataDir do
 
   # Best effort: the database is already private, and a shared folder someone chose may
   # not be theirs to change.
+  # Sobelow: the data folder comes from the server's settings, never from a request.
+  # sobelow_skip ["Traversal.FileModule"]
   defp private_dir(dir) do
     case File.chmod(dir, 0o700) do
       :ok -> :ok
@@ -287,6 +299,8 @@ defmodule Kotiko.DataDir do
     end
   end
 
+  # Sobelow: the database path comes from the server's settings, never from a request.
+  # sobelow_skip ["Traversal.FileModule"]
   defp remove_partial(database) do
     Enum.each(@partial_suffixes, &File.rm(database <> &1))
   end

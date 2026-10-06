@@ -60,6 +60,8 @@ defmodule Kotiko.Migrations do
   end
 
   @doc "Copies the database into `<data_dir>/backups` and prunes old copies. Returns the path."
+  # Sobelow: backups go under the configured data folder, never a path from a request.
+  # sobelow_skip ["Traversal.FileModule"]
   def backup!(repo, data_dir) do
     dir = Path.join(data_dir, "backups")
     File.mkdir_p!(dir)
@@ -82,6 +84,8 @@ defmodule Kotiko.Migrations do
   end
 
   # Newest first by the UTC time in the name; keeps @keep_backups.
+  # Sobelow: only names matching the backup pattern, inside the configured backups folder.
+  # sobelow_skip ["Traversal.FileModule"]
   defp prune(dir) do
     dir
     |> File.ls!()

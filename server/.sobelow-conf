@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
+# SPDX-License-Identifier: Apache-2.0
+
+# Sobelow, the security-focused static analyser (`mix sobelow`, run in CI's server job).
+# The rules are in docs/security/dependency-and-static-analysis-policy.md.
+#
+# - exit: :low      any finding fails the run, whatever Sobelow's confidence.
+# - skip: true      honour `# sobelow_skip ["Check"]` comments. Each one sits above the
+#                   function it covers, under a comment saying why the finding is false.
+# - router: :none   Kotiko is a plain Plug app with no Phoenix router, so the router
+#                   checks (CSRF, CSP, headers) have nothing to read. The other checks
+#                   (SQL, command injection, traversal, binary_to_term, atoms) still run.
+# - include_*       also scan the mix tasks, the migrations and other scripts.
+# - strict: true    a file Sobelow can't parse fails the run instead of being skipped.
+# - private: true   no update check, no network.
+[
+  exit: :low,
+  threshold: :low,
+  skip: true,
+  router: :none,
+  include_mix_tasks: true,
+  include_scripts: true,
+  strict: true,
+  private: true,
+  ignore: [],
+  ignore_files: [],
+  format: "txt",
+  verbose: false
+]
