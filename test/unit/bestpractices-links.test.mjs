@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { MAX_URL, cells, links, page, parse, validate } from "../../scripts/bestpractices-links.mjs";
+import { MAX_URL, cells, changes, links, page, parse, validate } from "../../scripts/bestpractices-links.mjs";
 
 const doc = (rows, heading = "## Passing: Basics") => `# Answers
 
@@ -55,6 +55,28 @@ test("the page shows the metal series unless Baseline is asked for", () => {
   assert.equal(page(parsed, { baseline: true }).match(/class="cta"/g).length, 2);
 });
 
+test("a criterion shared by two metal levels must have one answer", () => {
+  const text = doc(["| `crypto_weaknesses` | SHOULD | Met | SHA-256 only. | – | – |"]) +
+    "\n## Gold: Security\n\n| Criterion | Level | Status | Answer | Evidence | Needs |\n|---|---|---|---|---|---|\n" +
+    "| `crypto_weaknesses` | MUST | Met | No SHA-1 anywhere. | – | – |\n";
+  assert.ok(validate(parse(text)).some((p) => /crypto_weaknesses: differs from its passing copy/.test(p)));
+});
+
+test("only answers that differ from the saved entry are listed, keyed the entry's way", () => {
+  const text = doc(["| `floss_license` | MUST | Met | Apache-2.0. | – | – |", "| `english` | SHOULD | Met | English. | – | – |"]) +
+    "\n## Baseline 1: General\n\n| Criterion | Level | Status | Answer | Evidence | Needs |\n|---|---|---|---|---|---|\n" +
+    "| `osps_ac_01_01` | MUST | Met | Org requires 2FA. | – | – |\n";
+  const entry = {
+    floss_license_status: "Met", floss_license_justification: " Apache-2.0.\n",
+    english_status: "?",
+    "OSPS-AC-01.01_status": "Unmet", "OSPS-AC-01.01_justification": "old",
+  };
+  const pending = changes(parse(text), entry);
+  assert.deepEqual(pending.get("passing").map((r) => [r.criterion, r.was]), [["english", "?"]]);
+  assert.deepEqual(pending.get("baseline-1").map((r) => [r.criterion, r.was]), [["osps_ac_01_01", "Unmet"]]);
+  assert.match(page(parse(text), { entry }), /Up to date|1 to update/);
+});
+
 test("baseline headings map to the baseline sections", () => {
   const parsed = parse(doc(["| `osps_ac_01_01` | MUST [N/A J] | Met | Org requires 2FA. | gh api | – |"], "## Baseline 1: Access Control"));
   assert.equal(parsed.groups[0].section, "baseline-1");
@@ -99,11 +121,12 @@ test("validation names every problem", () => {
   assert.ok(problems.some((p) => /maintained: no answer/.test(p)));
 });
 
-test("the page escapes answers and links every group", () => {
-  const parsed = parse(doc(["| `english` | SHOULD | Met | Reports in <b>English</b> welcome. | – | – |"]));
+test("the page escapes its links and has one button per link", () => {
+  const parsed = parse(doc(["| `english` | SHOULD | Met | Reports in <b>English</b> & more. | – | – |"]));
   const html = page(parsed);
-  assert.match(html, /Reports in &lt;b&gt;English&lt;\/b&gt; welcome\./);
   assert.equal(html.match(/class="cta"/g).length, 1);
+  assert.match(html, /href="https:\/\/www\.bestpractices\.dev\/en\/projects\/42\/passing\/edit\?english_status=Met&amp;/);
+  assert.doesNotMatch(html, /<b>English<\/b>/);
   assert.match(html, /<title>Kotiko badge answers<\/title>/);
 });
 
