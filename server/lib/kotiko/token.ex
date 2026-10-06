@@ -22,6 +22,8 @@ defmodule Kotiko.Token do
   """
   def resolve(env_token, data_dir)
 
+  # Sobelow: `api-token` in the configured data folder, never a path from a request.
+  # sobelow_skip ["Traversal.FileModule"]
   def resolve(nil, data_dir) do
     path = path(data_dir)
 
@@ -68,6 +70,8 @@ defmodule Kotiko.Token do
   Writes `contents` to `path` (mode 0600). The file is made private before the token goes
   in, and swapped in with a rename, so the token is never in a file other users can read.
   """
+  # Sobelow: callers pass the token file's path from the data folder, never a request's.
+  # sobelow_skip ["Traversal.FileModule"]
   def save(path, contents) do
     tmp = path <> ".new"
     _ = File.rm(tmp)

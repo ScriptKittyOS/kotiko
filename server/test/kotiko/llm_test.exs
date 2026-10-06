@@ -461,6 +461,18 @@ defmodule Kotiko.LLMTest do
       assert Cache.count() == 0
     end
 
+    test "a stored entry holding a function is a miss, never code to run" do
+      key = Cache.key(%{text: "da", mode: "auto", hint_lang: nil, recent: [], base_langs: ["en"]})
+      at = Word.timestamp(Words.now())
+      planted = %{words: [fn -> :ran end]} |> :erlang.term_to_binary() |> Base.encode64()
+
+      Repo.insert_all("lookup_cache", [
+        %{key: key, result: planted, model: "m1", inserted_at: at, last_hit_at: at, hits: 0}
+      ])
+
+      assert Cache.get(key) == :miss
+    end
+
     test "identical lookups at the same time share one model call" do
       LLMStub.stub(fn _, conn -> LLMStub.slow(conn, 100, @da) end)
 

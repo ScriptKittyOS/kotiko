@@ -7,8 +7,9 @@
 #    with the version bumps and the CHANGELOG entry. It never tags or releases on its own.
 # 2. A maintainer merges that PR, then pushes a signed tag (scripts/tag-release.sh).
 # 3. The tag push: verify-tag (signature against .github/allowed_signers on main, commit on
-#    main, versions match) -> build (tests, lint, both zips built twice and compared, SBOM,
-#    SHA256SUMS) -> attest (Sigstore build provenance for every file) -> github-release.
+#    main, versions match) and dependency-scan (no known vulnerability in any lockfile)
+#    -> build (tests, lint, both zips built twice and compared, SBOM, SHA256SUMS) -> attest
+#    (Sigstore build provenance for every file) -> github-release.
 # 4. For a release (not an -rc.N candidate): store-gate (slice 54's security review is
 #    closed) -> publish-chrome and publish-firefox, each waiting for approval in the
 #    `release` environment. Without the store secrets they skip with a notice.
@@ -74,9 +75,19 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: bash scripts/verify-tag.sh "$TAG" --signers .github/allowed_signers --keys .github/release-keys.asc
 
+  # No release is built from a tree with a known vulnerability in any lockfile, unless
+  # osv-scanner.toml accepts it (docs/security/dependency-and-static-analysis-policy.md).
+  # The same scan as on every pull request, run again here because advisories appear for
+  # versions that haven't changed.
+  dependency-scan:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+    uses: ./.github/workflows/dependency-scan.yml
+
   build:
-    needs: verify-tag
-    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.verify-tag.result == 'success') }}
+    needs: [verify-tag, dependency-scan]
+    if: ${{ !cancelled() && needs.dependency-scan.result == 'success' && (github.event_name == 'workflow_dispatch' || needs.verify-tag.result == 'success') }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read

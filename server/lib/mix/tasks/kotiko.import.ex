@@ -18,6 +18,8 @@ defmodule Mix.Tasks.Kotiko.Import do
   @switches [env_file: :string, data_dir: :string]
 
   @impl true
+  # Sobelow: the operator names the backup file on the command line; there's no request.
+  # sobelow_skip ["Traversal.FileModule"]
   def run(args) do
     {opts, files} = OptionParser.parse!(args, strict: @switches)
     file = List.first(files) || Mix.raise("Name the backup file: mix kotiko.import FILE")
