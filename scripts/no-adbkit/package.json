@@ -1,0 +1,8 @@
+{
+  "name": "@devicefarmer/adbkit",
+  "version": "0.0.0-kotiko-stub",
+  "description": "Stand-in for adbkit in Kotiko's dev tools; see index.cjs.",
+  "private": true,
+  "license": "Apache-2.0",
+  "main": "index.cjs"
+}
