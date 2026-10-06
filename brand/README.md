@@ -16,6 +16,7 @@ placeholders without lettering.
 | `icon-48.png`, `icon-128.png` | Extensions page, install prompts, Firefox Add-ons. |
 | `icon-512.png`, `icon-1024.png` | Docs, social, anywhere large. |
 | `store-icon-128.png` | Chrome Web Store: 96 px artwork inside 16 px of transparent padding. |
+| `kotiko-logo.png` | **The Kotiko logo (concept):** Mira peeking over the word "Kotiko", paws on the letters, with a transparent background. Used at the top of the README. The designer refines it into the final vector logo (`DESIGNER-BRIEF.md`). |
 | `cat-*.png` | The kitten alone on a transparent background (popup and dashboard headers). On dark surfaces its purple outline keeps it visible; at 16-32 px prefer the tiled icon. |
 
 The tile purple `#8E5EFA` passes the contrast checks: kitten on tile 4.7:1, tile on white
@@ -35,6 +36,35 @@ kittens, a 658 × 202 hero), so show them at half size or less on high-density s
 | `kitten-sleepy.png` | Paused, or swapping turned off. |
 | `kitten-oops.png` | Gentle errors. |
 | `kitten-*-on-purple.png` | The same four on their purple card, for dark mode. |
+
+## Store artwork (`store/`)
+
+| File | Use |
+|---|---|
+| `promo-small.png` | Chrome Web Store small promo tile, exactly 440 × 280, exported from `illustrations/store-promo-tile.png` (the full-size master: Mira on the moon with "Kotiko"). Re-export from the master if it changes. |
+| `promo-marquee.png` | Chrome Web Store marquee, exactly 1400 × 560, exported from `illustrations/marquee.png`. |
+
+## Social (`social/`)
+
+| File | Use |
+|---|---|
+| `github-social-preview.jpg` | GitHub's social preview, 1280 × 640, under GitHub's 1 MB limit (Settings, General, Social preview). From `illustrations/social-previews-1280-640.png`. |
+| `social-card-1200x630.jpg` | The card other sites show for a shared link (Open Graph, 1200 × 630), from its own master `illustrations/social-previews-1280-630.png`. |
+
+Every word in the store and social artwork was checked letter by letter on 2026-10-06
+("Kotiko", Welcome, Willkommen, Hola, Ciao, 你好, ようこそ, مرحبا) in the promo tile, marquee and both social masters. The hero illustration's
+مرحبا had two dots under its fourth letter (making it ي); it was corrected to one (ب).
+
+## Demo (`demo/`)
+
+| File | Use |
+|---|---|
+| `kotiko-demo.gif` | The README demo: an article, then the same article with the reader's words swapped in, then a word's card. Made from the real extension by `node test/visual/readme-demo.mjs` (needs ImageMagick); run it again when the interface changes. |
+
+## For the designer
+
+`DESIGNER-BRIEF.md` is the brief for the Kotiko logo and store artwork: what Kotiko is, the
+story, the palette, the rules and the deliverables.
 
 ## Still needed from the artist
 
