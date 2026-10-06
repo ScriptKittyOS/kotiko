@@ -10,15 +10,15 @@ You need git, Node.js 22.22.2 or newer (the repository's `engines`), and npm.
 
 ```sh
 git clone https://github.com/ScriptKittyOS/kotiko.git && cd kotiko
-git checkout v0.3.0
+git checkout v1.0.0
 npm ci
-node scripts/build-extension.mjs --version 0.3.0 --out dist/
+node scripts/build-extension.mjs --version 1.0.0 --out dist/
 cd dist
-curl -LO https://github.com/ScriptKittyOS/kotiko/releases/download/v0.3.0/SHA256SUMS
+curl -LO https://github.com/ScriptKittyOS/kotiko/releases/download/v1.0.0/SHA256SUMS
 sha256sum -c SHA256SUMS --ignore-missing
 ```
 
-Both `kotiko-chrome-0.3.0.zip` and `kotiko-firefox-0.3.0.zip` print `OK`. (`--ignore-missing`
+Both `kotiko-chrome-1.0.0.zip` and `kotiko-firefox-1.0.0.zip` print `OK`. (`--ignore-missing`
 skips the SBOM, which isn't reproducible: it records when it was made.) The build also runs
 `web-ext lint` on the Firefox files; add `--skip-lint` to leave it out, which doesn't change
 the zips.

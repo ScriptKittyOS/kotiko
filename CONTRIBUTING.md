@@ -43,9 +43,10 @@ site in `site/` (its own `package.json`, build and tests), in
   is what ships, so store reviewers can read it as is.
 - **No user text in logs** above debug level: no words, no page content, no keys.
 - **No secrets in the repository.** Keys, tokens and `.env` files stay out of git:
-  `.gitignore` covers them anywhere in the tree, a push ruleset rejects `.env`, database,
-  key and token files on every branch, and CI's `secrets` job runs gitleaks over the full
-  history (`.gitleaks.toml`). Write test keys as obvious placeholders containing
+  `.gitignore` covers them anywhere in the tree, and CI's required `secrets` job fails a pull
+  request that adds `.env`, database, key or token files or files over 10 MB, even in a
+  commit it later undoes (`scripts/check-forbidden-files.mjs`; GitHub's push rulesets work
+  only on private repositories), and runs gitleaks over the full history (`.gitleaks.toml`). Write test keys as obvious placeholders containing
   `0123456789` (for example `sk-or-v1-0123456789abcdef…`) so the scan knows they're fake.
 - **No external network in tests.** Tests serve their own pages and fake servers.
 - **One name.** `node scripts/check-old-name.mjs` (run in CI) fails on the project's names
@@ -122,10 +123,33 @@ extension, which has no way to turn the mode on.
 - Before 1.0, a minor release may change the HTTP API only if the old route keeps working
   for one more minor version.
 
-## Licensing
+## Licensing and sign-off
 
 Kotiko is licensed under [Apache-2.0](LICENSE). By submitting a contribution, you license it
-under the same terms (section 5 of the license); there is no CLA and no sign-off to add.
+under the same terms (section 5 of the license). There is no CLA.
+
+### Developer Certificate of Origin
+
+Every commit must be signed off: a `Signed-off-by:` line with your name and the email of the
+commit's author. It certifies the [Developer Certificate of Origin 1.1](https://developercertificate.org/):
+that you wrote the change, or otherwise have the right to submit it under the project's
+license. Git adds the line for you:
+
+```
+git commit -s
+```
+
+CI's required `secrets` job checks every commit of a pull request
+(`scripts/check-dco.mjs`). If it fails, add the sign-off to every commit of your branch and
+push again:
+
+```
+git rebase --signoff main
+git push --force-with-lease
+```
+
+Bots (Dependabot, release-please) and merge commits are exempt. Use your real name or the
+name you're known by; anonymous sign-offs can't be accepted.
 
 New source files start with an SPDX header:
 
