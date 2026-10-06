@@ -356,6 +356,8 @@ defmodule Kotiko.LLM.Catalog do
 
   defp cache_path, do: Path.join(Application.fetch_env!(:kotiko, :data_dir), @cache_file)
 
+  # Sobelow: a fixed file name in the configured data folder, never from a request.
+  # sobelow_skip ["Traversal.FileModule"]
   defp load_cache(state) do
     with true <- Client.openrouter?(),
          {:ok, raw} <- File.read(cache_path()),
@@ -378,6 +380,8 @@ defmodule Kotiko.LLM.Catalog do
     _ -> state
   end
 
+  # Sobelow: a fixed file name in the configured data folder, never from a request.
+  # sobelow_skip ["Traversal.FileModule"]
   defp write_cache(state) do
     json =
       Jason.encode!(%{

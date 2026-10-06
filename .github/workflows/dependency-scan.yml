@@ -1,0 +1,69 @@
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Known vulnerabilities in every locked dependency: OSV-Scanner over the three lockfiles
+# (the dev tools' package-lock.json, the docs site's site/package-lock.json and the
+# server's mix.lock), against the OSV database (GitHub advisories, the Erlang Ecosystem
+# Foundation's and others). Any known vulnerability fails the job, whatever its severity,
+# unless osv-scanner.toml accepts it with a reason and an expiry date. The rules are in
+# docs/security/dependency-and-static-analysis-policy.md.
+#
+# Runs on every pull request and push to main, every Monday (advisories appear for
+# versions that haven't changed), and from release.yml before a release is built.
+# The binary is a pinned release checked against its SHA-256, no third-party action.
+name: Dependency scan
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 5 * * 1"
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # github.workflow is the caller's name when release.yml calls this, so a release's scan
+  # never shares a group with (or is cancelled by) a push's.
+  group: ${{ github.workflow }}-dependency-scan-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  osv-scanner:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    env:
+      OSV_SCANNER_VERSION: "2.6.0"
+      OSV_SCANNER_SHA256: "ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install OSV-Scanner
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/osv-scanner" \
+            "https://github.com/google/osv-scanner/releases/download/v${OSV_SCANNER_VERSION}/osv-scanner_linux_amd64"
+          echo "${OSV_SCANNER_SHA256}  $RUNNER_TEMP/osv-scanner" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/osv-scanner"
+      - name: Scan the lockfiles
+        run: |
+          set +e
+          "$RUNNER_TEMP/osv-scanner" scan source --config osv-scanner.toml \
+            --lockfile package-lock.json \
+            --lockfile site/package-lock.json \
+            --lockfile server/mix.lock \
+            --format markdown --output-file "$RUNNER_TEMP/osv.md"
+          status=$?
+          set -e
+          if [ -f "$RUNNER_TEMP/osv.md" ]; then
+            cat "$RUNNER_TEMP/osv.md"
+            { echo "## Dependency scan (OSV-Scanner)"; cat "$RUNNER_TEMP/osv.md"; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "$status" -eq 1 ]; then
+            echo "::error title=Known vulnerability::A locked dependency has a known vulnerability. Update it, or accept it in osv-scanner.toml with a reason and an expiry date (docs/security/dependency-and-static-analysis-policy.md)."
+          fi
+          exit "$status"

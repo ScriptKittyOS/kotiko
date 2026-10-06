@@ -33,6 +33,8 @@ defmodule Kotiko.MixProject do
     [
       {:bandit, "~> 1.5"},
       {:plug, "~> 1.16"},
+      # Plug.Crypto.non_executable_binary_to_term/2 for the lookup cache (comes with plug).
+      {:plug_crypto, "~> 2.0"},
       {:jason, "~> 1.4"},
       {:req, "~> 0.5"},
       {:telemetry, "~> 1.0"},
@@ -40,6 +42,8 @@ defmodule Kotiko.MixProject do
       {:ecto_sqlite3, "~> 0.17"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
+      # Security-focused static analysis (docs/security/dependency-and-static-analysis-policy.md).
+      {:sobelow, "~> 0.16", only: [:dev, :test], runtime: false},
       # Slice 30 §11: the CycloneDX SBOM attached to each release (mix sbom.cyclonedx).
       {:sbom, "~> 0.11", only: :dev, runtime: false},
       {:stream_data, "~> 1.1", only: :test}

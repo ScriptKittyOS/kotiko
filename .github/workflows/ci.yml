@@ -85,6 +85,9 @@ jobs:
         if: matrix.current
       - run: mix hex.audit
       - run: mix deps.audit
+      # Security-focused static analysis: any finding fails (server/.sobelow-conf).
+      - run: mix sobelow
+        if: matrix.current
       - run: mix deps.unlock --check-unused
       - run: mix test
 

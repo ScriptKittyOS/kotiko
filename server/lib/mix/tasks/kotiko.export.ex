@@ -28,6 +28,8 @@ defmodule Mix.Tasks.Kotiko.Export do
 
   defp write(nil, pending), do: Backup.export(&IO.binwrite(:stdio, &1), include_pending: pending)
 
+  # Sobelow: the operator names the output file on the command line; there's no request.
+  # sobelow_skip ["Traversal.FileModule"]
   defp write(path, pending) do
     File.open!(path, [:write, :binary], fn f ->
       n = Backup.export(&IO.binwrite(f, &1), include_pending: pending)

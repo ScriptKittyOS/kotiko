@@ -67,6 +67,10 @@ site in `site/` (its own `package.json`, build and tests), in
 
 - Code follows [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md); CI checks formatting
   and lint, so run `mix format`, `mix credo` and `npm run lint` before pushing.
+- CI scans the dependencies (OSV-Scanner, `mix deps.audit`) and the code (Sobelow,
+  CodeQL) for security problems. What fails a pull request, the licenses a new dependency
+  may have, and how to accept a false positive are in the
+  [dependency and static analysis policy](docs/security/dependency-and-static-analysis-policy.md).
 - Maintainers review every pull request; how decisions are made and who maintains what is
   in [GOVERNANCE.md](GOVERNANCE.md) and [MAINTAINERS.md](MAINTAINERS.md).
 - Commit messages and pull request titles follow
