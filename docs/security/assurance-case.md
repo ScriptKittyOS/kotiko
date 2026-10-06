@@ -175,8 +175,6 @@ These match "What you can't expect" in the [requirements](requirements.md).
 - **One token, full access.** Anyone with it can read, change and delete every word.
 - **Model answers are checked, not verified**; a plausible wrong meaning can be saved.
 - **No rate limit** for requests that carry the token.
-- **No explicit extension CSP yet**; the browser's default Manifest V3 policy for extension
-  pages applies. An explicit policy is planned (slice 28 section 5).
 - **Response hardening headers** (`X-Content-Type-Options` and similar) are not sent yet;
   only `/health` sends `cache-control: no-store`. Planned (slice 01 section 7).
 - **No releases yet**, so there are no signatures or attestations to verify; users run
