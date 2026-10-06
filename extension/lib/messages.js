@@ -17,7 +17,7 @@
 // Sender kinds:
 //   "page"     an extension page (popup, options, a tab showing an extension page)
 //   "content"  a content script in an http(s) page
-//   "docs"     a content script on the docs site (`docsOrigin`); none exists yet
+//   "docs"     a content script on the docs site (`docsOrigin`): content/connect.js
 // A known type from a sender it doesn't allow answers {error: {code: "forbidden"}}; an
 // unknown type gets no answer, so another listener could still take it.
 (() => {
