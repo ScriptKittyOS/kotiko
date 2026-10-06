@@ -17,7 +17,7 @@ or removing a maintainer changes this file and the team in the same step.
 
 ## Not yet filled
 
-- **Steward.** To be named before the repository goes public
+- **Steward.** To be named before v1.0.0, the first public release
   ([slice 53](slices/53-openssf-best-practices/SPEC.md), open question 2).
 - **Backup for the security response lead.** Until named, security reports reach the lead
   maintainer only.

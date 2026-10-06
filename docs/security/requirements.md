@@ -96,8 +96,8 @@ These are goals in the plan. They move to "What you can expect" when the slice s
 
 - Signed, attested release packages and store-reviewed builds: slice 30 (release
   pipeline). There are no releases yet; today you run Kotiko from source.
-- An explicit content security policy for the extension's pages and hardening headers on
-  every server response: slices 28 (section 5) and 01 (addition from slice 53).
+- Hardening headers on every server response: slice 01 (addition from slice 53). (The
+  extension's pages already have an explicit content security policy, `manifest.json`.)
 - A permission review of the extension against the store's rules: slice 28.
 - A sandboxed system service (`ProtectSystem`, `ProtectHome`): slice 40.
 - The database and data folder created private by default: not yet in any slice's spec;

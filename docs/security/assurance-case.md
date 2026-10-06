@@ -85,7 +85,7 @@ its argument and evidence.
    │                model provider, Wiktionary   Telegram (allowlisted   data folder
    │                (answers untrusted)          sender IDs)             (kotiko.db,
    │                                                                     api-token 0600)
- CI (GitHub Actions, read-only token) ──▶ stores: planned (slice 30)
+ CI (GitHub Actions, read-only token) ──▶ stores, after a maintainer approves (slice 30)
 ```
 
 | Boundary | What crosses | Control | Evidence |
@@ -97,7 +97,7 @@ its argument and evidence.
 | Server or extension to model provider | The learner's typed text, the key | HTTPS to an address the owner set; answers parsed as JSON and checked by the word spec; deadline and attempt cap per lookup | [`llm.ex`](../../server/lib/kotiko/llm.ex) `interpret/3`; [`spec/models.json`](../../spec/models.json) budgets; [`lib/llm/client.js`](../../extension/lib/llm/client.js) |
 | Server to Telegram | Updates in, messages out | HTTPS; sender allowlist | [`bot.ex`](../../server/lib/kotiko/bot.ex); [`telegram.ex`](../../server/lib/kotiko/telegram.ex) |
 | Server to file system | The database, token, backups | `api-token` 0600; `backups/` 0700 with 0600 files; database follows the umask | [`token.ex`](../../server/lib/kotiko/token.ex); [`migrations.ex`](../../server/lib/kotiko/migrations.ex) `backup!/2` |
-| CI to stores | Release packages | Planned: `release` environment approval (slice 30 section 6) | [slice 30](../../slices/30-release-pipeline/SPEC.md) |
+| CI to stores | Release packages | The store jobs run in the `release` environment: a maintainer approves each run, and only `v*` tags (signed, verified against `.github/allowed_signers`) may deploy. The maintainer creates the environment before the first release | [slice 30](../../slices/30-release-pipeline/SPEC.md) |
 
 ## 4. Secure design principles
 
@@ -133,7 +133,7 @@ a small JSON API.
 | CWE-502 Unsafe deserialization | Nothing from the network becomes an Erlang term: requests and API answers are parsed as JSON, Wiktionary pages are read as text. One `:erlang.binary_to_term` call reads the lookup cache the server itself wrote to its own database, with the `:safe` option | In place | [`llm/cache.ex`](../../server/lib/kotiko/llm/cache.ex) `decode/1` |
 | CWE-400 Resource exhaustion | Body caps (64 KB, 1 MB batch); at most 500 words per batch and 20,000 per list request; each lookup has a deadline and an attempt cap; refused Host names are logged at most once an hour per name. There is no request rate limit for token holders | In place, partly | [`router.ex`](../../server/lib/kotiko/router.ex); [`router_v1.ex`](../../server/lib/kotiko/router_v1.ex) `@max_batch`, `@max_limit`; [`spec/models.json`](../../spec/models.json); [`host_check.ex`](../../server/lib/kotiko/plug/host_check.ex) |
 | CWE-20 Improper input validation | Settings validation; the shared word spec and its rules; response validation in the extension; server address validation | In place | Section 6 |
-| CWE-798 Hard-coded credentials | No credentials in the code. gitleaks over the full history on 2026-10-05 found only placeholder keys in tests. A gitleaks job in CI is planned (slice 02 addition) | In place (manual); CI scan planned (slice 02) | [`PUBLIC_CHECKLIST.md`](../PUBLIC_CHECKLIST.md) item 2 |
+| CWE-798 Hard-coded credentials | No credentials in the code. CI's required `secrets` job runs gitleaks over the full history on every pull request and every push to `main`, and fails a pull request that adds a `.env`, key or token file; GitHub secret scanning and push protection are on | In place | [`ci.yml`](../../.github/workflows/ci.yml) job `secrets`; [`.gitleaks.toml`](../../.gitleaks.toml); [`check-forbidden-files.mjs`](../../scripts/check-forbidden-files.mjs) |
 | CWE-532 Secrets in logs | The redaction filter; words only with `LOG_LOOKUPS=true` at debug | In place | [`log/redact.ex`](../../server/lib/kotiko/log/redact.ex); [`llm_test.exs`](../../server/test/kotiko/llm_test.exs) |
 | DNS rebinding | Host allowlist before routing | In place | [`host_check.ex`](../../server/lib/kotiko/plug/host_check.ex) |
 | Supply chain | Lockfiles (`mix.lock`, `package-lock.json`); every GitHub Action pinned by commit SHA; Dependabot for mix, npm and Actions; `mix hex.audit` and `mix deps.audit` in CI; no runtime npm code in the extension; review on every pull request. Not yet: an npm audit or OSV-Scanner in CI (slice 02 addition), release attestations (slice 30) | In place, partly | [`ci.yml`](../../.github/workflows/ci.yml); [`dependabot.yml`](../../.github/dependabot.yml); [`package.json`](../../package.json) |
@@ -153,7 +153,7 @@ a small JSON API.
 | Extension messages | The background | Sender kind, then the handler's payload `check` | [`lib/messages.js`](../../extension/lib/messages.js); [`background.js`](../../extension/background.js) |
 | Server responses in the extension | Sync | Status, content type, JSON shape, word fields and counts | [`lib/validate-words.js`](../../extension/lib/validate-words.js) |
 | The server address the learner types | Extension settings | http(s) only, no user info in the URL, https assumed for non-local names | [`lib/url.js`](../../extension/lib/url.js) |
-| Pasted lists and dropped files | Bulk add | Parsed as text in the extension; each row then saved through the word checks | [`bulk/parse.js`](../../extension/bulk/parse.js); slice 12 adds import validation (planned) |
+| Pasted lists and dropped files | Bulk add | Parsed as text in the extension; each row then saved through the word checks | [`bulk/parse.js`](../../extension/bulk/parse.js); a backup file is read by [`lib/backup.js`](../../extension/lib/backup.js) `read`, which checks every word against the word spec before anything is restored |
 | The page DOM | Content script | Read as text; only text nodes in languages the learner reads are changed | [`content.js`](../../extension/content.js), [`lib/matcher.js`](../../extension/lib/matcher.js) |
 
 ## 7. Residual risks and assumptions
@@ -178,7 +178,8 @@ These match "What you can't expect" in the [requirements](requirements.md).
 - **Response hardening headers** (`X-Content-Type-Options` and similar) are not sent yet;
   only `/health` sends `cache-control: no-store`. Planned (slice 01 section 7).
 - **No releases yet**, so there are no signatures or attestations to verify; users run
-  from source. Planned (slice 30).
+  from source. The release pipeline that signs, attests and builds reproducibly is in place
+  (slice 30); the first release is v1.0.0.
 
 ## 8. Maintenance
 
