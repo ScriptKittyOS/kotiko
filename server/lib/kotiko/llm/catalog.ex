@@ -380,8 +380,7 @@ defmodule Kotiko.LLM.Catalog do
     _ -> state
   end
 
-  # Sobelow: a fixed file name in the configured data folder, never from a request.
-  # sobelow_skip ["Traversal.FileModule"]
+  # 0600, like every file in the data folder (Kotiko.Private).
   defp write_cache(state) do
     json =
       Jason.encode!(%{
@@ -391,11 +390,11 @@ defmodule Kotiko.LLM.Catalog do
       })
 
     path = cache_path()
-    tmp = path <> ".tmp"
 
-    with :ok <- File.write(tmp, json), :ok <- File.rename(tmp, path) do
-      :ok
-    else
+    case Kotiko.Private.write(path, json, ".tmp") do
+      :ok ->
+        :ok
+
       {:error, reason} ->
         Logger.warning("Couldn't save the model list to #{path}: #{:file.format_error(reason)}")
     end

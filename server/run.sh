@@ -9,6 +9,10 @@
 # Runs with MIX_ENV=prod unless MIX_ENV is set (in your shell or in .env). Prod builds
 # into _build/prod, so the first start after switching compiles everything once.
 set -euo pipefail
+# Everything the server writes (your words, their backups, the token) is readable by you
+# only. The server makes its own files private too; this covers the moment each one is
+# made, and anything else it writes.
+umask 077
 cd "$(dirname "$0")"
 
 if [ ! -f .env ]; then

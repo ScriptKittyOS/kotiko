@@ -10,7 +10,7 @@ defmodule Kotiko.Application do
     1. `Kotiko.Config.load!/0`     parse and check the settings; exit 78 on a mistake
     2. `Kotiko.DataDir.resolve_and_migrate!/0`
                                   the data folder; copies the words from before the
-                                  rename to Kotiko, once
+                                  rename to Kotiko, once; makes the files private
     3. API token                  from API_TOKEN, the saved file, or a new one
     4. `Kotiko.Migrations.run!/0`  back the database up if a migration is pending, then
                                   migrate on one connection, before the pool opens

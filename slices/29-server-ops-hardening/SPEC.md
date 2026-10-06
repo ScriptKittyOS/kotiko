@@ -150,6 +150,7 @@ is table-tested without touching the environment.
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077   # what the server writes is private (SCR-450)
 cd "$(dirname "$0")"
 [ -f .env ] || { echo "No .env yet. Run: cp .env.example .env && chmod 600 .env, then fill it in." >&2; exit 78; }
 if [ -n "$(find .env -perm /077)" ]; then
@@ -188,13 +189,18 @@ CONTRIBUTING and `.env.example` say to single-quote values containing `$`, space
   WorkingDirectory=<escaped dir>
   ExecStart="<escaped dir>/run.sh"
   Environment="PATH=<escaped PATH>"
+  UMask=0077
   Restart=on-failure
   RestartSec=5
   RestartPreventExitStatus=78
   ```
 
   (`WorkingDirectory=` takes the rest of the line as one path, so spaces need no quotes
-  there, only `%` escaping.)
+  there, only `%` escaping. `UMask=0077`, like `umask 077` in `run.sh`, keeps every file
+  the server makes private from the moment it exists; the server also makes its own files
+  0600 itself, see `Kotiko.DataDir.make_private/1` and the
+  [configuration reference](../../docs/reference/configuration.md#files-in-the-data-folder).
+  Added for Linear SCR-450.)
 - After installing, wait up to 20 s for `GET /health` to return 200 and print the result;
   on failure print the last 20 journal lines and the exit status.
 - Slice 04 adds the old-unit cleanup; slice 40 adds release support.

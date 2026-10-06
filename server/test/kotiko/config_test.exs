@@ -473,7 +473,7 @@ defmodule Kotiko.ConfigTest do
       %{root: root}
     end
 
-    test "a missing folder is created", %{root: root} do
+    test "a missing folder is created, private", %{root: root} do
       dir = Path.join(root, "a/b")
 
       assert {:ok, config, _} =
@@ -481,6 +481,17 @@ defmodule Kotiko.ConfigTest do
 
       assert config[:data_dir] == dir
       assert File.dir?(dir)
+      assert Bitwise.band(File.stat!(dir).mode, 0o777) == 0o700
+    end
+
+    test "a folder that's already there keeps its permissions here", %{root: root} do
+      File.mkdir_p!(root)
+      File.chmod!(root, 0o755)
+
+      assert {:ok, _config, _} =
+               Config.parse(%{"KOTIKO_DATA_DIR" => root}, resolver: &resolver/1)
+
+      assert Bitwise.band(File.stat!(root).mode, 0o777) == 0o755
     end
 
     test "a file in the way is an error", %{root: root} do

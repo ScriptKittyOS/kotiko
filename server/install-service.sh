@@ -265,6 +265,8 @@ StartLimitBurst=5
 WorkingDirectory=${dir//%/%%}
 ExecStart="$(exec_escape "$dir")/run.sh"
 $environment
+# Files the server makes are readable by you only (run.sh sets the same umask).
+UMask=0077
 Restart=on-failure
 RestartSec=5
 # 78 is a mistake in .env: retrying won't fix it. Fix .env, then restart by hand.

@@ -69,20 +69,9 @@ defmodule Kotiko.Token do
   @doc """
   Writes `contents` to `path` (mode 0600). The file is made private before the token goes
   in, and swapped in with a rename, so the token is never in a file other users can read.
+  A data folder this creates is private too (`Kotiko.Private`).
   """
-  # Sobelow: callers pass the token file's path from the data folder, never a request's.
-  # sobelow_skip ["Traversal.FileModule"]
-  def save(path, contents) do
-    tmp = path <> ".new"
-    _ = File.rm(tmp)
-
-    with :ok <- File.mkdir_p(Path.dirname(path)),
-         :ok <- File.touch(tmp),
-         :ok <- File.chmod(tmp, 0o600),
-         :ok <- File.write(tmp, contents) do
-      File.rename(tmp, path)
-    end
-  end
+  def save(path, contents), do: Kotiko.Private.write(path, contents, ".new")
 
   @doc """
   One pasteable value carrying both the server address and the token, for the

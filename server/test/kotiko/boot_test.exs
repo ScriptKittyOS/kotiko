@@ -23,6 +23,8 @@ defmodule Kotiko.BootTest do
   end
 
   # Runs `script` after putting `vars` in the app env. Returns {output, exit status}.
+  # The VM gets umask 022, the usual default, so files that end up private were made
+  # private by the server itself.
   defp boot(vars, script, %{tmp: tmp, inetrc: inetrc, home: home}) do
     paths =
       Mix.Project.build_path()
@@ -39,7 +41,7 @@ defmodule Kotiko.BootTest do
 
     {elixir, path} = elixir_without_shims()
 
-    System.cmd(elixir, paths ++ ["-e", code],
+    System.cmd("sh", ["-c", ~s(umask 022 && exec "$0" "$@"), elixir | paths ++ ["-e", code]],
       cd: tmp,
       stderr_to_stdout: true,
       env: [
@@ -131,6 +133,14 @@ defmodule Kotiko.BootTest do
     :ok = :gen_tcp.send(socket, "GET /health HTTP/1.1\\r\\nhost: localhost\\r\\nconnection: close\\r\\n\\r\\n")
     {:ok, response} = :gen_tcp.recv(socket, 0, 5_000)
     IO.puts("HEALTH " <> response)
+    mode = fn path ->
+      case File.stat(path) do
+        {:ok, stat} -> stat.mode |> Bitwise.band(0o777) |> Integer.to_string(8)
+        {:error, _} -> "missing"
+      end
+    end
+    files = ["", "kotiko.db", "kotiko.db-wal", "kotiko.db-shm", "api-token"]
+    IO.puts("MODES " <> Enum.map_join(files, " ", &mode.(Path.join(#{inspect(data)}, &1))))
     :ok = Application.stop(:kotiko)
     """
 
@@ -151,6 +161,10 @@ defmodule Kotiko.BootTest do
     assert output =~ "Telegram:  off"
     assert output =~ "HEALTH HTTP/1.1 200"
     assert output =~ ~s("db":"ok")
+    # Only this account can open the folder, the database and the files SQLite makes
+    # next to it (SCR-450), though the VM ran with umask 022.
+    assert output =~ "MODES 700 600 600 600 600\n"
+    refute output =~ "Other users of this computer"
     # The key is in the settings, so it's never in the log.
     refute output =~ "sk-or-v1-0123456789abcdef"
   end
