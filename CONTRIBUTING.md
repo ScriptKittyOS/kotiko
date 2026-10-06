@@ -116,8 +116,10 @@ extension, which has no way to turn the mode on.
   CodeQL) for security problems. What fails a pull request, the licenses a new dependency
   may have, and how to accept a false positive are in the
   [dependency and static analysis policy](docs/security/dependency-and-static-analysis-policy.md).
-- Maintainers review every pull request; how decisions are made and who maintains what is
-  in [GOVERNANCE.md](GOVERNANCE.md) and [MAINTAINERS.md](MAINTAINERS.md).
+- Maintainers review every pull request against [docs/CODE_REVIEW.md](docs/CODE_REVIEW.md):
+  what a reviewer checks and what a change needs before it merges. How decisions are made
+  and who maintains what is in [GOVERNANCE.md](GOVERNANCE.md) and
+  [MAINTAINERS.md](MAINTAINERS.md).
 - Commit messages and pull request titles follow
   [Conventional Commits](https://www.conventionalcommits.org/): `feat(extension): ...`,
   `fix(server): ...`. Scopes: `server`, `extension`, `spec`, `docs`, `ci`, `release`.
