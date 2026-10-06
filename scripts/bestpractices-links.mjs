@@ -226,11 +226,11 @@ export function page(parsed, { entry = null, baseline = false, checked = "" } = 
       if (!rows.length) {
         return `<section class="card done-card"><h2>${esc(name)}</h2><p class="ok">Up to date: nothing to save.</p></section>`;
       }
-      const links = formLinks(project, slug, rows);
-      const buttons = links
+      const parts = formLinks(project, slug, rows);
+      const buttons = parts
         .map((l, i) => {
           const id = `${slug}-${i}`;
-          const label = links.length > 1 ? `Open ${name} form, part ${i + 1} of ${links.length}` : `Open ${name} form`;
+          const label = parts.length > 1 ? `Open ${name} form, part ${i + 1} of ${parts.length}` : `Open ${name} form`;
           const items = l.rows
             .map((r) => {
               const from = r.was === null ? "" : r.was === r.status ? "new wording" : `${r.was === "?" ? "blank" : r.was} → ${r.status}`;
