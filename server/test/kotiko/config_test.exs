@@ -239,6 +239,102 @@ defmodule Kotiko.ConfigTest do
     end
   end
 
+  describe "secrets in files (NAME_FILE)" do
+    @describetag :tmp_dir
+
+    defp secret_file(dir, name, contents, mode \\ 0o600) do
+      path = Path.join(dir, name)
+      File.write!(path, contents)
+      File.chmod!(path, mode)
+      path
+    end
+
+    test "every secret can come from a file; one line ending is dropped", %{tmp_dir: dir} do
+      vars = %{
+        "API_TOKEN_FILE" => secret_file(dir, "api", @token <> "\n"),
+        "LLM_API_KEY_FILE" => secret_file(dir, "llm", "sk-or-v1-abc\r\n"),
+        "TELEGRAM_BOT_TOKEN_FILE" => secret_file(dir, "bot", @bot_token),
+        "TRANSCRIBE_API_KEY_FILE" => secret_file(dir, "voice", "voice key\n")
+      }
+
+      assert {:ok, config, []} = parse(vars)
+      assert config[:api_token] == @token
+      assert config[:llm_api_key] == "sk-or-v1-abc"
+      assert config[:telegram_token] == @bot_token
+      # Only the line ending goes: the rest is the value as written.
+      assert config[:transcribe_api_key] == "voice key"
+    end
+
+    test "a value from a file is checked like one in .env, without echoing it",
+         %{tmp_dir: dir} do
+      vars = %{"API_TOKEN_FILE" => secret_file(dir, "api", "short-secret\n")}
+
+      assert {:error, [{"API_TOKEN (value hidden)", [line]}], _} = parse(vars)
+      assert line =~ "too short (12 characters)"
+    end
+
+    test "setting both forms is one readable problem naming both", %{tmp_dir: dir} do
+      path = secret_file(dir, "llm", "from-the-file")
+      vars = %{"LLM_API_KEY" => "from-env", "LLM_API_KEY_FILE" => path}
+
+      assert {:error, [{label, [line]}], _} = parse(vars)
+      assert label == "LLM_API_KEY and LLM_API_KEY_FILE=#{path} (both set)"
+      assert line =~ "Set only one"
+      message = Config.format_problems([{label, [line]}], nil, false)
+      refute message =~ "from-env"
+      refute message =~ "from-the-file"
+    end
+
+    test "a missing, empty, blank, multi-line or huge file is refused", %{tmp_dir: dir} do
+      cases = [
+        {Path.join(dir, "missing"), "no such file or directory"},
+        {secret_file(dir, "empty", ""), "it's empty"},
+        {secret_file(dir, "newline", "\n"), "it's empty"},
+        {secret_file(dir, "blank", "  \t \n"), "it's empty"},
+        {secret_file(dir, "two-lines", "secret-one\nsecret-two\n"), "more than one line"},
+        {secret_file(dir, "huge", String.duplicate("k", 64 * 1024 + 1)), "too big for a key"},
+        {dir, "it isn't a regular file"}
+      ]
+
+      for {path, reason} <- cases do
+        assert {:error, [{label, [line]}], _} = parse(%{"TRANSCRIBE_API_KEY_FILE" => path})
+        assert label == "TRANSCRIBE_API_KEY_FILE=#{path}"
+        assert line =~ "Can't use this file for TRANSCRIBE_API_KEY: "
+        assert line =~ reason
+        refute line =~ "secret-one"
+      end
+    end
+
+    test "an unreadable file is refused", %{tmp_dir: dir} do
+      path = secret_file(dir, "locked", "sk-or-v1-abc", 0o000)
+
+      # root reads any file; the check only means something for other users.
+      unless match?({:ok, _}, File.read(path)) do
+        assert {:error, [{_, [line]}], _} = parse(%{"LLM_API_KEY_FILE" => path})
+        assert line =~ "permission denied"
+      end
+    end
+
+    test "a file other users can read is a warning, not a problem", %{tmp_dir: dir} do
+      path = secret_file(dir, "llm", "sk-or-v1-abc\n", 0o644)
+
+      assert {:ok, config, [warning]} = parse(%{"LLM_API_KEY_FILE" => path})
+      assert config[:llm_api_key] == "sk-or-v1-abc"
+      assert warning =~ "LLM_API_KEY_FILE: other users of this computer can read"
+      assert warning =~ "chmod 600 #{path}"
+      refute warning =~ "sk-or-v1-abc"
+    end
+
+    test "read_secret_files/2 reads only the secrets it's asked for", %{tmp_dir: dir} do
+      vars = %{
+        "API_TOKEN_FILE" => secret_file(dir, "api", @token),
+        "LLM_API_KEY_FILE" => Path.join(dir, "missing")
+      }
+
+      assert {%{"API_TOKEN" => @token}, [], []} = Config.read_secret_files(vars, ["API_TOKEN"])
+    end
+  end
+
   test "every problem is reported at once, in a stable order" do
     labels =
       %{

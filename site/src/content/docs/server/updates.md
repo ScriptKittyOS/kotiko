@@ -20,7 +20,8 @@ extension's settings to its folder: moved or renamed, it starts with empty setti
 ## Backups
 
 When an update changes the database, the server first copies it to
-`~/.local/share/kotiko/backups/kotiko-pre-<version>-<time>.db` and names the file in the log
+`backups/kotiko-pre-<version>-<time>.db` in the data folder (usually `~/.local/share/kotiko`)
+and names the file in the log
 ("Backed up the database to ..."). The newest five copies are kept.
 
 To go back: stop the server, delete `kotiko.db-wal` and `kotiko.db-shm` if they're there,
