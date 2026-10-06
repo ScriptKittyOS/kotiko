@@ -217,6 +217,21 @@ describe("what a restore does (§5 merge rules)", () => {
     assert.deepEqual(p.items.map((i) => i.kind), ["create"]);
   });
 
+  // Found by the restore-twice property (test/unit/properties/backup.test.mjs): a file
+  // without ids, whose word's meaning isn't one of its forms, came back "merged" on every
+  // restore after the first, its meaning added as a form each time it had been removed.
+  test("restoring a file without ids a second time changes nothing (07: the same gloss is no new form)", () => {
+    const raw = { lang: "el", native: "γάτα", base_lang: "en", gloss: "cat", forms: ["kitty"] };
+    const words = B.read({ format: B.FORMAT, schemaVersion: 2, words: [raw] }, { now: T0 }).words;
+    assert.equal(words[0].id, null);
+    const once = B.plan(words, [], { now: T0 });
+    assert.deepEqual(once.items.map((i) => i.kind), ["create"]);
+    const here = once.writes.map((w) => w.record);
+    const twice = B.plan(words, here, { now: T0 + 1000 });
+    assert.deepEqual(twice.items, [{ kind: "identical", id: here[0].id }]);
+    assert.deepEqual(twice.writes, []);
+  });
+
   test("a word deleted here after the backup was made is skipped unless asked", () => {
     const [w] = file();
     const here = [{ ...w, deleted_at: iso(T0 - DAY), updated_at: iso(T0 - DAY) }, { ...file()[1] }];
