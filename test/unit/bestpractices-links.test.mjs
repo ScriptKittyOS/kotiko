@@ -5,11 +5,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { MAX_URL, cells, links, page, parse, validate } from "../../scripts/bestpractices-links.mjs";
+import { MAX_URL, cells, changes, links, page, parse, validate } from "../../scripts/bestpractices-links.mjs";
 
 const doc = (rows, heading = "## Passing: Basics") => `# Answers
 
-- **Entry:** https://www.bestpractices.dev/en/projects/42
+- **Entry:** https://www.bestpractices.dev/en/projects/15259
 
 ${heading}
 
@@ -30,7 +30,7 @@ test("a row splits on pipes but keeps escaped ones", () => {
 
 test("reads the project number and only the form tables", () => {
   const parsed = parse(doc(["| `floss_license` | MUST | Met | Apache-2.0. | `LICENSE` | – |"]));
-  assert.equal(parsed.project, "42");
+  assert.equal(parsed.project, "15259");
   assert.deepEqual(parsed.groups, [
     { section: "passing", name: "Basics", rows: [{ criterion: "floss_license", level: "MUST", status: "Met", answer: "Apache-2.0." }] },
   ]);
@@ -42,7 +42,7 @@ test("field names keep their case, as the form matches them exactly", () => {
   assert.deepEqual(validate(parsed), []);
   const [link] = links(parsed);
   assert.equal(new URL(link.url).searchParams.get("require_2FA_status"), "Met");
-  assert.match(link.url, /\/projects\/42\/gold\/edit\?/);
+  assert.match(link.url, /\/projects\/15259\/gold\/edit\?/);
 });
 
 test("the page shows the metal series unless Baseline is asked for", () => {
@@ -53,6 +53,33 @@ test("the page shows the metal series unless Baseline is asked for", () => {
   assert.equal(page(parsed).match(/class="cta"/g).length, 1);
   assert.doesNotMatch(page(parsed), /baseline-1\/edit/);
   assert.equal(page(parsed, { baseline: true }).match(/class="cta"/g).length, 2);
+});
+
+test("a criterion shared by two metal levels must have one answer", () => {
+  const text = doc(["| `crypto_weaknesses` | SHOULD | Met | SHA-256 only. | – | – |"]) +
+    "\n## Gold: Security\n\n| Criterion | Level | Status | Answer | Evidence | Needs |\n|---|---|---|---|---|---|\n" +
+    "| `crypto_weaknesses` | MUST | Met | No SHA-1 anywhere. | – | – |\n";
+  assert.ok(validate(parse(text)).some((p) => /crypto_weaknesses: differs from its passing copy/.test(p)));
+});
+
+test("only answers that differ from the saved entry are listed, keyed the entry's way", () => {
+  const text = doc(["| `floss_license` | MUST | Met | Apache-2.0. | – | – |", "| `english` | SHOULD | Met | English. | – | – |"]) +
+    "\n## Baseline 1: General\n\n| Criterion | Level | Status | Answer | Evidence | Needs |\n|---|---|---|---|---|---|\n" +
+    "| `osps_ac_01_01` | MUST | Met | Org requires 2FA. | – | – |\n";
+  const entry = {
+    floss_license_status: "Met", floss_license_justification: " Apache-2.0.\n",
+    english_status: "?",
+    "OSPS-AC-01.01_status": "Unmet", "OSPS-AC-01.01_justification": "old",
+  };
+  const pending = changes(parse(text), entry);
+  assert.deepEqual(pending.get("passing").map((r) => [r.criterion, r.was]), [["english", "?"]]);
+  assert.deepEqual(pending.get("baseline-1").map((r) => [r.criterion, r.was]), [["osps_ac_01_01", "Unmet"]]);
+  assert.match(page(parse(text), { entry }), /Up to date|1 to update/);
+});
+
+test("the document must name the entry the script reads", () => {
+  const other = doc(["| `english` | SHOULD | Met | English. | – | – |"]).replace("projects/15259", "projects/99");
+  assert.deepEqual(validate(parse(other)), ["The document names entry 99, the script reads entry 15259."]);
 });
 
 test("baseline headings map to the baseline sections", () => {
@@ -67,7 +94,7 @@ test("links carry each status and justification, and the force link adds overrid
   ]));
   const [link] = links(parsed);
   const url = new URL(link.url);
-  assert.equal(url.origin + url.pathname, "https://www.bestpractices.dev/en/projects/42/passing/edit");
+  assert.equal(url.origin + url.pathname, "https://www.bestpractices.dev/en/projects/15259/passing/edit");
   assert.equal(url.searchParams.get("floss_license_status"), "Met");
   assert.equal(url.searchParams.get("floss_license_justification"), "Apache-2.0 & more.");
   assert.equal(url.searchParams.get("dco_status"), "Unmet");
@@ -99,11 +126,12 @@ test("validation names every problem", () => {
   assert.ok(problems.some((p) => /maintained: no answer/.test(p)));
 });
 
-test("the page escapes answers and links every group", () => {
-  const parsed = parse(doc(["| `english` | SHOULD | Met | Reports in <b>English</b> welcome. | – | – |"]));
+test("the page escapes its links and has one button per link", () => {
+  const parsed = parse(doc(["| `english` | SHOULD | Met | Reports in <b>English</b> & more. | – | – |"]));
   const html = page(parsed);
-  assert.match(html, /Reports in &lt;b&gt;English&lt;\/b&gt; welcome\./);
   assert.equal(html.match(/class="cta"/g).length, 1);
+  assert.match(html, /href="https:\/\/www\.bestpractices\.dev\/en\/projects\/15259\/passing\/edit\?english_status=Met&amp;/);
+  assert.doesNotMatch(html, /<b>English<\/b>/);
   assert.match(html, /<title>Kotiko badge answers<\/title>/);
 });
 
