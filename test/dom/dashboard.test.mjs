@@ -886,6 +886,8 @@ describe("settings (§9)", () => {
     [...d.$$("#uiLangOptions [role=radio]")].find((b) => b.textContent === "Español").click();
     await d.settle(10);
     assert.deepEqual(d.fake.store.sync.ui, { uiLang: "es" });
+    // A connected server's Telegram bot follows (slice 41 §9).
+    assert.ok(d.fake.calls.sendMessage.some((m) => m.type === "profile.sync"));
     assert.equal(d.text("#settingsTitle"), "Ajustes");
     assert.equal(d.doc.documentElement.lang, "es");
     d.w.location.hash = "#words";
@@ -943,6 +945,7 @@ describe("Languages you read in (slice 50 §2)", () => {
     await d.settle();
     assert.deepEqual(d.fake.store.sync.ui, { ...UI, baseLangs: ["en", "es", "pl"] });
     assert.deepEqual(d.store.baseLangs, ["en", "es", "pl"], "the copy content scripts read");
+    assert.ok(d.fake.calls.sendMessage.some((m) => m.type === "profile.sync"), "a connected server's bot follows (slice 41 §9)");
     const pl = baseRows(d)[2];
     assert.equal(pl.querySelector(".base-level").textContent, "Basic");
     assert.equal(d.doc.getElementById(pl.querySelector(".base-level").getAttribute("aria-describedby")).textContent, "Kotiko works in Polski, with simpler word checks and no pronunciation guide yet.");

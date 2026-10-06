@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Section 9 built (2026-10-05), English only; see Implementation notes. Sections 1 to 8: Proposed |
 | **Priority** | P1 (soon after release), except section 9 (the bot speaks the learner's language), which is P0 and ships with [50](../50-ui-localization-and-base-language/SPEC.md) |
 | **Size** | M (about a week) |
 | **Depends on** | [07-word-model-v2](../07-word-model-v2/SPEC.md) (including the pronunciation fields of its section 7); section 9 on [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md), [08](../08-language-tags/SPEC.md) (names per locale) and [09](../09-shared-word-spec-and-prompt/SPEC.md) (`base_langs` in the request) |
@@ -316,6 +316,113 @@ descriptions ("quitar — quitar una palabra de tu lista").
 - Changelog: "Link the Telegram bot by sending it a code from your server; no more
   editing .env. /remove now asks which word and can be undone. Long replies no longer
   get lost. The bot now speaks Spanish too, and gives meanings in the languages you read."
+
+## Implementation notes
+
+### Section 9 (built 2026-10-05)
+
+English only ([DECISIONS 2026-10-05](../DECISIONS.md)): no Spanish catalog, no Spanish
+command aliases (`/quitar`, `/lista`, `/idiomas`, `/ayuda`, `/idiomas_que_leo`). The
+mechanism works for any locale a translator adds as `server/priv/locales/<locale>/`.
+Sections 1 to 8 are not built; where section 9 needed a piece of one, it says so below.
+
+**What was built**
+
+- **Profile** (`server/lib/kotiko/profile.ex`, migration
+  `20261030000000_bot_language.exs`): the single-row `profile` table as specified, plus a
+  `ui_lang` column (below). `GET /api/v1/profile` answers `{"base_langs": [], "ui_lang":
+  null, "updated_at": null}` while none is set (not a 404, which the extension would read
+  as an outdated server). `PUT` takes 1 to 4 tags, each through `Kotiko.Lang.base_tag/1`
+  (08's `baseTagOf`), duplicates dropped; anything else is `400 invalid_request` with
+  `details.field` (`base_langs`, with `details.max`, or `ui_lang`) and the new messages
+  `error_invalid_request_base_langs` and `error_invalid_request_ui_lang`. Documented in
+  `docs/reference/http-api.md` and the README.
+- **Per Telegram user** (`server/lib/kotiko/bot/prefs.ex`): a `telegram_prefs` table
+  (`telegram_id`, `locale`, `noted`, `updated_at`) instead of a `locale` column on
+  section 1's `telegram_users` (below).
+- **Who the learner is** (`server/lib/kotiko/bot/learner.ex`): the learner's language is
+  the first of `/language`, the profile's `ui_lang`, the update's `from.language_code` as a
+  base tag, the primary base. The bot's locale is the first of those with a shipped catalog
+  (`Kotiko.I18n.shipped/2`: the tag, then its primary subtag, `es-419` → `es`), else `en`.
+  Base languages: the profile; without one `baseTagOf(language_code)`; without that the
+  bases of the saved words, most words first (an existing install's `en`); without any,
+  `en`. Every case but the profile is named once on the first card ("Meanings in español.
+  Change with /bases.").
+- **The bot** (`server/lib/kotiko/bot.ex`): every text from `Kotiko.I18n.t/3` with `bot_`
+  keys (52 new English messages); language names from `Kotiko.Lang.name(tag, locale)`;
+  lookups send `base_langs` from the learner; one card per target word with a meaning line
+  per base record, primary first, laid out as in the spec (headword with
+  `native_vocalized` where `spec/pronunciation.json` says `stress_marked`, the chosen
+  record's pronunciation, `bot_card_careful`, romanization · `bot_pron_ai` or
+  `bot_pron_checked` "Checked in Wiktionary" for `pronunciation_source: "wiktionary"`, as
+  the popover does; nothing for the learner's own). Add activates every pending record of
+  the card in the learner's bases; Skip deletes the pending ones; Remove and Undo
+  tombstone every live record of the word. `/bases` (codes or names in any shipped
+  locale) and `/language` (`auto` clears it) are new. `setMyCommands` runs at boot once per
+  shipped locale (the default without `language_code`). The "isn't translated into
+  <language> yet" note is shown once per Telegram user and language.
+- **Errors in the chat**: a crash answers `error_internal_ref` with an 8-character
+  reference that the error log line also carries, never the exception text; a word that
+  can't be saved is logged the same way and the others on the card still go through; a
+  failed voice note says so without the transcriber's reason (which goes to the log);
+  lookup errors were already slice 25's catalog lines and now come in the learner's locale.
+- **Section 3's callback data**, pulled in because the task asked for it: buttons carry
+  `<action>:<uuid>` (at most 41 bytes); old cards' integer ids still resolve.
+- **The extension** (`extension/background.js` `pushProfile()`/`sendProfile()`): `PUT
+  /api/v1/profile` with `currentBases()` and `ui.uiLang` (null for `"auto"`), through
+  `connection()` and `apiV1()`. Sent when an extension page asks with the new page-only
+  message `profile.sync` (the dashboard after "Languages you read in" or "Kotiko's
+  language" changes, the welcome page after its base chips change), after `server.connect`,
+  and after each successful sync when what the server last got (IndexedDB `meta`
+  `profileSent`, keyed by the server address) differs. The last one is how an existing
+  install fills the profile without the learner doing anything, and how a failed send is
+  tried again. A server without the route (404) is not asked again until the languages
+  change. The popup is untouched.
+
+**Decisions and deviations**
+
+- **`ui_lang` in the profile.** The spec's profile has only `base_langs`; the task asked
+  the bot to follow the interface language chosen in the extension too. It ranks after
+  `/language` (an explicit choice in the chat) and before the Telegram app's language;
+  "automatic" in the extension sends `null`, so the app's language decides.
+- **`telegram_prefs`, not `telegram_users.locale`.** `telegram_users` has `role NOT NULL`
+  and section 1's seeding rule (owner if the table is empty); creating rows from
+  `/language` would have decided roles before pairing exists, and could have made a
+  member the owner. Section 1 can fold the columns in, or keep the table.
+- **The pronunciation follows the learner's language, not the bot's locale.** With only
+  English shipped, a Spanish app gets English text; picking the record by the locale would
+  have shown a Spanish reader the English-key respelling, which the spec forbids. The rule
+  is the spec's with "the learner's language" (`wanted`) in place of "the bot's locale";
+  they are the same whenever the learner's language is shipped.
+- **The no-profile, no-`language_code` fallback** uses the saved words' bases before `en`,
+  so an existing install behaves as before, and the card says which languages it used.
+- **The guessed bases aren't stored** as the profile: the profile stays what the learner
+  set (extension or `/bases`), and the extension's next sync fills it.
+- **No plural keys**: the texts are worded around counts ("Your words: 12."); the server
+  has no CLDR plural rules, and adding them is a translator-facing change for when a
+  locale needs one.
+- **`/list` and `/remove`** are unchanged in behaviour (section 2 owns the safe remove);
+  their texts are catalog lines. `/remove` still removes every match.
+- **The literal check** is an ExUnit test over `bot.ex`'s AST rather than a script: string
+  literals outside log calls, docs and regexes must be identifier-like (keys, commands,
+  Telegram field names) or have no letters; "Wiktionary" is allow-listed as a name.
+
+**Acceptance criteria (section 9's)**
+
+| Criterion | Status | Test (`server/test/kotiko/…` unless noted) |
+|---|---|---|
+| `language_code: "es"` gets every reply, card, button and command description in Spanish; `/language en` switches | Out of scope (English only). Mechanism met: the locale order with a shipped `es` (`["en", "es"]` passed in), `setMyCommands` per locale, `/language` | `bot_test.exs` "the locale: /language, then the extension's choice…", "the command menu is set once per shipped locale…", "/language chooses, /language auto follows the app again" |
+| Profile `["es"]`: 犬 card `i-nu / inu · AI-generated / = perro`; Add saves `{ja, es, perro, i-nu, model}` | Met (English text: "Japanese", "AI-generated") | golden "a Spanish reader asks for a Japanese word" (`test/fixtures/bot/cards.json`) |
+| Profile `["es","en"]`, Spanish app: пожа́луйста, the Spanish-key pronunciation, "Slowly: …", "pozhaluysta · AI-generated", no English-key respelling; English app: the `en` record's | Met | golden "…with a Spanish Telegram app sees the Spanish-key pronunciation", "…with an English Telegram app sees the English-key pronunciation" |
+| Profile `["es","en"]`: one card with both glosses, Add saves two records | Met | the same two golden cases |
+| `/remove perro` finds the group and Undo restores both | Not built: section 2 (safe `/remove`, Undo through `restore/1`) | — |
+| No string literal in `bot.ex` reaches the chat outside `Kotiko.I18n.t/3` | Met | "no string literal in bot.ex could reach the chat outside Kotiko.I18n.t/3", "every bot_ key it uses has an English message" |
+| (task) Errors in the chat are catalog lines with a reference, never exception text | Met | "a crash answers with a reference, never the exception's text", "a voice note that can't be transcribed says so, without the reason", "a model failure is reported in the chat" |
+| (task) Buttons carry UUIDs | Met | "a lookup saves a pending word…", golden cases, "a button from a card sent before UUIDs (the row id) still works" |
+| (task) A Japanese-base learner | Met | golden "a Japanese reader with no profile asks for a Spanish word" |
+| (task) Existing installs: no profile behaves as before, except `language_code` | Met | `migration_bot_language_test.exs`; `bot_test.exs` "without a profile, the Telegram app's language, never an assumed English", "…an existing install keeps its words' bases" |
+| (task) Profile routes, authenticated | Met | `profile_test.exs` |
+| (task) The extension keeps the profile current | Met | `test/bg/background.test.mjs` "the learner's languages on the server (slice 41 §9)" (4 tests), `test/dom/dashboard.test.mjs` (two assertions), `test/dom/welcome.test.mjs` "with a server connected, its Telegram bot follows the change" |
 
 ## Open questions
 

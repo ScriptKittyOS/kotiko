@@ -229,6 +229,23 @@ describe("the languages you read (22 §2b)", () => {
     assert.equal(p.sync.ui.baseLangsConfirmed, false, "confirmed only by the first word or Skip");
   });
 
+  test("with a server connected, its Telegram bot follows the change (slice 41 §9)", async () => {
+    srv.reset();
+    const p = await openWelcome({ bases: ["es", "en"], network: true });
+    await p.fake.deliver({ type: "server.connect", url: srv.kotikoUrl, token: srv.token }, SENDER);
+    const asked = [];
+    const deliver = p.fake.deliver;
+    p.fake.deliver = (msg, from) => {
+      asked.push(msg.type);
+      return deliver(msg, from);
+    };
+    p.click(p.$$(".base-chip")[1]);
+    await p.until(() => plain(p.sync.ui.baseLangs).join() === "es");
+    await p.until(() => asked.includes("profile.sync"));
+    await p.until(() => srv.state.profile?.base_langs?.join() === "es");
+    assert.equal(srv.state.profile.ui_lang, null);
+  });
+
   test("a Basic base carries the \"basic\" tag with its explanation", async () => {
     const p = await openWelcome({ bases: ["pl"] });
     assert.equal(p.text(".base-chip .chip-tag"), "basic");

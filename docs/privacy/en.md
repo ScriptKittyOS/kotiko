@@ -105,12 +105,14 @@ words between computers. If you connect one, your words, and the text you type t
 them, go to that server, and it looks words up with the AI service you configure on it.
 You run it, so you decide what it keeps; it keeps your words, the results of recent
 lookups for 30 days, and for a day the answers to recent adds, so a retried add isn't
-saved twice. It asks Wiktionary for pronunciations the same way the extension does. It doesn't write the text you send to
+saved twice. Kotiko also sends it the languages you read in, and Kotiko's interface
+language if you chose one, so its Telegram bot gives meanings in your languages. It asks Wiktionary for pronunciations the same way the extension does. It doesn't write the text you send to
 its logs unless you turn on `LOG_LOOKUPS`.
 
 If you use its Telegram bot, your messages to the bot pass through Telegram
 (<https://telegram.org/privacy>), and voice notes go to the speech-to-text service you
-configure, which can run on your own computer.
+configure, which can run on your own computer. The server remembers, for each Telegram
+account, the language you asked the bot to write in.
 
 ## Browser sync
 

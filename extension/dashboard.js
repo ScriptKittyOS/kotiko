@@ -2583,8 +2583,14 @@
     }
     state.s.baseLangs = next.slice();
     await ext.storage.local.set({ baseLangs: next.slice() });
+    syncProfile();
     rebuild();
     renderWords();
+  }
+
+  // A connected server's Telegram bot follows the languages (slice 41 §9).
+  function syncProfile() {
+    send({ type: "profile.sync" }).catch(() => {});
   }
 
   // Focus follows the moved or neighbouring language after a re-render.
@@ -2786,6 +2792,7 @@
     } catch {
       // storage.sync unavailable: this page still switches
     }
+    syncProfile();
     await applyUiLang(value);
   }
 

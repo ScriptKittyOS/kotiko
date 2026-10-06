@@ -11,7 +11,8 @@
 //                 and the /api/v1 routes the dashboard uses (slice 07 §5, in memory): words
 //                 (GET, GET :id, POST with preview, POST batch, PATCH, DELETE, restore,
 //                 and slice 12's DELETE /words with its confirmation),
-//                 jobs/pronunciation-refresh (GET, POST pause/resume) and llm/status
+//                 jobs/pronunciation-refresh (GET, POST pause/resume), profile (GET, PUT;
+//                 slice 41 §9, kept as sent in `state.profile`) and llm/status
 //                 (slice 10: the quota is `llmRemaining` of 50; each add uses one)
 //   /llm/v1/*     a fake OpenAI-compatible model: /models, /key, /chat/completions
 //   /__control    POST to switch behaviours, GET to read state and the request log
@@ -174,11 +175,12 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
     failNext: null,
     llmRemaining: null,
     llmDelayMs: 0,
+    profile: null,
     log: [],
   };
   state.v1 = state.words.map(fromLegacy);
   const reset = () => {
-    Object.assign(state, { token, kotiko: null, llm: null, delayMs: 1500, words: seed(), nextId: 1000, job: { state: "done", done: 0, total: 0 }, failNext: null, llmRemaining: null, llmDelayMs: 0, resetEpoch: 0 });
+    Object.assign(state, { token, kotiko: null, llm: null, delayMs: 1500, words: seed(), nextId: 1000, job: { state: "done", done: 0, total: 0 }, failNext: null, llmRemaining: null, llmDelayMs: 0, resetEpoch: 0, profile: null });
     state.v1 = state.words.map(fromLegacy);
     state.log.length = 0;
   };
@@ -235,6 +237,14 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
       midnight.setUTCHours(24, 0, 0, 0);
       const quota = r === null ? null : { used: 50 - r, limit: 50, remaining: r, resets_at: midnight.toISOString(), estimated: false };
       return send(res, 200, { provider: "openrouter", models: ["fake/model-a:free"], models_source: "live", skipped: [], quota, last_result: null });
+    }
+    if (route === "/profile") {
+      if (req.method === "PUT") {
+        const body = await readBody(req);
+        if (!Array.isArray(body?.base_langs) || !body.base_langs.length || body.base_langs.length > 4) return v1Error(res, 400, "invalid_request", "base_langs", { field: "base_langs", max: 4 });
+        state.profile = { base_langs: body.base_langs, ui_lang: body.ui_lang ?? null, updated_at: stamp() };
+      }
+      return send(res, 200, state.profile ?? { base_langs: [], ui_lang: null, updated_at: null });
     }
     if (route === "/words" && req.method === "GET") {
       const statuses = (url.searchParams.get("status") ?? "active,paused").split(",");

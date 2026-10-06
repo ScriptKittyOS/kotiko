@@ -397,6 +397,45 @@ async function apiV1(path, { method = "GET", body, timeoutMs = ADD_TIMEOUT_MS, s
   return data;
 }
 
+// The learner's languages on the connected server (slice 41 §9): the base languages its
+// Telegram bot looks meanings up in, and the interface language chosen here (null when
+// automatic). Sent when an extension page changes them (`profile.sync`), after connecting
+// a server, and after each sync when what the server last got differs (a first sync after
+// an update, a send that failed). Only these, never words or page text. One at a time;
+// failures are kept quiet and tried again on the next sync.
+let profileChain = Promise.resolve();
+function pushProfile() {
+  profileChain = profileChain.then(sendProfile, sendProfile);
+  return profileChain;
+}
+
+async function sendProfile() {
+  try {
+    await ready().catch(() => {});
+    if (!(await secret("server").catch(() => null))) return { ok: true, skipped: "no_server" };
+    let ui = {};
+    try {
+      ({ ui = {} } = await ext.storage.sync.get({ ui: {} }));
+    } catch {
+      // no storage.sync here
+    }
+    const body = { base_langs: await currentBases(), ui_lang: typeof ui?.uiLang === "string" && ui.uiLang !== "auto" ? ui.uiLang : null };
+    const stamp = JSON.stringify([(await connection()).base, body]);
+    const store = await getStore();
+    if ((await store.meta.get("profileSent")) === stamp) return { ok: true, unchanged: true };
+    try {
+      await apiV1("/api/v1/profile", { method: "PUT", body });
+    } catch (e) {
+      // A server older than the route: nothing to tell it until it is updated.
+      if (e?.code !== "server_outdated") throw e;
+    }
+    await store.meta.set("profileSent", stamp);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, code: typeof e?.code === "string" ? e.code : "internal" };
+  }
+}
+
 const sameId = (a, b) => String(a) === String(b);
 
 const sync = createSyncController({
@@ -431,6 +470,7 @@ const sync = createSyncController({
     if (JSON.stringify(old) !== JSON.stringify(result.words)) patch.words = result.words;
     if (result.dropped) console.warn("Skipped words the server sent that can't be shown:", result.reasons);
     await ext.storage.local.set(patch);
+    pushProfile();
   },
 });
 
@@ -1389,6 +1429,10 @@ ext.runtime.onMessage.addListener(
         },
       },
 
+      // The languages you read in or Kotiko's language changed (slice 41 §9): the
+      // connected server's bot follows them.
+      "profile.sync": { from: ["page"], run: () => pushProfile() },
+
       // Where words live and who looks them up (slice 11 section 1).
       "backend.get": {
         from: ["page"],
@@ -1457,6 +1501,7 @@ ext.runtime.onMessage.addListener(
             }
           }
           const result = await sync.credentialsChanged();
+          pushProfile();
           return { ok: true, wordsHome: (await settings()).wordsHome, sync: result?.ok === false ? { code: result.code } : { ok: true } };
         },
       },

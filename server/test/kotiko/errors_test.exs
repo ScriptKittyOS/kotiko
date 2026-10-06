@@ -19,7 +19,8 @@ defmodule Kotiko.ErrorsTest do
         {"POST", "/api/v1/words/batch"},
         {"PATCH", "/api/v1/words/#{Kotiko.UUID7.generate()}"},
         {"DELETE", "/api/v1/words"},
-        {"POST", "/api/v1/jobs/pronunciation-refresh"}
+        {"POST", "/api/v1/jobs/pronunciation-refresh"},
+        {"PUT", "/api/v1/profile"}
       ]
 
       for {method, path} <- routes,
