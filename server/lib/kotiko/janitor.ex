@@ -16,6 +16,7 @@ defmodule Kotiko.Janitor do
   use GenServer
   require Logger
   alias Kotiko.{AddRequests, Words}
+  alias Kotiko.LLM.Cache
 
   @first_run :timer.minutes(5)
   @every :timer.hours(24)
@@ -46,7 +47,7 @@ defmodule Kotiko.Janitor do
       scrubbed: Words.scrub_tombstones(now),
       purged: Words.purge_tombstones(now),
       add_requests: AddRequests.purge(now),
-      lookup_cache: Kotiko.LLM.Cache.prune(now)
+      lookup_cache: Cache.prune(now)
     }
 
     if result.scrubbed + result.purged > 0 do

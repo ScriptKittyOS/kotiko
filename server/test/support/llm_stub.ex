@@ -16,12 +16,13 @@ defmodule Kotiko.LLMStub do
   Options: `key:` the `/key` answer's `free_model_daily_requests` (a map) or a function
   of the conn; `models:` the `/models` answer's `data` (a list) or a function of the conn.
   """
+  alias Kotiko.LLM.{Catalog, Quota}
   alias Plug.Conn
 
   def stub(fun, opts \\ []) do
     test = self()
-    Kotiko.LLM.Catalog.reset(entries: true)
-    Kotiko.LLM.Quota.reset()
+    Catalog.reset(entries: true)
+    Quota.reset()
 
     Req.Test.stub(Kotiko.LLM, fn
       %{method: "GET", request_path: path} = conn ->

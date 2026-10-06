@@ -67,12 +67,12 @@ jobs:
       - run: mix format --check-formatted
         if: matrix.current
       - run: mix compile --warnings-as-errors
-      - run: mix credo
+      - run: mix credo --strict
         if: matrix.current
       - run: mix hex.audit
       - run: mix deps.audit
       - run: mix deps.unlock --check-unused
-      - run: mix test
+      - run: mix test --warnings-as-errors
 
   extension:
     runs-on: ubuntu-24.04

@@ -5,8 +5,8 @@ defmodule Kotiko.LLM.CatalogTest do
   # Slice 10 section 1: which models, in what order. The /models answer is
   # test/fixtures/openrouter/models-2026-10-01.json (17 free models, 6 with JSON mode).
   use Kotiko.DataCase, async: false
-  alias Kotiko.LLMStub
   alias Kotiko.LLM.Catalog
+  alias Kotiko.LLMStub
 
   @moduletag :capture_log
   @models Path.expand("../../../../test/fixtures/openrouter/models-2026-10-01.json", __DIR__)

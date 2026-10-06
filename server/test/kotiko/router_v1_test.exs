@@ -5,6 +5,7 @@ defmodule Kotiko.RouterV1Test do
   # Slice 07's /api/v1 routes and the legacy /api/words routes a 0.2 extension uses.
   use Kotiko.ConnCase, async: false
   import ExUnit.CaptureLog
+  alias Kotiko.LLM.Quota
   alias Kotiko.{LLMStub, UUID7, Word, Words}
 
   @inu_es %{
@@ -343,7 +344,7 @@ defmodule Kotiko.RouterV1Test do
       put_app_env(:llm_models, ["a:free"])
       LLMStub.stub(fn _, _ -> raise "no model call expected" end)
 
-      Kotiko.LLM.Quota.put(%{
+      Quota.put(%{
         "free_model_daily_requests" => %{"used" => 50, "limit" => 50, "remaining" => 0}
       })
 

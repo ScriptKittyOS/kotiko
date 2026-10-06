@@ -21,7 +21,7 @@ defmodule Kotiko.LLM.Cache do
   use GenServer
   import Ecto.Query
   require Logger
-  alias Kotiko.{Repo, Spec, Word, WordSpec, Words}
+  alias Kotiko.{Repo, Spec, Word, Words, WordSpec}
 
   @prompt_hash :crypto.hash(:sha256, Spec.prompt_text()) |> Base.encode16(case: :lower)
 

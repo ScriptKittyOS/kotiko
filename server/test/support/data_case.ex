@@ -8,6 +8,7 @@ defmodule Kotiko.DataCase do
   `async: false`; the shared sandbox then also covers processes the test starts.
   """
   use ExUnit.CaseTemplate
+  alias Ecto.Adapters.SQL
   alias Ecto.Adapters.SQL.Sandbox
 
   using do
@@ -29,7 +30,7 @@ defmodule Kotiko.DataCase do
     # The sandbox's transaction is deferred, unlike the server's (immediate): a test that
     # reads and then writes would get "Database busy" at once if the previous test's
     # connection hadn't rolled back yet. Taking the write lock first waits for it instead.
-    Ecto.Adapters.SQL.query!(
+    SQL.query!(
       Kotiko.Repo,
       "UPDATE sync_state SET last_seq = last_seq WHERE id = 1"
     )
