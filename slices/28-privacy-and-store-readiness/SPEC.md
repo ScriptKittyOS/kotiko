@@ -592,7 +592,8 @@ pages still can; upgrades), `test/unit/settings.test.mjs`, and a Chromium e2e ca
 rewrite loop, the planted job spends no lookup, `storage.sync` refuses the write). Tests
 that set up state now go through `settings.set` or the background's `seed` hook
 (`globalThis.__kotiko.seed`, which only the background's own context can reach), and DOM
-tests without a background get `settings.set` answered by the fake chrome.
+tests without a background get `settings.set` answered by the fake chrome. The
+`test/visual/` scripts seed the same way.
 
 **Still open.**
 
@@ -600,7 +601,6 @@ tests without a background get `settings.set` answered by the fake chrome.
 - Other open pages can act for a moment on a value a content script wrote, until it is put
   back (repeatedly, if it writes in a loop); nothing is saved or sent.
 - In Firefox, base languages changed on another device don't follow.
-- `test/visual/` scripts still seed `storage.local` directly and need the `seed` hook.
 
 **§8 Listing and assets.** `store/listing/en.json` (description opening with slice 05's
 short listing line, five captions, promo text); `store/assets.md` (sizes, what exists,
