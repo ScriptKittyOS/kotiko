@@ -1,6 +1,6 @@
 # Governance
 
-Last reviewed: 2026-10-05.
+Last reviewed: 2026-10-06.
 
 How decisions are made in Kotiko, who holds which role, and how that changes. Who holds
 each role today is in [MAINTAINERS.md](MAINTAINERS.md).
@@ -19,14 +19,15 @@ each role today is in [MAINTAINERS.md](MAINTAINERS.md).
 3. **Disputes.** Discussed on the issue; if unresolved after 14 days, the lead maintainer
    decides and records it in DECISIONS.md. Conduct problems follow
    [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md); a report about the lead maintainer goes to
-   the steward.
+   another maintainer (MAINTAINERS.md).
 4. **When there are three or more maintainers**, contested decisions go to a simple
    majority of maintainers, with the lead maintainer breaking ties. This switch happens
    automatically when MAINTAINERS.md lists a third maintainer.
 5. **Becoming a maintainer.** Sustained, good-quality contribution over at least three
    months (code, review, docs or translation), nominated by a maintainer, with no
-   objection from other maintainers within 7 days. Recorded by a pull request to
-   MAINTAINERS.md.
+   objection from other maintainers within 7 days. The lead maintainer may also appoint a
+   maintainer directly. Either way it is recorded by a pull request to MAINTAINERS.md, and
+   the person is added as a repository collaborator with the Maintain role.
 6. **Stepping down.** Any time, by pull request. Maintainers inactive for 12 months move
    to "Emeritus" after a heads-up; their access is removed the same day
    ([continuity](docs/governance/continuity.md)).
@@ -41,14 +42,33 @@ each role today is in [MAINTAINERS.md](MAINTAINERS.md).
 | Maintainer | Reviews and merges pull requests; takes the weekly triage turn (every new issue gets a label and a first response within 7 days); approves the `release` environment; enforces CODE_OF_CONDUCT.md |
 | Release manager | Runs releases (slice [30](slices/30-release-pipeline/SPEC.md)) and signs the release tag once signed tags exist; keeps the release checklist current |
 | Security response lead | Runs the process in [SECURITY.md](SECURITY.md#what-happens-after-you-report); has a named backup; keeps the [assurance case](docs/security/assurance-case.md) current |
-| Steward | Holds recovery access to every account in the [continuity plan](docs/governance/continuity.md) and runs the yearly continuity check; does not need to write code; becomes interim lead if the lead is gone |
+| Steward (optional) | Holds recovery access to every account in the [continuity plan](docs/governance/continuity.md) and runs the yearly continuity check; does not need to write code; becomes interim lead if the lead is gone |
 | Locale reviewer | Signs off a launch locale before a release (slice [50](slices/50-ui-localization-and-base-language/SPEC.md)); one per locale |
 | Contributor | Anyone who opens an issue or pull request; follows [CONTRIBUTING.md](CONTRIBUTING.md) and the code of conduct |
 
-One person may hold several roles. While the project has one maintainer, that person holds
-every role except steward.
+One person may hold several roles. Maintainers are collaborators on the repository with the
+Maintain role; the lead maintainer is its admin.
 
 ## Accounts
 
 Maintainers and the steward protect their GitHub and store accounts with two-factor
 authentication, using a passkey, a security key or an authenticator app, not SMS.
+
+## Continuity
+
+If any one maintainer becomes unavailable, for any reason, the others hold the access needed
+to keep the project running: each can triage and close issues, review and merge pull
+requests, and publish a release (a release tag signed with their own key, once it is listed
+in `.github/allowed_signers`). Nothing in the ordinary workflow requires a specific
+individual.
+
+Access is not given informally. Every account with access to the repository must have
+two-factor authentication, and the `ScriptKittyOS` organization enforces it rather than
+asking for it: an account without it loses access instead of being reminded.
+
+The exceptions are named here rather than left to be discovered. Administration of the
+GitHub organization, the `kotiko.org` and `scriptkittyos.com` domains, the `security@`
+mailbox, and the Chrome Web Store and Firefox Add-ons publisher accounts rest with the lead
+maintainer. Restoring those to a surviving maintainer is a legal and administrative matter,
+not a technical one; the [continuity plan](docs/governance/continuity.md) lists each of them
+and how it is handed over.
