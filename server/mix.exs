@@ -15,7 +15,20 @@ defmodule Kotiko.MixProject do
       # The VM exits when the app stops, so systemd (or Docker) restarts it.
       start_permanent: true,
       deps: deps(),
-      aliases: aliases()
+      aliases: aliases(),
+      # `mix test --cover` fails below 90 % of lines (OpenSSF test_statement_coverage90).
+      # The helpers in test/support are test code, not the server, so they don't count.
+      test_coverage: [
+        summary: [threshold: 90],
+        ignore_modules: [
+          Kotiko.ConnCase,
+          Kotiko.DataCase,
+          Kotiko.Gen,
+          Kotiko.LegacyDb,
+          Kotiko.LLMStub,
+          Kotiko.TelegramStub
+        ]
+      ]
     ]
   end
 
