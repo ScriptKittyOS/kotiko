@@ -1,6 +1,6 @@
 # Access continuity
 
-Last reviewed: 2026-10-05. Last continuity check: not yet done (see [Yearly
+Last reviewed: 2026-10-06. Last continuity check: not yet done (see [Yearly
 check](#6-yearly-check)).
 
 How Kotiko keeps going if a key person is unavailable: who controls each account, who can
@@ -8,10 +8,12 @@ take over, and what happens in the first week. This file is public and holds no 
 Roles are defined in [GOVERNANCE.md](../../GOVERNANCE.md); who holds them is in
 [MAINTAINERS.md](../../MAINTAINERS.md).
 
-**Status today.** One maintainer holds every account. No steward is named yet (slice
-[53](../../slices/53-openssf-best-practices/SPEC.md), open question 2), so the rules below
-are the target, not yet met. The `ScriptKittyOS` GitHub organization already requires
-two-factor authentication for its members (organization setting, checked 2026-10-05).
+**Status today.** Two maintainers: the lead maintainer, Ayla Croft (@HackTuah), and
+@minitru, a repository collaborator with the Maintain role (2026-10-06). Either can triage,
+review, merge and release, as GOVERNANCE.md "Continuity" says. The accounts below whose
+backup is "Not yet" are the exceptions GOVERNANCE.md names: they rest with the lead
+maintainer. The `ScriptKittyOS` GitHub organization requires two-factor authentication for
+everyone with access (organization setting, checked 2026-10-06).
 
 ## 1. Inventory
 
@@ -20,7 +22,7 @@ two-factor authentication for its members (organization setting, checked 2026-10
 | Asset | Controls | Primary holder | Backup holder | Recovery material | How to hand it over |
 |---|---|---|---|---|---|
 | GitHub organization `ScriptKittyOS` (owner role) | Repository settings, teams, Actions secrets, the `release` environment | Ayla Croft (@HackTuah), the only owner | Not yet (steward) | Recovery codes in the private record (section 3) | Add the person as an organization owner |
-| Repository `ScriptKittyOS/kotiko` (admin) | Issues, pull requests, branch protection, security advisories | Ayla Croft, through the organization | Not yet | As above | Organization owners have admin on every repository |
+| Repository `ScriptKittyOS/kotiko` (admin) | Issues, pull requests, branch protection, security advisories | Ayla Croft, through the organization | @minitru (Maintain: issues, pull requests, merges, release tags) | As above | Organization owners have admin on every repository |
 | Chrome Web Store publisher account (slice [28](../../slices/28-privacy-and-store-readiness/SPEC.md) §9) | Listing and uploads | Not yet | Not yet | Not yet | Group publisher, or the Google account's recovery held by the steward |
 | Google Cloud project for the store API (slice [30](../../slices/30-release-pipeline/SPEC.md) §4) | `CWS_*` credentials | Not yet | Not yet | Not yet | Add as project owner; rotate the credentials |
 | addons.mozilla.org add-on (owner and developers) | Listing, signing, `AMO_JWT_*` keys | Not yet | Not yet | Not yet | Add as an owner on AMO |

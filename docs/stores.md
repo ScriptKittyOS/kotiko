@@ -96,19 +96,19 @@ All of these are the maintainer's to do; nothing in the repository can do them.
 - **Settings, Actions, General**: "Allow GitHub Actions to create and approve pull requests"
   (release-please opens the release PR with the workflow's token).
 - **Settings, Environments, `release`**:
-  - Required reviewers: `@ScriptKittyOS/kotiko-maintainers` (at least one). With a single
-    maintainer, leave "Prevent self-review" off.
+  - Required reviewers: the maintainers (MAINTAINERS.md), at least one. Leave "Prevent
+    self-review" off, so the release manager can approve their own release.
   - Deployment branches and tags: "Selected branches and tags", add the **tag** rule `v*` and
     no branches. Store jobs run on the release tag, never on a branch, a pull request or a
     fork.
   - Secrets: the six store secrets below. Nothing else in the repository can read them.
 - **Settings, Environments, `store-status`**: no reviewers; deployment branches: `main`
   only. Secrets: the read-only Chrome Web Store credentials below.
-- **Settings, Rules, Rulesets** (set up 2026-10-05): a tag ruleset for `refs/tags/v*` with
-  "Restrict creations", "Restrict updates" and "Restrict deletions", bypassed only by
-  the `kotiko-maintainers` team (since 2026-10-06).
-  Only maintainers can start a release; nobody else can create, move or delete a release
-  tag. Two more rulesets: `main` takes changes only through pull requests whose CI checks
+- **Settings, Rules, Rulesets**: "tags are permanent" (since 2026-10-06, as in the
+  maintainer's other projects) covers every tag: no updates, deletions or force pushes, and
+  no bypass. Only collaborators with write access (the maintainers) can push a tag at all,
+  and the release workflow builds only a tag signed by a key in `.github/allowed_signers`,
+  so a tag can't be moved after a release and an unsigned one releases nothing. Two more rulesets: `main` takes changes only through pull requests whose CI checks
   pass (no force pushes or deletion, no bypass). GitHub allows push rulesets only on
   private repositories, so the old push ruleset is disabled; CI's required `secrets` job
   rejects `.env`, database, private-key and token files and files over 10 MB instead
