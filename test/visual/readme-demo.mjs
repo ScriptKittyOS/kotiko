@@ -56,15 +56,19 @@ async function run() {
     const sw = context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
     const base = `chrome-extension://${new URL(sw.url()).host}/`;
     // Past the first run, with the words saved and Kotiko off for the first frame.
+    // Through the background's own copy (`__kotiko.seed`; storage.local is only its mirror).
     await sw.evaluate(async () => {
-      await chrome.storage.sync.set({ ui: { uiLang: "auto", baseLangs: ["en"], baseLangsConfirmed: true }, seedSalt: "0123456789abcdef0123456789abcdef" });
-      await chrome.storage.local.set({ onboarding: { completedAt: Date.now(), skipped: false, version: 2 }, mixing: { mode: "mix" }, celebrations: null });
+      for (let i = 0; i < 100 && !(await globalThis.__kotiko.area.get("onboarding")).onboarding; i++) await new Promise((r) => setTimeout(r, 50));
+      const ui = { uiLang: "auto", baseLangs: ["en"], baseLangsConfirmed: true };
+      const seedSalt = "0123456789abcdef0123456789abcdef";
+      await chrome.storage.sync.set({ ui, seedSalt });
+      await globalThis.__kotiko.seed({ ui, seedSalt, baseLangs: ["en"], onboarding: { completedAt: Date.now(), skipped: false, version: 2 }, mixing: { mode: "mix" }, celebrations: null });
     });
     const setup = await context.newPage();
     await setup.goto(`${base}dashboard.html`);
     const res = await setup.evaluate((words) => chrome.runtime.sendMessage({ type: "words.save", words }), WORDS.map((w) => ({ ...w, base_lang: "en", origin: "manual", pronunciation_source: "user" })));
     if (res?.error) throw new Error(`words.save: ${JSON.stringify(res)}`);
-    await setup.evaluate(() => chrome.storage.local.set({ enabled: false }));
+    await setup.evaluate(() => chrome.runtime.sendMessage({ type: "settings.set", set: { enabled: false } }));
     await new Promise((r) => setTimeout(r, 500));
 
     const page = await context.newPage();
@@ -79,7 +83,7 @@ async function run() {
     const before = await shot("1-before");
 
     // Kotiko on, from an extension page: the open tab swaps in place.
-    await setup.evaluate(() => chrome.storage.local.set({ enabled: true }));
+    await setup.evaluate(() => chrome.runtime.sendMessage({ type: "settings.set", set: { enabled: true } }));
     await page.locator("kotiko-w").first().waitFor();
     await page.waitForTimeout(500);
     const after = await shot("2-after");

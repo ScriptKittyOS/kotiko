@@ -56,25 +56,26 @@ const errors = [];
 const written = [];
 
 // Fresh state for each shot: no words, no AI, not onboarded, no celebrations yet.
+// Settings go in through the background's own copy (`__kotiko.seed`; storage.local is only
+// its mirror, SCR-448), and the lookup service and its key through the settings' own
+// messages, which bind where requests go (slice 28 §7). privacy.html has no side effects.
 async function reset(env, { ai = false, words = false } = {}) {
-  await env.sw.evaluate(async ({ ai, key, llmUrl }) => {
+  await env.sw.evaluate(async () => {
     const g = globalThis.__kotiko;
-    const store = await g.getStore();
-    await store.replaceAll([]);
-    await chrome.storage.local.set({ onboarding: { completedAt: null, skipped: false, version: 2 }, celebrations: null, prefs: {}, lookup: { kind: "none", provider: "openrouter", baseUrl: null, model: null, dataCollection: "allow" }, keys: { server: false, providers: {} }, addJobs: [] });
-    await store.secrets.remove("provider:custom");
-    if (ai) {
-      await store.secrets.set("provider:custom", key);
-      await chrome.storage.local.set({ lookup: { kind: "provider", provider: "custom", baseUrl: llmUrl, model: null, dataCollection: "allow" }, keys: { server: false, providers: { custom: true } } });
-    }
+    await (await g.getStore()).replaceAll([]);
+    await g.seed({ onboarding: { completedAt: null, skipped: false, version: 2 }, celebrations: null, prefs: {}, addJobs: [] });
     await g.projector.flush();
-  }, { ai, key: KEY, llmUrl: env.llmUrl });
-  if (words) {
-    const page = await env.context.newPage();
-    await page.goto(`${env.base}welcome.html`);
-    await page.evaluate(() => chrome.runtime.sendMessage({ type: "words.save", words: [{ lang: "ru", native: "дом", base_lang: "en", gloss: "house", forms: ["house"], origin: "manual" }] }));
-    await page.close();
+  });
+  const page = await env.context.newPage();
+  await page.goto(`${env.base}privacy.html`);
+  const lookup = ai ? { kind: "provider", provider: "custom", baseUrl: env.llmUrl, model: null } : { kind: "none", provider: "openrouter", baseUrl: null, model: null };
+  const msgs = [{ type: "secrets.remove", id: "provider:custom" }, { type: "backend.set", lookup }, ...(ai ? [{ type: "secrets.set", id: "provider:custom", value: KEY }] : [])];
+  if (words) msgs.push({ type: "words.save", words: [{ lang: "ru", native: "дом", base_lang: "en", gloss: "house", forms: ["house"], origin: "manual" }] });
+  for (const m of msgs) {
+    const r = await page.evaluate((x) => chrome.runtime.sendMessage(x), m);
+    if (r?.error) throw new Error(`${m.type}: ${JSON.stringify(r)}`);
   }
+  await page.close();
 }
 
 async function shoot(env, name, { scheme, size = { width: 1100, height: 1000 }, reduced = true, ai = false, words = false, act, full = true, url = "welcome.html", locator = null }) {

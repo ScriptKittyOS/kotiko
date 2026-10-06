@@ -72,6 +72,15 @@ async function shoot(env, name, { scheme, size = { width: 1440, height: 900 }, h
   return file;
 }
 
+// Settings go in through the background's own copy (`__kotiko`, in its service worker):
+// storage.local is only its mirror, and anything else written there is put back (SCR-448).
+const worker = (page) => page.context().serviceWorkers()[0];
+const seed = (page, items) => worker(page).evaluate((i) => globalThis.__kotiko.seed(i), items);
+const clearSettings = (page) => worker(page).evaluate(async () => {
+  const { area } = globalThis.__kotiko;
+  await area.remove(Object.keys(await area.get(null)));
+});
+
 async function run() {
   await fs.mkdir(OUT, { recursive: true });
   const srv = await startFixtureServer();
@@ -83,12 +92,10 @@ async function run() {
   const connected = ({ v1Words = words, job = { state: "running", done: 40, total: 120 }, local = {} } = {}) => async (page) => {
     await control({ reset: true });
     await control({ v1Words, job });
-    await page.evaluate(async (o) => {
-      await chrome.storage.local.clear();
-      await chrome.storage.local.set({ lastSync: Date.now() - 60_000, syncError: null, ...o.local });
-      // As the settings connect (slice 28: an address written to storage.local is ignored).
-      await chrome.runtime.sendMessage({ type: "server.connect", url: o.url, token: o.token });
-    }, { url: `${srv.url}/kotiko`, token: srv.token, local });
+    await clearSettings(page);
+    await seed(page, { lastSync: Date.now() - 60_000, syncError: null, ...local });
+    // As the settings connect (slice 28: an address written to storage.local is ignored).
+    await page.evaluate((o) => chrome.runtime.sendMessage({ type: "server.connect", url: o.url, token: o.token }), { url: `${srv.url}/kotiko`, token: srv.token });
   };
   const deleteIds = (ids) => async (page) => {
     await page.evaluate(async (list) => {
@@ -146,14 +153,12 @@ async function run() {
       },
     }],
     ["empty", { setup: connected({ v1Words: [], job: { state: "done", done: 0, total: 0 } }) }],
-    ["not-connected", { setup: async (p) => { await control({ reset: true }); await p.evaluate(() => chrome.storage.local.clear()); } }],
+    ["not-connected", { setup: async (p) => { await control({ reset: true }); await clearSettings(p); } }],
     ["unreachable", {
       setup: async (p) => {
         await control({ reset: true });
-        await p.evaluate(async () => {
-          await chrome.storage.local.clear();
-          await chrome.runtime.sendMessage({ type: "server.connect", url: "http://127.0.0.1:9", token: "t0ken" });
-        });
+        await clearSettings(p);
+        await p.evaluate(() => chrome.runtime.sendMessage({ type: "server.connect", url: "http://127.0.0.1:9", token: "t0ken" }));
       },
     }],
     ["settings", { setup: connected(), hash: "#settings", full: true }],
