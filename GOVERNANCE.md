@@ -23,16 +23,18 @@ each role today is in [MAINTAINERS.md](MAINTAINERS.md).
 4. **When there are three or more maintainers**, contested decisions go to a simple
    majority of maintainers, with the lead maintainer breaking ties. This switch happens
    automatically when MAINTAINERS.md lists a third maintainer.
-5. **Becoming a maintainer.** Sustained, good-quality contribution over at least three
-   months (code, review, docs or translation), nominated by a maintainer, with no
-   objection from other maintainers within 7 days. The lead maintainer may also appoint a
-   maintainer directly. Either way it is recorded by a pull request to MAINTAINERS.md, and
-   the person is added as a repository collaborator with the Maintain role.
+5. **Becoming a maintainer.** As it actually stands: the second maintainer joined on
+   2026-10-06 by the lead maintainer's invitation, not through the path below, because there
+   was no outside contribution yet for it to apply to. The path, for anyone joining from
+   here: land changes through the ordinary review process, review someone else's pull
+   request and have that review hold up, then a maintainer proposes it. Either way it is
+   recorded by a pull request to MAINTAINERS.md, and the person is added as a repository
+   collaborator with the Maintain role.
 6. **Stepping down.** Any time, by pull request. Maintainers inactive for 12 months move
    to "Emeritus" after a heads-up; their access is removed the same day
    ([continuity](docs/governance/continuity.md)).
-7. **Changing this document**: a pull request open for at least 7 days, approved by all
-   active maintainers (the lead maintainer while there is one).
+7. **Changing this document**: like any other decision, by pull request, recorded in
+   [`slices/DECISIONS.md`](slices/DECISIONS.md).
 
 ## Roles
 
