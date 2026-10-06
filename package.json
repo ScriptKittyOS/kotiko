@@ -30,5 +30,8 @@
     "react-dom": "18.3.1",
     "stopwords-iso": "1.1.0",
     "web-ext": "10.7.0"
+  },
+  "overrides": {
+    "shell-quote": "1.11.0"
   }
 }
