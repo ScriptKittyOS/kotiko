@@ -81,7 +81,7 @@ jobs:
       - run: mix format --check-formatted
         if: matrix.current
       - run: mix compile --warnings-as-errors
-      - run: mix credo
+      - run: mix credo --strict
         if: matrix.current
       - run: mix hex.audit
       - run: mix deps.audit
@@ -89,11 +89,11 @@ jobs:
       - run: mix sobelow
         if: matrix.current
       - run: mix deps.unlock --check-unused
-      - run: mix test
+      - run: mix test --warnings-as-errors
         if: ${{ !matrix.current }}
       # The coverage gate (90 % of lines, mix.exs) on one compiler only: line counts differ
       # a little between Elixir versions, and cover makes the run slower.
-      - run: mix test --cover
+      - run: mix test --warnings-as-errors --cover
         if: matrix.current
 
   extension:

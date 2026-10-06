@@ -57,7 +57,7 @@
       return cut + "…";
     }
 
-    const ROMANIAN = { "ş": "ș", "Ş": "Ș", "ţ": "ț", "Ţ": "Ț" };
+    const ROMANIAN = { ş: "ș", Ş: "Ș", ţ: "ț", Ţ: "Ț" };
     const romanian = (s) => (s === null ? s : s.replace(/[şŞţŢ]/g, (c) => ROMANIAN[c]));
 
     // Trailing .,!?;:。、！？ and leading ¿¡ (¿perro? is perro).
@@ -85,9 +85,9 @@
     function langData(base) {
       const key = String(base);
       if (dataCache.has(key)) return dataCache.get(key);
-      const candidates = [key, primary(key)].filter((f, i, all) => all.indexOf(f) === i);
+      const tags = [key, primary(key)].filter((f, i, all) => all.indexOf(f) === i);
       const find = (kind, generic) => {
-        for (const f of generic ? [...candidates, "_generic"] : candidates) {
+        for (const f of generic ? [...tags, "_generic"] : tags) {
           if (FOLDERS[f]?.[kind] !== undefined) return f;
         }
         return null;

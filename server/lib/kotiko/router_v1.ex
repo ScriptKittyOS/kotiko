@@ -22,9 +22,11 @@ defmodule Kotiko.RouterV1 do
     Spec,
     UUID7,
     Word,
-    WordSpec,
-    Words
+    Words,
+    WordSpec
   }
+
+  alias Kotiko.LLM.Quota
 
   plug :match
   plug :dispatch
@@ -350,7 +352,7 @@ defmodule Kotiko.RouterV1 do
   # would ask now and the last lookup's result. Answers from memory: no model call, and
   # at most one quota refresh in the background.
   get "/llm/status" do
-    Kotiko.LLM.Quota.maybe_refresh()
+    Quota.maybe_refresh()
     json(conn, 200, Kotiko.LLM.status())
   end
 

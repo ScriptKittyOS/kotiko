@@ -99,7 +99,7 @@ describe("swapping", () => {
   });
 
   test("one language for every occurrence of a word; the original word and the others stay out of the page DOM", async () => {
-    const { doc, spans } = await load(`<p>thanks thanks thanks</p><p>Many thanks.</p>`);
+    const { doc, spans } = await load("<p>thanks thanks thanks</p><p>Many thanks.</p>");
     assert.equal(spans().length, 4);
     assert.equal(new Set(spans().map((s) => s.lang)).size, 1, "slice 18: one language per page per day");
     assert.ok(spans().every((s) => !s.hasAttribute("title") && !Object.keys(s.dataset).length));
@@ -130,13 +130,13 @@ describe("swapping", () => {
 
   test("never puts the word list into markup", async () => {
     const evil = word("<img src=x onerror=alert(1)>", "house", ["house"], "ru", { note: "<b>note</b>" });
-    const { doc, spans } = await load(`<p>house</p>`, { words: [evil] });
+    const { doc, spans } = await load("<p>house</p>", { words: [evil] });
     assert.equal(doc.querySelector("img"), null);
     assert.equal(spans()[0].textContent, "<img src=x onerror=alert(1)>");
   });
 
   test("asks the background for a sync on load", async () => {
-    const { fake } = await load(`<p>house</p>`);
+    const { fake } = await load("<p>house</p>");
     assert.deepEqual(fake.calls.sendMessage, [{ type: "sync" }]);
   });
 });
@@ -167,13 +167,13 @@ describe("screen readers and keyboards (slice 27 §2)", () => {
   });
 
   test("both: the word, then the original, each in its own language", async () => {
-    const { spans } = await load(`<p>thanks for the house</p>`, { words: [WORDS[0]], prefs: { screenReader: "both" } });
+    const { spans } = await load("<p>thanks for the house</p>", { words: [WORDS[0]], prefs: { screenReader: "both" } });
     assert.deepEqual(heard(spans()[0]), ["дом@ru", ", ", "house@en"]);
   });
 
   test("a Spanish page: the hidden original is tagged Spanish", async () => {
     const perro = word("dog", "perro", ["perro"], "en", { base_lang: "es" });
-    const { spans } = await load(`<p>el perro duerme</p>`, { words: [perro], lang: "es", baseLangs: ["es"], prefs: { screenReader: "original" } });
+    const { spans } = await load("<p>el perro duerme</p>", { words: [perro], lang: "es", baseLangs: ["es"], prefs: { screenReader: "original" } });
     assert.equal(spans()[0].lang, "en");
     assert.deepEqual(heard(spans()[0]), ["perro@es"]);
   });
@@ -534,9 +534,9 @@ describe("pages in the learner's languages", () => {
   });
 
   test("the popup can ask what Kotiko made of the page", async () => {
-    const es = await load(`<p>Mi perro</p>`, { lang: "es", words: ES, baseLangs: ["es"] });
+    const es = await load("<p>Mi perro</p>", { lang: "es", words: ES, baseLangs: ["es"] });
     assert.deepEqual(await es.fake.deliver({ type: "page-status" }, POPUP), { base: "es", reason: "declared", lang: "es", words: 3 });
-    const de = await load(`<p>Mein Hund</p>`, { lang: "de", words: ES, baseLangs: ["es"] });
+    const de = await load("<p>Mein Hund</p>", { lang: "de", words: ES, baseLangs: ["es"] });
     assert.deepEqual(await de.fake.deliver({ type: "page-status" }, POPUP), { base: null, reason: "declared_other", lang: "de", words: 0 });
     assert.equal(await de.fake.deliver({ type: "page-status" }), undefined, "never to another tab's content script");
   });
@@ -608,7 +608,7 @@ describe("framework-safe swapping (slice 15)", () => {
   });
 
   test("F25: a replaced body is swapped too", async () => {
-    const { doc, $ } = await load(`<p>old house</p>`);
+    const { doc, $ } = await load("<p>old house</p>");
     const next = doc.createElement("body");
     next.innerHTML = `<p id="n">A new house after navigation.</p>`;
     doc.documentElement.replaceChild(next, doc.body);
@@ -856,7 +856,7 @@ describe("language precedence (slice 18)", () => {
   });
 
   test("adding an unrelated word changes nothing on the page", async () => {
-    const { doc, dom, set, fake } = await load(`<p>many thanks, my house</p><p>thanks again</p>`);
+    const { doc, dom, set, fake } = await load("<p>many thanks, my house</p><p>thanks again</p>");
     let writes = 0;
     new dom.window.MutationObserver((r) => (writes += r.length)).observe(doc.body, { subtree: true, childList: true, characterData: true, attributes: true });
     const words = await fake.chrome.storage.local.get("words");
@@ -883,7 +883,7 @@ describe("language precedence (slice 18)", () => {
   });
 
   test("hiding the winning language moves only that word", async () => {
-    const page = await load(`<p>thanks</p>`);
+    const page = await load("<p>thanks</p>");
     const winner = langs(page.spans)[0];
     await page.set({ hiddenLangs: [winner] });
     assert.notEqual(langs(page.spans)[0], winner);
@@ -903,7 +903,7 @@ describe("language precedence (slice 18)", () => {
   });
 
   test("nothing about the page's address is stored", async () => {
-    const { fake } = await load(`<p>thanks</p>`, { url: "https://news.example.org/story?id=7" });
+    const { fake } = await load("<p>thanks</p>", { url: "https://news.example.org/story?id=7" });
     assert.doesNotMatch(JSON.stringify(fake.store), /news\.example|story|id=7/);
   });
 });

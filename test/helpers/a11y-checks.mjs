@@ -93,7 +93,7 @@ export async function tabWalk(page, { max = 250 } = {}) {
       // A transition started by the focus change (a skip link sliding in) ends first.
       const running = document.getAnimations().filter((a) => a.playState === "running" && Number.isFinite(a.effect?.getComputedTiming?.().endTime));
       await Promise.race([Promise.all(running.map((a) => a.finished.catch(() => {}))), new Promise((r) => setTimeout(r, 1000))]);
-      let el = document.activeElement;      while (el?.shadowRoot?.activeElement) el = el.shadowRoot.activeElement;
+      let el = document.activeElement; while (el?.shadowRoot?.activeElement) el = el.shadowRoot.activeElement;
       if (!el || el === document.body || el === document.documentElement) return null;
       // A composite widget with aria-activedescendant (the word grid) may draw its ring on
       // the active item instead of itself.

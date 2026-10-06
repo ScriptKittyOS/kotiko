@@ -68,7 +68,7 @@
     if (!m) return s === "transparent" ? [0, 0, 0, 0] : null;
     let a = m[4] === undefined ? 1 : parseFloat(m[4]);
     if (m[4]?.endsWith("%")) a /= 100;
-    return [+m[1], +m[2], +m[3], a];
+    return [Number(m[1]), Number(m[2]), Number(m[3]), a];
   }
 
   // WCAG relative luminance of an sRGB color (0-255 channels).

@@ -210,8 +210,8 @@ describe("the listing (slice 28 §8)", () => {
       "single purpose": /### Single purpose\n\n> ([\s\S]*?)\n\n/.exec(CWS)[1],
     };
     for (const [name, text] of Object.entries(texts)) assert.doesNotMatch(text.replace(ALLOWED, ""), /\bEnglish\b/, name);
-    const en = JSON.parse(read("extension/_locales/en/messages.json"));
-    for (const k of ["extStoreName", "extDescription"]) assert.doesNotMatch(en[k].message, /English/, k);
+    const messages = JSON.parse(read("extension/_locales/en/messages.json"));
+    for (const k of ["extStoreName", "extDescription"]) assert.doesNotMatch(messages[k].message, /English/, k);
   });
 
   test("the mascot isn't named in the listing (DECISIONS 2026-10-01)", () => {

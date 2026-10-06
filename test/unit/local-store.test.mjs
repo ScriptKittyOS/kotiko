@@ -173,7 +173,7 @@ describe("the projection for content scripts", () => {
 });
 
 describe("the add queue", () => {
-  function queue({ lookup, save = async (job, words) => words.map((w) => ({ result: "created", word: { ...w, id: `id-${w.native}` } })), now = () => Date.now(), isFunctionWord } = {}) {
+  function queue({ lookup, save = async (_job, words) => words.map((w) => ({ result: "created", word: { ...w, id: `id-${w.native}` } })), now = () => Date.now(), isFunctionWord } = {}) {
     const fake = createFakeChrome();
     const settled = [];
     // Timers that don't keep the test process alive (a job may wait an hour).
@@ -248,7 +248,7 @@ describe("the add queue", () => {
   test("new settings abort a running lookup; it runs again, without counting the aborted try", async () => {
     let n = 0;
     const { q, job, until } = queue({
-      lookup: (j, signal) => (n++ === 0 ? new Promise((_, reject) => signal.addEventListener("abort", () => reject(Object.assign(new Error("a"), { name: "AbortError" })))) : Promise.resolve(found("дом"))),
+      lookup: (_job, signal) => (n++ === 0 ? new Promise((_, reject) => signal.addEventListener("abort", () => reject(Object.assign(new Error("a"), { name: "AbortError" })))) : Promise.resolve(found("дом"))),
     });
     await q.add({ id: "a1", text: "dom" });
     await until(() => job("a1")?.state === "looking_up");
@@ -281,7 +281,7 @@ describe("the add queue", () => {
 
   test("resume: a job left looking up by a stopped worker is queued again with the same id", async () => {
     const fake = createFakeChrome({ local: { addJobs: [{ id: "r1", text: "x", state: "looking_up", createdAt: 1, attempts: 1, waits: 0, results: [], baseLangs: ["en"] }] } });
-    const q = L.Queue.createAddQueue({ storage: fake.chrome.storage.local, lookup: async () => found("икс"), save: async (j, w) => w.map((x) => ({ result: "created", word: { ...x, id: "i" } })) });
+    const q = L.Queue.createAddQueue({ storage: fake.chrome.storage.local, lookup: async () => found("икс"), save: async (_job, w) => w.map((x) => ({ result: "created", word: { ...x, id: "i" } })) });
     await q.resume();
     for (let i = 0; i < 100 && fake.store.local.addJobs[0].state !== "done"; i++) {
       await fake.idle();

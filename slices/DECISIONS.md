@@ -6,6 +6,15 @@ and why. Open questions live in each slice's own "Open questions" section and in
 
 ## 2026-10-06
 
+**Dependency licenses follow the Apache Software Foundation's categories.** *Lead agent,
+delegated.* The maintainer: "you do this you are the coding agent i am the inventor" (on
+confirming the license list in the dependency policy). Category A licenses (Apache-2.0,
+MIT, BSD, ISC, 0BSD, Zlib, Unicode-3.0, CC0 and others) are allowed in anything Kotiko
+ships; Category B (MPL-2.0, EPL-2.0, OFL-1.1 fonts, CC-BY media) only unmodified, labelled
+and recorded here; Category X (GPL, LGPL, AGPL, SSPL, BUSL, non-commercial terms) never.
+Source: <https://www.apache.org/legal/resolved.html>. Everything Kotiko ships today is
+Apache-2.0, MIT, public domain (SQLite) or Unicode-3.0 (CLDR data).
+
 **Maintainers are repository collaborators, and governance changes like any other
 decision.** *Maintainer.* "That is not how I have it set up in my other projects so that is
 not how it should be done here. I cant add him to the team as an admin and there are no

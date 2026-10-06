@@ -3,8 +3,8 @@
 
 defmodule Mix.Tasks.Kotiko.TokenTest do
   use ExUnit.Case, async: false
-  alias Mix.Tasks.Kotiko.Token, as: Task
   alias Kotiko.Token
+  alias Mix.Tasks.Kotiko.Token, as: Task
 
   # A fresh folder under the system temp dir per test, removed afterwards.
   setup do

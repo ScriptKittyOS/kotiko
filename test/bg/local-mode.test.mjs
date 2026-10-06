@@ -363,8 +363,8 @@ describe("upgrading an existing install (slice 11 §8)", () => {
   test("a server install stays a server install: same words on pages, same requests, the token leaves storage.local", async () => {
     srv.reset();
     await fetch(`${srv.url}/__control`, { method: "POST", body: JSON.stringify({ words: LEGACY_WORDS }) });
-    const before = { serverUrl: srv.kotikoUrl, token: srv.token, words: LEGACY_WORDS, enabled: true, hiddenLangs: [], lastSync: 1 };
-    const bg = loadBackground({ local: before });
+    const legacy = { serverUrl: srv.kotikoUrl, token: srv.token, words: LEGACY_WORDS, enabled: true, hiddenLangs: [], lastSync: 1 };
+    const bg = loadBackground({ local: legacy });
     bg.fake.fireInstalled({ reason: "update" });
     await bg.k.ready();
     await bg.until(() => bg.store.lastSync > 1);
@@ -481,7 +481,7 @@ describe("moving words (slice 11 §6)", () => {
     const bg = loadBackground({ local: { serverUrl: srv.kotikoUrl, token: srv.token } });
     await bg.k.ready();
     await bg.send({ type: "sync", force: true }, POPUP);
-    const before = bg.store.words.map((w) => w.native).sort();
+    const natives = bg.store.words.map((w) => w.native).sort();
     assert.deepEqual(await bg.send({ type: "migrate.preview", to: "local" }), { to: "local", count: 2, server: srv.kotikoUrl });
     const res = await bg.send({ type: "migrate.run", to: "local", forget: true });
     assert.deepEqual(res, { ok: true, total: 2 });
@@ -492,7 +492,7 @@ describe("moving words (slice 11 §6)", () => {
     assert.deepEqual(ids, [uuidFor(1), uuidFor(2)]);
     assert.deepEqual(bg.store.baseLangs.slice().sort(), ["en", "es"]);
     assert.deepEqual(bg.store.words.map((w) => w.native).sort(), ["спасибо", "犬"]);
-    assert.ok(before.includes("спасибо"));
+    assert.ok(natives.includes("спасибо"));
     // The server's data is untouched.
     assert.equal(srv.state.v1.filter((w) => !w.deleted_at).length, 2);
   });

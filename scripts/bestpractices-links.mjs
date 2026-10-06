@@ -6,8 +6,9 @@
 // and writes a local page with one button per form section. A maintainer opens a link,
 // reviews the highlighted answers and saves; nothing is sent until they press Save.
 //
-//   node scripts/bestpractices-links.mjs             # writes the page (passing, silver, gold)
+//   node scripts/bestpractices-links.mjs             # the page: only answers that differ from the live entry
 //   node scripts/bestpractices-links.mjs --baseline  # also the OpenSSF Baseline levels
+//   node scripts/bestpractices-links.mjs --all       # every answer, for a new entry
 //   node scripts/bestpractices-links.mjs --out x.html
 //   node scripts/bestpractices-links.mjs --check     # validates the answers (CI)
 //
@@ -18,6 +19,9 @@ import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const SITE = "https://www.bestpractices.dev";
+// Kotiko's entry. The live answers are read from here, never from a URL built out of the
+// document; --check fails if the document names a different entry.
+export const PROJECT = "15259";
 // The form's sections, in the order a maintainer fills them.
 export const SECTIONS = [
   ["Passing", "passing"],
@@ -80,12 +84,13 @@ export function parse(text) {
       continue;
     }
     if (row.every((c) => /^-+$/.test(c))) continue;
-    const at = (name) => row[header.indexOf(name)] ?? "";
+    const cell = {};
+    for (let i = 0; i < header.length; i++) cell[header[i]] = row[i] ?? "";
     group.rows.push({
-      criterion: at("Criterion").replace(/`/g, ""),
-      level: at("Level"),
-      status: at("Status"),
-      answer: at("Answer"),
+      criterion: cell.Criterion.replace(/`/g, ""),
+      level: cell.Level ?? "",
+      status: cell.Status,
+      answer: cell.Answer,
     });
   }
   return { project, groups: groups.filter((g) => g.rows.length) };
@@ -95,6 +100,7 @@ export function parse(text) {
 export function validate({ project, groups }) {
   const problems = [];
   if (!project) problems.push("No bestpractices.dev project number found in the document.");
+  else if (project !== PROJECT) problems.push(`The document names entry ${project}, the script reads entry ${PROJECT}.`);
   const seen = new Map();
   for (const g of groups) {
     for (const r of g.rows) {
@@ -111,6 +117,19 @@ export function validate({ project, groups }) {
       if (/`/.test(r.answer)) problems.push(`${where}: the answer has markdown backticks`);
       if (r.status === "Met" && /\[URL\]/.test(r.level) && !/https:\/\/\S+/.test(r.answer)) {
         problems.push(`${where}: a Met answer here needs a URL`);
+      }
+    }
+  }
+  // A criterion repeated at a higher metal level is the same field on the entry: saving one
+  // form overwrites the other, so every copy must say the same thing.
+  const metal = new Map();
+  for (const g of groups) {
+    if (g.section.startsWith("baseline")) continue;
+    for (const r of g.rows) {
+      const first = metal.get(r.criterion);
+      if (!first) metal.set(r.criterion, { ...r, section: g.section });
+      else if (first.status !== r.status || first.answer !== r.answer) {
+        problems.push(`${g.section} / ${r.criterion}: differs from its ${first.section} copy (one field on the entry)`);
       }
     }
   }
@@ -158,41 +177,84 @@ export function links({ project, groups }) {
   return out;
 }
 
+// The entry's own JSON names a Baseline field by its OSPS id (OSPS-AC-01.01_status); the form
+// and the proposal links use the field name (osps_ac_01_01_status).
+export const entryKey = (criterion) =>
+  criterion.replace(/^osps_([a-z]{2})_(\d{2})_(\d{2})$/, (_, c, a, b) => `OSPS-${c.toUpperCase()}-${a}.${b}`);
+
+const same = (a, b) => String(a ?? "").replace(/\s+/g, " ").trim() === String(b ?? "").replace(/\s+/g, " ").trim();
+
+// The answers that differ from what is saved on the entry (status or justification), per
+// form, each with the saved status as `was`. With no entry, every answer.
+export function changes({ groups }, entry = null) {
+  const bySection = new Map();
+  for (const g of groups) {
+    for (const r of g.rows) {
+      const key = entryKey(r.criterion);
+      const was = entry ? entry[`${key}_status`] ?? "?" : null;
+      if (entry && was === r.status && same(entry[`${key}_justification`], r.answer)) continue;
+      if (!bySection.has(g.section)) bySection.set(g.section, []);
+      bySection.get(g.section).push({ ...r, was });
+    }
+  }
+  return bySection;
+}
+
+// As few links as fit for one form, each replacing what is saved (overrides).
+export function formLinks(project, section, rows) {
+  const parts = [];
+  let part = [];
+  for (const r of rows) {
+    if (part.length && urlFor(project, section, [...part, r], true).length > MAX_URL) {
+      parts.push(part);
+      part = [];
+    }
+    part.push(r);
+  }
+  if (part.length) parts.push(part);
+  return parts.map((partRows) => ({ rows: partRows, url: urlFor(project, section, partRows, true) }));
+}
+
 const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-// The metal series (passing, silver, gold) is the badge the README shows; the Baseline levels
-// are on the page only when asked for.
-export function page({ project, groups }, { baseline = false } = {}) {
-  const all = links({ project, groups }).filter((l) => baseline || !l.section.startsWith("baseline"));
-  const sections = SECTIONS.map(([name, slug]) => ({ name, slug, links: all.filter((l) => l.section === slug) }))
-    .filter((s) => s.links.length);
-  const count = (rows, s) => rows.filter((r) => r.status === s).length;
-  const tally = (rows) =>
-    STATUSES.map((s) => `<span class="pill ${s === "N/A" ? "na" : s.toLowerCase()}">${count(rows, s)} ${s}</span>`).join("");
-  const body = sections
-    .map((s) => {
-      const rows = s.links.flatMap((l) => l.rows);
-      const items = s.links
+// The page: one card per form with the answers to update and one button per link. The metal
+// series (passing, silver, gold) is the badge the README shows; Baseline only when asked for.
+export function page(parsed, { entry = null, baseline = false, checked = "" } = {}) {
+  const { project } = parsed;
+  const pending = changes(parsed, entry);
+  const forms = SECTIONS.filter(([, slug]) => baseline || !slug.startsWith("baseline"));
+  const total = forms.reduce((n, [, slug]) => n + (pending.get(slug)?.length ?? 0), 0);
+  const cards = forms
+    .map(([name, slug]) => {
+      const rows = pending.get(slug) ?? [];
+      if (!rows.length) {
+        return `<section class="card done-card"><h2>${esc(name)}</h2><p class="ok">Up to date: nothing to save.</p></section>`;
+      }
+      const parts = formLinks(project, slug, rows);
+      const buttons = parts
         .map((l, i) => {
-          const id = `${s.slug}-${i}`;
-          const list = l.rows
-            .map((r) => `<li><code>${esc(r.criterion)}</code> <b>${esc(r.status)}</b> ${esc(r.answer)}</li>`)
+          const id = `${slug}-${i}`;
+          const label = parts.length > 1 ? `Open ${name} form, part ${i + 1} of ${parts.length}` : `Open ${name} form`;
+          const items = l.rows
+            .map((r) => {
+              const from = r.was === null ? "" : r.was === r.status ? "new wording" : `${r.was === "?" ? "blank" : r.was} → ${r.status}`;
+              return `<li><code>${esc(r.criterion)}</code> <span class="pill ${r.status === "N/A" ? "na" : r.status.toLowerCase()}">${esc(r.status)}</span> <span class="from">${esc(from)}</span></li>`;
+            })
             .join("");
-          return `<li class="link">
-  <label class="done"><input type="checkbox" data-id="${esc(id)}"> <span>${esc(l.title)}</span></label>
-  <span class="tally">${tally(l.rows)}</span>
-  <a class="cta" href="${esc(l.url)}" data-plain="${esc(l.url)}" data-force="${esc(l.forceUrl)}" target="_blank" rel="noopener">Open and review</a>
-  <details><summary>${l.rows.length} answers</summary><ol>${list}</ol></details>
-</li>`;
+          return `<div class="part">
+  <a class="cta" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(label)}</a>
+  <label class="tick"><input type="checkbox" data-id="${esc(id)}"> Saved</label>
+  <ul class="items">${items}</ul>
+</div>`;
         })
         .join("\n");
-      return `<section>
-<h2>${esc(s.name)} <span class="tally">${tally(rows)}</span></h2>
-<ul>${items}</ul>
-</section>`;
+      return `<section class="card"><h2>${esc(name)} <span class="count">${rows.length} to update</span></h2>${buttons}</section>`;
     })
     .join("\n");
+  const intro = entry
+    ? `<p class="lede">${total ? `${total} answers on <a href="${SITE}/en/projects/${esc(project)}">your entry</a> differ from <code>docs/best-practices.md</code>.` : "Every answer on your entry already matches <code>docs/best-practices.md</code>."} Compared with the live entry${checked ? ` on ${esc(checked)}` : ""}; run the script again after saving to see what's left.</p>`
+    : `<p class="lede">All answers in <code>docs/best-practices.md</code>, for a new entry.</p>`;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -200,59 +262,51 @@ export function page({ project, groups }, { baseline = false } = {}) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kotiko badge answers</title>
 <style>
-:root { --bg: #faf9fc; --card: #fff; --text: #1d1b22; --muted: #5d5868; --line: #e4e0ea; --accent: #6b3fd6;
-  --accent-text: #fff; --met: #1f7a43; --unmet: #a3401c; --na: #5d5868; }
+:root { --bg: #f7f7fa; --card: #fff; --text: #1d1b22; --muted: #5d5868; --line: #e4e0ea; --accent: #6b3fd6;
+  --accent-text: #fff; --met: #1f7a43; --unmet: #a3401c; --na: #5d5868; --ok-bg: #e9f6ee; }
 @media (prefers-color-scheme: dark) { :root { --bg: #141218; --card: #1e1b24; --text: #ece8f2; --muted: #a9a2b5;
-  --line: #34303c; --accent: #a98bff; --accent-text: #141218; --met: #6fd39a; --unmet: #ff9b73; --na: #a9a2b5; } }
+  --line: #34303c; --accent: #a98bff; --accent-text: #141218; --met: #6fd39a; --unmet: #ff9b73; --na: #a9a2b5; --ok-bg: #15301f; } }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, sans-serif; }
-main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
-h1 { font-size: 24px; margin: 0 0 4px; }
-h2 { font-size: 18px; margin: 32px 0 8px; display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
-p, li { color: var(--muted); }
-ol.steps li { margin: 4px 0; }
-ul { list-style: none; padding: 0; margin: 0; }
-li.link { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin: 8px 0;
-  display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; color: var(--text); }
-li.link details { grid-column: 1 / -1; }
-li.link details li { margin: 6px 0; font-size: 13px; }
-.done { display: flex; gap: 8px; align-items: center; font-weight: 600; }
-.done input:checked + span { text-decoration: line-through; color: var(--muted); }
-.tally { display: inline-flex; gap: 6px; flex-wrap: wrap; font-weight: 400; }
-.pill { font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; }
+main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; display: grid; gap: 16px; }
+h1 { font-size: 24px; margin: 0; }
+h2 { font-size: 18px; margin: 0; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.lede, ol.steps { color: var(--muted); margin: 0; }
+ol.steps { padding-left: 20px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 12px; }
+.done-card { background: var(--ok-bg); }
+.ok { margin: 0; color: var(--met); font-weight: 600; }
+.count { font-size: 13px; color: var(--muted); font-weight: 400; }
+.part { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
+.part:first-of-type { border-top: 0; padding-top: 0; }
+a.cta { justify-self: start; background: var(--accent); color: var(--accent-text); text-decoration: none; padding: 10px 16px;
+  border-radius: 8px; font-weight: 600; }
+.tick { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 14px; }
+ul.items { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+.from { color: var(--muted); font-size: 13px; }
+.pill { font-size: 12px; padding: 0 8px; border-radius: 999px; border: 1px solid currentColor; }
 .pill.met { color: var(--met); } .pill.unmet { color: var(--unmet); } .pill.na { color: var(--na); }
-a.cta { grid-row: 1 / 3; grid-column: 2; background: var(--accent); color: var(--accent-text); text-decoration: none;
-  padding: 8px 14px; border-radius: 8px; font-weight: 600; white-space: nowrap; }
 a.cta:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-.force { margin: 16px 0; display: flex; gap: 8px; align-items: center; color: var(--text); }
-code { font-size: 12px; }
+code { font-size: 13px; overflow-wrap: anywhere; }
 </style>
 </head>
 <body>
 <main>
 <h1>Kotiko badge answers</h1>
-<p>Project <a href="${SITE}/en/projects/${esc(project)}">${esc(project)}</a> on bestpractices.dev, prefilled from
-<code>docs/best-practices.md</code>.</p>
+${intro}
 <ol class="steps">
-<li>Sign in to bestpractices.dev first (the links work after sign-in too, but this saves a redirect).</li>
-<li>Press <b>Open and review</b>. The form opens with the proposed answers highlighted in yellow (🤖).</li>
-<li>Read them, change anything you disagree with, then press <b>Save</b> at the bottom of the form.</li>
-<li>Tick the box here so you know it's done. Nothing reaches bestpractices.dev until you save.</li>
+<li>Sign in to <a href="${SITE}/en/login">bestpractices.dev</a>.</li>
+<li>Press a button. The form opens with our answers already put in, replacing what was saved.</li>
+<li>Scroll to the bottom of the form and press <b>Save</b>. Then tick <b>Saved</b> here.</li>
 </ol>
-<label class="force"><input type="checkbox" id="force"> Replace answers already on the form (only when updating answers saved before)</label>
-${body}
+${cards}
 </main>
 <script>
-const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
-  set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 for (const box of document.querySelectorAll("input[data-id]")) {
-  const key = "kotiko-bp-done-" + box.dataset.id;
-  box.checked = store.get(key) === "1";
-  box.addEventListener("change", () => store.set(key, box.checked ? "1" : "0"));
+  const key = "kotiko-bp-saved-" + box.dataset.id;
+  try { box.checked = localStorage.getItem(key) === "1"; } catch {}
+  box.addEventListener("change", () => { try { localStorage.setItem(key, box.checked ? "1" : "0"); } catch {} });
 }
-document.getElementById("force").addEventListener("change", (e) => {
-  for (const a of document.querySelectorAll("a.cta")) a.href = e.target.checked ? a.dataset.force : a.dataset.plain;
-});
 </script>
 </body>
 </html>
@@ -272,10 +326,19 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   if (args.includes("--check")) {
     console.log(`docs/best-practices.md: ${rows} answers in ${parsed.groups.length} groups, all valid.`);
   } else {
+    let entry = null;
+    if (!args.includes("--all")) {
+      const res = await fetch(`${SITE}/projects/${PROJECT}.json`, { cache: "no-store" });
+      if (!res.ok) {
+        console.error(`Couldn't read the entry (${res.status}). Use --all to list every answer instead.`);
+        process.exit(1);
+      }
+      entry = await res.json();
+    }
     const i = args.indexOf("--out");
     const out = resolve(i >= 0 ? args[i + 1] : join(tmpdir(), "kotiko-bestpractices.html"));
-    const html = page(parsed, { baseline: args.includes("--baseline") });
+    const html = page(parsed, { entry, baseline: args.includes("--baseline"), checked: new Date().toISOString().slice(0, 16).replace("T", " ") + " UTC" });
     writeFileSync(out, html);
-    console.log(`${html.match(/class="cta"/g).length} links. Open:\n${pathToFileURL(out).href}`);
+    console.log(`${(html.match(/class="cta"/g) ?? []).length} buttons. Open:\n${pathToFileURL(out).href}`);
   }
 }

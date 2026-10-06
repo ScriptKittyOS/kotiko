@@ -245,7 +245,7 @@ defmodule Kotiko.Lang do
     Enum.uniq(Enum.filter(code, &Map.has_key?(@langs, &1)) ++ Enum.sort(named))
   end
 
-  @doc "The primary language subtag of a tag: \"pt-BR\" -> \"pt\"."
+  @doc ~s(The primary language subtag of a tag: "pt-BR" -> "pt".)
   def primary(tag) when is_binary(tag), do: tag |> String.split("-") |> hd()
 
   # ── parsing (slice 08 section 2, steps 1-10) ─────────────────────────

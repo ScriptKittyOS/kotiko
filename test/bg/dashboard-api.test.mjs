@@ -92,13 +92,13 @@ describe("dashboard routes against the fixture server", () => {
   test("preview saves nothing; save adds; the refresh job pauses and resumes", async () => {
     srv.reset();
     const { send } = bg();
-    const before = (await send({ type: "words.list" })).words.length;
+    const count = (await send({ type: "words.list" })).words.length;
     const preview = await send({ type: "words.preview", text: "kniga", base_langs: ["en"] });
     assert.equal(preview.candidates[0].native, "книга");
-    assert.equal((await send({ type: "words.list" })).words.length, before, "nothing saved before the learner accepts");
+    assert.equal((await send({ type: "words.list" })).words.length, count, "nothing saved before the learner accepts");
     const saved = await send({ type: "words.save", words: preview.candidates, client_request_id: "0190a1b2-c3d4-7000-8000-000000000001" });
     assert.equal(saved.results[0].result, "created");
-    assert.equal((await send({ type: "words.list" })).words.length, before + 1);
+    assert.equal((await send({ type: "words.list" })).words.length, count + 1);
 
     srv.state.job = { state: "running", done: 40, total: 120 };
     assert.deepEqual(await send({ type: "job.refresh" }), { state: "running", done: 40, total: 120 });

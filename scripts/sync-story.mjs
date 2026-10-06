@@ -32,7 +32,7 @@ export function extractStory(spec) {
   const start = lines.findIndex((l) => l.startsWith(HEADING));
   if (start < 0) throw new Error(`${SOURCE} has no ${HEADING} line`);
   const paragraphs = [];
-  let current = [];
+  const current = [];
   let seen = false;
   for (const line of lines.slice(start + 1)) {
     if (!line.startsWith(">")) {

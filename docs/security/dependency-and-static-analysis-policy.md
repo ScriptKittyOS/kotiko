@@ -33,8 +33,8 @@ What runs:
 **Blocks a merge**: any finding above. They run on every pull request, and a pull request
 merges only when the required checks of the `main` ruleset pass. A new advisory against a
 version already on `main` turns every pull request red until it is fixed or accepted, so
-nobody can merge around it. Not yet: the `osv-scanner` check is not in the ruleset's
-required checks (the server job, with both mix audits, is).
+nobody can merge around it. `osv-scanner` and the server job (with both mix audits) are
+required checks.
 
 **Blocks a release**: the release workflow ([`release.yml`](../../.github/workflows/release.yml))
 runs the same OSV-Scanner job before it builds anything; when it fails, nothing is built,
@@ -55,14 +55,26 @@ These are the same targets as a reported vulnerability ([SECURITY.md](../../SECU
 "Fixed" means an updated or patched version; if upstream has no fix, we pin, patch or
 replace the package, or remove the code path that uses it.
 
-**Licenses** (by review, not CI: OSV-Scanner has no license data for Hex packages). A
-runtime dependency must be under Apache-2.0, MIT, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD,
-Zlib, Unicode-3.0, CC0-1.0 or public domain, all compatible with Kotiko's Apache-2.0; on
-2026-10-06 every one is Apache-2.0 or MIT. Anything else (GPL, LGPL, AGPL, a custom or
-missing license) needs a maintainer's decision recorded in
-[slices/DECISIONS.md](../../slices/DECISIONS.md) before it merges. Dev-only tools may use
-any [OSI-approved](https://opensource.org/licenses) license, since we don't distribute
-them. The reviewer checks the license when a pull request adds a dependency or a
+**Licenses** (by review, not CI: OSV-Scanner has no license data for Hex packages). The
+rule follows the Apache Software Foundation's
+[third-party license policy](https://www.apache.org/legal/resolved.html), the usual
+reference for what an Apache-2.0 project may ship:
+
+- **Allowed** in anything Kotiko ships (the extension, the server, the shared spec data,
+  the docs site), the ASF's Category A: Apache-2.0, MIT and MIT-0, BSD-2-Clause,
+  BSD-3-Clause, ISC, 0BSD, Zlib, BSL-1.0, Unlicense, Unicode-3.0 (data), and CC0-1.0 or
+  public domain. On 2026-10-06 every server runtime dependency is Apache-2.0 or MIT, the
+  SQLite that exqlite bundles is public domain, and the shipped data is Unicode-3.0 (CLDR)
+  and MIT (stopwords-iso); the extension ships no npm code.
+- **Allowed only unmodified, and labelled in NOTICE**, the ASF's Category B, each one
+  recorded in [slices/DECISIONS.md](../../slices/DECISIONS.md) before it merges: MPL-2.0 and
+  EPL-2.0 libraries, OFL-1.1 fonts, and CC-BY-4.0 media or data.
+- **Not allowed** in anything Kotiko ships, the ASF's Category X: GPL, LGPL and AGPL (any
+  version), SSPL, BUSL, the Commons Clause and other field-of-use or non-commercial terms,
+  and code with no license or a custom one.
+
+Dev-only tools (tests, linters, build tools that put none of their code in what ships)
+may use any [OSI-approved](https://opensource.org/licenses) license. The reviewer checks the license when a pull request adds a dependency or a
 Dependabot update changes one; a violation found later is replaced or approved before the
 next release. Each release's server SBOM (`kotiko-server-<version>.cdx.json`) lists the
 runtime dependencies and their licenses.
@@ -80,8 +92,9 @@ What runs, all on every pull request and push to `main`:
 
 **Blocks a merge**: any Sobelow, ESLint, web-ext, Credo or ShellCheck finding (their jobs
 are required checks). A CodeQL alert of security severity high or critical, or of severity
-error, fails the "Code scanning results" check. Not yet: the `main` ruleset doesn't require
-code scanning results, so until it does, CodeQL alerts are caught by review.
+error, blocks the merge: the `main` ruleset requires code scanning results from CodeQL at
+those thresholds (since 2026-10-06), and requires `osv-scanner`, `analyze (actions)` and
+`analyze (javascript-typescript)` as checks.
 
 **Deadlines** for findings on `main` (a new CodeQL query, a new Sobelow release): an
 exploitable one is a vulnerability and follows the [SECURITY.md](../../SECURITY.md)

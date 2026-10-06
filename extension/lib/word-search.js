@@ -19,7 +19,7 @@
   // marks and Indic vowel signs are letters for search, so they stay.
   const MARKS = /[\u0300-\u036f\u064b-\u065f\u0670\u0591-\u05c7]/g;
   // Letters NFKD doesn't decompose that learners type without the stroke.
-  const EXTRA = { "ł": "l", "ø": "o", "đ": "d", "ħ": "h", "ı": "i", "ŀ": "l", "ß": "ss", "æ": "ae", "œ": "oe" };
+  const EXTRA = { ł: "l", ø: "o", đ: "d", ħ: "h", ı: "i", ŀ: "l", ß: "ss", æ: "ae", œ: "oe" };
   const EXTRA_RE = /[łøđħıŀßæœ]/g;
   // Languages whose lowercase differs from the default (Turkish dotless i, Lithuanian dots).
   const LOCALE_CASE = new Set(["tr", "az", "lt", "crh", "tt", "ba"]);
@@ -112,7 +112,7 @@
     if (!s || !q) return [];
     let folded = "";
     const origin = []; // folded index -> [start, end) of the code point it came from
-    for (let i = 0; i < s.length; ) {
+    for (let i = 0; i < s.length;) {
       const cp = s.codePointAt(i);
       const len = cp > 0xffff ? 2 : 1;
       const f = fold(s.slice(i, i + len), lang);

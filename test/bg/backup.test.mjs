@@ -152,13 +152,13 @@ describe("delete everything (§6)", () => {
   test("with the server box ticked: the server's words are gone and its reset_epoch goes up; unticked, untouched", async () => {
     srv.reset();
     const bg = await full({ server: true });
-    const before = srv.state.v1.length;
-    assert.ok(before > 0);
+    const count = srv.state.v1.length;
+    assert.ok(count > 0);
     await bg.send({ type: "data.deleteAll", confirm: "delete-everything" });
-    assert.equal(srv.state.v1.length, before, "unticked: the server is untouched");
+    assert.equal(srv.state.v1.length, count, "unticked: the server is untouched");
     const bg2 = await full({ server: true });
     const res = await bg2.send({ type: "data.deleteAll", confirm: "delete-everything", server: true });
-    assert.deepEqual(res.server, { deleted: before, reset_epoch: 1 });
+    assert.deepEqual(res.server, { deleted: count, reset_epoch: 1 });
     assert.equal(srv.state.v1.length, 0);
     assert.deepEqual(plain(bg2.fake.store.local), {});
   });

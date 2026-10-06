@@ -81,11 +81,13 @@ function manyRecords(n = 2000) {
 async function storeWith(records, now) {
   const store = await openStore(now);
   await store.tx("words", "readwrite", async ({ words }) => {
-    for (const r of records) await new Promise((res, rej) => {
-      const q = words.put({ ...r, native_key: L.Merge.nativeKey(r.native) });
-      q.onsuccess = res;
-      q.onerror = () => rej(q.error);
-    });
+    for (const r of records) {
+      await new Promise((res, rej) => {
+        const q = words.put({ ...r, native_key: L.Merge.nativeKey(r.native) });
+        q.onsuccess = res;
+        q.onerror = () => rej(q.error);
+      });
+    }
   });
   return store;
 }
