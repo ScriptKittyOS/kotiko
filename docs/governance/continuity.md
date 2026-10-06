@@ -28,7 +28,7 @@ two-factor authentication for its members (organization setting, checked 2026-10
 | `scriptkittyos.com` registrar, DNS and mailboxes | `security@`, `hello@` | To be recorded by the maintainer | Not yet | Private record | Registrar account transfer or recovery contact |
 | `kotiko.org` on Cloudflare (registrar, DNS, proxy, Transform Rules) | Docs site domain and its headers (slice [44](../../slices/44-docs-site/SPEC.md)) | To be recorded by the maintainer | Not yet | Private record | Add as a Cloudflare account member with full access |
 | Weblate project (slice [50](../../slices/50-ui-localization-and-base-language/SPEC.md)) | Translations | Not yet | Not yet | Not yet | Add as a project admin |
-| bestpractices.dev entry | The OpenSSF badge's answers ([best-practices.md](../best-practices.md)) | Not yet (created when the repository goes public) | Not yet | Through GitHub login | "Additional rights" on the entry |
+| bestpractices.dev entry | The OpenSSF badge's answers ([best-practices.md](../best-practices.md)) | Created 2026-10-06 by the lead maintainer: <https://www.bestpractices.dev/en/projects/15259> | Not yet | Through GitHub login | "Additional rights" on the entry |
 | Tag-signing keys | Release tags (slice 30) | Each maintainer's own key, never shared, listed in MAINTAINERS.md | Not shared | Each holder's own | A new release manager adds their own key |
 
 ## 2. Rules
