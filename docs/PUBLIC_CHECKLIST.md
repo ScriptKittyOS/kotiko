@@ -5,12 +5,15 @@ release, slice 30).
 
 1. [ ] LICENSE, NOTICE and `reuse lint` pass; CONTRIBUTING, CODE_OF_CONDUCT and SECURITY
    are present.
-2. [ ] `gitleaks detect --log-opts="--all"` over the full history finds nothing;
-   `server/.env` and `*.db` files were never committed.
+2. [x] `gitleaks git --log-opts="--all" --config .gitleaks.toml` over the full history finds
+   nothing, and `.env` and `*.db` files were never committed (checked 2026-10-05; CI's
+   `secrets` job repeats the scan on every pull request).
 3. [ ] No personal data in fixtures or docs (real word lists, Telegram IDs, emails).
 4. [ ] Repository settings: private vulnerability reporting, Discussions and Issues on;
-   squash merge only, with the PR title as the commit message; branch protection on
-   `main` requiring CI and one review; Dependabot alerts on.
+   Dependabot alerts and security updates on; secret scanning and push protection on;
+   rulesets for `main` (pull requests with passing CI), release tags and secret files
+   (all set 2026-10-05). Still to decide: one required review on `main` once a second
+   maintainer exists (OpenSSF gold's `two_person_review`).
 5. [ ] Description and topics set: `browser-extension`, `language-learning`, `vocabulary`,
    `elixir`, `self-hosted`, `firefox-addon`, `chrome-extension`.
 6. [ ] A pull-request title check (`amannn/action-semantic-pull-request`, pinned by SHA)

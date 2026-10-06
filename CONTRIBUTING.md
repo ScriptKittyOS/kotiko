@@ -40,6 +40,11 @@ the server.
 - **No runtime npm dependencies and no bundler in the extension.** What's in `extension/`
   is what ships, so store reviewers can read it as is.
 - **No user text in logs** above debug level: no words, no page content, no keys.
+- **No secrets in the repository.** Keys, tokens and `.env` files stay out of git:
+  `.gitignore` covers them anywhere in the tree, a push ruleset rejects `.env`, database,
+  key and token files on every branch, and CI's `secrets` job runs gitleaks over the full
+  history (`.gitleaks.toml`). Write test keys as obvious placeholders containing
+  `0123456789` (for example `sk-or-v1-0123456789abcdef…`) so the scan knows they're fake.
 - **No external network in tests.** Tests serve their own pages and fake servers.
 - **One name.** `node scripts/check-old-name.mjs` (run in CI) fails on the project's names
   from before Kotiko outside history, research and the code that moves old data; mark a

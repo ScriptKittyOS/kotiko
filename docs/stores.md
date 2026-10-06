@@ -104,9 +104,13 @@ All of these are the maintainer's to do; nothing in the repository can do them.
   - Secrets: the six store secrets below. Nothing else in the repository can read them.
 - **Settings, Environments, `store-status`**: no reviewers; deployment branches: `main`
   only. Secrets: the read-only Chrome Web Store credentials below.
-- **Settings, Rules, Rulesets**: a tag ruleset for `refs/tags/v*` with "Restrict creations",
-  "Restrict updates" and "Restrict deletions", bypassed only by the maintainers team. Only
-  maintainers can start a release, and a release tag can't be moved.
+- **Settings, Rules, Rulesets** (set up 2026-10-05): a tag ruleset for `refs/tags/v*` with
+  "Restrict creations", "Restrict updates" and "Restrict deletions", bypassed only by
+  repository admins (switch the bypass to the `kotiko-maintainers` team once it exists).
+  Only maintainers can start a release; nobody else can create, move or delete a release
+  tag. Two more rulesets: `main` takes changes only through pull requests whose CI checks
+  pass (no force pushes or deletion, no bypass), and a push ruleset rejects `.env`,
+  database, private-key and token files and files over 10 MB on every branch.
 - **Settings, Secrets and variables, Actions, Variables** (optional):
   `CHROME_STORE_URL` and `FIREFOX_STORE_URL` (the listing pages, used in release notes once
   the items exist), `CWS_DEPLOY_PERCENTAGE` (a staged rollout, 1 to 100; leave unset to

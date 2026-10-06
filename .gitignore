@@ -8,3 +8,21 @@ node_modules/
 test-results/
 playwright-report/
 blob-report/
+
+# Secrets and data, anywhere in the tree (the push ruleset rejects them too).
+# Examples such as server/.env.example stay tracked.
+.env
+.env.*
+!.env.example
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+api-token
+id_rsa*
+id_ed25519*
+id_ecdsa*
+*.key
+*.p12
+*.pfx

@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Secret scanning for CI (the `secrets` job) and for anyone running
+# `gitleaks git --config .gitleaks.toml` locally. gitleaks' default rules, plus one
+# allowance: test keys are written as obvious placeholders that contain "0123456789"
+# (for example "sk-or-v1-0123456789abcdef…"). A real key containing that run is
+# vanishingly unlikely; write new test keys the same way.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholder keys in tests"
+stopwords = ["0123456789"]
