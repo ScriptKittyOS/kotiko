@@ -21,11 +21,11 @@ export const manifest = () => JSON.parse(readExt("manifest.json"));
 // Loads a lib file in this realm, like `require`, and returns its module.exports.
 // (The root package.json says "type": "module", so Node's own require would treat a .js
 // file as ESM; this wraps it the way CommonJS does instead.)
+// vm.compileFunction takes the file as the function's body, with no wrapper text before
+// it, so code coverage offsets line up with the file whichever way a test loaded it.
 export function requireExt(rel) {
   const module = { exports: {} };
-  const wrapper = vm.runInThisContext(`(function (module, exports) {${readExt(rel)}\n})`, {
-    filename: extPath(rel),
-  });
+  const wrapper = vm.compileFunction(readExt(rel), ["module", "exports"], { filename: extPath(rel) });
   wrapper(module, module.exports);
   return module.exports;
 }
