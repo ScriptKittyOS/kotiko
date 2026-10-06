@@ -48,6 +48,11 @@ prints it. `mix kotiko.token` (in `server/`) prints it again, with a pairing str
 your own, set `API_TOKEN` in `.env` (at least 24 characters, for example from
 `openssl rand -hex 24`).
 
+Only your account can read what the server keeps in the data folder: your words, their
+backups and the access key. If something there is readable by others, the server makes it
+private at start, or tells you the command that does. See
+[files in the data folder](/server/configuration/#files-in-the-data-folder).
+
 Your keys don't have to be in `.env`: each one can live in its own file, with
 `LLM_API_KEY_FILE=/path/to/file` instead of `LLM_API_KEY=...` (and the same for the other
 keys). Replacing a key is then replacing its file and restarting. See

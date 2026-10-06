@@ -128,6 +128,7 @@ defmodule Kotiko.LLM.CatalogTest do
       LLMStub.stub(fn _, conn -> LLMStub.answer(conn, %{}) end, models: @models)
       :ok = Catalog.refresh()
       assert File.exists?(cache_file())
+      assert Bitwise.band(File.stat!(cache_file()).mode, 0o777) == 0o600
 
       restart()
       assert %{source: "cache"} = Catalog.status()
