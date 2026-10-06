@@ -44,6 +44,8 @@ defmodule Kotiko.BootTest do
       stderr_to_stdout: true,
       env: [
         {"HOME", home},
+        # The default data folder follows XDG_DATA_HOME; keep the developer's out.
+        {"XDG_DATA_HOME", nil},
         {"PATH", path},
         {"ERL_INETRC", inetrc},
         {"ERL_CRASH_DUMP_SECONDS", "0"},
@@ -89,6 +91,27 @@ defmodule Kotiko.BootTest do
     refute output =~ "started"
     refute output =~ "** ("
     refute output =~ "Stacktrace"
+  end
+
+  test "a key given both ways stops the start with status 78, never showing it", ctx do
+    key_file = Path.join(ctx.tmp, "llm-key")
+    File.write!(key_file, "sk-or-v1-from-the-file-0123456789\n")
+    File.chmod!(key_file, 0o600)
+
+    vars = %{
+      "LLM_API_KEY" => "sk-or-v1-from-the-env-0123456789",
+      "LLM_API_KEY_FILE" => key_file,
+      "KOTIKO_DATA_DIR" => Path.join(ctx.tmp, "data")
+    }
+
+    {output, status} =
+      boot(vars, "Application.ensure_all_started(:kotiko, :permanent)\nIO.puts(:started)", ctx)
+
+    assert status == 78
+    assert output =~ "  LLM_API_KEY and LLM_API_KEY_FILE=#{key_file} (both set)\n"
+    refute output =~ "from-the-file"
+    refute output =~ "from-the-env"
+    refute output =~ "started"
   end
 
   test "first boot on an empty data folder: quiet, migrated, listening, healthy", ctx do

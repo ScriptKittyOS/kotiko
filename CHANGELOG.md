@@ -5,6 +5,25 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Self-hosted server: your keys can now live in their own files instead of `.env`. Set
+  `LLM_API_KEY_FILE=/path/to/file` in place of `LLM_API_KEY=...`, and the same for
+  `API_TOKEN`, `TELEGRAM_BOT_TOKEN` and `TRANSCRIBE_API_KEY`; this is how Docker secrets
+  and systemd credentials hand keys to a program. To replace a key, replace its file and
+  restart. The server stops with a clear message if both forms are set or the file is
+  missing, empty or unreadable, and never prints what's in it. Existing `.env` files work
+  as before.
+
+- The server follows the XDG Base Directory rules: with `XDG_DATA_HOME` set, new installs
+  keep their words in `$XDG_DATA_HOME/kotiko`, and `install-service.sh` puts the service in
+  `$XDG_CONFIG_HOME/systemd/user`. Nothing moves for existing installs: words already in
+  `~/.local/share/kotiko` and a service already in `~/.config/systemd/user` stay where
+  they are.
+
+- `server/install-service.sh --uninstall` removes the service it installed (stops it,
+  turns off its start at boot, deletes `kotiko.service`) and says what it did. Your words
+  and `.env` are kept unless you add `--delete-data`, which deletes only the files Kotiko
+  made in its data folder.
+
 - New documentation site, ready to publish at kotiko.org: install guides for Chrome, Edge,
   Brave and Firefox (with "coming soon" in place of the store links until the listings are
   live), how to start with or without an AI key, one guide per word lookup service, help

@@ -7,7 +7,8 @@ defmodule Kotiko.DataDir do
   called Slovo, which kept its words in `~/.local/share/slovo/slovo.db`.
 
   `Kotiko.Config` picks the folder: KOTIKO_DATA_DIR, else the old SLOVO_DATA_DIR (with a
-  warning, and without moving a folder someone chose), else `~/.local/share/kotiko`.
+  warning, and without moving a folder someone chose), else `default_dir/0`
+  (`$XDG_DATA_HOME/kotiko` or `~/.local/share/kotiko`).
   `resolve_and_migrate!/0` runs next at boot, before the Repo or any migration opens the
   database:
 
@@ -37,8 +38,29 @@ defmodule Kotiko.DataDir do
 
   @type result :: :existing | :fresh | {:migrated, non_neg_integer()}
 
-  @doc "The default data folder, `~/.local/share/kotiko`."
-  def default_dir(home \\ System.user_home!()), do: Path.join(home, ".local/share/kotiko")
+  @doc """
+  The default data folder: `$XDG_DATA_HOME/kotiko`, or `~/.local/share/kotiko` when
+  XDG_DATA_HOME is unset, empty or not an absolute path (the XDG Base Directory rules).
+
+  An install from before Kotiko read XDG_DATA_HOME keeps its words in
+  `~/.local/share/kotiko`. While `$XDG_DATA_HOME/kotiko` has no database and that folder
+  has one, that folder stays the default, so setting XDG_DATA_HOME never hides your words.
+  """
+  def default_dir(home \\ System.user_home!(), xdg_data_home \\ System.get_env("XDG_DATA_HOME")) do
+    old = Path.join(home, ".local/share/kotiko")
+
+    case xdg_data_home do
+      "/" <> _ ->
+        new = Path.join(xdg_data_home, "kotiko")
+
+        if File.exists?(database(new)) or not File.exists?(database(old)),
+          do: new,
+          else: old
+
+      _ ->
+        old
+    end
+  end
 
   @doc "The old name's default data folder, `~/.local/share/slovo`."
   def legacy_default_dir(home \\ System.user_home!()), do: Path.join(home, ".local/share/slovo")

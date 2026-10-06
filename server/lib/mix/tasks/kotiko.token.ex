@@ -11,8 +11,8 @@ defmodule Mix.Tasks.Kotiko.Token do
       mix kotiko.token --rotate   replace the saved token with a new one
 
   Reads settings like `run.sh` does: the environment, then `.env` in the current folder
-  (`--env-file PATH` to use another file). `--rotate` refuses when API_TOKEN is set,
-  because the token then lives in `.env`.
+  (`--env-file PATH` to use another file). `--rotate` refuses when API_TOKEN or
+  API_TOKEN_FILE is set, because the token then lives in `.env` or in that file.
   """
   use Mix.Task
   alias Kotiko.{DataDir, Exposure, Token}
@@ -20,22 +20,47 @@ defmodule Mix.Tasks.Kotiko.Token do
   @impl true
   def run(args) do
     {opts, _} = OptionParser.parse!(args, strict: [rotate: :boolean, env_file: :string])
-    env = Kotiko.TaskEnv.read_env(Keyword.get(opts, :env_file, ".env"))
+    raw_env = Kotiko.TaskEnv.read_env(Keyword.get(opts, :env_file, ".env"))
+    env = read_token_file(raw_env)
     data_dir = data_dir(env)
 
-    if opts[:rotate], do: rotate(env, data_dir), else: show(env, data_dir)
+    if opts[:rotate], do: rotate(raw_env, data_dir), else: show(env, data_dir)
+  end
+
+  # API_TOKEN_FILE, read and checked as the server does.
+  defp read_token_file(env) do
+    case Kotiko.Config.read_secret_files(env, ["API_TOKEN"]) do
+      {env, [], _warnings} ->
+        env
+
+      {_env, problems, _warnings} ->
+        Mix.raise(Kotiko.Config.format_problems(problems, nil, false))
+    end
   end
 
   defp show(env, data_dir) do
     case Token.resolve(env["API_TOKEN"], data_dir) do
       {:ok, token, source} ->
-        where = if source == :env, do: "from .env", else: "saved in #{Token.path(data_dir)}"
+        where =
+          cond do
+            source != :env -> "saved in #{Token.path(data_dir)}"
+            env["API_TOKEN_FILE"] -> "from API_TOKEN_FILE, #{env["API_TOKEN_FILE"]}"
+            true -> "from .env"
+          end
+
         Mix.shell().info("API token (#{where}):\n#{token}\n")
         Mix.shell().info("Pairing string:\n#{Token.pairing_string(server_url(env), token)}")
 
       {:error, message} ->
         Mix.raise(message)
     end
+  end
+
+  defp rotate(%{"API_TOKEN_FILE" => path}, _data_dir) do
+    Mix.raise(
+      "API_TOKEN_FILE is set, so the server uses the token in #{path}. To change it, " <>
+        "replace that file's contents, then restart."
+    )
   end
 
   defp rotate(%{"API_TOKEN" => _}, _data_dir) do
