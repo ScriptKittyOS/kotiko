@@ -56,8 +56,9 @@ browser extension ──▶ your words in the browser ──▶ your AI key or a
 - **Chrome, Edge and Brave:** coming soon to the Chrome Web Store.
 - **Firefox:** coming soon to Firefox Add-ons.
 
-Until the listings are live, install Kotiko from the zip on the
-[latest release](https://github.com/ScriptKittyOS/kotiko/releases): the
+Until the listings are live, install Kotiko by hand from the
+[latest release](https://github.com/ScriptKittyOS/kotiko/releases), or, before the first
+release, from this repository's `extension` folder: the
 [install guide](https://kotiko.org/install/#from-source) has the steps for each browser.
 Then [get started](https://kotiko.org/start/): your first word takes about a minute, with
 or without an AI key.
