@@ -24,7 +24,7 @@
     "chrome-webstore-upload-cli": "4.0.2",
     "cldr-core": "48.2.0",
     "cldr-localenames-full": "48.2.0",
-    "eslint": "10.11.0",
+    "eslint": "10.12.0",
     "eslint-plugin-no-unsanitized": "4.1.5",
     "fake-indexeddb": "6.2.5",
     "fast-check": "4.10.2",
