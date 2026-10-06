@@ -33,6 +33,8 @@ defmodule Kotiko.MixProject do
     [
       {:bandit, "~> 1.5"},
       {:plug, "~> 1.16"},
+      # Plug.Crypto.non_executable_binary_to_term/2 for the lookup cache (comes with plug).
+      {:plug_crypto, "~> 2.0"},
       {:jason, "~> 1.4"},
       {:req, "~> 0.5"},
       {:telemetry, "~> 1.0"},
