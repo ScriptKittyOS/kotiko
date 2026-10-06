@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 ScriptKittyOS and the Kotiko contributors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Every pull request asks the maintainers for review (MAINTAINERS.md). Replace the
-# handle with @ScriptKittyOS/kotiko-maintainers once that team exists (slice 53 section 4.3).
-* @HackTuah
+# Every pull request asks the maintainers for review (MAINTAINERS.md; the team's members
+# are the active maintainers listed there).
+* @ScriptKittyOS/kotiko-maintainers
