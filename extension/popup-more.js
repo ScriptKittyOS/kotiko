@@ -103,7 +103,7 @@
         if (!chosen) return t("manual_need_language");
         const own = bases.find((b) => primary(b) === primary(chosen));
         if (own) return t("manual_same_base", { base: langName(own) });
-        for (const [m, b] of meanings.map(([m], i) => [m, bases[i]])) {
+        for (const [m, b] of meanings.map((row, i) => [row[0], bases[i]])) {
           for (const f of m.value.split(/\s*[,、，]\s*/u).filter(Boolean)) if ([...f].length < (SHORT_FORMS.has(primary(b)) ? 1 : 2)) return t("manual_too_short", { form: f });
         }
         return null;

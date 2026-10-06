@@ -153,8 +153,8 @@
         if (/^[-\u2010\u2011]|[-\u2010\u2011]$/.test(w.native ?? "")) continue;
         ok.push(w);
       }
-      const page = plain(surface, base, keyOf);
-      const real = ok.filter((w) => plainWord(w, base) !== page);
+      const shown = plain(surface, base, keyOf);
+      const real = ok.filter((w) => plainWord(w, base) !== shown);
       return { words: real, known: ok.length > 0 && real.length === 0 };
     }
 

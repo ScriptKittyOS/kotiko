@@ -75,11 +75,11 @@
       const { words = [] } = await send({ type: "words.list" });
       const doc = B().exportDoc({ words, settings: settings ? await settingsNow() : null, version: version(), now: nowMs() });
       const name = F().filename("backup", nowMs());
-      const done = download(B().stringify(doc), name, "application/json");
+      const saved = download(B().stringify(doc), name, "application/json");
       await send({ type: "backup.saved" }).catch(() => {});
       ctx.refresh();
       ctx.toast({ text: t("data_saved_file", { file: name }) });
-      if (wait) await done;
+      if (wait) await saved;
       return { name, count: doc.words.length };
     }
 
@@ -121,7 +121,6 @@
         ...locales.map((l) => [l, display(l)]).sort((a, b) => a[1].localeCompare(b[1], ui)).map(([l, label]) => el("option", { value: l, selected: l === pick }, label)),
         el("option", { value: "" }, t("data_anki_elsewhere")));
       select.value = pick;
-      let d;
       const go = el("button", { class: "btn btn-primary", type: "button", "data-action": "anki-download", onclick: () => {
         const name = F().filename("anki", nowMs());
         const notetype = select.value ? names[select.value] ?? null : null;
@@ -129,7 +128,7 @@
         d.close(true);
         ctx.toast({ text: t("data_saved_file", { file: name }) });
       } }, t("data_anki_download"));
-      d = ctx.dialog({
+      const d = ctx.dialog({
         title: t("data_anki_title"),
         body: el("div", { class: "data-dialog" },
           el("label", { class: "field-label", for: "ankiLocale" }, t("data_anki_locale")),
@@ -205,7 +204,7 @@
         if (c.deletedLater) {
           rows.push(el("label", { class: "check-row" }, el("input", { type: "checkbox", checked: st.restoreDeleted, "data-action": "restore-deleted", onchange: (e) => repreview(e.target.checked) }), t("data_restore_deleted", { count: c.deletedLater })));
         }
-        if (read.settings) rows.push(el("label", { class: "check-row" }, el("input", { type: "checkbox", checked: st.settings, "data-action": "restore-settings", onchange: (e) => (st.settings = e.target.checked, render()) }), t("data_restore_settings")));
+        if (read.settings) rows.push(el("label", { class: "check-row" }, el("input", { type: "checkbox", checked: st.settings, "data-action": "restore-settings", onchange: (e) => { st.settings = e.target.checked; render(); } }), t("data_restore_settings")));
         if (needPron && preview.home === "local") {
           rows.push(el("label", { class: "check-row" }, el("input", { type: "checkbox", checked: st.pron, "data-action": "restore-pronunciations", onchange: (e) => (st.pron = e.target.checked) }), t("data_restore_pron", { count: needPron, lookups: fmt(Math.ceil(needPron / RESPELL_BATCH)) })));
         }
@@ -244,7 +243,6 @@
         render();
       }
 
-      let d;
       go.addEventListener("click", async () => {
         st.busy = true;
         err.hidden = true;
@@ -269,7 +267,7 @@
           render();
         }
       });
-      d = ctx.dialog({
+      const d = ctx.dialog({
         title: t("data_restore_title", { file: filename || "kotiko-backup.json" }),
         body: el("div", { class: "data-dialog" }, el("p", { class: "num" }, t("data_restore_in_file", { count: read.total })), counts, notice, extra, err),
         actions: [el("button", { class: "btn btn-secondary", type: "button", onclick: () => d.close(false) }, t("dash_cancel")), go],

@@ -65,7 +65,8 @@ site in `site/` (its own `package.json`, build and tests), in
 ## Commits and pull requests
 
 - Code follows [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md); CI checks formatting
-  and lint, so run `mix format`, `mix credo` and `npm run lint` before pushing.
+  and lint, so run `mix format`, `mix credo --strict` and `npm run lint` before pushing
+  (`npm run lint:fix` fixes the JavaScript layout).
 - Maintainers review every pull request; how decisions are made and who maintains what is
   in [GOVERNANCE.md](GOVERNANCE.md) and [MAINTAINERS.md](MAINTAINERS.md).
 - Commit messages and pull request titles follow

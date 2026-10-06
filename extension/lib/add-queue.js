@@ -122,7 +122,7 @@
         retryAt: null,
         seen: false,
       };
-      const saved = await serial(async () => {
+      const stored = await serial(async () => {
         const jobs = await read();
         const existing = jobs.find((j) => j.id === job.id);
         if (existing) return existing;
@@ -130,7 +130,7 @@
         return job;
       });
       kick();
-      return saved;
+      return stored;
     }
 
     const due = (j) => j.state === "queued" || (j.state === "waiting" && j.retryAt !== null && j.retryAt <= now());

@@ -249,7 +249,7 @@
         if (r && r.sig === signature(p.items)) {
           // The same words in the same places: nothing to write, but the word behind each
           // (an edited pronunciation, a new note) is the current one.
-          r.nodes.filter(isMark).forEach((el, i) => p.items[i] && info.set(el, { ...p.items[i].info, T: p.T }));
+          for (const [i, el] of r.nodes.filter(isMark).entries()) if (p.items[i]) info.set(el, { ...p.items[i].info, T: p.T });
           continue;
         }
         if (r) restore(p.T);

@@ -270,10 +270,10 @@ describe("a new install keeps nothing a page planted before its first start (sli
     assert.deepEqual(await store.secrets.ids(), []);
     assert.deepEqual(await store.list(), []);
     // From then on nothing goes to the planted address.
-    const before = requests.length;
+    const seen = requests.length;
     await bg.send({ type: "sync", force: true }, CONTENT);
     await bg.fake.idle();
     await sleep(50);
-    assert.deepEqual(requests.slice(before).filter((r) => r.url.includes(":6666")), []);
+    assert.deepEqual(requests.slice(seen).filter((r) => r.url.includes(":6666")), []);
   });
 });

@@ -41,8 +41,8 @@ describe("one line (§3)", () => {
   }
 
   test("parentheses: a romanization, or a respelling as the pronunciation", async () => {
-    const { rows } = await parse("спасибо (spasibo) = thanks\nспасибо (spa-SEE-ba) = thanks", { base: "en", target: "ru" });
-    assert.deepEqual(rows.map((r) => [r.romanization, r.pronunciation]), [["spasibo", null], [null, "spa-SEE-ba"]]);
+    const { rows: parsed } = await parse("спасибо (spasibo) = thanks\nспасибо (spa-SEE-ba) = thanks", { base: "en", target: "ru" });
+    assert.deepEqual(parsed.map((r) => [r.romanization, r.pronunciation]), [["spasibo", null], [null, "spa-SEE-ba"]]);
   });
 
   test("hyphens inside words never split; a spaced dash does; 10:30 isn't split at the colon", async () => {

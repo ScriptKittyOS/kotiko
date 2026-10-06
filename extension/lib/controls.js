@@ -101,7 +101,7 @@
         // no cheap signal: computed styles, from the top down
         let v = false;
         for (let i = chain.length - 1; i >= 0; i--) {
-          v = v || isPointerControl(chain[i], cursorOf);
+          v ||= isPointerControl(chain[i], cursorOf);
           cache.set(chain[i], v);
         }
         return v;

@@ -67,7 +67,7 @@ describe("presets (spec/providers.json): URL, headers and JSON mode", () => {
     assert.deepEqual(L.spec.providers.providers.map((p) => p.id), cases.map((c) => c[0]));
     assert.equal(L.spec.providers.default, "openrouter");
   });
-  for (const [id, baseUrl, base, headers, json] of cases) {
+  for (const [id, baseUrl, base, headers, jsonMode] of cases) {
     test(`${id}: one add, the right request`, async () => {
       const keyless = id === "ollama" || id === "lmstudio";
       const s = stub({ models: (req) => json200Models(id, req) });
@@ -80,7 +80,7 @@ describe("presets (spec/providers.json): URL, headers and JSON mode", () => {
       assert.equal(chat.method, "POST");
       for (const [k, v] of Object.entries(headers)) assert.equal(chat.headers[k], v, k);
       assert.equal(chat.headers.Authorization, keyless ? undefined : `Bearer ${KEY}`);
-      assert.equal("response_format" in chat.body, json, "response_format");
+      assert.equal("response_format" in chat.body, jsonMode, "response_format");
       assert.equal(chat.body.messages[0].role, "system");
       assert.match(chat.body.messages[0].content, /English/, "the prompt names the base");
       assert.equal(chat.body.messages[1].content, "shukran");
@@ -212,7 +212,7 @@ describe("failures become slice 25 codes", () => {
 
   test("new settings abort a running attempt: the caller gets an AbortError and retries", async () => {
     const ctl = new AbortController();
-    const fetch = (url, init) => new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" }))));
+    const fetch = (_url, init) => new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" }))));
     const p = client({ provider: "openai", model: "m", fetch }).lookup(REQ, { signal: ctl.signal });
     ctl.abort();
     await assert.rejects(p, { name: "AbortError" });
