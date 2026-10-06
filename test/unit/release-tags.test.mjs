@@ -197,6 +197,18 @@ test("tag-release refuses a commit that isn't the release, a dirty tree, leftove
   assert.equal(run(work, "git", ["rev-parse", "--verify", "--quiet", "refs/tags/v0.3.0"]).status, 1, "the bad tag is deleted");
 });
 
+test("--ssh-key signs the tag with that key, whatever git signs commits with", () => {
+  const { work } = setup();
+  git(work, "config", "--unset", "user.signingkey");
+  git(work, "config", "gpg.format", "openpgp");
+  assert.match(run(work, "bash", ["scripts/tag-release.sh"]).stderr, /no signing key: pass --ssh-key FILE/);
+  assert.match(run(work, "bash", ["scripts/tag-release.sh", "--ssh-key", join(base, "missing.pub")]).stderr, /isn't a file/);
+  const r = run(work, "bash", ["scripts/tag-release.sh", "--ssh-key", join(base, "release.pub")]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /pushed v0\.3\.0/);
+  assert.equal(git(work, "config", "gpg.format"), "openpgp", "the repository's own signing settings are untouched");
+});
+
 test("a release candidate is tagged on release-please's branch and verifies as a pre-release", () => {
   const { work } = setup();
   git(work, "switch", "-q", "-c", "release-please--branches--main");

@@ -9,6 +9,8 @@
 #   scripts/tag-release.sh            # v0.3.0, from the merged release commit
 #   scripts/tag-release.sh --rc 1     # v0.3.0-rc.1, a release candidate (no store upload)
 #   scripts/tag-release.sh --dry-run  # every check, no tag
+#   scripts/tag-release.sh --ssh-key ~/.ssh/kotiko_release.pub   # sign this tag with that SSH
+#                                     # key, whatever git signs commits with
 #
 # Checks first: a clean tree; HEAD is origin/main (a candidate may instead be the head of
 # release-please's branch, whose version is already bumped); for a release, HEAD is the
@@ -28,12 +30,14 @@ die() {
 rc=""
 dry_run=false
 remote="origin"
+ssh_key=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --rc) rc="$2"; shift 2 ;;
     --dry-run) dry_run=true; shift ;;
     --remote) remote="$2"; shift 2 ;;
-    *) die "unknown option $1 (use --rc N, --dry-run, --remote NAME)" ;;
+    --ssh-key) ssh_key="$2"; shift 2 ;;
+    *) die "unknown option $1 (use --rc N, --dry-run, --remote NAME, --ssh-key FILE)" ;;
   esac
 done
 [ -z "$rc" ] || [[ "$rc" =~ ^[1-9][0-9]*$ ]] || die "--rc takes a number: --rc 1"
@@ -78,10 +82,18 @@ if [ "$dry_run" = true ]; then
   exit 0
 fi
 
-[ -n "$(git config user.signingkey || true)" ] ||
-  die "no signing key: set git config user.signingkey (and gpg.format ssh for an SSH key); see docs/stores.md"
+# --ssh-key signs this one tag with an SSH key, leaving how git signs commits (often a GPG
+# key) as it is.
+sign=(git)
+if [ -n "$ssh_key" ]; then
+  [ -f "$ssh_key" ] || die "--ssh-key: $ssh_key isn't a file"
+  sign=(git -c gpg.format=ssh -c "user.signingkey=$ssh_key")
+else
+  [ -n "$(git config user.signingkey || true)" ] ||
+    die "no signing key: pass --ssh-key FILE, or set git config user.signingkey (and gpg.format ssh for an SSH key); see docs/stores.md"
+fi
 
-git tag -s "$tag" -m "Kotiko $version"
+"${sign[@]}" tag -s "$tag" -m "Kotiko $version"
 if ! bash scripts/verify-tag.sh "$tag" --main "$remote/main" --rc-branch "$remote/$rc_branch"; then
   git tag -d "$tag" >/dev/null
   die "the new tag didn't verify (is your key in .github/allowed_signers?); it was deleted, nothing was pushed"

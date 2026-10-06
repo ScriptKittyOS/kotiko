@@ -13,7 +13,7 @@ step.
 
 | Name | GitHub | Roles | Areas | Tag-signing key | Since |
 |---|---|---|---|---|---|
-| Ayla Croft | [@HackTuah](https://github.com/HackTuah) | Lead maintainer, maintainer, release manager, security response lead | Server, extension, docs | Not yet: to be added to `.github/allowed_signers` before the first release tag | 2026-10 |
+| Ayla Croft | [@HackTuah](https://github.com/HackTuah) | Lead maintainer, maintainer, release manager, security response lead | Server, extension, docs | SSH ed25519 `SHA256:HqIaFq/thUm844NjYC3a+4Br40cqD2yJHEq1L2iiw4E` (`.github/allowed_signers`) | 2026-10 |
 | minitru | [@minitru](https://github.com/minitru) | Maintainer | Reviews, triage | None (not a release manager) | 2026-10 |
 
 ## Not yet filled
