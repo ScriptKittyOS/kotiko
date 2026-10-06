@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | In progress (2026-10-05): the passing answers, §4.1, §4.2 and the documents of §4.3 to §4.11 are written; registering waits for the repository to go public; see Implementation notes |
+| **Status** | In progress (2026-10-06): the entry is created (project 15259) and every level is answered in `docs/best-practices.md`, with links that prefill the form; the maintainer submits the answers; see Implementation notes |
 | **Priority** | P1 (soon after release) for silver. Inside this slice, §4.1, §4.2 and registering for the passing badge (§7) are P0: they ship with the public release |
 | **Size** | M (about a week), spread over several months because some criteria need history (coverage, response times, a second person) |
 | **Depends on** | [02](../02-test-harness-and-ci/SPEC.md), [03](../03-oss-foundations/SPEC.md), [30](../30-release-pipeline/SPEC.md); for silver also [27](../27-accessibility-baseline/SPEC.md), [50](../50-ui-localization-and-base-language/SPEC.md), [40](../40-server-packaging-docker/SPEC.md), [44](../44-docs-site/SPEC.md) |
@@ -893,6 +893,30 @@ Built 2026-10-05, against the passing criteria as published on 2026-10-05 (read 
   because slice 30 is being built in parallel and the rest are P1; the OpenSSF Scorecard
   workflow (Future work, not added).
 
+### 2026-10-06: the entry exists, and every level is answered
+
+- **Entry:** <https://www.bestpractices.dev/en/projects/15259> (created by the maintainer when
+  the repository went public). The passing answers were rechecked against `main` at `320c948`:
+  the 16 Met† are now Met, `repo_public` is Met, and stale evidence (line numbers, counts,
+  "planned" items that have landed) is corrected. Tally: 58 Met, 4 Unmet (all SUGGESTED),
+  5 N/A.
+- **Silver, gold and the three Baseline levels** are now answered in the same sheet, every
+  criterion once (55 silver, 23 gold, 24 + 19 + 21 Baseline), each with evidence. They were
+  written by three reviewers working independently, and the lead checked their coverage
+  against the badge's `criteria.yml` and `baseline_criteria.yml` and reran the claims that
+  rest on live settings (organization 2FA, rulesets, signers, code scanning).
+- **Filling the form:** `scripts/bestpractices-links.mjs` turns the sheet into the badge's
+  "automation proposal" links (one per group, split so each stays under 6,000 characters,
+  measured against the site's 414 limit and its login redirect) and writes a local page
+  with one button per form. CI runs it with `--check`.
+- **Field names keep their case.** The badge's own docs say keys are lowercased, but the
+  form matches them exactly: gold's `require_2FA` and `secure_2FA` must be sent as written
+  (`db/schema.rb`, `ProjectsController#build_url_proposals`).
+- **Found while answering:** the push ruleset is disabled though CONTRIBUTING.md says it
+  rejects secret files; code scanning (CodeQL) isn't set up; npm dependencies aren't
+  audited in CI; and `dependabot.yml` has no entry for `site/`. Each is an Unmet answer
+  with what it needs.
+
 ## Acceptance criteria
 
 - [ ] `docs/reference/http-api.md` and `docs/reference/configuration.md` exist, and
@@ -947,9 +971,8 @@ Built 2026-10-05, against the passing criteria as published on 2026-10-05 (read 
 
 ## Open questions
 
-1. **DCO (§6).** Keep slice 03's decision and mark `dco` unmet with a justification, or
-   adopt the DCO with the GitHub DCO app? Recommendation: keep the decision for now (Option
-   A); revisit at the first large company contribution or before gold.
+1. ~~**DCO (§6).**~~ Decided 2026-10-06: adopted (Option B), enforced by CI's `secrets` job
+   with `scripts/check-dco.mjs` rather than the DCO app; see DECISIONS.md.
 2. **Who is the steward?** Someone trusted who would answer within a week, does not need to
    code, and becomes a second owner of the organization and the store accounts.
    Recommendation: a person already trusted with another ScriptKittyOS project, named

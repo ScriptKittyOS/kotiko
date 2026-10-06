@@ -151,9 +151,7 @@ is decided; see [DECISIONS.md](DECISIONS.md).
    fired the first time one of the learner's words appears on any page in a language they
    read, so the Puerto Rico learner's confetti never waits on an English page.
    Recommendation: yes. ([32](32-page-coverage-and-celebrations/SPEC.md))
-6. **DCO for the silver badge?** Slice 03 decided on no sign-off; silver lists the DCO as a
-   SHOULD. Recommendation: keep the decision and mark it unmet with a justification;
-   revisit at the first large company contribution or before gold.
+6. ~~**DCO for the silver badge?**~~ Decided 2026-10-06: the DCO is adopted (DECISIONS.md).
    ([53](53-openssf-best-practices/SPEC.md))
 7. **Who is the steward?** A trusted second owner of the GitHub organization and the store
    accounts, so the project survives the maintainer being unavailable. Recommendation: name
