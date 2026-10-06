@@ -134,6 +134,8 @@ jobs:
       - run: node scripts/check-base-neutral.mjs
       # Slice 05/22: the "Why Kotiko?" story's copies match its single source.
       - run: node scripts/sync-story.mjs --check
+      # Slice 53: every OpenSSF answer can go on the bestpractices.dev form as written.
+      - run: node scripts/bestpractices-links.mjs --check
       # Slice 06: every text and control color pair meets WCAG 2.2 AA in both themes, and
       # tokens.css matches the palette derived from the brand purple.
       - run: node extension/ui/tools/contrast.mjs
