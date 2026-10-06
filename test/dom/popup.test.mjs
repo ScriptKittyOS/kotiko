@@ -26,7 +26,6 @@ const WORDS = [
 ];
 const CONNECTED = { serverUrl: "http://127.0.0.1:4999", token: "t0ken", lastSync: Date.UTC(2026, 9, 1, 11, 58), syncError: null };
 
-
 async function openPopup({ local = {}, session = {}, voices = null, locale = "en", tabUrl = `https://${HOST}/wiki/Cat`, permission = true, answer = () => ({ ok: true }), pageStatus = null } = {}) {
   const fake = createFakeChrome({
     local: { words: [], ...local },
@@ -360,7 +359,7 @@ describe("adding words (D, slice 24)", () => {
     const ref = {};
     const jobs = () => ref.p.fake.chrome.storage.local.get({ addJobs: [] }).then((s) => s.addJobs);
     const put = async (id, fn) => ref.p.fake.chrome.storage.local.set({ addJobs: (await jobs()).map((j) => (j.id === id ? fn(j) : j)) });
-    const keyOf = (w) => `${w.lang}\u001f${w.native}`;
+    const keyOf = (word) => `${word.lang}\u001f${word.native}`;
     const answer = (msg) => {
       if (msg.type === "add") {
         const r = outcome(msg);
@@ -380,7 +379,7 @@ describe("adding words (D, slice 24)", () => {
     return { answer, ref };
   }
   const word = (id, lang, native, gloss, extra = {}) => ({ id, lang, native, gloss, base_lang: "en", forms: [gloss], ...extra });
-  const rec = (w, result = "created", extra = {}) => ({ wordId: w.id, baseLang: w.base_lang, result, word: w, previous: null, undo: null, ...extra });
+  const rec = (saved, result = "created", extra = {}) => ({ wordId: saved.id, baseLang: saved.base_lang, result, word: saved, previous: null, undo: null, ...extra });
   async function add(text, outcome, local = {}) {
     const bg = background(outcome);
     const p = await openPopup({ local: { ...CONNECTED, words: WORDS, ...local }, answer: bg.answer });
@@ -615,7 +614,6 @@ describe("adding words (D, slice 24)", () => {
     assert.ok(!asked.includes("llmStatus"));
     assert.ok(!q.visible("#lookupsLeft"));
   });
-
 });
 
 describe("languages", () => {

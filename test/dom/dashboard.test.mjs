@@ -1377,4 +1377,3 @@ describe("bulk add (slice 13)", () => {
     assert.equal(d.$('[data-action="save"]').disabled, true);
   });
 });
-

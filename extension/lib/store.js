@@ -185,24 +185,24 @@
     async function liveCount(words) {
       const total = await request(words.count());
       if (total < MAX_VOCABULARY) return total;
-      const all = await request(words.getAll());
-      return all.filter((w) => !w.deleted_at && w.status !== "pending").length;
+      const records = await request(words.getAll());
+      return records.filter((w) => !w.deleted_at && w.status !== "pending").length;
     }
 
     // Saves checked words: inserts each, or merges it into the live word holding its
     // natural key (slice 07). With `jobId`, the whole application is recorded so a second
     // one returns the first one's results without writing (slice 24's idempotency).
     async function upsertByNatural(input, { explicit = true, origin = "add", jobId = null, by = null } = {}) {
-      const list = Array.isArray(input) ? input : [input];
+      const items = Array.isArray(input) ? input : [input];
       const out = await tx(["words", "jobs"], "readwrite", async ({ words, jobs }) => {
         if (jobId) {
           const done = await request(jobs.get(jobId));
           if (done) return { results: done.results, applied: true };
         }
         const t = now();
-        let count = null;
+        let live = null;
         const results = [];
-        for (const w of list) {
+        for (const w of items) {
           const existing = await liveByNatural(words, [w.lang, Merge.nativeKey(w.native), w.sense ?? "", w.base_lang]);
           if (existing) {
             const changes = Merge.changes(existing, { status: "active", ...w }, { explicit });
@@ -215,13 +215,13 @@
             results.push({ result: "updated", word: pub(next), previous: pub(existing) });
             continue;
           }
-          count ??= await liveCount(words);
-          if (count >= MAX_VOCABULARY) throw codedError("vocabulary_full", `At most ${MAX_VOCABULARY} words.`, { max: MAX_VOCABULARY });
+          live ??= await liveCount(words);
+          if (live >= MAX_VOCABULARY) throw codedError("vocabulary_full", `At most ${MAX_VOCABULARY} words.`, { max: MAX_VOCABULARY });
           let id = typeof w.id === "string" && UUID.test(w.id) ? w.id : null;
           if (id && (await request(words.get(id)))) id = null;
           const rec = record(w, { id: id ?? uuid7(t), nowMs: t, origin });
           await request(words.add(rec));
-          count++;
+          live++;
           results.push({ result: "created", word: pub(rec), previous: null });
         }
         if (jobId) await request(jobs.put({ id: jobId, results, at: iso(t) }));
@@ -237,9 +237,9 @@
 
     // Live words (active and paused by default), newest first, as slice 07 records.
     async function list({ statuses = LIVE_STATUSES } = {}) {
-      const all = await tx("words", "readonly", ({ words }) => request(words.getAll()));
+      const records = await tx("words", "readonly", ({ words }) => request(words.getAll()));
       const want = new Set(statuses);
-      return all
+      return records
         .filter((w) => !w.deleted_at && want.has(w.status))
         .sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : a.id < b.id ? 1 : -1))
         .map(pub);

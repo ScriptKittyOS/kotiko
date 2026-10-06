@@ -576,8 +576,7 @@
   }
 
   async function setHint(value) {
-    if (value === "*") value = (await (await more()).pickLanguage({ anchor: $("hintLang"), first: myLangs() })) ?? state.hint;
-    state.hint = value || null;
+    state.hint = (value === "*" ? (await (await more()).pickLanguage({ anchor: $("hintLang"), first: myLangs() })) ?? state.hint : value) || null;
     renderHint();
     ext.storage.session?.set({ addHint: state.hint }).catch(() => {});
   }
@@ -620,14 +619,14 @@
     for (const [key, rs] of groups) {
       rs.sort((a, b) => order(a) - order(b));
       const live = rs.filter((r) => r.result !== "unchanged");
-      const undo = state.undos.get(`${j.id}:${key}`) ?? (live.some((r) => r.undo === "failed") ? "failed" : live.some((r) => r.undo === "pending") ? "pending" : live.length && live.every((r) => r.undo === "done") ? "done" : null);
+      const u = state.undos.get(`${j.id}:${key}`) ?? (live.some((r) => r.undo === "failed") ? "failed" : live.some((r) => r.undo === "pending") ? "pending" : live.length && live.every((r) => r.undo === "done") ? "done" : null);
       const k = `${j.id}:${key}`;
       v.words.push({
         key,
         records: rs,
         word: rs[0].word,
         result: ["created", "updated", "unchanged"].find((x) => rs.some((r) => r.result === x)),
-        undo,
+        undo: u,
         undoError: live.find((r) => r.undoError)?.undoError ?? null,
         fresh: !state.doneAtOpen.has(j.id) && !state.rendered.has(k),
       });
@@ -1073,9 +1072,9 @@
     if (state.checking) return box.replaceChildren(el("p", { class: "conn-checking" }, t("settings_checking")));
 
     if (!hasToken(s)) return box.replaceChildren(el("p", { class: "conn-checking" }, t("settings_not_connected")));
-    const problem = syncProblem(s.syncError, wordTotal(s.words));
-    if (problem) {
-      return box.replaceChildren(banner({ ...problem, actions: problem.actions.filter((a) => a !== "settings") }, () => syncNow()));
+    const issue = syncProblem(s.syncError, wordTotal(s.words));
+    if (issue) {
+      return box.replaceChildren(banner({ ...issue, actions: issue.actions.filter((a) => a !== "settings") }, () => syncNow()));
     }
     if (!s.lastSync) return box.replaceChildren(el("p", { class: "conn-checking" }, t("settings_not_connected")));
     box.replaceChildren(el("p", { class: "conn-ok" }, icon("success", 18),

@@ -251,9 +251,10 @@
     };
     input.addEventListener("input", render);
     input.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowDown") (e.preventDefault(), move(1));
-      else if (e.key === "ArrowUp") (e.preventDefault(), move(-1));
-      else if (e.key === "Enter") {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        move(e.key === "ArrowDown" ? 1 : -1);
+      } else if (e.key === "Enter") {
         e.preventDefault();
         if (active >= 0) onPick(options[active].tag);
       } else if (e.key === "Escape") {
@@ -815,7 +816,7 @@
       $("confirm")?.removeAttribute("aria-disabled");
       return setResult(t("welcome_save_failed"));
     }
-    const saved = results.map((r) => r.word).filter((w) => w && w.native) ;
+    const saved = results.map((r) => r.word).filter((w) => w && w.native);
     state.saved = saved.length ? saved : words;
     state.hadWords = true;
     await finishOnboarding(false);

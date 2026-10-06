@@ -99,7 +99,7 @@ async function requested(fake, requests, n) {
   await sleep(10);
 }
 
-const serverWith = (words) => stubFetch((url, init) => {
+const serverWith = (words) => stubFetch((_url, init) => {
   if ((init.method ?? "GET") === "GET") return json(200, { words });
   return json(404, { error: "No such route." });
 });
@@ -261,7 +261,7 @@ describe("the learner's languages on the server (slice 41 §9)", () => {
 
   test("a send that fails is tried again at the next sync; an older server isn't asked again", async () => {
     let answer = () => json(500, { error: { code: "internal", message: "x", details: {} } });
-    const { fetch, profile } = stubFetch((url, init) => ((init.method ?? "GET") === "GET" ? json(200, { words: WORDS }) : json(404, {})), { onProfile: () => answer() });
+    const { fetch, profile } = stubFetch((_url, init) => ((init.method ?? "GET") === "GET" ? json(200, { words: WORDS }) : json(404, {})), { onProfile: () => answer() });
     const { send, fake } = loadBackground({ fetch });
     assert.deepEqual(await send({ type: "profile.sync" }, PAGE), { ok: false, code: "internal" });
     answer = () => json(200, {});
@@ -432,7 +432,7 @@ describe("add and remove relay", () => {
   });
 
   test("offline: a lookup that can't reach anything waits as offline, not as a busy model", async () => {
-    const { fetch } = stubFetch((url, init) => (init.method === "POST" ? Promise.reject(new TypeError("Failed to fetch")) : json(200, { words: WORDS })));
+    const { fetch } = stubFetch((_url, init) => (init.method === "POST" ? Promise.reject(new TypeError("Failed to fetch")) : json(200, { words: WORDS })));
     const { send, store, fake } = loadBackground({ fetch, globals: { navigator: { onLine: false } } });
     await send({ type: "add", id: UUID, text: "x" }, POPUP);
     const job = await settled(fake, store, UUID);
@@ -450,7 +450,7 @@ describe("add and remove relay", () => {
       }
       if (init.method === "POST") {
         remaining--;
-        return json(200, { words: [] , reply: "nothing" });
+        return json(200, { words: [], reply: "nothing" });
       }
       return json(200, { words: WORDS });
     });
@@ -577,7 +577,7 @@ describe("sync correctness (slice 26)", () => {
   });
 
   test("F11: saving a new token during an in-flight sync uses the new token", async () => {
-    const { fetch } = stubFetch(async (url, init) => {
+    const { fetch } = stubFetch(async (_url, init) => {
       const bad = init.headers.Authorization.endsWith("bad");
       await sleep(bad ? 150 : 5);
       return bad ? new Response("unauthorized", { status: 401 }) : json(200, { words: WORDS });

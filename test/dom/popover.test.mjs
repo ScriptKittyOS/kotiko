@@ -226,7 +226,7 @@ describe("the card's content (19 §1, §1a)", () => {
 
   test("a Latin-script target's label sits on its own line", async () => {
     const gracias = { id: 40, lang: "es", native: "gracias", pronunciation: "GRA-syas", pronunciation_source: "model", english: "thanks", forms: ["thanks"] };
-    const p = await load({ html: `<p>thanks</p>`, words: [gracias] });
+    const p = await load({ html: "<p>thanks</p>", words: [gracias] });
     await p.hover("gracias");
     assert.deepEqual(visibleLines(p.shadow()), ["gracias", "GRA-syas", "AI-generated", "Spanish · español", "thanks"]);
   });
@@ -485,7 +485,7 @@ describe("speak button (34)", () => {
 
   test("hidden when no voice exists for the language (Thai on Linux)", async () => {
     const thai = { id: 50, lang: "th", native: "ขอบคุณ", romanization: "khop khun", english: "thanks", forms: ["thanks"] };
-    const p = await load({ html: `<p>thanks</p>`, words: [thai], voices: voiceLists()["linux-speech-dispatcher"] });
+    const p = await load({ html: "<p>thanks</p>", words: [thai], voices: voiceLists()["linux-speech-dispatcher"] });
     await p.hover("ขอบคุณ");
     assert.equal(p.shadow().querySelector(".k-speak").hidden, true);
     p.key(p.doc.body, "s");

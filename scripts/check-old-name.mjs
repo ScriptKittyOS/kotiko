@@ -86,7 +86,7 @@ if (found.length) {
   console.error(`The old name is still used in ${found.length} place(s):\n`);
   for (const f of found) console.error(`  ${f}`);
   console.error(
-    `\nUse Kotiko. If a line must name the old one (compatibility or migration code), add a ` +
+    "\nUse Kotiko. If a line must name the old one (compatibility or migration code), add a " +
       `comment containing ${MARKER} on it or on the comment line just above it.`,
   );
   process.exit(1);
