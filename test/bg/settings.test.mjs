@@ -228,6 +228,24 @@ describe("the lookup settings", () => {
   });
 });
 
+describe("Connect OpenRouter (slice 11 §4)", () => {
+  test("the key's arrival chooses OpenRouter in the trusted copy, so pages see it and a rewrite is put back", async () => {
+    const DOCS = { id: EXT_ID, url: "https://kotiko.org/connect/?code=c0de", tab: { id: 4, url: "https://kotiko.org/connect/?code=c0de" } };
+    const rec = recorder(async (url) => (String(url) === "https://openrouter.ai/api/v1/auth/keys" ? new Response(JSON.stringify({ key: KEY }), { status: 200, headers: { "content-type": "application/json" } }) : Promise.reject(new TypeError("offline"))));
+    const bg = loadBackground({ fetch: rec.fetch });
+    bg.fake.chrome.tabs.create = async () => {};
+    await bg.k.ready();
+    assert.equal((await bg.send({ type: "oauth.start" })).ok, true);
+    assert.deepEqual(await bg.send({ type: "oauth.code", code: "c0de" }, DOCS), { ok: true });
+    await bg.fake.idle();
+    const chosen = { kind: "provider", provider: "openrouter", baseUrl: null };
+    assert.deepEqual(plain((await bg.k.area.get("lookup")).lookup), { ...plain(bg.store.lookup), ...chosen });
+    assert.equal(bg.store.keys.providers.openrouter, true, "the pages' copy says a key is saved");
+    await bg.plant({ lookup: { ...plain(bg.store.lookup), provider: "custom", baseUrl: "https://evil.example/v1" }, keys: { server: false, providers: {} } });
+    await bg.until(() => bg.store.lookup.provider === "openrouter" && bg.store.keys.providers.openrouter === true);
+  });
+});
+
 describe("Kotiko's pages change settings through the background", () => {
   test("set, merge, add and remove, each checked; the mirror follows", async () => {
     const bg = loadBackground();

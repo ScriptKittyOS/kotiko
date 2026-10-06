@@ -600,9 +600,8 @@ server's fake model.*
   language from the hint, else a recent language whose script fits, else the script's usual
   language (Han is `zh`); Latin-script words with neither go to the lookup. The picker is
   24's. Words saved without a pronunciation nudge the refresh.
-- **Connect OpenRouter** stays a hook: the docs site's callback page (44) doesn't exist, so
-  the button isn't shown; `oauth.start`, `oauth.code` and `lib/pkce.js` are built and
-  tested with stubs.
+- **Connect OpenRouter** was a hook until the docs site's callback page (44) went live; it
+  is shown since 2026-10-06 (below).
 - **Anthropic** uses the compatibility layer with `jsonMode: "none"` and a manual model
   (`claude-haiku-4-5`), marked beta (open question 2). Model preference lists for OpenAI,
   Gemini and Groq are a first guess; the learner can type any model id.
@@ -618,7 +617,7 @@ server's fake model.*
 moves (12); the welcome tab's setup (22); `needs_choice`, `addManual`, relang, the hint
 chip, drafts and server adds as jobs (24); `storage_full` and `vocabulary_full` wording
 review (25); the Firefox permission check for provider origins and the CSP for LAN `http://`
-servers (28); the docs-site callback (44); the Firefox "delete site data on close" release
+servers (28); the Firefox "delete site data on close" release
 check (§2 contingency, manual).
 
 **Tests.** `test/unit/llm-client.test.mjs` (every preset's URL, headers and JSON mode; 401,
@@ -640,6 +639,40 @@ install upgraded with nothing changed). Screenshots: `node test/visual/local-scr
 list and `addJobs` now have their real copy in the store's `meta` (`area:<key>` rows,
 `lib/settings.js`), with `storage.local` as a mirror the background puts back; see slice
 28's notes.
+
+*2026-10-06, Connect OpenRouter shown (branch `feat/connect-openrouter-and-screenshots`).*
+The docs site is live: `curl https://kotiko.org/connect/` answers 200 over HTTPS with
+`#kotiko-connect-status` (`role="status"`), no script and its own CSP `<meta>`; `/connect`
+and `http://` redirect to it. The button had no flag to turn on: it was absent, with an
+HTML comment where it would go in `welcome.html` and `dashboard.html`. Now:
+
+- **Welcome tab** (22 §4): "Connect OpenRouter (free)" is the primary button and "Paste a
+  key instead" joins the row of links, as 22's sketch has it (`welcome_ai_paste_primary`
+  is gone). It sends `oauth.start` and says "Waiting for OpenRouter… Finish signing in on
+  the other tab." under the button, with every other way still open. When `lookup` and
+  `keys` change and OpenRouter is ready, the step collapses to "Connected to OpenRouter,
+  free models." with no Test lookup: OpenRouter has just issued the key, and a Test would
+  spend one of the 50 free lookups a day. Selecting it again starts a new sign-in (a new
+  verifier replaces the pending one).
+- **Dashboard, Word lookups**: with OpenRouter chosen and no key saved, or while replacing
+  it, "Connect OpenRouter" and one line of help sit above the key field. The section's
+  status line says it's waiting; when `keys` changes the page reads the masked secrets
+  again, shows "Saved key: sk-or-…" and a "Connected to OpenRouter." notice. Choosing
+  another service or saving a pasted key stops the wait.
+- OpenRouter's PKCE page, read again on 2026-10-06, matches `lib/pkce.js`: `/auth` with
+  `callback_url`, `code_challenge`, `code_challenge_method=S256` and `key_label`; `POST
+  /api/v1/auth/keys` with `code`, `code_verifier` and `code_challenge_method`, answering
+  `key`; codes are single-use and last 10 minutes. The optional `state` isn't sent: the
+  code is useless without the verifier, which never leaves the background.
+- Tests: the welcome and dashboard DOM tests cover the visible buttons, waiting, the key
+  arriving, a failed exchange and a sign-in that can't start; `test/e2e/connect.spec.mjs`
+  now starts from the real buttons on both pages and checks the sign-in tab's address
+  (the callback, an S256 challenge, `key_label`), the return page under the live page's
+  CSP, the exchange's body and both pages updating.
+- Still to confirm with a real OpenRouter account (maintainer, before launch): that
+  OpenRouter accepts the `https://kotiko.org/connect/` callback (its docs promise
+  localhost and https callbacks; this one hasn't been tried) and returns there with a
+  code that the exchange turns into a working key.
 
 ## Open questions
 

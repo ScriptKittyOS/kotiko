@@ -6,7 +6,27 @@ description: Get a free OpenRouter key and use it to look words up in Kotiko.
 OpenRouter gives one key for many AI models, several of them free. It's Kotiko's default
 and the easiest way to start: Kotiko uses only free models unless you choose another.
 
+## Connect OpenRouter
+
+The quickest way: Kotiko asks OpenRouter for a key for you, with nothing to copy.
+
+1. On Kotiko's welcome page, select **Connect OpenRouter (free)**. Or open Kotiko's
+   **Settings**, then **Word lookups**, choose **OpenRouter** and select **Connect
+   OpenRouter**.
+2. OpenRouter opens in a new tab. Sign in or create an account, and allow Kotiko's
+   request.
+3. OpenRouter sends you back to [kotiko.org/connect/](/connect/), which says "Connected"
+   once Kotiko has the key. You can close that tab.
+
+The page on kotiko.org has no scripts. Kotiko reads the one-time code in its address and
+trades it with OpenRouter for your key; the code works only for the Kotiko that started
+the sign-in, for 10 minutes. If the page says the sign-in expired, select **Connect
+OpenRouter** again.
+
 ## Get a key
+
+Or make a key yourself and paste it:
+
 
 1. Open [OpenRouter's keys page](https://openrouter.ai/settings/keys) and sign in or create an
    account.
@@ -45,6 +65,3 @@ are run by companies that may keep or train on it. **Only use services that don'
 text** in **Word lookups** asks OpenRouter for those that don't (fewer free models may be
 available). See [OpenRouter's privacy policy](https://openrouter.ai/privacy) and
 [Kotiko's privacy policy](/privacy/).
-
-A **Connect OpenRouter** button that signs you in without copying a key is coming; it
-returns to [kotiko.org/connect/](/connect/).

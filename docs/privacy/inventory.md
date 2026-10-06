@@ -114,7 +114,7 @@ at run time.
 
 | Host | Contacted by Kotiko? | Why it's in the code |
 |---|---|---|
-| `openrouter.ai` | Yes, when OpenRouter is your provider | Lookups, the free-model list and remaining free lookups; the key page link; the "Connect OpenRouter" sign-in (built, but its button stays hidden until the docs site serves the callback page) |
+| `openrouter.ai` | Yes, when OpenRouter is your provider | Lookups, the free-model list and remaining free lookups; the key page link; the "Connect OpenRouter" sign-in (the sign-in page `openrouter.ai/auth` in a new tab, then the code traded for a key at `/api/v1/auth/keys`) |
 | `api.openai.com` | Yes, when OpenAI is your provider | Lookups |
 | `api.anthropic.com` | Yes, when Anthropic is your provider | Lookups |
 | `generativelanguage.googleapis.com` | Yes, when Google Gemini is your provider | Lookups |

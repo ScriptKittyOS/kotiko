@@ -26,6 +26,7 @@ its argument and evidence.
 | Only `/health` answers without the token | One plug runs before routing and allows exactly `GET` and `HEAD` `/health`; everything else needs `Bearer <token>`, compared in constant time. It matches on the raw path, so encoded spellings can't slip past | [`router.ex`](../../server/lib/kotiko/router.ex) `authorize/2`; [`router_auth_test.exs`](../../server/test/kotiko/router_auth_test.exs) "every method and path spelling is 401", "only GET and HEAD /health are open"; [`router_socket_test.exs`](../../server/test/kotiko/router_socket_test.exs) "encoded and dotted paths need the token" (through a real socket) |
 | `/health` says nothing else | It returns name, version, API versions and database state only | [`health.ex`](../../server/lib/kotiko/health.ex) `report/1` |
 | A strong token, kept private | 32 bytes from `:crypto.strong_rand_bytes`, written to a file made 0600 before the token goes in, then renamed into place; a chosen `API_TOKEN` under 24 characters stops the boot | [`token.ex`](../../server/lib/kotiko/token.ex) `generate/1`, `save/2`, `check/3`; [`token_test.exs`](../../server/test/kotiko/token_test.exs) "first boot makes a 43-character token in a 0600 file", "short or whitespace-only tokens are refused"; [`config.ex`](../../server/lib/kotiko/config.ex) `api_token/1` |
+| Other accounts on the computer can't read the words | The BEAM can't set a mode on create, so files are created empty, made 0600, then filled: the database before SQLite opens it (SQLite gives `-wal`, `-shm` and `-journal` the database's mode, checked by a test), each backup before `VACUUM INTO`, the token and model cache through a private temporary file. A data folder the server makes is 0700. At every boot, before the Repo opens, `make_private/1` tightens any of Kotiko's files others can open and the folder when it holds only Kotiko's files, and warns otherwise. `run.sh` sets umask 077 and the unit `UMask=0077` | [`private.ex`](../../server/lib/kotiko/private.ex); [`data_dir.ex`](../../server/lib/kotiko/data_dir.ex) `make_private/1`; [`private_test.exs`](../../server/test/kotiko/private_test.exs); [`data_dir_test.exs`](../../server/test/kotiko/data_dir_test.exs); [`boot_test.exs`](../../server/test/kotiko/boot_test.exs) (boots with umask 022 and checks the modes); [`scripts_test.exs`](../../server/test/kotiko/scripts_test.exs) |
 | Listens on this computer unless told otherwise; warns when it doesn't | `BIND` defaults to `127.0.0.1`; at boot the address is classified (loopback, Tailscale, LAN, all interfaces, public) and the last three log a warning; a public address repeats it daily | [`config.ex`](../../server/lib/kotiko/config.ex) `@default_bind`; [`exposure.ex`](../../server/lib/kotiko/exposure.ex) `classify/2`; [`application.ex`](../../server/lib/kotiko/application.ex) `repeat_public_warning/2`; [`exposure_test.exs`](../../server/test/kotiko/exposure_test.exs) |
 | Answers only to names it knows | A plug before routing allows `localhost`, IP literals, this machine's own name and `ALLOWED_HOSTS`; others get 421, with or without a token | [`host_check.ex`](../../server/lib/kotiko/plug/host_check.ex); [`host_check_test.exs`](../../server/test/kotiko/plug/host_check_test.exs); [`router_auth_test.exs`](../../server/test/kotiko/router_auth_test.exs) "an unknown name gets 421 with or without a token, on every route" |
 | Strangers can't make it do work | Body parsing is a plug after `authorize`; 64 KB cap, 1 MB for the batch route | [`router.ex`](../../server/lib/kotiko/router.ex) `parse_body/2`; [`router_auth_test.exs`](../../server/test/kotiko/router_auth_test.exs) "are parsed only after auth", "over 64 KB are refused with 413"; [`router_v1_test.exs`](../../server/test/kotiko/router_v1_test.exs) "takes at most 500 words, and bodies up to 1 MB" |
@@ -62,7 +63,7 @@ its argument and evidence.
 | Someone on the same network | Plain-HTTP traffic when the server listens beyond loopback | Loopback by default; startup warnings; Tailscale or HTTPS advice |
 | A malicious or broken model answer | The word pipeline on the server or in the extension | Schema and rule checks, length caps, script checks, text-only rendering |
 | A Telegram user who isn't allowed | The bot's chat | Sender allowlist |
-| Another user on the server machine | Files in the data folder, depending on permissions | `api-token` and backups are 0600; the database follows the umask (residual risk, section 7) |
+| Another user on the server machine | Files in the data folder, depending on permissions | Every file the server keeps there is 0600 (the database is created private before SQLite opens it, so `-wal` and `-shm` are too) and a folder it makes 0700; each start re-checks them; `run.sh` and the systemd unit use umask 077 |
 | A compromised dependency or GitHub Action | The build, CI, and later the release | Lockfiles, actions pinned by commit SHA, Dependabot, OSV-Scanner over every lockfile in CI and before each release, `mix hex.audit` and `mix deps.audit` in CI, no runtime npm code in the extension |
 | A malicious pull request | The code base | Review by a maintainer; CI with read-only token; branch protection on going public ([PUBLIC_CHECKLIST.md](../PUBLIC_CHECKLIST.md)) |
 
@@ -85,7 +86,7 @@ its argument and evidence.
    │                          ▼ HTTPS                    ▼ HTTPS           ▼ file system
    │                model provider, Wiktionary   Telegram (allowlisted   data folder
    │                (answers untrusted)          sender IDs)             (kotiko.db,
-   │                                                                     api-token 0600)
+   │                                                                     api-token: 0600)
  CI (GitHub Actions, read-only token) ──▶ stores, after a maintainer approves (slice 30)
 ```
 
@@ -98,7 +99,7 @@ its argument and evidence.
 | Extension to server | HTTP with `Authorization: Bearer` | Token check, Host check, body cap; the extension validates the address and every response | [`router.ex`](../../server/lib/kotiko/router.ex); [`lib/url.js`](../../extension/lib/url.js); [`lib/validate-words.js`](../../extension/lib/validate-words.js) |
 | Server or extension to model provider | The learner's typed text, the key | HTTPS to an address the owner set; answers parsed as JSON and checked by the word spec; deadline and attempt cap per lookup | [`llm.ex`](../../server/lib/kotiko/llm.ex) `interpret/3`; [`spec/models.json`](../../spec/models.json) budgets; [`lib/llm/client.js`](../../extension/lib/llm/client.js) |
 | Server to Telegram | Updates in, messages out | HTTPS; sender allowlist | [`bot.ex`](../../server/lib/kotiko/bot.ex); [`telegram.ex`](../../server/lib/kotiko/telegram.ex) |
-| Server to file system | The database, token, backups | `api-token` 0600; `backups/` 0700 with 0600 files; database follows the umask | [`token.ex`](../../server/lib/kotiko/token.ex); [`migrations.ex`](../../server/lib/kotiko/migrations.ex) `backup!/2` |
+| Server to file system | The database, token, backups | `kotiko.db` and its `-wal`/`-shm`, `api-token`, `models-cache.json` 0600; `backups/` 0700 with 0600 files; a data folder the server makes 0700, one that holds only Kotiko's files made 0700 at start (otherwise a warning); umask 077 in `run.sh` and the unit (`UMask=0077`) | [`private.ex`](../../server/lib/kotiko/private.ex); [`data_dir.ex`](../../server/lib/kotiko/data_dir.ex) `make_private/1`; [`migrations.ex`](../../server/lib/kotiko/migrations.ex) `backup!/2`; [`data_dir_test.exs`](../../server/test/kotiko/data_dir_test.exs); [`boot_test.exs`](../../server/test/kotiko/boot_test.exs) |
 | CI to stores | Release packages | The store jobs run in the `release` environment: a maintainer approves each run, and only `v*` tags (signed, verified against `.github/allowed_signers`) may deploy. The maintainer creates the environment before the first release | [slice 30](../../slices/30-release-pipeline/SPEC.md) |
 
 ## 4. Secure design principles
@@ -166,12 +167,11 @@ These match "What you can't expect" in the [requirements](requirements.md).
 
 - **Data at rest is not encrypted.** Anyone who can read the browser profile or the data
   folder gets the words, keys and token. Assumption: the user's account and disk are theirs.
-- **The database file follows the umask.** The server makes `api-token` 0600 and the
-  `backups/` folder 0700, but creates `kotiko.db` (and the data folder, when it makes it)
-  with the process's default permissions, and the systemd unit written by
-  `install-service.sh` sets no `UMask`. On a computer shared with other accounts, they may
-  be able to read the word list. Not yet assigned to a slice; the natural homes are 29
-  (server ops) or 40 (packaging).
+- **A shared data folder stays shared.** When `KOTIKO_DATA_DIR` points at a folder that
+  also holds other files, the server makes its own files private but leaves the folder's
+  permissions alone and warns at every start; other accounts can then see the files' names
+  and sizes, not their contents. On a disk that keeps no POSIX permissions (a Windows drive
+  in WSL) nothing can be made private; the server warns.
 - **Plain HTTP beyond loopback** exposes the token and words to the network. The server
   warns; it does not refuse.
 - **The model provider sees every lookup**, under its own terms.

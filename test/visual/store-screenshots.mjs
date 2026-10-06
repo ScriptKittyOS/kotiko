@@ -11,7 +11,7 @@
 // <outDir>/<locale>/<n>-<id>.png (captioned, the files to upload). Default outDir:
 // ./store-shots; default locale: en. Chromium with the unpacked extension, the browser in
 // that locale, and a page written for the purpose (test/fixtures/pages/store-article.html,
-// so no third-party content or logos appear). The caption's colors come from the design
+// so no third-party content or logos appear), served at www.example.com by a route. The caption's colors come from the design
 // tokens, and the script stops if their contrast is under 4.5:1. KOTIKO_E2E_CHROMIUM picks
 // another Chromium build.
 //
@@ -30,6 +30,10 @@ const EXT_DIR = path.join(ROOT, "extension");
 const OUT = path.resolve(process.argv[2] ?? "store-shots");
 const LOCALE = process.argv[3] ?? "en";
 const SIZE = { width: 1280, height: 800 };
+// The article is served at an ordinary-looking address (example.com is reserved for
+// examples, RFC 2606) so the popup's "This page" line names a website, not 127.0.0.1. The
+// browser never reaches the internet: the route below answers with the fixture file.
+const ARTICLE_URL = "https://www.example.com/articles/store-article.html";
 
 const WORDS = {
   en: [
@@ -87,6 +91,8 @@ async function launch() {
     if (["http:", "https:"].includes(u.protocol) && !["127.0.0.1", "localhost"].includes(u.hostname)) return route.abort();
     return route.continue();
   });
+  const articleHtml = await fs.readFile(path.join(ROOT, "test/fixtures/pages/store-article.html"), "utf8");
+  await context.route(ARTICLE_URL, (route) => route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: articleHtml }));
   const sw = context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
   return { context, sw, base: `chrome-extension://${new URL(sw.url()).host}/`, userDataDir };
 }
@@ -111,10 +117,10 @@ async function seed(env, srv) {
   await new Promise((r) => setTimeout(r, 500));
 }
 
-async function article(env, srv, scheme, hover) {
+async function article(env, scheme, hover) {
   const page = await env.context.newPage();
   await page.emulateMedia({ colorScheme: scheme, reducedMotion: "reduce" });
-  await page.goto(srv.pageUrl("store-article.html"));
+  await page.goto(ARTICLE_URL);
   await page.locator("kotiko-w").first().waitFor();
   const shown = await page.locator("kotiko-w").allTextContents();
   const pick = hover.find((w) => shown.includes(w));
@@ -127,20 +133,36 @@ async function article(env, srv, scheme, hover) {
 }
 
 const shots = [
-  { id: "page", take: (env, srv) => article(env, srv, "light", HOVER[LOCALE].light) },
+  { id: "page", take: (env) => article(env, "light", HOVER[LOCALE].light) },
   {
     id: "popup",
+    // A real popup describes the tab it was opened over. Here it is a tab of its own, so the
+    // article is opened first and the popup's "active tab" question answered with that real
+    // tab (its id and address): "This page" then describes the article, not a browser page.
     async take(env) {
+      const article = await env.context.newPage();
+      await article.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
+      await article.goto(ARTICLE_URL);
+      await article.locator("kotiko-w").first().waitFor();
+      const tab = await env.sw.evaluate(async (url) => (await chrome.tabs.query({ url })).map(({ id, url: u, title, windowId }) => ({ id, url: u, title, active: true, windowId }))[0] ?? null, article.url());
+      if (!tab) throw new Error("The article's tab wasn't found");
       const page = await env.context.newPage();
       await page.setViewportSize({ width: 380, height: 600 });
       await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
+      await page.addInitScript((t) => {
+        if (!globalThis.chrome?.tabs?.query) return;
+        const query = chrome.tabs.query.bind(chrome.tabs);
+        chrome.tabs.query = (info = {}, ...rest) => (info.active ? Promise.resolve([t]) : query(info, ...rest));
+      }, tab);
       await page.goto(`${env.base}popup.html`);
       await page.locator('#main[data-ready="true"]').waitFor();
+      if (await page.locator("#unsupported").isVisible()) throw new Error("The popup describes a browser page, not the article");
+      await page.locator("#pageSection").waitFor();
       await page.locator("#addText").fill(ADD[LOCALE]);
       await page.locator("#addText").press("Enter");
       await page.locator('#jobs [data-kind="word"]').first().waitFor();
       await page.locator("#addText").blur();
-      return { page, region: page.locator("#main") };
+      return { page, region: page.locator("#main"), also: [article] };
     },
   },
   {
@@ -149,6 +171,11 @@ const shots = [
       const page = await env.context.newPage();
       await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
       await page.goto(`${env.base}dashboard.html`);
+      // The word added in the popup gets its pronunciation in the background (slice 07 §8),
+      // which shows "Adding pronunciations…: 0 of 1" until its next run (about a minute);
+      // the shot waits for that line to go rather than show it.
+      await page.waitForTimeout(1500);
+      await page.locator("#refreshLine").waitFor({ state: "hidden", timeout: 120_000 });
       await page.waitForTimeout(800);
       return page;
     },
@@ -160,11 +187,19 @@ const shots = [
       await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
       await page.goto(`${env.base}welcome.html`);
       await page.locator('#main[data-ready="true"]').waitFor();
+      // Shown as most learners will see it: connected to OpenRouter, the default, rather than
+      // the fixture's "Another service". Only the label changes; nothing is looked up.
+      for (const msg of [{ type: "secrets.set", id: "provider:openrouter", value: "sk-or-v1-0123456789abcdef0123456789abcdef" }, { type: "backend.set", lookup: { kind: "provider", provider: "openrouter", baseUrl: null, model: null } }]) {
+        const r = await page.evaluate((m) => chrome.runtime.sendMessage(m), msg);
+        if (r?.error) throw new Error(`${msg.type}: ${JSON.stringify(r)}`);
+      }
+      await page.reload();
+      await page.locator('#main[data-ready="true"]').waitFor();
       await page.waitForTimeout(300);
       return page;
     },
   },
-  { id: "dark", take: (env, srv) => article(env, srv, "dark", HOVER[LOCALE].dark) },
+  { id: "dark", take: (env) => article(env, "dark", HOVER[LOCALE].dark) },
 ];
 
 // The captioned 1280x800 frame: the caption on the canvas color, the capture below it.
@@ -202,6 +237,7 @@ async function run() {
       if (got.region) await got.region.screenshot({ path: raw });
       else await page.screenshot({ path: raw });
       await page.close();
+      for (const p of got.also ?? []) await p.close();
 
       const frame = await env.context.newPage();
       await frame.setViewportSize(SIZE);

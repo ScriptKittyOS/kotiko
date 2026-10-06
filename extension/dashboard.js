@@ -94,6 +94,7 @@
     backend: null, // backend.get: presets and settings (slice 11)
     masked: {}, // secrets.describe: "sk-or-…a1b2" per secret id
     replacing: false,
+    oauthWaiting: false, // Connect OpenRouter's sign-in tab is open
     testing: false,
     lookupTest: null,
     move: null, // {to, count, server, busy, error}
@@ -2882,6 +2883,8 @@
     $("providerNote").textContent = p ? t(NOTES[p.id] ?? "dash_note_custom") : "";
     const masked = p ? state.masked[`provider:${p.id}`] : null;
     const wantsKey = !!p && (p.keyRequired || p.id === "custom");
+    // Connect OpenRouter (11 §4) while no key is saved, or when replacing it.
+    $("oauthRow").hidden = p?.id !== "openrouter" || (!!masked && !state.replacing);
     $("lookupKeyField").hidden = !wantsKey;
     if (wantsKey) {
       $("lookupKeyLabel").textContent = p.id === "custom" ? t("dash_key_label_custom") : t("dash_key_label", { provider: providerName(p) });
@@ -2914,6 +2917,7 @@
     const s = state.s;
     const kind = lookupKind(s);
     if (state.testing) return box.replaceChildren(el("p", { class: "conn-note" }, t("dash_lookup_testing")));
+    if (state.oauthWaiting) return box.replaceChildren(el("p", { class: "conn-note" }, t("dash_connect_waiting")));
     const r = state.lookupTest;
     if (r && r.ok) {
       const seconds = I18n.formatNumber(Math.max(0.1, Math.round((r.ms ?? 0) / 100) / 10));
@@ -2944,6 +2948,7 @@
 
   function pickProvider(value) {
     state.replacing = false;
+    state.oauthWaiting = false;
     if (value === "none" || value === "server") return setLookup({ kind: value });
     return setLookup({ kind: "provider", provider: value, baseUrl: null, model: null });
   }
@@ -2959,12 +2964,33 @@
       return renderLookups();
     }
     state.masked[`provider:${p.id}`] = res.masked;
+    state.oauthWaiting = false;
     state.s.keys = { ...(state.s.keys ?? {}), providers: { ...(state.s.keys?.providers ?? {}), [p.id]: true } };
     state.replacing = false;
     state.lookupTest = null;
     toast({ text: t("dash_set_saved") });
     renderLookups();
     renderBanners();
+    refreshQuota();
+  }
+
+  // Connect OpenRouter (11 §4): the background keeps the PKCE verifier and opens OpenRouter's
+  // sign-in in a new tab, which returns to kotiko.org/connect/; its content script hands the
+  // code to the background. This page hears the key arrived when `keys` changes
+  // (onStorage, then oauthArrived). Selecting it again starts a new sign-in.
+  async function connectOpenRouter() {
+    state.lookupTest = null;
+    const res = await send({ type: "oauth.start" }).catch((e) => ({ error: String(e?.message ?? e), code: "internal" }));
+    state.oauthWaiting = !res?.error;
+    if (res?.error) state.lookupTest = res;
+    renderLookupState();
+  }
+
+  function oauthArrived() {
+    if (!state.oauthWaiting || state.s.lookup?.provider !== "openrouter" || !state.masked["provider:openrouter"]) return;
+    state.oauthWaiting = false;
+    state.replacing = false;
+    toast({ text: t("dash_connect_done") });
     refreshQuota();
   }
 
@@ -3250,6 +3276,13 @@
       renderBanners();
       if (state.route.view === "settings") renderSettings();
     }
+    // A key saved elsewhere (Connect OpenRouter's return page, another tab): its masked form.
+    if (changes.keys) {
+      refreshBackend().then(() => {
+        oauthArrived();
+        if (state.route.view === "settings") renderSettings();
+      });
+    }
     if (changes.serverUrl || changes.token || changes.server) {
       renderConnection();
       if (changes.token) scheduleReload();
@@ -3361,6 +3394,7 @@
       $("lookupKey").focus();
     });
     $("removeKey").addEventListener("click", removeKey);
+    $("connectOpenRouter").addEventListener("click", connectOpenRouter);
     $("testLookup").addEventListener("click", testLookup);
     $("celebrations").addEventListener("click", () => setPref("celebrations", state.s.prefs?.celebrations === false));
     $("sensitiveSites").addEventListener("click", () => setPref("sensitiveSites", state.s.prefs?.sensitiveSites === false));

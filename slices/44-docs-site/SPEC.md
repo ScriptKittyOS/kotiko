@@ -363,8 +363,8 @@ slice 11 §4 says Kotiko's content script reads the code, and none did. This sli
 `https://kotiko.org/connect/*` (no new permission; a justification row in
 `store/chrome-web-store.md`), with four strings (`connect_*`). It sends `{type:
 "oauth.code", code}`, writes the outcome into `#kotiko-connect-status`, and then removes the
-code from the address. The "Connect OpenRouter" button stays hidden: showing it is slice
-11's call once the site is live.
+code from the address. The "Connect OpenRouter" button stayed hidden until the site was
+live; slice 11 shows it since 2026-10-06.
 
 **Privacy of the site.** No cookies, analytics, web fonts or embeds. Every Starlight page
 carries a CSP `<meta>` allowing only the site itself (`'unsafe-inline'` for Starlight's

@@ -149,6 +149,11 @@
               <div class="radio-list" id="providerOptions" role="radiogroup" aria-labelledby="providerLabel"></div>
               <p class="field-help" id="providerNote" hidden></p>
             </div>
+            <!-- 11 §4: OpenRouter's sign-in opens in a new tab and returns to kotiko.org/connect/ (44). -->
+            <div class="set-actions" id="oauthRow" hidden>
+              <button class="btn btn-primary" id="connectOpenRouter" type="button" aria-describedby="oauthHelp" data-i18n="dash_connect_openrouter"></button>
+              <span class="field-help" id="oauthHelp" data-i18n="dash_connect_openrouter_help"></span>
+            </div>
             <div class="set-field" id="lookupKeyField" hidden>
               <label class="field-label" for="lookupKey" id="lookupKeyLabel"></label>
               <div class="key-saved" id="lookupKeySaved" hidden>
@@ -188,7 +193,6 @@
               <span class="field-help" id="lookupTestNote" data-i18n="dash_lookup_test_note"></span>
             </div>
             <div class="conn-status" id="lookupState" role="status" aria-live="polite"></div>
-            <!-- 11: "Connect OpenRouter" (PKCE) appears here once the docs site serves its callback page (44). -->
           </section>
 
           <section class="set-section" id="set-connection" data-section="connection" aria-labelledby="setConnTitle">

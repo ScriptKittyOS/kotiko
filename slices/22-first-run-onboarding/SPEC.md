@@ -837,9 +837,10 @@ lookup in the tests goes to the fixture server's fake model.*
   `toLocal` (11) now keeps `ui.baseLangs` in step with the local list. Not built: the
   dashboard's "Languages you read in", 50's upgrade rule beyond 11's, and per-base data
   other than `en` and `es`.
-- **Connect your AI (§4).** "Connect OpenRouter (free)" is absent, as 11 decided, until the
-  docs site serves the PKCE callback (44); **Paste an OpenRouter key (free)** is the primary
-  button. The key field is `type="password"`, `autocomplete="off"`, `spellcheck="false"`,
+- **Connect your AI (§4).** "Connect OpenRouter (free)" was absent, as 11 decided, until the
+  docs site served the PKCE callback (44); since 2026-10-06 it is the primary button and
+  "Paste a key instead" is the first link (11's Implementation notes). Before that,
+  **Paste an OpenRouter key (free)** was the primary button. The key field is `type="password"`, `autocomplete="off"`, `spellcheck="false"`,
   with Show; pasting (or Enter, or leaving the field) saves through `secrets.set`, makes
   OpenRouter the provider (`backend.set`) and runs 11's one-request check (`backend.test`);
   the field is cleared and shows "Saved key: sk-or-…a1b2". "Another service or my own
@@ -949,9 +950,9 @@ lookup in the tests goes to the fixture server's fake model.*
 | Try “hello”, then ask (connected) | 4 | +1 |
 | Bases detected wrong | +1 per chip changed | |
 | Several results | +1 when choosing one other than the first | |
-| Connect OpenRouter (one click) | waits for 44's callback page | |
+| Connect OpenRouter (one click) | 4 (Connect OpenRouter, type, Enter, Make it), plus OpenRouter's own sign-in | +1 |
 
-**Waiting for other slices.** The one-click OpenRouter connect (44); 24's `preview: true`
+**Waiting for other slices.** 24's `preview: true`
 add job and `needs_choice` (the page uses the stateless preview above); 13's `parse.js`
 and bulk add; 14's segmenter matcher, without which a Japanese or Chinese base has no
 working preview (the legacy matcher needs word boundaries); about 1,000 sentences per Full

@@ -10,7 +10,7 @@ The full artwork list (Edge, social previews, favicons) is in
 | Asset | Chrome Web Store | Firefox Add-ons | Exists now | Final from |
 |---|---|---|---|---|
 | Icon | 128x128 PNG: 96x96 artwork with 16 px of transparent padding per side | From the package (`icons` in the manifest); shown at 32 and 64 px | `brand/logo/store-icon-128.png` (placeholder kitten, correct padding) and `extension/icon128.png` | The artist (slice 05) |
-| Screenshots | 1280x800 (or 640x400), PNG, square corners, full bleed; at least 1, up to 5 | Same files (1280x800, 1.6:1); no fixed limit | Scripted, below | This script, after the artwork lands |
+| Screenshots | 1280x800 (or 640x400), PNG, square corners, full bleed; at least 1, up to 5 | Same files (1280x800, 1.6:1); no fixed limit | **Done (2026-10-06):** `brand/store/screenshots/en/01-page.png` … `05-dark.png`, 1280x800 24-bit PNGs from the script below, each looked at | This script again after the artwork lands |
 | Small promo tile | 440x280, **required** | n/a | No | **Done (2026-10-06):** `brand/store/promo-small.png`, exported from `brand/illustrations/store-promo-tile.png` (the kitten on the moon with "Kotiko"; checked legible at half size) |
 | Marquee promo tile | 1400x560, optional | n/a | No | **Done (2026-10-06):** `brand/store/promo-marquee.png`, exported from `brand/illustrations/marquee.png` (every word checked for spelling) |
 
@@ -27,7 +27,11 @@ files to `<outDir>/<locale>/` (bare captures in `raw/`). The captions are the `s
 entries of `store/listing/<locale>.json`, set in the design system's display face on the
 canvas color; the script stops if the caption's contrast is under 4.5:1 (it is 15.7:1 with
 today's tokens). The page is `test/fixtures/pages/store-article.html`, a text written for
-it, so no third-party content or logo appears and no attribution is needed.
+it, so no third-party content or logo appears and no attribution is needed; the script
+serves it at `https://www.example.com/articles/…` (a reserved example address, answered by
+the browser's route, never the internet) so the popup's page line names a website. The run
+takes about a minute: the dashboard shot waits for the background to finish the
+pronunciation of the word the popup shot adds.
 
 | # | id | Shows | Caption (en) |
 |---|---|---|---|
@@ -37,9 +41,11 @@ it, so no third-party content or logo appears and no attribution is needed.
 | 4 | `welcome` | The welcome page, asking for the next word | Start with the word you want most |
 | 5 | `dark` | The same article in dark mode with a card open | Easy on the eyes, day and night |
 
-Before uploading, look at each file: the popup shot is taken in a tab, so its page line
-reads "Kotiko can't run on browser pages like this one", and the article shots use
-placeholder words chosen for an English reader. A listing in another language gets its own
+Before uploading, look at each file. The popup is opened in a tab of its own, so the script
+first opens the article and answers the popup's "which tab is active" question with that
+real tab: "This page" then describes the article (it stops if the popup says it's on a
+browser page). The welcome shot shows OpenRouter connected, as most learners will see it.
+The article shots use placeholder words chosen for an English reader. A listing in another language gets its own
 words and article in the script when its translation lands, and the browser in that
 locale.
 

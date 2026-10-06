@@ -31,9 +31,13 @@ even with a key set up.
 An AI looks words up for you, so you can ask in your own words: "how do you say cat in
 Japanese", "hola", "dog in Arabic". OpenRouter gives free access to several AI models.
 
-1. Select **Get a free key**. It opens OpenRouter's keys page.
-2. Sign in to OpenRouter and create a key. Copy it.
-3. Back in Kotiko, select **Paste an OpenRouter key (free)** and paste it.
+1. Select **Connect OpenRouter (free)**. OpenRouter opens in a new tab.
+2. Sign in to OpenRouter, or create an account, and allow Kotiko's request.
+3. OpenRouter sends you back to a Kotiko page that says "Connected". Close it; the welcome
+   page now says "Connected to OpenRouter, free models."
+
+Already have a key? Select **Paste a key instead** and paste it. **Get a free key** opens
+OpenRouter's keys page if you'd rather make one yourself.
 
 [Step by step, with what the free tier allows](/providers/openrouter/).
 

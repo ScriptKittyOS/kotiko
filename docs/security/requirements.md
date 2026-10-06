@@ -22,6 +22,11 @@ Kotiko has two parts: the browser extension, and an optional server you run your
   and saves it in `api-token` in the data folder, readable only by you (mode 0600). If you
   pick your own with `API_TOKEN`, it must be at least 24 characters, or the server won't
   start.
+- **Other accounts on the computer can't read your words.** The database, its `-wal` and
+  `-shm` files, the backups, the token and the model list cache are readable only by you
+  (0600), and a data folder the server makes only by you (0700). At every start it makes
+  them private again if they aren't, and warns, with the command to run, about anything it
+  can't or won't change (a data folder that also holds other files).
 - **It listens only on your computer** unless you change `BIND`. When you do, it says at
   startup who can now reach it, and warns when your token would cross a network in plain
   HTTP (repeating that warning daily when the address is reachable from the internet).
@@ -79,11 +84,10 @@ Kotiko has two parts: the browser extension, and an optional server you run your
 
 - **Protection from someone who can read your browser profile or the server's data
   folder.** Keys, the token and your words are not encrypted at rest.
-- **That the word database is private to you by default.** The server makes `api-token`
-  and its backups readable only by you, but it creates `kotiko.db` with your system's
-  default file permissions (your umask), which on many systems lets other accounts on the
-  same computer read it. Run the server under your own account on a computer you don't
-  share, or tighten the folder yourself (`chmod 700 ~/.local/share/kotiko`).
+- **A private data folder when you share it.** If `KOTIKO_DATA_DIR` points at a folder
+  that also holds other files, the server keeps its own files private but leaves the
+  folder as it is, and warns at every start. Others can then see the files' names, not
+  what's in them.
 - **Privacy on a network if you use plain HTTP** to a server on another machine. The token
   and your words travel unencrypted. Use Tailscale or HTTPS through a reverse proxy.
 - **Privacy from the model provider you chose.** Lookups go to it under its terms.

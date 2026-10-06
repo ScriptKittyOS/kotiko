@@ -57,6 +57,13 @@ defmodule Kotiko.TokenTest do
     assert {:error, "The token in " <> _} = Token.resolve(nil, dir)
   end
 
+  test "a data folder it has to make is private too", %{tmp_dir: dir} do
+    data = Path.join(dir, "new-data")
+    assert {:ok, _token, {:generated, _}} = Token.resolve(nil, data)
+    assert Bitwise.band(File.stat!(data).mode, 0o777) == 0o700
+    assert Bitwise.band(File.stat!(Token.path(data)).mode, 0o777) == 0o600
+  end
+
   test "generate replaces the saved token", %{tmp_dir: dir} do
     {:ok, old, _} = Token.resolve(nil, dir)
     assert {:ok, new, {:generated, _}} = Token.generate(Token.path(dir))
