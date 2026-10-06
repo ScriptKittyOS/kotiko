@@ -178,6 +178,8 @@ describe("requests go only where a Kotiko page said (slice 28 §7)", () => {
     await bg.send({ type: "backend.set", lookup: { baseUrl: evil.llmUrl } });
     assert.equal((await add(bg, "kniga")).state, "done");
     assert.ok(chats(evil).length >= 1 && chats(evil).every((r) => r.auth === `Bearer ${KEY}`));
+    // Let this background's own work finish, so none of it reaches the next test's log.
+    await settle(bg);
   });
 
   test("a 0.2 token and address planted after the upgrade are removed, never used", async () => {
@@ -186,9 +188,12 @@ describe("requests go only where a Kotiko page said (slice 28 §7)", () => {
     await bg.k.ready();
     await poison(bg, { token: "planted-token", serverUrl: evil.kotikoUrl });
     await bg.send({ type: "sync", force: true }, CONTENT);
+    // Wait for the removal itself, not a fixed time (it can lag under a full parallel run).
+    await bg.until(() => bg.store.token === undefined && bg.store.serverUrl === undefined);
     await bg.fake.idle();
-    await sleep(50);
-    assert.deepEqual(evil.state.log, []);
+    // This background has no provider key; an earlier test's late lookup may still land on
+    // the shared fixture, so look only for what a planted token or address would cause.
+    assert.deepEqual(evil.state.log.filter((r) => r.auth === "Bearer planted-token" || r.path.startsWith("/kotiko/")), []);
     assert.equal(bg.store.token, undefined);
     assert.equal(bg.store.serverUrl, undefined);
     assert.equal(bg.store.wordsHome, "local");

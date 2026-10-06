@@ -199,12 +199,15 @@ locales are optional.
 ```
 
 Also for the first public release; the security box again for any release that changes
-permissions, messaging, how secrets are stored, the server's API or the bot; the voice and
-respelling boxes again for any release that changes the popover (19), audio (34), the
-respelling keys or the pronunciation prompt (07, 09):
+permissions, messaging, how secrets are stored, the server's API or the bot; the
+accessibility box again for any release that changes the popup, the dashboard, the welcome
+tab, the word card or what happens on pages; the voice and respelling boxes again for any
+release that changes the popover (19), audio (34), the respelling keys or the pronunciation
+prompt (07, 09):
 
 ```markdown
 - [ ] Security review (slice 54): three independent reports on the release candidate, every finding's proof rerun by the lead, no confirmed critical, high or medium finding open, the fixes confirmed by a fresh reviewer, and `docs/security/review-<tag>.md` committed with its "Gate: closed" line. This PR links the combined report. No store job is approved before this box is ticked.
+- [ ] Accessibility (slice 27): the manual pass in [docs/accessibility.md](accessibility.md#manual-pass-before-each-release) done (NVDA with Firefox and Chrome, VoiceOver, Orca, Windows High Contrast, zoom, keyboard only, voice control); its results table is in this PR, and each problem is filed as an issue.
 - [ ] Voice check (slice 34): [docs/release/voice-check.md](release/voice-check.md) done on Chrome and Firefox on Windows, macOS and Linux; the results table is in this PR, and each disagreement is filed against the respelling or the engine.
 - [ ] Spanish respelling key: `spec/lang/es/respelling.json` signed off by readers from Spain, Mexico, the Caribbean and the Southern Cone; until then the docs mark the key "beta" (say which here).
 ```

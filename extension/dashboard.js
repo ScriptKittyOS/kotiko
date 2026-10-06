@@ -317,7 +317,7 @@
 
   // The first visible row's id and its offset, so changes above it don't move the view.
   function scrollAnchor() {
-    const body = $("gridBody");
+    const body = $("grid");
     if (!body || !state.view.length) return null;
     const i = Math.floor(body.scrollTop / rowH);
     const id = state.view[i];
@@ -853,21 +853,23 @@
 
   function renderList({ anchor = null } = {}) {
     const grid = $("grid");
-    const body = $("gridBody");
     const n = state.view.length;
     grid.setAttribute("aria-rowcount", String(n + 1));
     $("addedHead").textContent = t(isDeletedView() ? "dash_col_deleted" : "dash_col_added");
     $("gridSpacer").style.height = `${n * rowH}px`;
     if (anchor) {
       const i = state.view.indexOf(anchor.id);
-      if (i >= 0) body.scrollTop = i * rowH + anchor.offset;
+      if (i >= 0) grid.scrollTop = i * rowH + anchor.offset;
     }
     renderEmpty();
     renderWindow(true);
   }
 
+  // The grid itself scrolls (27: the one tab stop of the list is its scroll container), under
+  // its sticky header row; the rows' viewport is what the header leaves.
   function viewportHeight() {
-    return $("gridBody").clientHeight || 640;
+    const grid = $("grid");
+    return grid.clientHeight - (grid.querySelector(".grid-head")?.offsetHeight ?? 0) || 640;
   }
 
   const rows = new Map(); // group id -> row element
@@ -885,7 +887,7 @@
   function renderWindow(force) {
     const body = $("gridBody");
     const n = state.view.length;
-    const top = body.scrollTop;
+    const top = $("grid").scrollTop;
     const first = Math.max(0, Math.floor(top / rowH) - OVERSCAN);
     const last = Math.min(n, Math.ceil((top + viewportHeight()) / rowH) + OVERSCAN);
     const want = new Map(); // id -> index
@@ -965,18 +967,22 @@
       // Shift+click selects a range, not the text between.
       onmousedown: (e) => e.shiftKey && e.preventDefault(),
     },
-    el("span", { class: "c-check", role: "gridcell" },
-      el("input", {
-        class: "check",
-        type: "checkbox",
-        tabindex: "-1",
-        checked: selected,
-        "aria-label": t("dash_select_word", { native: g.native }),
-        onclick: (e) => {
-          e.stopPropagation();
-          toggleSelect(g.id, { range: e.shiftKey });
-        },
-      })),
+    // The whole cell is the checkbox's pointer target (2.5.8), not just its 18 px box.
+    el("span", {
+      class: "c-check",
+      role: "gridcell",
+      onclick: (e) => {
+        e.stopPropagation();
+        toggleSelect(g.id, { range: e.shiftKey });
+      },
+    },
+    el("input", {
+      class: "check",
+      type: "checkbox",
+      tabindex: "-1",
+      checked: selected,
+      "aria-label": t("dash_select_word", { native: g.native }),
+    })),
     el("span", { class: "c-native", role: "gridcell" },
       el("bdi", { class: `w-native${isNew ? " swap-in motion" : ""}`, lang: g.lang, dir: "auto" }, highlighted(g.native, q, g.lang)),
       romanization ? el("span", { class: "w-rom", lang: Cards.romanizationLang(g.lang) }, highlighted(romanization, q, g.lang)) : null),
@@ -1147,7 +1153,7 @@
   }
 
   function scrollToActive() {
-    const body = $("gridBody");
+    const body = $("grid");
     const y = state.active * rowH;
     const h = viewportHeight();
     if (y < body.scrollTop) body.scrollTop = y;
@@ -1219,6 +1225,15 @@
     const typing = isTyping(e.target);
     const mod = e.ctrlKey || e.metaKey;
     if (document.querySelector(".menu, .dialog-card")) return; // menus and dialogs handle their own keys
+    // Toasts (06 §10, 27 §3): Esc dismisses the one focus is in; else, when nothing else on
+    // the page takes Esc, the newest (below).
+    const inToast = e.key === "Escape" && e.target.closest?.(".toast");
+    if (inToast) {
+      e.preventDefault();
+      inToast.remove();
+      (state.route.view === "words" ? $("grid") : $("settingsTitle")).focus({ preventScroll: true });
+      return;
+    }
     if (mod && !e.shiftKey && (e.key === "z" || e.key === "Z") && !typing) {
       e.preventDefault();
       undoLast();
@@ -1228,7 +1243,7 @@
       if (e.key === "Escape" && state.route.view === "add") {
         e.preventDefault();
         closeAdd();
-      }
+      } else if (e.key === "Escape" && dismissNewestToast()) e.preventDefault();
       return;
     }
     // "/" in the empty search field (focused when the page opens) is the shortcut, not text.
@@ -1255,6 +1270,7 @@
         e.preventDefault();
         return setParams({ q: null }, { focusSearch: e.target === $("search") });
       }
+      if (dismissNewestToast()) e.preventDefault();
       return;
     }
     if (typing || mod || e.altKey) return;
@@ -1287,21 +1303,30 @@
     renderWindow(false);
     renderSelbar();
     const insp = $("inspector");
-    if (narrow()) {
-      $("scrim").hidden = false;
-      insp.setAttribute("role", "dialog");
-      insp.setAttribute("aria-modal", "true");
-      // A modal sheet takes focus; from the keyboard (Enter) the word itself, else the sheet.
-      if (!focus) insp.focus();
-    } else {
-      insp.setAttribute("role", "region");
-      insp.removeAttribute("aria-modal");
-    }
+    setInspectorMode();
+    // A modal sheet takes focus; from the keyboard (Enter) the word itself, else the sheet.
+    if (narrow() && !focus) insp.focus();
     if (focus) (insp.querySelector(".spec-field") ?? insp).focus();
+  }
+
+  // A labelled region beside the list on wide screens; a modal sheet on narrow ones (27 §3).
+  function setInspectorMode() {
+    const insp = $("inspector");
+    const modal = narrow() && !!state.open;
+    $("scrim").hidden = !modal;
+    insp.setAttribute("role", modal ? "dialog" : "region");
+    if (modal) {
+      insp.setAttribute("aria-modal", "true");
+      openModal(insp);
+    } else {
+      insp.removeAttribute("aria-modal");
+      closeModal(insp);
+    }
   }
 
   function closeInspector({ focusList = false } = {}) {
     if (!state.open) return;
+    closeModal($("inspector"));
     state.open = null;
     inspectorGroup = null;
     fields = [];
@@ -1442,7 +1467,7 @@
     const rid = r.id;
     const rec = (x) => x.records.find((y) => y.id === rid) ?? {};
     const block = el("section", { class: "base-block", "aria-label": t("dash_on_pages_in", { base: languageName(base) }) });
-    const headRow = el("div", { class: "base-head" }, el("h3", { class: "base-title" }, t("dash_on_pages_in", { base: languageName(base) })));
+    const headRow = el("div", { class: "base-head" }, el("h2", { class: "base-title" }, t("dash_on_pages_in", { base: languageName(base) })));
     if (g.records.length > 1 && !deleted) {
       headRow.append(el("button", { class: "link link-quiet", type: "button", onclick: () => removeMeaning(g, r) }, t("dash_remove_meaning")));
     }
@@ -1827,30 +1852,23 @@
     })).then((ok) => ok || delete btn.dataset.playing, () => delete btn.dataset.playing);
   }
 
-  // Keeps Tab inside the inspector while it is a modal sheet (narrow screens).
+  // Esc closes the inspector; while it's a modal sheet, openModal keeps Tab inside it.
   function onInspectorKey(e) {
     if (e.key === "Escape" && !e.defaultPrevented) {
       e.preventDefault();
       e.stopPropagation();
       closeInspector({ focusList: true });
-      return;
-    }
-    if (e.key !== "Tab" || !narrow()) return;
-    const items = [...$("inspector").querySelectorAll("button, input, textarea, [tabindex='0']")].filter((n) => !n.hidden && !n.closest("[hidden]"));
-    if (!items.length) return;
-    const first = items[0];
-    const last = items.at(-1);
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first.focus();
     }
   }
 
   // ---------------------------------------------------------------------------------
   // Toasts (§5, §6): role="status", never focused, paused while hovered or focused.
+
+  function dismissNewestToast() {
+    const newest = $("toasts").lastElementChild;
+    newest?.remove();
+    return !!newest;
+  }
 
   function toast({ text = null, parts = null, undo = null, error = false }) {
     const host = $("toasts");
@@ -1917,6 +1935,9 @@
     menu.append(...buttons);
     anchor.setAttribute("aria-expanded", "true");
     menu._anchor = anchor;
+    // A menu opened from a modal layer (whose siblings, #layer among them, are inert).
+    menu._reinert = $("layer").inert;
+    $("layer").inert = false;
     $("layer").append(menu);
     placeMenu(menu, anchor);
     const start = Math.max(0, buttons.findIndex((b) => b.getAttribute("aria-checked") === "true"));
@@ -1959,7 +1980,59 @@
     for (const m of $("layer").querySelectorAll(".menu")) {
       m._anchor?.setAttribute("aria-expanded", "false");
       m.remove();
+      if (m._reinert) $("layer").inert = true;
     }
+  }
+
+  // Modal layers (27 §3; WAI-ARIA APG dialog pattern): while one is open everything else is
+  // inert, so Tab, a screen reader's browse mode and the pointer stay inside it, and Tab
+  // wraps from its last control to its first. Backdrops stay clickable (a click there
+  // closes the layer) and the toasts keep speaking. Layers stack; closing one puts back only
+  // what it changed, and focus goes back where it was.
+  const modals = [];
+  const TABBABLE = "a[href], button, input, select, textarea, summary, [tabindex]";
+  const tabbables = (node) => [...node.querySelectorAll(TABBABLE)].filter((n) => n.tabIndex >= 0 && !n.disabled && n.checkVisibility?.() !== false && !n.closest("[hidden]"));
+  function trapTab(e) {
+    if (e.key !== "Tab" || e.defaultPrevented) return;
+    const items = tabbables(e.currentTarget);
+    if (!items.length) return;
+    const active = e.currentTarget.getRootNode().activeElement;
+    if (e.shiftKey && (active === items[0] || active === e.currentTarget)) {
+      e.preventDefault();
+      items.at(-1).focus();
+    } else if (!e.shiftKey && active === items.at(-1)) {
+      e.preventDefault();
+      items[0].focus();
+    }
+  }
+  function openModal(node) {
+    if (modals.some((m) => m.node === node)) return;
+    const changed = [];
+    const freed = [];
+    for (let n = node; n?.parentElement; n = n.parentElement) {
+      // A layer opened from another (a picker from the add sheet) lives where the first
+      // one made things inert: free its own ancestors.
+      if (n.inert) {
+        n.inert = false;
+        freed.push(n);
+      }
+      for (const sib of n.parentElement.children) {
+        if (sib === n || sib.inert || sib.id === "toasts" || sib.matches("script, .sheet-backdrop, .scrim")) continue;
+        sib.inert = true;
+        changed.push(sib);
+      }
+    }
+    node.addEventListener("keydown", trapTab);
+    modals.push({ node, changed, freed, prev: document.activeElement });
+  }
+  function closeModal(node) {
+    const i = modals.findIndex((m) => m.node === node);
+    if (i < 0) return null;
+    const [m] = modals.splice(i, 1);
+    for (const n of m.changed) n.inert = false;
+    for (const n of m.freed) n.inert = true;
+    node.removeEventListener("keydown", trapTab);
+    return m.prev;
   }
 
   function dialog({ title, body, actions, onClose, labelled = true }) {
@@ -1969,6 +2042,7 @@
       title ? el("h2", { class: "dialog-title", id: titleId }, title) : null, body, actions ? el("div", { class: "dialog-actions" }, actions) : null);
     const backdrop = el("div", { class: "dialog-backdrop" }, card);
     const close = (value) => {
+      closeModal(card);
       backdrop.remove();
       prev?.focus?.();
       onClose?.(value);
@@ -1980,19 +2054,9 @@
         e.stopPropagation();
         close(null);
       }
-      if (e.key === "Tab") {
-        const items = [...card.querySelectorAll("button, input, [tabindex='0']")].filter((n) => !n.hidden);
-        if (!items.length) return;
-        if (e.shiftKey && document.activeElement === items[0]) {
-          e.preventDefault();
-          items.at(-1).focus();
-        } else if (!e.shiftKey && document.activeElement === items.at(-1)) {
-          e.preventDefault();
-          items[0].focus();
-        }
-      }
     });
     $("layer").append(backdrop);
+    openModal(card);
     return { card, close };
   }
 
@@ -2121,6 +2185,7 @@
   function openAdd() {
     $("addSheet").hidden = false;
     $("addBackdrop").hidden = false;
+    openModal($("addSheet"));
     const hint = $("addHint");
     hint.hidden = !state.hint;
     if (state.hint) {
@@ -2161,9 +2226,15 @@
   }
 
   function closeAdd() {
+    hideAdd();
+    go(formatWordsRoute(), { replace: false });
+  }
+
+  function hideAdd() {
+    const prev = closeModal($("addSheet"));
     $("addSheet").hidden = true;
     $("addBackdrop").hidden = true;
-    go(formatWordsRoute(), { replace: false });
+    if (prev?.isConnected && !prev.closest("[inert]")) prev.focus({ preventScroll: true });
   }
 
   function addFromSearch(q) {
@@ -2302,6 +2373,7 @@
     ["lookups", "dash_set_lookups"],
     ["connection", "dash_set_connection"],
     ["voices", "settings_voices"],
+    ["reading", "dash_set_reading"],
     ["learning", "dash_set_learning"],
     ["mixing", "dash_set_mixing"],
     ["pages", "dash_set_pages"],
@@ -2457,6 +2529,12 @@
     const p = state.s.prefs ?? {};
     $("sensitiveSites").setAttribute("aria-checked", String(p.sensitiveSites !== false));
     $("swapControls").setAttribute("aria-checked", String(p.swapControls === true));
+    $("swapControlsWarn").hidden = p.swapControls !== true;
+    // 27 §2: the word I'm learning (default), the original word, or both; Tab stops.
+    const reader = ["original", "both"].includes(p.screenReader) ? p.screenReader : "target";
+    renderRadios($("screenReaderOptions"), [["target", t("dash_screen_reader_target")], ["original", t("dash_screen_reader_original")], ["both", t("dash_screen_reader_both")]], reader, (v) => setPref("screenReader", v));
+    $("screenReaderHelp").textContent = t(reader === "target" ? "dash_screen_reader_help" : "dash_screen_reader_page_text");
+    $("keyboardSwaps").setAttribute("aria-checked", String(p.keyboardSwaps === true));
     const chips = (list, key, label) =>
       (Array.isArray(list) ? list : []).map((v) => el("li", { class: "form-chip" },
         el("bdi", { dir: "auto" }, v),
@@ -2713,7 +2791,7 @@
 
   // Re-renders everything in the new language in place, keeping scroll position (§9).
   async function applyUiLang(value) {
-    const scroll = { list: $("gridBody").scrollTop, page: document.scrollingElement?.scrollTop ?? 0 };
+    const scroll = { list: $("grid").scrollTop, page: document.scrollingElement?.scrollTop ?? 0 };
     const changed = await I18n.useLocale(value).catch(() => false);
     if (!changed) return renderSettings();
     state.langList = null;
@@ -2723,7 +2801,7 @@
     renderSettings();
     if (state.open && groupById(state.open)) renderInspector(groupById(state.open));
     renderAddJobs();
-    $("gridBody").scrollTop = scroll.list;
+    $("grid").scrollTop = scroll.list;
     if (document.scrollingElement) document.scrollingElement.scrollTop = scroll.page;
   }
 
@@ -3068,7 +3146,7 @@
     if (statusChanged || sortChanged) resort();
     else refilter();
     state.active = 0;
-    $("gridBody").scrollTop = 0;
+    $("grid").scrollTop = 0;
     if ("q" in changes && !next.q) $("search").value = "";
     updateRoute({ params: next });
     renderWords();
@@ -3141,10 +3219,7 @@
       document.title = `${t("dash_title")} · ${t("extName")}`;
     }
     if (view === "add") openAdd();
-    else if (!$("addSheet").hidden) {
-      $("addSheet").hidden = true;
-      $("addBackdrop").hidden = true;
-    }
+    else if (!$("addSheet").hidden) hideAdd();
     if (prevView === "settings" && view === "words") $("search").focus();
   }
 
@@ -3233,7 +3308,7 @@
     });
     $("grid").addEventListener("keydown", onGridKey);
     $("grid").addEventListener("focus", () => renderWindow(false));
-    $("gridBody").addEventListener("scroll", onScroll, { passive: true });
+    $("grid").addEventListener("scroll", onScroll, { passive: true });
     $("inspector").addEventListener("keydown", onInspectorKey);
     $("scrim").addEventListener("click", () => closeInspector({ focusList: true }));
     $("addWords").addEventListener("click", () => go("#add"));
@@ -3299,6 +3374,7 @@
     $("sensitiveSites").addEventListener("click", () => setPref("sensitiveSites", state.s.prefs?.sensitiveSites === false));
     $("freshFirst").addEventListener("click", () => setMixing({ freshDays: (state.s.mixing?.freshDays ?? 7) > 0 ? 0 : 7 }));
     $("swapControls").addEventListener("click", () => setPref("swapControls", state.s.prefs?.swapControls !== true));
+    $("keyboardSwaps").addEventListener("click", () => setPref("keyboardSwaps", state.s.prefs?.keyboardSwaps !== true));
     $("showWelcome").addEventListener("click", () => send({ type: "welcome.open" }).catch(() => {}));
     $("dataCollection").addEventListener("click", () => setLookup({ dataCollection: $("dataCollection").getAttribute("aria-checked") === "true" ? "allow" : "deny" }));
     for (const id of ["lookupBaseUrl", "lookupModel"]) {
@@ -3324,6 +3400,22 @@
       $(id).addEventListener("keydown", (e) => e.key === "Enter" && (e.preventDefault(), saveConnection(id)));
     }
     document.addEventListener("keydown", onGlobalKey);
+    // 1.4.13: Esc hides a tooltip that's showing (and does nothing else); it can show again
+    // once the pointer or focus has left its trigger.
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      const shown = [...document.querySelectorAll(".base-level:not(.tip-off)")].filter((n) => n.matches(":hover, :focus-visible") || n.nextElementSibling?.matches(":hover"));
+      if (!shown.length) return;
+      for (const n of shown) n.classList.add("tip-off");
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }, true);
+    for (const type of ["focusout", "pointerout"]) {
+      document.addEventListener(type, (e) => {
+        const trigger = e.target.closest?.(".base-level, .base-tip")?.parentElement?.querySelector(".base-level.tip-off");
+        if (trigger && !trigger.parentElement.contains(e.relatedTarget)) trigger.classList.remove("tip-off");
+      });
+    }
     document.addEventListener("mousedown", (e) => {
       if (!e.target.closest?.(".menu")) closeMenus();
     });
@@ -3332,6 +3424,7 @@
       updateRowHeight();
       closeMenus();
       renderWindow(false);
+      if (state.open) setInspectorMode();
     });
     addEventListener("online", () => {
       state.online = true;

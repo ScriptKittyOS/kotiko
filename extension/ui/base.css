@@ -161,10 +161,11 @@ svg {
   outline-offset: 2px;
 }
 
-/* --- Motion (06 §9) -----------------------------------------------------------------
+/* --- Motion (06 §9, 27 §4) ------------------------------------------------------------
  * Under reduced motion (the media query, or <html data-motion="reduce"> for Kotiko's own
- * setting) transitions and animations last at most --d-fast, and animations marked
- * `.motion` (the ones that move things) don't run at all.
+ * setting) nothing transitions (a transition can't be told to skip `transform`), animations
+ * last at most --d-fast, and animations marked `.motion` (the ones that move things) don't
+ * run at all.
  */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -172,7 +173,7 @@ svg {
   *::after {
     animation-duration: 120ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 120ms !important;
+    transition: none !important;
     scroll-behavior: auto !important;
   }
 
@@ -189,7 +190,7 @@ svg {
 :root[data-motion="reduce"] *::after {
   animation-duration: 120ms !important;
   animation-iteration-count: 1 !important;
-  transition-duration: 120ms !important;
+  transition: none !important;
 }
 
 :root[data-motion="reduce"] .motion,

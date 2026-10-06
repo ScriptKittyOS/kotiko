@@ -53,6 +53,7 @@
   --ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
   --ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
   --target-min: 24px;
+  --target-pad: max(0px, (var(--target-min) - 1em) / 2);
   --lang-1: #C8641E;
   --lang-2: #0E66C8;
   --lang-3: #AF71F2;
@@ -332,6 +333,12 @@
   .k-card[data-side="above"].k-enter {
     animation: k-fade var(--d-fast) linear both;
   }
+}
+
+/* Kotiko's own "Reduce motion" setting (27 §4), set on the root by popover.js. */
+.k-reduce .k-enter,
+.k-reduce .k-card[data-side="above"].k-enter {
+  animation: k-fade var(--d-fast) linear both;
 }
 
 @keyframes k-fade {

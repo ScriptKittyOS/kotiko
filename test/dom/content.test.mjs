@@ -144,6 +144,53 @@ describe("swapping", () => {
 // DECISIONS "Buttons and menus stay in the learner's own language" and slice 16's control
 // rules, done early after a maintainer report: toggles labelled "AOI I" / "AOI II" showed
 // "AOI Я" for a learner who saved я ("I").
+describe("screen readers and keyboards (slice 27 §2)", () => {
+  const heard = (el) => [...(el.querySelector("kotiko-sr")?.childNodes ?? [])].map((c) => (c.nodeType === 1 ? `${c.textContent}@${c.lang}` : c.textContent));
+
+  test("by default the word is the element's only text, in its own language, and no Tab stop", async () => {
+    const { spans } = await load(`<p id="p">House prices are up.</p>`);
+    const [w] = spans();
+    assert.equal(w.textContent, "Дом");
+    assert.equal(w.lang, "ru");
+    assert.deepEqual(w.getAttributeNames().sort(), ["class", "dir", "lang", "translate"]);
+    assert.equal(w.querySelector("kotiko-sr, kotiko-v"), null);
+  });
+
+  test("the original word: shown word hidden from screen readers, the page's own text in the page's language", async () => {
+    const { spans, $ } = await load(`<p id="p">House prices are up.</p>`, { prefs: { screenReader: "original" } });
+    const [w] = spans();
+    assert.equal(w.querySelector("kotiko-v").textContent, "Дом");
+    assert.equal(w.querySelector("kotiko-v").getAttribute("aria-hidden"), "true");
+    assert.deepEqual(heard(w), ["House@en"], "the page's own capitals, tagged with the page text's language");
+    assert.equal(w.lang, "ru");
+    assert.equal($("p").textContent, "ДомHouse prices are up.", "both are in the DOM (the setting says sites can read it)");
+  });
+
+  test("both: the word, then the original, each in its own language", async () => {
+    const { spans } = await load(`<p>thanks for the house</p>`, { words: [WORDS[0]], prefs: { screenReader: "both" } });
+    assert.deepEqual(heard(spans()[0]), ["дом@ru", ", ", "house@en"]);
+  });
+
+  test("a Spanish page: the hidden original is tagged Spanish", async () => {
+    const perro = word("dog", "perro", ["perro"], "en", { base_lang: "es" });
+    const { spans } = await load(`<p>el perro duerme</p>`, { words: [perro], lang: "es", baseLangs: ["es"], prefs: { screenReader: "original" } });
+    assert.equal(spans()[0].lang, "en");
+    assert.deepEqual(heard(spans()[0]), ["perro@es"]);
+  });
+
+  test("changing the setting re-swaps in place; Tab stops come and go with their switch", async () => {
+    const { spans, set } = await load(`<p id="p">My house is here.</p>`);
+    await set({ prefs: { screenReader: "original", keyboardSwaps: true } });
+    await sleep(FLUSH_MS);
+    assert.deepEqual(heard(spans()[0]), ["house@en"]);
+    assert.equal(spans()[0].getAttribute("tabindex"), "0");
+    await set({ prefs: {} });
+    await sleep(FLUSH_MS);
+    assert.equal(spans()[0].textContent, "дом");
+    assert.equal(spans()[0].hasAttribute("tabindex"), false);
+  });
+});
+
 describe("controls stay as the site wrote them", () => {
   const I = word("я", "I", ["I"], "ru", { language: "Russian" });
   const CTL_WORDS = [...WORDS, I];

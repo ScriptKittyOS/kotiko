@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Built (2026-10-05), English only; manual screen-reader passes not done yet; see Implementation notes |
 | **Priority** | P0 (before public release) |
 | **Size** | M (about a week, spread across the UI slices) |
 | **Depends on** | [06-design-system](../06-design-system/SPEC.md), [50-ui-localization-and-base-language](../50-ui-localization-and-base-language/SPEC.md) (base languages, `KotikoI18n.t()`) |
@@ -274,3 +274,179 @@ respect reduced motion."
 - An accessibility statement page on the docs site ([44](../44-docs-site/SPEC.md)).
 - TalkBack and VoiceOver iOS passes with [45](../45-firefox-android/SPEC.md) and
   [51](../51-safari-port/SPEC.md).
+
+## Implementation notes
+
+Built 2026-10-05, stacked on slices 12, 28 and 25. English only
+([DECISIONS 2026-10-05](../DECISIONS.md)): the `es` locale runs, acceptance criteria and copy
+above are out of scope; new strings are in `_locales/en` only.
+
+Primary sources: [WCAG 2.2](https://www.w3.org/TR/WCAG22/) and its Understanding documents
+for [2.4.11](https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html),
+[2.5.8](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html),
+[1.4.12](https://www.w3.org/WAI/WCAG22/Understanding/text-spacing.html) ("where ellipses
+appear as a result of modifying text style properties, the page can still meet the Text
+Spacing requirements, so long as the content is still available", for instance on
+activation) and [1.4.13](https://www.w3.org/WAI/WCAG22/Understanding/content-on-hover-or-focus.html);
+the WAI-ARIA APG [modal dialog](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/)
+(Tab and Shift+Tab wrap inside, Esc closes, focus returns to the invoking element),
+[grid](https://www.w3.org/WAI/ARIA/apg/patterns/grid/), [listbox](https://www.w3.org/WAI/ARIA/apg/patterns/listbox/)
+(options hold no interactive content) and [tooltip](https://www.w3.org/WAI/ARIA/apg/patterns/tooltip/)
+patterns; HTML's [`inert`](https://html.spec.whatwg.org/multipage/interaction.html#the-inert-attribute);
+ACT rule [0ssw9k](https://www.w3.org/WAI/standards-guidelines/act/rules/0ssw9k/) (scrollable
+content reachable with the keyboard), which axe's `scrollable-region-focusable` implements.
+
+### The audit
+
+**Tool:** axe-core **4.13.0** (an exact dev dependency; 4.14.0 was published the same day and
+was passed over), injected through the DevTools protocol so nothing is added to the
+extension; plus Kotiko's own checks in `test/helpers/a11y-checks.mjs` for what axe can't
+judge (a Tab walk with a focus-indicator and "not obscured" test, 24 px target measurement,
+WCAG text-spacing overrides, 320 px reflow, moving animations under reduced motion). Axe ran
+with the `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22a`, `wcag22aa` tags, and with
+`best-practice` too for the audit.
+
+**Surfaces × themes:** 52 states (popup 14, dashboard 20, welcome 11, privacy policy 1, the
+word card and the toast on a light, a dark and a right-to-left page 6), each in light and
+dark (listed in `docs/accessibility.md`). The word card's closed shadow root is opened to
+axe for the test only (`exposePopover`); axe can't compute contrast inside the top layer, so
+the card's colors rest on `contrast.mjs` and `popover-tokens.mjs --check` (its tokens equal
+`tokens.css`).
+
+**Counts.** "Before" is this spec file run against the base branch
+(`origin/slice/25-plain-errors`, 85940b5) in report mode; one state (the popup's "Add it
+yourself") couldn't be reached there, because Esc in the picker's search field only cleared
+it. An instance is one rule or problem on one state in one theme.
+
+| | Before | After |
+|---|---|---|
+| axe, WCAG A/AA (all "serious") | 46 (target-size 18, scrollable-region-focusable 22, color-contrast 2, nested-interactive 2, list 2) | **0** |
+| axe, best practice | 76 (landmark-one-main 24 and page-has-heading-one 22, moderate; region 16 and heading-order 8, moderate; label-title-only 4, serious; aria-allowed-role 2, minor) | 8 (region, moderate) |
+| Keyboard walk (2.1.1, 2.4.3, 2.4.7, 2.4.11) | 632 | **0** |
+| Targets under 24 × 24 (2.5.8) | 389 | **0** |
+| Text cut by WCAG text spacing (1.4.12) | 40 | **0** (one documented exception below) |
+| Moving animations under reduced motion | 3 tests failing (the popup's switch, the word card with Kotiko's own setting) | **0** |
+
+The 1,183 instances before come from about 25 root causes; the table below lists them.
+
+### Findings and fixes
+
+| Issue | WCAG | Where | Fix (root) | Test |
+|---|---|---|---|---|
+| "Kotiko is off" dimmed the languages and page sections to 60 % opacity: tertiary text fell under 4.5:1 | 1.4.3 | popup | The dimming is gone; the switch's "Off" and the state line say it | a11y.spec "off, paused…" (axe) |
+| Links and link-styled buttons (Retry, Details, Skip, Edit, Privacy policy, the welcome's AI choices, the toast's Undo) were 18-20 px tall | 2.5.8 | everywhere | A `--target-pad` token (`(--target-min - 1em) / 2`) pads `.link` and `.details > summary` to the minimum without moving text; `.link` gets `min-width` when laid out as a box | a11y.spec target-size + axe |
+| Small controls: the language chip on an add result (22 px), the "For pages in" and bulk add checkboxes (13 px), the list's row checkboxes (18 px), the support-level badge (16 px), the settings back link (20 px) | 2.5.8 | popup, dashboard | The label or cell is the target (`.page-chip`, `.bulk-check`, `.bulk-control`, the row's check cell with `pointer-events: none` on the box), min-heights on `.lang-chip`, `.base-level`, `.back-link` | a11y.spec target-size |
+| The word list's scroll container (`#gridBody`) wasn't focusable, and Chromium made it an extra, unnamed Tab stop | 2.1.1 (ACT 0ssw9k) | dashboard | The grid itself (the list's one Tab stop) is the scroll container, under a sticky header row; virtualisation reads `#grid.scrollTop` | axe on every dashboard state; keyboard walk |
+| The add sheet (`aria-modal`) didn't keep Tab inside: focus went to the page behind it; dialogs and the narrow inspector relied on a hand-made Tab loop (it skipped `select`, `textarea` and links) and left the page behind reachable | 2.4.3, 1.3.1 (the `aria-modal` contract) | dashboard | One `openModal`/`closeModal` for every modal layer: everything else `inert` (backdrops and the toasts excepted), Tab wraps over the layer's real tabbables, layers stack, focus returns to where it was | keyboard walk on the add sheet, dialogs and narrow sheet; "focus goes back" assertions |
+| A sticky header covered the focused list on narrow screens; the bulk table's sticky header could cover a focused field | 2.4.11 | dashboard | `scroll-padding` on the page, the grid and the bulk table | keyboard walk "dashboard narrow: list" |
+| With "Add it yourself" open, the popup's middle region shrank to nothing, so Tab reached chips and switches you couldn't see | 2.4.11 | popup | `.middle` keeps at least 6 rem | keyboard walk "popup: add it yourself" |
+| The language picker's listbox options held buttons | 4.1.2 | popup | A plain list of buttons | axe "popup: language picker" |
+| Esc in the picker's search box only cleared it | 2.1.2 (APG dialog: Esc closes) | popup | Esc closes the picker from anywhere in it; focus goes back to the chip | a11y.spec (picker closes, chip focused) |
+| The restore preview printed "null" twice in its counts list | 1.3.1 (and a visible bug) | dashboard, Your data | Optional lines are filtered before `replaceChildren` | axe "restore preview dialog" |
+| The support-level tip vanished when the pointer moved onto it and couldn't be dismissed | 1.4.13 | dashboard settings | A hover bridge; Esc hides it (and does nothing else) until the pointer or focus leaves | a11y.spec "a tip shown on hover…" |
+| Transitions on `transform` (the switch's thumb, the skip link, a pressed button, a hovered shelf card) still ran under reduced motion | 2.3.3 (AAA) and 06 §9 | everywhere | Under reduced motion nothing transitions (`transition: none` in `base.css`, for the media query and `data-motion`) | reduced-motion tests (proved by reverting: the switch fails) |
+| The word card ignored Kotiko's own "Reduce motion" setting (it rose 4 px) | 06 §9, 27 §4 | pages | `createPopover({ reduceMotion })` sets `.k-reduce`; content.js passes `prefs.motion` | reduced-motion test, "Kotiko's own setting" (proved by reverting) |
+| With WCAG text spacing, the shelf's cards cut their language names (fixed height, one line) | 1.4.12, 1.4.10 | dashboard | Cards have a min-height and names wrap; the word in a row keeps its room before the romanization | text-spacing in every `check()` |
+| Esc didn't dismiss toasts (06 §10, 27 §3) | 2.2.1 support | dashboard | Esc dismisses the toast focus is in, else the newest when nothing else takes Esc | dom "Esc dismisses a toast" |
+| Best practice: no `<main>` in the popup, no `<h1>` on the welcome tab, an `h3` after the `h1` in the inspector, the bulk textarea named only by its placeholder, `role="dialog"` on an `<aside>` | 1.3.1 (best practice) | popup, welcome, dashboard | `<main>` for the popup's two views, the wordmark as `<h1>`, `h2`, an `aria-label`, a `div` | axe in report mode |
+
+Not fixed, best practice only (axe `region`, moderate): the dashboard's banners, selection
+bar and open menus sit outside a landmark. Menus are transient popups; the banners sit above
+both views' `<main>`. Recorded rather than wrapped in landmarks with no content of their own.
+
+**1.4.12 exception, by design:** the word list's virtualised rows are one line at a fixed
+height, so with text spacing a long romanization in a row ends in an ellipsis. Every field
+shows whole in the inspector (activation reveals it, as the Understanding document allows).
+The check skips `.wrow` and says why.
+
+### Spec sections
+
+- **§1** as the table above; the criteria not listed there were already met (1.3.4, 2.5.3
+  by slice 16, 2.5.7 by 13's "Choose a file" and the base list's Up/Down buttons, 3.3.x by
+  25, 13 and 22).
+- **§2.** Built: Settings → **Reading** (a new section, 21's planned "Reading") with
+  "Screen readers hear swapped words as" (the word I'm learning, default; the original
+  word; both; `prefs.screenReader`) and "Let me Tab to swapped words" (`prefs.keyboardSwaps`,
+  off). The engine (`content/engine.js`) takes `read` and `tab` on a plan item: the word
+  shows in `<kotiko-v aria-hidden="true">` and what's read is in a visually hidden
+  `<kotiko-sr>` (custom elements, so a site's `span` CSS can't reach them; `user-select:
+  none`, so copies don't double), with `<kotiko-l lang>` parts: the original carries the
+  language slice 16 resolved for that text (`baseFor`), and "both" joins the parts with
+  `Intl.ListFormat` in the interface language. The setting's help says "Sites can read this
+  text". Changing either setting re-swaps in place (they're in the swap's signature and in
+  `PAGE_PREFS`). The default markup is unchanged (`class,dir,lang,translate`). Chromium's
+  tree for "the original word" is the static texts "Come in, ", "please", ", and sit
+  down." (checked through the DevTools protocol). Reveal mode (35) isn't built, so the
+  override "while reveal mode is on" has nothing to hook yet.
+- **§3.** The widget patterns were already in place (20, 21, 19, 22) except the modal layers,
+  the picker and toast Esc above. **Deviation:** bulk add's review table stays a native
+  `<table>` of labelled form fields, not an APG `role="grid"` with cell navigation: every cell
+  is reachable with Tab and named, which meets 2.1.1 and 4.1.2, and a grid would trade
+  native form-field behaviour (typing, screen-reader forms mode) for a custom key model.
+  Recorded as a decision; revisit if testers ask for it.
+- **§4.** Reduced motion as above. Forced colors: the swap's underline uses `currentColor`,
+  which forced colors maps to the text's system color (`CanvasText`, or `LinkText` in a
+  link), so it stays visible without a rule of its own.
+- **§5.** The popover and toast set `lang` on their root to the interface language (19, kept);
+  focus never moves on a page except into a card opened from the keyboard. New: turning on
+  "Swap words in buttons and menus" shows "Voice control commands that use button names may
+  stop working."
+- **§6.** `test/e2e/a11y.spec.mjs` (axe, keyboard walk, targets, text spacing, reflow at
+  320 px and the popup at 200 %, reduced motion both ways, the word card),
+  `test/e2e/screen-reader.spec.mjs`, `test/unit/a11y-lint.test.mjs` (names from `_locales`
+  in HTML and scripts, icon-only buttons named, no positive `tabindex`, no `outline: none`
+  without a replacement; each rule proved by planting a violation), and `docs/accessibility.md`
+  with the manual checklist, linked from the release checklist in `docs/stores.md`.
+
+### Acceptance criteria
+
+| Criterion | Status | Test or reason |
+|---|---|---|
+| axe: zero A/AA violations on every page and state, both themes | Met in English; `es` out of scope | `test/e2e/a11y.spec.mjs` |
+| Every interactive element reachable by Tab or arrows, with a focus ring, never covered | Met | `tabWalk` in every `check()`, including the "removed from Tab but outside an arrow-key widget" check |
+| Dashboard and welcome page: no horizontal scroll at 320 px | Met (already true; now guarded) | a11y.spec "no horizontal page scroll at 320 CSS px" |
+| Reduced motion: no transform animation anywhere; celebrations show only their message | Met | a11y.spec reduced motion, system and setting (no confetti asserted) |
+| NVDA reads a swapped Spanish word in a Spanish voice; Alt+Shift+R reads the gloss in English | **Not done (manual)**: no screen reader in this environment. The markup it depends on (`lang` on the swap and on the gloss, the card as a dialog with focus inside) is tested | `docs/accessibility.md` checklist; popover.spec, screen-reader.spec |
+| Spanish page, base `es`: "dog" in an English voice, gloss "perro" in Spanish | **Not done (manual)**; the `lang` tags are tested | screen-reader.spec, content dom test "a Spanish page" |
+| The "original word" setting: NVDA reads "thanks"/"perro", the hidden text's `lang` is the page text's; unavailable in reveal mode | Built and tested in the accessibility tree; **NVDA run not done**; reveal mode doesn't exist yet | screen-reader.spec, content dom tests |
+| Every accessible name from `_locales`; axe passes in `es` | Met for names (lint); `es` out of scope | `test/unit/a11y-lint.test.mjs` |
+| Every toast's Undo has a non-timed equivalent | Met by reading the code (listed in `docs/accessibility.md`); the manual check stays in the release checklist | — |
+| No interactive element under 24 × 24 | Met (with WCAG's inline-link exception; the word card measured inside its root) | a11y.spec target-size |
+| `docs/accessibility.md` exists and the release checklist links it | Met | `docs/stores.md` |
+
+### Decisions
+
+- axe-core 4.13.0 rather than the 4.14.0 published the same day: a release with hours of
+  use is not what a CI gate should start on.
+- axe runs through `page.evaluate` rather than `@axe-core/playwright` (one dependency fewer;
+  the wrapper pins its own axe version).
+- The CI gate is WCAG A/AA rules only; best-practice rules are reported by `A11Y_REPORT`.
+- Target size is measured strictly (24 × 24 for every target, not WCAG's spacing
+  exception), as §6 asks; the inline-link exception and "the label is the target" are kept.
+- Under reduced motion nothing transitions at all (06 §9 allows "or none"): CSS can't drop
+  only `transform` from a transition list, so a global rule is the root fix.
+- The Reading settings live in a new "Reading" section, the one 21 planned for 31, 16, 37
+  and 43, as §2's rollout says.
+- The popup at 200 % zoom is tested at 400 × 300 CSS px (Chrome's popup window is at most
+  800 × 600 device px).
+
+### Budgets
+
+- Popup bytes at open: 130,633 → **130,857** of 131,072 (+224: the target-size token, the
+  `.link`/`summary` padding, `transition: none`, `<main>`, minus the removed dimming). 215
+  bytes are left. Own files 74,214 → 74,120 (under 80 KB). `popup-more` 9,968 → 10,233.
+- First paint, median of 10 opens, two runs each, same machine (load about 2.5): base 80
+  and 84 ms at 4× CPU, 132 and 126 ms at 6×; this branch 80 and 88 ms at 4×, 128 and 124
+  ms at 6×. The same within noise.
+- Content scripts: 96,796 → 100,159 bytes (the reader variants, the popover's reduce-motion
+  class, the focus and hidden-text CSS). `npm run perf` is within every budget.
+
+### Not done
+
+- The manual passes (NVDA, VoiceOver, Orca, Windows High Contrast, 200/400 % zoom by hand,
+  voice control) and the sessions with a screen-reader user and a keyboard-only user: the
+  checklist is ready in `docs/accessibility.md`.
+- The `es` locale runs (DECISIONS 2026-10-05).
+- Screenshot diffs of focus rings in the gallery (06's gallery doesn't exist yet); the walk
+  uses computed outlines and box-shadows, and a screenshot difference where there are none.
+- Firefox: the Playwright setup is Chromium only.

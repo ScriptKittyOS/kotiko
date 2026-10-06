@@ -13,7 +13,10 @@
 //   const E = KotikoEngine.create({ plan, skip, onSwap, onStatus });
 //   E.start();  E.reapply();  E.unwrapAll();  E.restoreWithin(el);  E.infoFor(el);  E.teardown();
 //
-//   plan({ text, node, edges }) -> [{ start, end, display, lang, info }] sorted, or []
+//   plan({ text, node, edges }) -> [{ start, end, display, lang, info, read?, tab? }] sorted, or []
+//     read: what screen readers hear instead of the word (27 §2), parts in order, each
+//     { text, lang } or a plain string: the word shows inside aria-hidden <kotiko-v> and
+//     the parts go in a visually hidden <kotiko-sr>. tab: the word is a Tab stop (27 §2).
 //     edges() -> { before, after }: up to 16 characters of neighbouring inline text, or
 //     U+2029 at a block boundary (slice 14's ctx).
 //   skip(element) -> true when the element's text must be left alone (slice 16); asked for
@@ -84,7 +87,7 @@
       return t;
     }
 
-    const signature = (items) => JSON.stringify(items.map((m) => [m.start, m.end, m.display, m.lang]));
+    const signature = (items) => JSON.stringify(items.map((m) => [m.start, m.end, m.display, m.lang, m.read ?? null, !!m.tab]));
 
     function swap(T, original, items) {
       const frag = doc.createDocumentFragment();
@@ -96,7 +99,24 @@
         el.dir = "auto"; // isolates right-to-left words from the text around them
         el.setAttribute("translate", "no"); // machine translation leaves the word alone (43)
         el.className = "notranslate";
-        el.textContent = m.display;
+        if (m.tab) el.tabIndex = 0;
+        if (m.read) {
+          // Custom elements, so the page's own CSS for span can't reach them.
+          const shown = doc.createElement("kotiko-v");
+          shown.setAttribute("aria-hidden", "true");
+          shown.textContent = m.display;
+          const heard = doc.createElement("kotiko-sr");
+          for (const p of m.read) {
+            if (typeof p === "string") heard.append(p);
+            else {
+              const part = doc.createElement("kotiko-l");
+              part.lang = p.lang;
+              part.textContent = p.text;
+              heard.append(part);
+            }
+          }
+          el.append(shown, heard);
+        } else el.textContent = m.display;
         owned.add(el);
         info.set(el, { ...m.info, T });
         frag.append(el);

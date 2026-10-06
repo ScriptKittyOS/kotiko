@@ -928,7 +928,7 @@
       return el("figure", { class: "preview", "data-base": base }, el("figcaption", {}, el("span", {}, nameOf(base) && bases.length > 1 ? `${t("welcome_preview_caption")} · ${nameOf(base)}` : t("welcome_preview_caption")), edit), before, after);
     });
     box.replaceChildren(...figures.filter(Boolean));
-    state.popover ??= globalThis.KotikoPopover?.createPopover({ infoFor: (el2) => previewInfo.get(el2) ?? null });
+    state.popover ??= globalThis.KotikoPopover?.createPopover({ infoFor: (el2) => previewInfo.get(el2) ?? null, reduceMotion: () => document.documentElement.dataset.motion === "reduce" });
     try {
       state.popover?.install();
     } catch {

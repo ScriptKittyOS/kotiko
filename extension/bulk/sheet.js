@@ -30,7 +30,7 @@
     let seq = 0;
     let timer = 0;
 
-    const area = el("textarea", { class: "field bulk-text", id: "bulkText", rows: "5", dir: "auto", spellcheck: "false", "aria-describedby": "bulkHint", placeholder: [t("bulk_paste"), t("bulk_example_1"), t("bulk_example_2"), t("bulk_example_3"), t("bulk_example_4")].join("\n") });
+    const area = el("textarea", { class: "field bulk-text", id: "bulkText", rows: "5", dir: "auto", spellcheck: "false", "aria-label": t("bulk_title"), "aria-describedby": "bulkHint", placeholder: [t("bulk_paste"), t("bulk_example_1"), t("bulk_example_2"), t("bulk_example_3"), t("bulk_example_4")].join("\n") });
     const fileInput = el("input", { type: "file", accept: ".txt,.csv,.tsv,.json,text/plain,text/csv,application/json", hidden: true, onchange: () => files(fileInput.files) });
     const hint = el("p", { class: "bulk-hint", id: "bulkHint" }, t("bulk_drop_hint"), " ", el("button", { class: "btn btn-secondary btn-sm", type: "button", "data-action": "choose-file", onclick: () => fileInput.click() }, t("bulk_choose_file")));
     const controls = el("div", { class: "bulk-controls" });
@@ -437,7 +437,7 @@
       const cell = (field, value, lang) => el("td", {}, el("input", { class: "field field-sm", value: value ?? "", dir: "auto", lang: lang || null, "aria-label": t(`bulk_col_${field === "gloss" ? "meaning" : field === "native" ? "word" : field}`), "data-field": field, onchange: (e) => edit(r, field, e.target.value) }));
       const [ic] = STATUS[r.status];
       return el("tr", { "data-status": r.status, "data-row": String(r.id) },
-        el("td", {}, el("input", { type: "checkbox", checked: r.ticked, disabled: r.status === "problem" || r.status === "queued", "aria-label": t("bulk_col_add"), onchange: (e) => ((r.ticked = e.target.checked), render()) })),
+        el("td", {}, el("label", { class: "bulk-check" }, el("input", { type: "checkbox", checked: r.ticked, disabled: r.status === "problem" || r.status === "queued", "aria-label": t("bulk_col_add"), onchange: (e) => ((r.ticked = e.target.checked), render()) }))),
         cell("native", r.native, langOf(r)),
         cell("gloss", (r.forms.length ? r.forms : [r.gloss]).filter(Boolean).join(", "), st.base),
         showRom ? cell("romanization", r.romanization) : null,

@@ -13,6 +13,8 @@
 
 html {
   background: var(--canvas);
+  /* What focus scrolls into view stops below the sticky header (27 §1, WCAG 2.4.11). */
+  scroll-padding-block-start: calc(64px + var(--s-4));
 }
 
 body {
@@ -176,7 +178,8 @@ body {
   flex-direction: column;
   align-items: flex-start;
   width: 168px;
-  height: 116px;
+  /* min-height, so WCAG's text spacing (1.4.12) grows the card rather than cutting its text. */
+  min-height: 116px;
   padding: var(--s-5) var(--s-6) var(--s-5);
   border: 0;
   border-radius: var(--r-lg);
@@ -200,24 +203,21 @@ body {
   box-shadow: inset 0 0 0 2px var(--primary);
 }
 
+/* A long language name wraps and the card grows, rather than being cut (1.4.10, 1.4.12). */
 .shelf-title {
   max-width: 100%;
-  overflow: hidden;
   font: var(--t-word) var(--font-word);
   font-size: 1.25rem;
   line-height: 1.75rem;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
   unicode-bidi: plaintext;
 }
 
 .shelf-sub {
   max-width: 100%;
-  overflow: hidden;
   font: var(--t-small) var(--font-ui);
   color: var(--ink-3);
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
 .shelf-foot {
@@ -492,15 +492,22 @@ body {
   box-shadow: var(--e-1), inset 0 0 0 1px color-mix(in srgb, var(--divider) 70%, transparent);
 }
 
+/* The grid is the list's scroll container, so its one tab stop is also what scrolls
+   (WCAG 2.1.1; axe's scrollable-region-focusable). The header row sticks; rows scrolled
+   to by the keyboard stop below it (2.4.11). */
 .grid {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
+  overflow-y: auto;
+  scroll-padding-block-start: 40px;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   border-radius: inherit;
 }
 
-/* The active row carries the focus ring, not the whole list. */
+/* focus ring: the active row carries it (.wrow.is-active), not the whole list. */
 .grid:focus-visible {
   outline: none;
 }
@@ -527,16 +534,14 @@ body {
 
 .grid-body {
   position: relative;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  flex: none;
 }
 
 .grid-head {
-  scrollbar-gutter: stable;
-  overflow: hidden;
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  background: var(--surface);
 }
 
 .grid-spacer {
@@ -593,6 +598,8 @@ body {
 .c-check {
   display: grid;
   place-items: center;
+  align-self: stretch;
+  cursor: pointer;
 }
 
 .check {
@@ -606,7 +613,7 @@ body {
   border-radius: 5px;
   background: var(--surface);
   opacity: 0;
-  cursor: pointer;
+  pointer-events: none;
   transition: opacity var(--d-fast) var(--ease-standard);
 }
 
@@ -651,7 +658,10 @@ body {
   white-space: nowrap;
 }
 
+/* The word keeps its room; the romanization beside it gives way first. */
 .w-native {
+  flex-shrink: 0;
+  max-width: 100%;
   overflow: hidden;
   font: var(--t-word) var(--font-word);
   color: var(--ink);
@@ -1521,6 +1531,7 @@ mark.hit {
   white-space: nowrap;
 }
 
+/* focus ring: the inset box-shadow below. */
 .menu-item:hover,
 .menu-item:focus-visible {
   background: var(--sunken);
@@ -1672,6 +1683,7 @@ kbd {
 .back-link {
   display: inline-flex;
   align-items: center;
+  min-height: var(--target-min);
   gap: var(--s-3);
   font: var(--t-body-strong) var(--font-ui);
   color: var(--ink-2);
@@ -1811,6 +1823,9 @@ kbd {
 }
 
 .base-level {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
   padding: 0 var(--s-3);
   border-radius: var(--r-xs);
   background: var(--sunken);
@@ -1838,8 +1853,19 @@ kbd {
   font: var(--t-small) var(--font-ui);
 }
 
-.base-level:hover + .base-tip,
-.base-level:focus-visible + .base-tip {
+/* 1.4.13: the tip stays while the pointer moves onto it (the ::before bridges the gap), and
+   Esc hides it until the pointer or focus leaves (.tip-off, dashboard.js). */
+.base-tip::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 100%;
+  height: var(--s-2);
+}
+
+.base-level:not(.tip-off):hover + .base-tip,
+.base-level:not(.tip-off):focus-visible + .base-tip,
+.base-level:not(.tip-off) + .base-tip:hover {
   display: block;
 }
 
@@ -2215,7 +2241,7 @@ kbd {
 
   .shelf-card {
     width: 140px;
-    height: 104px;
+    min-height: 104px;
   }
 
   .search {
@@ -2421,6 +2447,16 @@ kbd {
   display: inline-flex;
   gap: var(--s-2);
   align-items: center;
+  min-height: var(--target-min);
+}
+
+/* A row's checkbox: its label is the 24 px target (2.5.8). */
+.bulk-check {
+  display: inline-grid;
+  place-items: center;
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  cursor: pointer;
 }
 
 .bulk-note {
@@ -2438,6 +2474,8 @@ kbd {
 .bulk-scroll {
   max-height: 50vh;
   overflow: auto;
+  /* A field focused by Tab stops below the sticky header row (2.4.11). */
+  scroll-padding-block-start: 3rem;
 }
 
 .bulk-table {

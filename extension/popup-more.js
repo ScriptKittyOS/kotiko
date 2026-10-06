@@ -30,7 +30,8 @@
     // own name or its code. Resolves with the tag, or null when closed.
     function pickLanguage({ anchor = null, first = [] }) {
       return new Promise((resolve) => {
-        const list = el("ul", { class: "picker-list", role: "listbox", "aria-label": t("lang_picker_title") });
+        // A list of buttons (27 §3): a listbox's options can't hold buttons (WCAG 4.1.2).
+        const list = el("ul", { class: "picker-list", "aria-label": t("lang_picker_title") });
         const search = el("input", { class: "field", type: "search", placeholder: t("lang_search"), "aria-label": t("lang_search"), "aria-controls": "pickerList" });
         list.id = "pickerList";
         const dialog = el("dialog", { class: "picker", "aria-label": t("lang_picker_title") }, search, list);
@@ -40,7 +41,7 @@
           anchor?.focus();
           resolve(lang);
         };
-        const option = (o) => el("li", { role: "option" }, el("button", { type: "button", class: "picker-option", "data-lang": o.lang, onclick: () => done(o.lang) },
+        const option = (o) => el("li", {}, el("button", { type: "button", class: "picker-option", "data-lang": o.lang, onclick: () => done(o.lang) },
           el("span", {}, o.name), o.endonym && o.endonym !== o.name ? el("span", { class: "picker-endonym", lang: o.lang, dir: "auto" }, o.endonym) : null));
         const show = async () => {
           const q = search.value.trim().toLocaleLowerCase(I18n.locale());
@@ -52,6 +53,8 @@
         };
         search.addEventListener("input", show);
         dialog.addEventListener("cancel", (e) => (e.preventDefault(), done(null)));
+        // Esc closes it from the search field too (there, the browser would only clear the text).
+        dialog.addEventListener("keydown", (e) => e.key === "Escape" && (e.preventDefault(), done(null)));
         dialog.addEventListener("click", (e) => e.target === dialog && done(null));
         document.body.append(dialog);
         show();

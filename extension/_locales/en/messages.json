@@ -5008,5 +5008,45 @@
   "error_copied": {
     "message": "Copied",
     "description": "Shown on the Copy details button after copying."
+  },
+  "dash_set_reading": {
+    "message": "Reading",
+    "description": "Settings section title (slice 27 §2): how swapped words are read by screen readers and reached with the keyboard."
+  },
+  "dash_screen_reader": {
+    "message": "Screen readers hear swapped words as",
+    "description": "Settings → Reading (slice 27 §2): label of the choice of what a screen reader reads on a swapped word."
+  },
+  "dash_screen_reader_target": {
+    "message": "The word I'm learning",
+    "description": "Settings → Reading: screen readers read the swapped word, in its own language's voice (the default)."
+  },
+  "dash_screen_reader_original": {
+    "message": "The original word",
+    "description": "Settings → Reading: screen readers read the page's own word instead of the swapped one."
+  },
+  "dash_screen_reader_both": {
+    "message": "Both",
+    "description": "Settings → Reading: screen readers read the swapped word, then the page's own word."
+  },
+  "dash_screen_reader_help": {
+    "message": "The word you're learning is read in its own language's voice. To hear its meaning, use Show details on it (Alt+Shift+R unless you changed it).",
+    "description": "Help under the screen-reader choice when it reads the word being learned. Alt+Shift+R is the default shortcut (slice 33)."
+  },
+  "dash_screen_reader_page_text": {
+    "message": "Sites can read this text: the page's own word goes back into the page, hidden, next to each swapped word.",
+    "description": "Help under the screen-reader choice when it reads the original word, or both (slice 27 §2): the original text is put back into the web page's code."
+  },
+  "dash_keyboard_swaps": {
+    "message": "Let me Tab to swapped words",
+    "description": "Settings → Reading (slice 27 §2): switch that makes every swapped word on a page a Tab stop."
+  },
+  "dash_keyboard_swaps_help": {
+    "message": "Each swapped word becomes a stop for the Tab key, and Enter shows its details. Off by default, because a long page gets a stop for every word Kotiko swapped.",
+    "description": "Help under the Tab-to-swapped-words switch."
+  },
+  "dash_swap_controls_warning": {
+    "message": "Voice control commands that use button names may stop working.",
+    "description": "Warning under the buttons-and-menus switch while it is on (slice 27 §5, WCAG 2.5.3): a swapped word in a button's name breaks commands like “click Send”."
   }
 }

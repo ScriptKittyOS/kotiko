@@ -5,6 +5,19 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Kotiko's pages and word card work with keyboards and screen readers, and respect reduced
+  motion. Every control in the popup, the dashboard, the welcome tab and the word card can
+  be reached with Tab and shows a focus ring that nothing covers; dialogs keep Tab inside
+  and Esc closes them, putting you back where you were; buttons and links are at least
+  24 × 24 pixels; and with "reduce motion" on (your system's setting or Kotiko's own) nothing
+  slides or grows, the word card included. New in Settings, "Reading": choose what screen
+  readers hear on a swapped word (the word you're learning, the original word, or both),
+  and "Let me Tab to swapped words". Turning on swaps in buttons and menus now warns that
+  voice control commands may stop working. Fixed on the way: the restore preview showed
+  the word "null", the "Kotiko is off" state made text too faint to read, and long language
+  names on the dashboard's shelf were cut off. `docs/accessibility.md` lists the automated
+  checks and the screen-reader pass done before each release.
+
 - Clearer messages that tell you what still works and what to do next. When your server is
   down or you're offline, Kotiko says your words still work on pages. When word lookup is
   busy, out of free lookups or not set up, it says you can add the word yourself. A text too
