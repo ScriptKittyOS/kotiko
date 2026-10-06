@@ -5,7 +5,7 @@
 // Starlight's footer (edit link, previous and next) plus the project's own line: the
 // license, the trademark note and the privacy promise this site keeps.
 import Default from "@astrojs/starlight/components/Footer.astro";
-import { site } from "../config";
+import { openssf, site } from "../config";
 ---
 
 <Default />
@@ -17,6 +17,11 @@ import { site } from "../config";
   <p>
     This site sets no cookies, has no analytics and loads nothing from other sites. It is hosted on GitHub Pages
     behind Cloudflare, which see visitors' IP addresses, as any web host does.
+  </p>
+  <p>
+    <a class="kotiko-badge" href={openssf.url} aria-label={`OpenSSF Best Practices: ${openssf.level}`}>
+      <span>OpenSSF Best Practices</span> <span class={`level level-${openssf.level}`}>{openssf.level}</span>
+    </a>
   </p>
   <p>
     <a href="/privacy/">Privacy policy</a> · <a href={site.repo}>Source code</a> · <a href={site.issues}>Report a problem</a>
@@ -33,5 +38,36 @@ import { site } from "../config";
   }
   .kotiko-footer p + p {
     margin-top: 0.5rem;
+  }
+  /* The badge, drawn here rather than loaded from bestpractices.dev (see config.ts). */
+  .kotiko-badge {
+    display: inline-flex;
+    border-radius: 4px;
+    overflow: hidden;
+    font-size: var(--sl-text-xs);
+    line-height: 1.8;
+    text-decoration: none;
+    border: 1px solid var(--sl-color-hairline-light);
+  }
+  .kotiko-badge span {
+    padding: 0 0.5rem;
+  }
+  .kotiko-badge span:first-child {
+    background: var(--sl-color-gray-6);
+    color: var(--sl-color-white);
+  }
+  .kotiko-badge .level {
+    text-transform: capitalize;
+    font-weight: 600;
+    color: #1b1b1b;
+  }
+  .kotiko-badge .level-passing {
+    background: #c9a227;
+  }
+  .kotiko-badge .level-silver {
+    background: #c0c6cc;
+  }
+  .kotiko-badge .level-gold {
+    background: #e2b437;
   }
 </style>
