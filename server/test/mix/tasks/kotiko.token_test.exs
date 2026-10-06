@@ -31,6 +31,7 @@ defmodule Mix.Tasks.Kotiko.TokenTest do
     File.write!(path, """
     # comment
     API_TOKEN=
+    API_TOKEN_FILE=
     PUBLIC_URL=
     BIND=127.0.0.1
     PORT=4747
@@ -98,6 +99,38 @@ defmodule Mix.Tasks.Kotiko.TokenTest do
 
     assert_raise Mix.Error, ~r/API_TOKEN is set in .env/, fn ->
       Task.run(["--env-file", file, "--rotate"])
+    end
+  end
+
+  test "uses API_TOKEN_FILE like the server does", %{tmp_dir: dir} do
+    token = String.duplicate("f", 40)
+    secret = Path.join(dir, "api-token-secret")
+    File.write!(secret, token <> "\n")
+
+    Task.run(["--env-file", env_file(dir, "API_TOKEN_FILE=#{secret}")])
+    out = output()
+
+    assert out =~ "API token (from API_TOKEN_FILE, #{secret}):\n#{token}\n"
+    refute File.exists?(Token.path(Path.join(dir, "data")))
+  end
+
+  test "--rotate refuses when API_TOKEN_FILE is set", %{tmp_dir: dir} do
+    secret = Path.join(dir, "api-token-secret")
+    File.write!(secret, String.duplicate("f", 40))
+    file = env_file(dir, "API_TOKEN_FILE=#{secret}")
+
+    assert_raise Mix.Error, ~r/replace that file's contents/, fn ->
+      Task.run(["--env-file", file, "--rotate"])
+    end
+  end
+
+  test "API_TOKEN and API_TOKEN_FILE together are refused", %{tmp_dir: dir} do
+    secret = Path.join(dir, "api-token-secret")
+    File.write!(secret, String.duplicate("f", 40))
+    file = env_file(dir, "API_TOKEN=#{String.duplicate("a", 48)}\nAPI_TOKEN_FILE=#{secret}")
+
+    assert_raise Mix.Error, ~r/API_TOKEN and API_TOKEN_FILE=.* \(both set\)/, fn ->
+      Task.run(["--env-file", file])
     end
   end
 

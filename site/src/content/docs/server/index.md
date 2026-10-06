@@ -48,6 +48,11 @@ prints it. `mix kotiko.token` (in `server/`) prints it again, with a pairing str
 your own, set `API_TOKEN` in `.env` (at least 24 characters, for example from
 `openssl rand -hex 24`).
 
+Your keys don't have to be in `.env`: each one can live in its own file, with
+`LLM_API_KEY_FILE=/path/to/file` instead of `LLM_API_KEY=...` (and the same for the other
+keys). Replacing a key is then replacing its file and restarting. See
+[secrets in files](/server/configuration/#secrets-in-files).
+
 ## Connect Kotiko to it
 
 1. In Kotiko, open **Settings**, then **Your Kotiko server**.

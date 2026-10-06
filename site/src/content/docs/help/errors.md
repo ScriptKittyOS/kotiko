@@ -87,7 +87,8 @@ in `server/.env` and restart. See the [configuration reference](/server/configur
 <summary>For self-hosters</summary>
 
 The access key is the server's API token. In the `server` folder, `mix kotiko.token` prints
-it. If you set `API_TOKEN` in `.env`, it's that value.
+it. If you set `API_TOKEN` in `.env`, it's that value (or, with `API_TOKEN_FILE`, the
+contents of that file).
 
 </details>
 

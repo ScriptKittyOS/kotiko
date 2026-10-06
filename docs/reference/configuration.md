@@ -1,6 +1,6 @@
 # Server configuration reference
 
-Last reviewed: 2026-10-05.
+Last reviewed: 2026-10-06.
 
 Every setting the Kotiko server reads, the files it keeps, and the commands that manage
 them. The server is configured only through environment variables; `run.sh` reads them
@@ -11,6 +11,7 @@ learns a setting this page doesn't describe.
 - [Settings](#settings): [network](#port), [API token](#api_token), [model](#llm_api_key),
   [Telegram](#telegram_bot_token), [voice notes](#transcribe_url), [data and
   logs](#kotiko_data_dir)
+- [Secrets in files](#secrets-in-files)
 - [Other variables](#other-variables)
 - [Files in the data folder](#files-in-the-data-folder)
 - [`mix kotiko.token`](#mix-kotikotoken)
@@ -29,7 +30,10 @@ learns a setting this page doesn't describe.
   setting to fix and how, and exits with status 78. The systemd unit from
   `install-service.sh` doesn't retry on status 78, so fix `.env` and restart by hand. A
   message about a secret (`API_TOKEN`, `LLM_API_KEY`, `TELEGRAM_BOT_TOKEN`,
-  `TRANSCRIBE_API_KEY`) never repeats its value.
+  `TRANSCRIBE_API_KEY`) never repeats its value, whether it came from `.env` or from a
+  file.
+- **Secrets can live in their own files** instead of `.env`: set `LLM_API_KEY_FILE` to a
+  file's path, and so on for each secret. See [Secrets in files](#secrets-in-files).
 - **Warnings** don't stop the server: a missing OpenRouter key, an old setting name, and a
   `KOTIKO_` name the server doesn't know ("did you mean KOTIKO_DATA_DIR?").
 - The source of truth is `Kotiko.Config` (`server/lib/kotiko/config.ex`);
@@ -91,7 +95,9 @@ The token the extension sends as `Authorization: Bearer <token>` (see the
 - Allowed: at least 24 characters. Example: the output of `openssl rand -hex 24`.
 - Wrong: a shorter token stops the server (the message gives its length, not its value).
 - To replace the saved token: `mix kotiko.token --rotate`, then restart. With
-  `API_TOKEN` set, edit `.env` instead.
+  `API_TOKEN` set, edit `.env` instead; with [`API_TOKEN_FILE`](#api_token_file), replace
+  the file's contents.
+- Or from a file: [`API_TOKEN_FILE`](#api_token_file).
 
 ### `LLM_API_KEY`
 
@@ -102,6 +108,7 @@ The key for the model API that works out which word you mean. A secret.
   needs no key.
 - Example: a key from <https://openrouter.ai/keys>.
 - Sent only to `LLM_URL`.
+- Or from a file: [`LLM_API_KEY_FILE`](#llm_api_key_file).
 
 ### `LLM_URL`
 
@@ -133,6 +140,7 @@ The token of your own Telegram bot, from @BotFather, to add words from your phon
   `_` or `-`. Wrong: anything else stops the server.
 - With a token and no [`ALLOWED_TELEGRAM_IDS`](#allowed_telegram_ids), the bot answers
   every message only with the sender's Telegram ID and how to allow it.
+- Or from a file: [`TELEGRAM_BOT_TOKEN_FILE`](#telegram_bot_token_file).
 
 ### `ALLOWED_TELEGRAM_IDS`
 
@@ -163,13 +171,19 @@ The model name sent with each voice note.
 Sent as `Authorization: Bearer <key>` to `TRANSCRIBE_URL`, for hosted services. A secret.
 
 - Default: none (a local whisper.cpp server needs none).
+- Or from a file: [`TRANSCRIBE_API_KEY_FILE`](#transcribe_api_key_file).
 
 ### `KOTIKO_DATA_DIR`
 
 The folder that holds your words and the server's files (see
 [Files in the data folder](#files-in-the-data-folder)).
 
-- Default: `~/.local/share/kotiko`. The server creates it if it's missing.
+- Default: `$XDG_DATA_HOME/kotiko`, or `~/.local/share/kotiko` when `XDG_DATA_HOME` isn't
+  set (or isn't an absolute path, which the XDG Base Directory spec says to ignore). The
+  server creates it if it's missing.
+- Words already in `~/.local/share/kotiko` stay there: while `$XDG_DATA_HOME/kotiko` has no
+  `kotiko.db` and `~/.local/share/kotiko` has one, the server keeps using
+  `~/.local/share/kotiko`. To move them, stop the server and move the folder.
 - Wrong: a folder the server can't create or write to stops the server.
 - The name it had before the rename still works for now, with a warning (see the README's
   section on updating from the old name).
@@ -208,12 +222,67 @@ word is said from its English Wiktionary page, sending only the word to
   pronunciation.
 - Wrong: a value that isn't true or false stops the server.
 
+## Secrets in files
+
+Each secret can be given as the path of a file that holds it, instead of the value itself:
+`NAME_FILE=/path/to/file` in place of `NAME=value`. This is the convention Docker secrets
+use, and it works with systemd credentials too. Your keys then stay out of `.env`, and
+replacing one means replacing its file and restarting the server; nothing is rebuilt and
+`.env` doesn't change.
+
+```bash
+install -m 600 /dev/null ~/.config/kotiko-llm-key   # an empty file only you can read
+$EDITOR ~/.config/kotiko-llm-key                    # paste the key
+echo "LLM_API_KEY_FILE=$HOME/.config/kotiko-llm-key" >> server/.env
+```
+
+- The file holds only the value. One line ending at its end is dropped; anything else is
+  kept as written, so don't add spaces or quotes.
+- The value is then checked like one set directly (an `API_TOKEN` of at least 24
+  characters, a bot token's shape).
+- The server stops with a message (status 78) when both `NAME` and `NAME_FILE` are set, or
+  the file is missing, unreadable, not a regular file, empty, longer than one line or over
+  64 KiB. The message names the setting and the path, never the contents.
+- A file that other users of the computer can read or change gets a warning at start:
+  `chmod 600` it.
+- The file is read once, when the server starts. A relative path is relative to `server/`.
+- `mix kotiko.token` reads `API_TOKEN_FILE` too.
+
+With systemd credentials, for example, a drop-in for the service
+(`systemctl --user edit kotiko`) can hand the server a key without it ever being in `.env`:
+
+```ini
+[Service]
+LoadCredential=llm_api_key:/home/you/.config/kotiko-llm-key
+Environment=LLM_API_KEY_FILE=%d/llm_api_key
+```
+
+### `API_TOKEN_FILE`
+
+A file holding [`API_TOKEN`](#api_token).
+
+### `LLM_API_KEY_FILE`
+
+A file holding [`LLM_API_KEY`](#llm_api_key). Example: `/run/secrets/llm_api_key` with
+Docker secrets.
+
+### `TELEGRAM_BOT_TOKEN_FILE`
+
+A file holding [`TELEGRAM_BOT_TOKEN`](#telegram_bot_token).
+
+### `TRANSCRIBE_API_KEY_FILE`
+
+A file holding [`TRANSCRIBE_API_KEY`](#transcribe_api_key).
+
 ## Other variables
 
-These are read by the scripts, not by the server's settings check.
+These are read by the scripts and for the default folders, not by the server's settings
+check.
 
 | Variable | Read by | Meaning |
 |---|---|---|
+| `XDG_DATA_HOME` | the server, `install-service.sh` | Where the default [data folder](#kotiko_data_dir) goes: `$XDG_DATA_HOME/kotiko`. `install-service.sh` passes the value it sees to the service, so the service and `./run.sh` use the same folder |
+| `XDG_CONFIG_HOME` | `install-service.sh` | Where the service file goes: `$XDG_CONFIG_HOME/systemd/user/kotiko.service`; default `~/.config`. A service file already in `~/.config/systemd/user` stays there |
 | `MIX_ENV` | `run.sh` | Build environment; default `prod`. Set it in your shell or `.env` |
 | `ERL_CRASH_DUMP_SECONDS` | `run.sh` | Default `0`: no crash dump file, because one would hold the server's memory, keys included |
 | `INSTALL_WAIT_SECONDS` | `install-service.sh` | How long to wait for `/health` after installing; default 20 |
@@ -222,7 +291,7 @@ These are read by the scripts, not by the server's settings check.
 
 | File | What it is | Permissions |
 |---|---|---|
-| `kotiko.db` (with `kotiko.db-wal` and `kotiko.db-shm` while running) | Your words, kept responses for repeated adds (24 hours), cached lookups (30 days), and the background jobs' state. SQLite | Created with your umask: usually readable by other users of the computer unless your umask is `077`. The default folder is inside your home folder. To keep it private: `chmod 700 ~/.local/share/kotiko` |
+| `kotiko.db` (with `kotiko.db-wal` and `kotiko.db-shm` while running) | Your words, kept responses for repeated adds (24 hours), cached lookups (30 days), and the background jobs' state. SQLite | Created with your umask: usually readable by other users of the computer unless your umask is `077`. The default folder is inside your home folder. To keep it private: `chmod 700` the data folder (usually `~/.local/share/kotiko`) |
 | `api-token` | The generated API token, when `API_TOKEN` isn't set | `0600`, written so no other user can read it at any moment |
 | `models-cache.json` | OpenRouter's model list as last read, used when the server starts offline | Your umask |
 | `backups/kotiko-pre-<version>-<time>.db` | A copy of the database made before an update changes it; the newest five are kept | Folder `0700`, files `0600` |

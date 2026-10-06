@@ -176,7 +176,7 @@ Where it is kept:
 
 | Mode | Words | Keys and tokens |
 |---|---|---|
-| Server | SQLite at `<data dir>/kotiko.db` (default `~/.local/share/kotiko`); the extension keeps a copy of the words pages need in `storage.local` | The server's token in `<data dir>/api-token` or `.env`; model and Telegram keys in `.env`. In the extension, the server token is in the IndexedDB store |
+| Server | SQLite at `<data dir>/kotiko.db` (default `$XDG_DATA_HOME/kotiko`, else `~/.local/share/kotiko`); the extension keeps a copy of the words pages need in `storage.local` | The server's token in `<data dir>/api-token` or `.env`; model and Telegram keys in `.env`. Any of them can be in its own file instead (`NAME_FILE`, docs/reference/configuration.md). In the extension, the server token is in the IndexedDB store |
 | Local | IndexedDB database `kotiko`, opened only by the background ([`lib/store.js`](../extension/lib/store.js)); a projection of the active words in `storage.local` for content scripts ([`lib/projection.js`](../extension/lib/projection.js)) | Model keys in the same IndexedDB store's `secrets`, which content scripts can't reach |
 
 The server also keeps a lookup cache, kept add responses (24 hours) and background-job
@@ -263,7 +263,7 @@ you choose; all are optional for the server except a model API.
 - Server: Elixir 1.15 or newer ([`server/mix.exs`](../server/mix.exs)). CI tests the
   oldest and newest supported pairs, Elixir 1.15.8 with OTP 26.2 and Elixir 1.19.2 with
   OTP 28.1 ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)). SQLite comes with
-  `ecto_sqlite3`. A systemd user service is installed by
+  `ecto_sqlite3`. A systemd user service is installed (and removed, with `--uninstall`) by
   [`server/install-service.sh`](../server/install-service.sh); Docker and other service
   managers are planned in slice [40](../slices/40-server-packaging-docker/SPEC.md).
 - Node 22 is for development only: tests, linting and tools
