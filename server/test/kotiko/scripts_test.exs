@@ -90,6 +90,20 @@ defmodule Kotiko.ScriptsTest do
       assert calls(ctx) == ["mix prod deps.loadpaths --no-compile", "mix prod run --no-halt"]
     end
 
+    test "starts the server with umask 077, so what it writes is private", ctx do
+      stub(ctx, "mix", ~s[echo "umask $(umask)" >> "#{ctx.calls}"])
+      write_env(ctx, "", 0o600)
+
+      # A loose umask in the shell it's started from doesn't matter.
+      {_, 0} =
+        System.cmd("bash", ["-c", "umask 022 && exec bash run.sh"],
+          cd: ctx.dir,
+          env: [{"PATH", "#{ctx.bin}:/usr/bin:/bin"}, {"HOME", ctx.home}, {"MIX_ENV", nil}]
+        )
+
+      assert "umask 0077" in calls(ctx)
+    end
+
     test "fetches dependencies when they are missing or out of date", ctx do
       stub(ctx, "mix", ~s(if [ "$1" = deps.loadpaths ]; then exit 1; fi))
       write_env(ctx, "", 0o600)
@@ -162,6 +176,8 @@ defmodule Kotiko.ScriptsTest do
 
       assert text =~ "\nRestartPreventExitStatus=78\n"
       assert text =~ "\nStartLimitBurst=5\n"
+      # Files the service makes are private from the moment they exist.
+      assert text =~ "\nUMask=0077\n"
 
       calls = calls(ctx)
       assert "mix prod compile" in calls

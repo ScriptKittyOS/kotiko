@@ -136,6 +136,7 @@ defmodule Kotiko.DataDirTest do
 
     assert File.dir?(ctx.target)
     assert File.ls!(ctx.target) == []
+    assert mode(ctx.target) == 0o700
     refute File.exists?(ctx.legacy_dir)
     assert log == ""
   end
@@ -326,6 +327,7 @@ defmodule Kotiko.DataDirTest do
       new = Path.join(ctx.target, "api-token")
       assert File.read!(new) == "the-old-token\n"
       assert mode(new) == 0o600
+      assert mode(ctx.target) == 0o700
 
       File.write!(new, "a-newer-token\n")
       assert {:ok, nil} = DataDir.copy_legacy_token(ctx.legacy_dir, ctx.target)
@@ -339,6 +341,138 @@ defmodule Kotiko.DataDirTest do
       File.mkdir_p!(ctx.legacy_dir)
       File.write!(Path.join(ctx.legacy_dir, "api-token"), "t\n")
       assert {:ok, nil} = DataDir.copy_legacy_token(ctx.legacy_dir, ctx.legacy_dir)
+    end
+  end
+
+  # ── make_private/1 (SCR-450) ────────────────────────────────────────
+  # The test process keeps the shell's umask (often 022), so what ends up 0600 or 0700
+  # was made private by the server.
+
+  describe "make_private/1" do
+    defp file!(path, mode, contents \\ "") do
+      File.mkdir_p!(Path.dirname(path))
+      File.write!(path, contents)
+      File.chmod!(path, mode)
+      path
+    end
+
+    test "a new folder: kotiko.db is made empty and 0600, so -wal and -shm are too", ctx do
+      {:ok, :fresh} = migrate(ctx)
+      log = capture_log(fn -> assert :ok = DataDir.make_private(ctx.target) end)
+      assert log == ""
+
+      database = DataDir.database(ctx.target)
+      assert mode(database) == 0o600
+      assert mode(ctx.target) == 0o700
+
+      {:ok, conn} = Sqlite3.open(database)
+
+      try do
+        create_tables(conn)
+        insert(conn, 1, 3)
+        assert mode(database <> "-wal") == 0o600
+        assert mode(database <> "-shm") == 0o600
+      after
+        Sqlite3.close(conn)
+      end
+    end
+
+    test "an install from before: Kotiko's files are made private, with one warning", ctx do
+      dir = ctx.target
+      File.mkdir_p!(dir)
+      File.chmod!(dir, 0o755)
+      database = file!(DataDir.database(dir), 0o644, "words")
+      wal = file!(database <> "-wal", 0o644)
+      shm = file!(database <> "-shm", 0o664)
+      token = file!(Path.join(dir, "api-token"), 0o600, "token")
+      cache = file!(Path.join(dir, "models-cache.json"), 0o644, "{}")
+      # A folder moved in place keeps the old name's database next to the new one.
+      legacy = file!(Path.join(dir, "slovo.db"), 0o644, "words")
+      note = file!(Path.join(dir, "MOVED-TO-KOTIKO.txt"), 0o644, "moved")
+      backup = file!(Path.join(dir, "backups/kotiko-pre-0.4.0-20261001T000000Z.db"), 0o644)
+      File.chmod!(Path.join(dir, "backups"), 0o755)
+
+      log = capture_log(fn -> assert :ok = DataDir.make_private(dir) end)
+
+      assert log =~
+               "Other users of this computer could open Kotiko's files in #{dir} " <>
+                 "(kotiko.db, kotiko.db-wal, kotiko.db-shm, models-cache.json, slovo.db, " <>
+                 "backups/kotiko-pre-0.4.0-20261001T000000Z.db, backups, the folder " <>
+                 "itself). Made them private: only your account can open them now."
+
+      for path <- [database, wal, shm, token, cache, legacy, backup],
+          do: assert(mode(path) == 0o600, path)
+
+      assert mode(Path.join(dir, "backups")) == 0o700
+      assert mode(dir) == 0o700
+      # The note says where the words went; nothing in it is private.
+      assert mode(note) == 0o644
+      assert File.read!(database) == "words"
+
+      # Once private, nothing more to say.
+      assert capture_log(fn -> DataDir.make_private(dir) end) == ""
+    end
+
+    test "a folder holding other files too is left as it is, with how to fix it", ctx do
+      dir = Path.join(ctx.root, "shared")
+      File.mkdir_p!(dir)
+      File.chmod!(dir, 0o755)
+      database = file!(DataDir.database(dir), 0o644)
+      theirs = file!(Path.join(dir, "notes.txt"), 0o644)
+
+      log = capture_log(fn -> DataDir.make_private(dir) end)
+
+      assert mode(database) == 0o600
+      assert mode(dir) == 0o755
+      assert mode(theirs) == 0o644
+      assert log =~ "could open Kotiko's files in #{dir} (kotiko.db)."
+
+      assert log =~
+               "Other users of this computer can open the data folder #{dir}. Kotiko's own " <>
+                 "files in it are private, but the folder holds other files too (or is a " <>
+                 "link), so Kotiko leaves it as it is. To make it private: chmod 700 #{dir}"
+    end
+
+    test "a data folder that is a link is left as it is, with a warning", ctx do
+      real = Path.join(ctx.root, "real")
+      File.mkdir_p!(real)
+      File.chmod!(real, 0o755)
+      link = Path.join(ctx.root, "link")
+      File.ln_s!(real, link)
+
+      log = capture_log(fn -> DataDir.make_private(link) end)
+
+      assert mode(DataDir.database(real)) == 0o600
+      assert mode(real) == 0o755
+      assert log =~ "can open the data folder #{link}."
+    end
+
+    test "a private folder that isn't only Kotiko's is fine as it is", ctx do
+      dir = Path.join(ctx.root, "mine")
+      File.mkdir_p!(dir)
+      File.chmod!(dir, 0o700)
+      file!(Path.join(dir, "notes.txt"), 0o644)
+
+      assert capture_log(fn -> DataDir.make_private(dir) end) == ""
+      assert mode(DataDir.database(dir)) == 0o600
+    end
+
+    test "a file it can't change gets a warning with the command that fixes it", ctx do
+      # A folder without the x bit: its files can't be reached until it's fixed.
+      dir = Path.join(ctx.root, "odd")
+      file!(DataDir.database(dir), 0o644)
+      File.chmod!(dir, 0o644)
+      on_exit(fn -> File.chmod(dir, 0o700) end)
+
+      log = capture_log(fn -> DataDir.make_private(dir) end)
+
+      assert log =~
+               "Couldn't make #{dir}/kotiko.db private (permission denied), so other " <>
+                 "users of this computer may be able to read it. To fix it: chmod 600 " <>
+                 "#{dir}/kotiko.db"
+
+      # The folder holds only Kotiko's files, so it was fixed.
+      assert mode(dir) == 0o700
     end
   end
 end

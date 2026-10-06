@@ -180,7 +180,7 @@ The folder that holds your words and the server's files (see
 
 - Default: `$XDG_DATA_HOME/kotiko`, or `~/.local/share/kotiko` when `XDG_DATA_HOME` isn't
   set (or isn't an absolute path, which the XDG Base Directory spec says to ignore). The
-  server creates it if it's missing.
+  server creates it if it's missing, readable only by you (`0700`).
 - Words already in `~/.local/share/kotiko` stay there: while `$XDG_DATA_HOME/kotiko` has no
   `kotiko.db` and `~/.local/share/kotiko` has one, the server keeps using
   `~/.local/share/kotiko`. To move them, stop the server and move the folder.
@@ -291,10 +291,28 @@ check.
 
 | File | What it is | Permissions |
 |---|---|---|
-| `kotiko.db` (with `kotiko.db-wal` and `kotiko.db-shm` while running) | Your words, kept responses for repeated adds (24 hours), cached lookups (30 days), and the background jobs' state. SQLite | Created with your umask: usually readable by other users of the computer unless your umask is `077`. The default folder is inside your home folder. To keep it private: `chmod 700` the data folder (usually `~/.local/share/kotiko`) |
+| `kotiko.db` (with `kotiko.db-wal` and `kotiko.db-shm` while running) | Your words, kept responses for repeated adds (24 hours), cached lookups (30 days), and the background jobs' state. SQLite | `0600`. The server creates it empty and private before SQLite opens it, and SQLite gives `-wal` and `-shm` the database's permissions |
 | `api-token` | The generated API token, when `API_TOKEN` isn't set | `0600`, written so no other user can read it at any moment |
-| `models-cache.json` | OpenRouter's model list as last read, used when the server starts offline | Your umask |
+| `models-cache.json` | OpenRouter's model list as last read, used when the server starts offline | `0600` |
 | `backups/kotiko-pre-<version>-<time>.db` | A copy of the database made before an update changes it; the newest five are kept | Folder `0700`, files `0600` |
+
+Only your account can open these files. At every start the server checks them before it
+opens the database:
+
+- Any of the files above that other users can open (say, from an install before this
+  check) is made `0600` again, and `backups/` `0700`. The server logs one warning that
+  names what it changed.
+- The data folder is made `0700` when it holds nothing but Kotiko's files. A folder with
+  anything else in it may be shared on purpose (`KOTIKO_DATA_DIR=~`, say), so the server
+  leaves it as it is and warns at every start, with the command that makes it private
+  (`chmod 700 <folder>`). Giving Kotiko a folder of its own stops the warning too.
+- A file it can't change (owned by another account, say) gets a warning with the
+  `chmod` that fixes it. The server starts either way.
+
+`run.sh` and the systemd service from `install-service.sh` also start the server with
+umask `077`, so a file it makes is private from the moment it exists. These are POSIX
+permissions (Linux, macOS, WSL). On Windows, keep the data folder on WSL's own disk, not
+on a Windows drive such as `/mnt/c`, which doesn't keep them; the server warns if it can't.
 
 To go back to a backup, see the README, "Updating". To start over, stop the server and
 delete `kotiko.db`.

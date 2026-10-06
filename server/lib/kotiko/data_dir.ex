@@ -26,15 +26,32 @@ defmodule Kotiko.DataDir do
   which the next run deletes before starting over. Then `MOVED-TO-KOTIKO.txt` in the old
   folder says where the words went, and the old API token is copied too, so the extension
   stays connected.
+
+  Then, at every start, `make_private/1` keeps other users of the computer out: a folder
+  it creates is 0700, and every file Kotiko keeps in it 0600 (an old `slovo.db` in the
+  data folder too: its permissions, never its contents).
   """
   require Logger
   alias Exqlite.Sqlite3
-  alias Kotiko.Token
+  alias Kotiko.{Private, Token}
 
   @database "kotiko.db"
   @legacy_database "slovo.db"
   @note "MOVED-TO-KOTIKO.txt"
   @partial_suffixes [".partial", ".partial-journal", ".partial-wal", ".partial-shm"]
+  @backups "backups"
+
+  # Every file Kotiko keeps in the data folder (install-service.sh --delete-data deletes
+  # the same list), made 0600 at each start.
+  @private_files ~w(kotiko.db kotiko.db-wal kotiko.db-shm kotiko.db-journal api-token
+                    api-token.new models-cache.json models-cache.json.tmp) ++
+                   Enum.map(@partial_suffixes, &(@database <> &1))
+
+  # The old name's database, still there in a folder that was moved in place.
+  @legacy_files Enum.map(["", "-wal", "-shm", "-journal"], &(@legacy_database <> &1))
+
+  # A data folder holding only these is Kotiko's, so make_private/1 makes it 0700.
+  @own_names @private_files ++ @legacy_files ++ [@backups, @note]
 
   @type result :: :existing | :fresh | {:migrated, non_neg_integer()}
 
@@ -79,8 +96,122 @@ defmodule Kotiko.DataDir do
     source = Application.get_env(:kotiko, :data_dir_source)
 
     case migrate(target, legacy_dirs(target, source, System.user_home())) do
-      {:ok, _result} -> target
-      {:error, message} -> Kotiko.Config.halt!(message, 1)
+      {:ok, _result} ->
+        make_private(target)
+        target
+
+      {:error, message} ->
+        Kotiko.Config.halt!(message, 1)
+    end
+  end
+
+  @doc """
+  Makes sure other users of the computer can't read the words, at every start, before
+  the database opens:
+
+    * `kotiko.db` is created empty and 0600 if it isn't there yet, so the `-wal` and
+      `-shm` files SQLite makes next to it are 0600 too.
+    * Kotiko's own files that others can open (an install from before this check, or a
+      file copied in) are made 0600, and the `backups` folder and its copies 0700 and
+      0600.
+    * The folder is made 0700 when it holds nothing but Kotiko's files: then it is
+      Kotiko's folder, whoever chose it. A folder with anything else in it may be shared
+      on purpose (`KOTIKO_DATA_DIR=~`, say), so it is left as it is, with a warning that
+      says how to make it private.
+
+  What was changed is logged as one warning (others could read it until now), and
+  anything that couldn't be changed as a warning with the command that fixes it. Never
+  stops the start. Returns `:ok`.
+  """
+  def make_private(dir) do
+    database = database(dir)
+    # If it can't be made, opening the database fails next, with its own message.
+    _ = Private.create(database)
+    backups = Path.join(dir, @backups)
+
+    files =
+      Enum.map(@private_files ++ @legacy_files, &Path.join(dir, &1)) ++
+        for name <- ls(backups),
+            String.starts_with?(name, "kotiko-"),
+            do: Path.join(backups, name)
+
+    results = Enum.map(files ++ [backups], &{&1, Private.restrict(&1)}) ++ folder(dir)
+
+    case for({path, :changed} <- results, do: path) do
+      [] ->
+        :ok
+
+      changed ->
+        Logger.warning(
+          "Other users of this computer could open Kotiko's files in #{dir} " <>
+            "(#{Enum.map_join(changed, ", ", &relative(&1, dir))}). Made them private: " <>
+            "only your account can open them now."
+        )
+    end
+
+    {ignored, failed} =
+      results
+      |> Enum.filter(&match?({_path, {:error, _why}}, &1))
+      |> Enum.split_with(&match?({_path, {:error, :ignored}}, &1))
+
+    # A disk that keeps no permissions ignores them for every file: say so once.
+    if ignored != [], do: Logger.warning(not_private(dir, :ignored))
+    Enum.each(failed, fn {path, {:error, why}} -> Logger.warning(not_private(path, why)) end)
+  end
+
+  # The folder itself: made private when it holds nothing but Kotiko's files.
+  # Sobelow: the data folder comes from the server's settings, never from a request.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp folder(dir) do
+    own? =
+      match?({:ok, %File.Stat{type: :directory}}, File.lstat(dir)) and
+        Enum.all?(ls(dir), &(&1 in @own_names))
+
+    case File.stat(dir) do
+      {:ok, %File.Stat{mode: mode}} ->
+        cond do
+          not Private.shared?(mode) -> []
+          own? -> [{dir, Private.restrict(dir)}]
+          true -> [{dir, {:error, :not_only_kotiko}}]
+        end
+
+      {:error, _} ->
+        []
+    end
+  end
+
+  defp not_private(dir, :not_only_kotiko) do
+    "Other users of this computer can open the data folder #{dir}. Kotiko's own files in " <>
+      "it are private, but the folder holds other files too (or is a link), so Kotiko " <>
+      "leaves it as it is. To make it private: chmod 700 #{dir}, or give Kotiko a folder " <>
+      "of its own with KOTIKO_DATA_DIR."
+  end
+
+  defp not_private(dir, :ignored) do
+    "Couldn't make Kotiko's files in #{dir} private: this disk doesn't keep file " <>
+      "permissions (a Windows drive in WSL, say), so other users of this computer may be " <>
+      "able to read your words. Keep the data folder on a disk that does (set " <>
+      "KOTIKO_DATA_DIR)."
+  end
+
+  # Sobelow: as make_private/1.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp not_private(path, reason) do
+    mode = if File.dir?(path), do: "700", else: "600"
+
+    "Couldn't make #{path} private (#{format(reason)}), so other users of this computer " <>
+      "may be able to read it. To fix it: chmod #{mode} #{path}"
+  end
+
+  defp relative(dir, dir), do: "the folder itself"
+  defp relative(path, dir), do: Path.relative_to(path, dir)
+
+  # Sobelow: folders under the configured data folder, never from a request.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp ls(dir) do
+    case File.ls(dir) do
+      {:ok, names} -> names
+      {:error, _} -> []
     end
   end
 
@@ -129,7 +260,7 @@ defmodule Kotiko.DataDir do
       {:ok, nil}
     else
       with {:ok, contents} <- File.read(from),
-           :ok <- File.mkdir_p(to_dir),
+           :ok <- Private.mkdir_p(to_dir),
            :ok <- Token.save(to, contents) do
         {:ok, from}
       else
@@ -153,7 +284,7 @@ defmodule Kotiko.DataDir do
   # Sobelow: the data folder comes from the server's settings, never from a request.
   # sobelow_skip ["Traversal.FileModule"]
   defp fresh(target) do
-    case File.mkdir_p(target) do
+    case Private.mkdir_p(target) do
       :ok -> {:ok, :fresh}
       {:error, reason} -> {:error, message({:io, "create the data folder", reason}, nil, target)}
     end
@@ -167,7 +298,7 @@ defmodule Kotiko.DataDir do
     database = database(target)
 
     result =
-      with :ok <- File.mkdir_p(target) |> io("create the data folder"),
+      with :ok <- Private.mkdir_p(target) |> io("create the data folder"),
            {:ok, conn} <- Sqlite3.open(legacy, mode: :readwrite) |> io("open the old database") do
         try do
           copy_locked(conn, legacy, target)
@@ -203,13 +334,14 @@ defmodule Kotiko.DataDir do
     with :ok <- lock(conn),
          :ok <- integrity(conn, :source_corrupt),
          {:ok, counts} <- counts(conn, :source_unreadable),
+         # Empty and 0600 before the words go in: VACUUM INTO keeps an empty file's mode.
+         :ok <- Private.create(partial) |> io("create the copy"),
          :ok <- Sqlite3.execute(conn, "VACUUM INTO " <> sql_string(partial)) |> io("copy it"),
          :ok <- verify(partial, counts),
          :ok <- fsync(partial) |> io("save the copy to disk"),
          :ok <- File.chmod(partial, 0o600) |> io("make the copy private"),
          :ok <- copy_token(Path.dirname(legacy), target),
          :ok <- File.rename(partial, database) |> io("rename the copy to #{database}") do
-      private_dir(target)
       {:ok, counts.words}
     end
   end
@@ -307,17 +439,6 @@ defmodule Kotiko.DataDir do
 
       {:error, reason} ->
         Logger.warning("Couldn't write #{Path.join(dir, @note)}: #{format(reason)}")
-    end
-  end
-
-  # Best effort: the database is already private, and a shared folder someone chose may
-  # not be theirs to change.
-  # Sobelow: the data folder comes from the server's settings, never from a request.
-  # sobelow_skip ["Traversal.FileModule"]
-  defp private_dir(dir) do
-    case File.chmod(dir, 0o700) do
-      :ok -> :ok
-      {:error, reason} -> Logger.warning("Couldn't make #{dir} private: #{format(reason)}")
     end
   end
 

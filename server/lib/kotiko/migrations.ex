@@ -70,6 +70,13 @@ defmodule Kotiko.Migrations do
     path = Path.join(dir, "kotiko-pre-#{Kotiko.Health.version()}-#{stamp}.db")
     path = if File.exists?(path), do: String.replace_suffix(path, ".db", "-2.db"), else: path
 
+    # Empty and 0600 before the words go in: VACUUM INTO fills an empty file and keeps its
+    # mode. The chmod after covers an empty file that was already there.
+    case Kotiko.Private.create(path) do
+      :ok -> :ok
+      {:error, reason} -> raise File.Error, reason: reason, action: "create", path: path
+    end
+
     repo.query!("VACUUM INTO " <> sql_string(path))
     File.chmod!(path, 0o600)
 

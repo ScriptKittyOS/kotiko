@@ -5,6 +5,15 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Self-hosted server: other accounts on the same computer can no longer read your words.
+  The database (with the `-wal` and `-shm` files next to it), the model list cache and a
+  new data folder are now readable only by you, like the API token and the backups
+  already were. At start, the server makes these files private again if an older version
+  left them readable, and logs what it changed. It leaves a data folder that also holds
+  other files as it is and warns with the command to fix it. `run.sh` and the service
+  from `install-service.sh` now start the server with umask `077`; run
+  `install-service.sh` again to update the service.
+
 - Self-hosted server: your keys can now live in their own files instead of `.env`. Set
   `LLM_API_KEY_FILE=/path/to/file` in place of `LLM_API_KEY=...`, and the same for
   `API_TOKEN`, `TELEGRAM_BOT_TOKEN` and `TRANSCRIBE_API_KEY`; this is how Docker secrets
