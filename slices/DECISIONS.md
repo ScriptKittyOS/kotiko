@@ -6,6 +6,15 @@ and why. Open questions live in each slice's own "Open questions" section and in
 
 ## 2026-10-06
 
+**Maintainers are repository collaborators, and governance changes like any other
+decision.** *Maintainer.* "That is not how I have it set up in my other projects so that is
+not how it should be done here. I cant add him to the team as an admin and there are no
+seats available", and on GOVERNANCE.md's 7-day, all-maintainers rule: "that is not what i do
+with the other repos". Kotiko now follows the maintainer's other projects (Trinity): the
+maintainers are collaborators with the Maintain role (no GitHub team), the tag ruleset makes
+tags permanent instead of limiting who creates them, GOVERNANCE.md has a Continuity section,
+and GOVERNANCE.md changes by pull request recorded here, with no waiting period.
+
 **Kotiko adopts the Developer Certificate of Origin.** *Maintainer.* Asked about the OpenSSF
 silver `dco` criterion, which slice 53 had left unmet: "for dco figure out how to get it
 met". Every commit is signed off (`git commit -s`), CONTRIBUTING.md explains it, and CI's
