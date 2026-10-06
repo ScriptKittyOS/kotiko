@@ -32,7 +32,10 @@ defmodule Kotiko.WordSpec do
       t =
         text
         |> :unicode.characters_to_nfc_binary()
-        |> String.replace(~r/[\t\n\r\v\f]/, " ")
+        # Unicode mode: in byte mode \v also matched the byte 0x85, which is inside the
+        # UTF-8 of letters such as Å and Ņ, and broke them. \x0B is the vertical tab
+        # alone, as \v is in the extension's JavaScript.
+        |> String.replace(~r/[\t\n\r\x0B\f]/u, " ")
         |> String.replace(~r/\p{Cc}/u, "")
         |> String.trim()
 
