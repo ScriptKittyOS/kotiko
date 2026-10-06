@@ -5,6 +5,12 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Connect OpenRouter with one click, without copying a key: "Connect OpenRouter (free)" is
+  now the first choice on the welcome page, and Settings, Word lookups has a "Connect
+  OpenRouter" button. OpenRouter's sign-in opens in a new tab; when you're done, it sends
+  you back to kotiko.org/connect/, Kotiko gets your key, and the page you started from
+  says you're connected. Pasting a key still works ("Paste a key instead").
+
 - Self-hosted server: your keys can now live in their own files instead of `.env`. Set
   `LLM_API_KEY_FILE=/path/to/file` in place of `LLM_API_KEY=...`, and the same for
   `API_TOKEN`, `TELEGRAM_BOT_TOKEN` and `TRANSCRIBE_API_KEY`; this is how Docker secrets
@@ -31,7 +37,7 @@ Conventional Commits by release-please.
   policy, published from the same file the extension shows so the two can't differ. The
   site sets no cookies, has no analytics and loads nothing from any other site. It also
   has the page OpenRouter returns to after "Connect OpenRouter"; Kotiko reads the sign-in
-  code there and nowhere else (the button itself stays hidden until the site is live).
+  code there and nowhere else.
   The README is now a short introduction that points to the site.
 
 - The Telegram bot no longer assumes you read English. It gives meanings in the languages

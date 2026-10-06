@@ -42,7 +42,7 @@ after(async () => {
 
 const plain = (v) => JSON.parse(JSON.stringify(v));
 
-async function openWelcome({ locale = "en", accept = null, bases = null, local = {}, reduced = false, network = false } = {}) {
+async function openWelcome({ locale = "en", accept = null, bases = null, local = {}, reduced = false, network = false, exchange = null } = {}) {
   const b = bases ?? [locale];
   const fake = createFakeChrome({
     runtimeId: EXT_ID,
@@ -55,6 +55,8 @@ async function openWelcome({ locale = "en", accept = null, bases = null, local =
   const requests = [];
   const bgFetch = (url, init) => {
     requests.push(String(url));
+    // OpenRouter's PKCE key exchange (Connect OpenRouter), answered here when a test asks.
+    if (exchange && String(url) === "https://openrouter.ai/api/v1/auth/keys") return Promise.resolve(exchange(init));
     if (!network) return Promise.reject(new TypeError("Failed to fetch"));
     return fetch(String(url).replace("https://openrouter.ai/api/v1", srv.llmUrl), init);
   };
@@ -162,7 +164,11 @@ describe("arrival (22 §2)", () => {
     assert.deepEqual([chip.getAttribute("role"), chip.getAttribute("aria-checked"), chip.textContent.trim()], ["checkbox", "true", "English"]);
     assert.equal(p.text("#addBase"), "Another");
     assert.ok(p.visible("#aiSetup"));
-    assert.equal(p.text("#aiPaste"), "Paste an OpenRouter key (free)");
+    assert.ok(p.visible("#aiConnect"), "Connect OpenRouter is shown now that kotiko.org/connect/ is live");
+    assert.equal(p.text("#aiConnect"), "Connect OpenRouter (free)");
+    assert.ok(p.$("#aiConnect").classList.contains("btn-primary"));
+    assert.equal(p.text("#aiPaste"), "Paste a key instead");
+    assert.equal(p.text("#connectStatus"), "");
     assert.equal(p.text("#askLine"), "What's the first word you'd love to learn?");
     assert.equal(p.$("#askText").placeholder, "how do you say hello in Japanese");
     assert.equal(p.$("#askText").value, "", "the examples are a placeholder only");
@@ -495,6 +501,64 @@ describe("with the learner's own AI (22 §4, §5)", () => {
     p.click("#confirm");
     await p.until(() => p.visible("#done"));
     assert.equal((await p.words()).length, 1);
+  });
+});
+
+describe("Connect OpenRouter (11 §4, 22 §4)", () => {
+  const CODE = "code-0123456789";
+  const CALLBACK = `https://kotiko.org/connect/?code=${CODE}`;
+  // The return page's content script, as the background sees it.
+  const RETURN_PAGE = { id: EXT_ID, url: CALLBACK, tab: { id: 9, url: CALLBACK } };
+
+  test("opens OpenRouter's sign-in, waits, and collapses to Connected when the return page hands the code over", async () => {
+    const exchanged = [];
+    const p = await openWelcome({
+      exchange: (init) => {
+        exchanged.push(JSON.parse(init.body));
+        return new Response(JSON.stringify({ key: KEY }), { status: 200, headers: { "Content-Type": "application/json" } });
+      },
+    });
+    p.click("#aiConnect");
+    await p.until(() => p.$("#connectStatus.status-busy"));
+    assert.equal(p.text("#connectStatus"), "Waiting for OpenRouter… Finish signing in on the other tab.");
+    assert.equal(p.$("#aiConnect").getAttribute("aria-describedby"), "connectStatus");
+    assert.ok(p.visible("#aiSetup"), "the other ways to connect stay available while waiting");
+    assert.ok(p.visible("#aiPaste"));
+    const pending = JSON.parse(await (await p.bg.__kotiko.getStore()).secrets.get("pkce:pending"));
+    assert.match(pending.verifier, /^[A-Za-z0-9_-]{43}$/);
+    assert.deepEqual(p.requests, [], "starting the sign-in sends nothing; the tab goes to OpenRouter");
+
+    // OpenRouter sends the browser back to kotiko.org/connect/ with a code.
+    const res = await p.fake.deliver({ type: "oauth.code", code: CODE }, RETURN_PAGE);
+    assert.deepEqual(plain(res), { ok: true });
+    assert.deepEqual(exchanged, [{ code: CODE, code_verifier: pending.verifier, code_challenge_method: "S256" }]);
+    await p.until(() => p.visible("#aiConnected"));
+    assert.equal(p.text("#aiConnectedText"), "Connected to OpenRouter, free models.");
+    assert.ok(p.$$("#log p").some((n) => n.textContent === "Connected to OpenRouter, free models."));
+    assert.equal(p.store.lookup.provider, "openrouter");
+    assert.ok(!JSON.stringify([p.store, p.sync]).includes(KEY), "the key is in no storage area");
+  });
+
+  test("a sign-in that fails leaves the step open with every other way to connect", async () => {
+    const p = await openWelcome({ exchange: () => new Response("{}", { status: 400 }) });
+    p.click("#aiConnect");
+    await p.until(() => p.$("#connectStatus.status-busy"));
+    const res = await p.fake.deliver({ type: "oauth.code", code: CODE }, RETURN_PAGE);
+    assert.equal(res.code, "key_rejected");
+    await p.fake.idle();
+    assert.ok(p.visible("#aiSetup"));
+    assert.ok(!p.visible("#aiConnected"));
+    // Selecting it again starts a new sign-in.
+    p.click("#aiConnect");
+    await p.until(async () => (await (await p.bg.__kotiko.getStore()).secrets.get("pkce:pending")) !== null);
+  });
+
+  test("Change goes back to the step with Connect OpenRouter focused", async () => {
+    const q = await openWelcome({ network: true, local: { lookup: { kind: "provider", provider: "custom", baseUrl: srv.llmUrl }, keys: { server: false, providers: { custom: true } }, words: [{ id: "1", lang: "ru", native: "дом", base_lang: "en", gloss: "house", forms: ["house"] }] } });
+    assert.ok(q.visible("#aiConnected"));
+    q.click("#aiChange");
+    assert.ok(q.visible("#aiConnect"));
+    assert.equal(q.doc.activeElement, q.$("#aiConnect"));
   });
 });
 

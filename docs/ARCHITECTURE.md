@@ -97,9 +97,9 @@ code at runtime; every script is a classic script that attaches one namespace to
   ([`lib/llm/client.js`](../extension/lib/llm/client.js), with `policy.js` and
   `catalog.js`) calls any OpenAI-compatible API through the presets in
   [`spec/providers.json`](../spec/providers.json). [`lib/pkce.js`](../extension/lib/pkce.js)
-  holds the "Connect OpenRouter" sign-in; its button stays hidden until the docs site
-  (slice [44](../slices/44-docs-site/SPEC.md)) serves the callback page, so pasting a key
-  is the way in today.
+  holds the "Connect OpenRouter" sign-in (the welcome tab's first choice and a button in
+  the dashboard's Word lookups), which returns to the docs site's `/connect/` page (slice
+  [44](../slices/44-docs-site/SPEC.md)); pasting a key works too.
 - **Server mode**: [`lib/sync-controller.js`](../extension/lib/sync-controller.js) keeps
   one sync running at a time, and [`lib/validate-words.js`](../extension/lib/validate-words.js)
   checks the server's answer before it is stored. [`lib/words-v1.js`](../extension/lib/words-v1.js)

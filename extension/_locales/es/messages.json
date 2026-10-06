@@ -2837,11 +2837,7 @@
   },
   "welcome_ai_connect": {
     "message": "Conectar OpenRouter (gratis)",
-    "description": "One-click sign-in with OpenRouter (slice 11 §4). Shown once the docs site's callback page exists. Spanish pending native review (slice 50 §9)."
-  },
-  "welcome_ai_paste_primary": {
-    "message": "Pegar una clave de OpenRouter (gratis)",
-    "description": "The main button of the AI step while the one-click connect isn't available: opens the key field. Spanish pending native review (slice 50 §9)."
+    "description": "One-click sign-in with OpenRouter (slice 11 §4). Spanish pending native review (slice 50 §9)."
   },
   "welcome_ai_paste": {
     "message": "Pegar una clave",
@@ -4245,5 +4241,25 @@
   "popup_bulk_open": {
     "message": "Abrir agregado en lote",
     "description": "Popup (slice 13 §1): text with line breaks was pasted; opens the dashboard's bulk add with it. Spanish pending native review (slice 50 §9)."
+  },
+  "welcome_ai_waiting": {
+    "message": "Esperando a OpenRouter… Termina de iniciar sesión en la otra pestaña.",
+    "description": "Welcome tab, under Connect OpenRouter while OpenRouter's sign-in tab is open (slice 22 §4). Spanish pending native review (slice 50 §9)."
+  },
+  "dash_connect_openrouter": {
+    "message": "Conectar OpenRouter",
+    "description": "Settings, Word lookups, with OpenRouter chosen: opens OpenRouter's sign-in in a new tab; the key arrives without copying it (slice 11 §4). Spanish pending native review (slice 50 §9)."
+  },
+  "dash_connect_openrouter_help": {
+    "message": "Inicia sesión en OpenRouter en una pestaña nueva y Kotiko recibe una clave, sin copiar nada. O pega una clave abajo.",
+    "description": "Settings, Word lookups: next to Connect OpenRouter (slice 11 §4). Spanish pending native review (slice 50 §9)."
+  },
+  "dash_connect_waiting": {
+    "message": "Esperando a OpenRouter… Termina de iniciar sesión en la otra pestaña.",
+    "description": "Settings, Word lookups: status line while OpenRouter's sign-in tab is open (slice 11 §4). Spanish pending native review (slice 50 §9)."
+  },
+  "dash_connect_done": {
+    "message": "Conectado a OpenRouter.",
+    "description": "Settings: short notice when the Connect OpenRouter sign-in finished in the other tab (slice 11 §4). Spanish pending native review (slice 50 §9)."
   }
 }

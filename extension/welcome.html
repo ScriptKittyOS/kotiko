@@ -73,11 +73,14 @@
         </div>
         <div id="aiSetup">
           <p class="line" data-i18n="welcome_ai_step"></p>
+          <!-- 11 §4: OpenRouter's sign-in opens in a new tab and returns to kotiko.org/connect/ (44). -->
           <div class="ai-buttons">
-            <!-- 11 §4: "Connect OpenRouter (free)" joins here once the docs site serves its callback page (44). -->
-            <button class="btn btn-primary" id="aiPaste" type="button" aria-expanded="false" aria-controls="pastePanel" data-i18n="welcome_ai_paste_primary"></button>
+            <button class="btn btn-primary" id="aiConnect" type="button" aria-describedby="connectStatus" data-i18n="welcome_ai_connect"></button>
           </div>
+          <p class="status" id="connectStatus" role="status"></p>
           <p class="ai-links">
+            <button class="link link-quiet" id="aiPaste" type="button" aria-expanded="false" aria-controls="pastePanel" data-i18n="welcome_ai_paste"></button>
+            <span class="sep" aria-hidden="true">·</span>
             <button class="link link-quiet" id="aiOther" type="button" aria-expanded="false" aria-controls="otherPanel" data-i18n="welcome_ai_another"></button>
             <span class="sep" aria-hidden="true">·</span>
             <button class="link link-quiet" id="aiServer" type="button" aria-expanded="false" aria-controls="serverPanel" data-i18n="welcome_ai_server"></button>
