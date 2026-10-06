@@ -91,10 +91,9 @@ export function createFakeChrome(options = {}) {
       api: {
         async get(keys) {
           if (keys == null) return clone(data);
-          if (typeof keys === "string") keys = [keys];
-          if (Array.isArray(keys)) {
+          if (typeof keys === "string" || Array.isArray(keys)) {
             const out = {};
-            for (const k of keys) if (k in data) out[k] = clone(data[k]);
+            for (const k of [keys].flat()) if (k in data) out[k] = clone(data[k]);
             return out;
           }
           const out = {};
@@ -194,8 +193,9 @@ export function createFakeChrome(options = {}) {
       onStartup: createEvent(),
     },
     alarms: {
-      async create(name, info = {}) {
-        if (typeof name === "object") [name, info] = ["", name];
+      // create(name, info) or create(info), as in chrome.alarms.
+      async create(...args) {
+        const [name, info = {}] = typeof args[0] === "object" ? ["", args[0]] : args;
         calls.alarms.push({ name, info: clone(info) });
         const delay = info.delayInMinutes ?? info.periodInMinutes ?? 0;
         alarms.set(name, {

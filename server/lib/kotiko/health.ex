@@ -7,6 +7,7 @@ defmodule Kotiko.Health do
   speaks, and whether the database works. The route has no token, so this says nothing
   else (no word counts, no settings).
   """
+  alias Ecto.Adapters.SQL
 
   # Versions of the /api/v<n> routes. Empty until /api/v1 exists (slice 07); the
   # unversioned /api/words routes are implied while they exist.
@@ -54,7 +55,7 @@ defmodule Kotiko.Health do
     task =
       Task.async(fn ->
         try do
-          match?({:ok, _}, Ecto.Adapters.SQL.query(repo, "SELECT 1", [], timeout: @db_timeout))
+          match?({:ok, _}, SQL.query(repo, "SELECT 1", [], timeout: @db_timeout))
         rescue
           _ -> false
         catch

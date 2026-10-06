@@ -554,7 +554,7 @@ async function pronunciationPass() {
   wiktionaryPass ??= globalThis.KotikoWiktionaryPass.createPass({
     store: await getStore(),
     pronounce: Pronounce,
-    fetchPage: (t) => wiktionaryPage(t, { maxWaitMs: 10_000 }),
+    fetchPage: (title) => wiktionaryPage(title, { maxWaitMs: 10_000 }),
     cache: pageCache,
     enabled: async () => (await home()) === "local",
   });
@@ -1699,7 +1699,7 @@ async function redoWord(id, key) {
   const records = (await jobWords(id, key)).filter((r) => r.result === "created" && r.undo === "done");
   if (!records.length) return { ok: true };
   const results = await writeOps(records.map((r) => ({ op: "restore", id: r.wordId })));
-  const again = records.filter((r, i) => !results[i].ok && (results[i].code === "word_gone" || results[i].code === "word_conflict"));
+  const again = records.filter((_r, i) => !results[i].ok && (results[i].code === "word_gone" || results[i].code === "word_conflict"));
   const failed = results.find((r) => !r.ok && r.code !== "word_gone" && r.code !== "word_conflict");
   if (failed) return { error: failed.message ?? failed.code, code: failed.code, details: failed.details ?? {} };
   if (again.length) {
@@ -1720,7 +1720,7 @@ ext.commands?.onCommand?.addListener((command, tab) => {
   if (command !== "reveal-word") return;
   const send = (id) => Promise.resolve(ext.tabs.sendMessage(id, { type: "reveal-word" })).catch(() => {});
   if (tab?.id) send(tab.id);
-  else Promise.resolve(ext.tabs.query({ active: true, currentWindow: true })).then(([t]) => t?.id && send(t.id), () => {});
+  else Promise.resolve(ext.tabs.query({ active: true, currentWindow: true })).then(([active]) => active?.id && send(active.id), () => {});
 });
 
 // The address and token of a 0.2 install are adopted once, by the storage upgrade

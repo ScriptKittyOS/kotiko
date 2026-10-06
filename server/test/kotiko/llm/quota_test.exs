@@ -4,8 +4,8 @@
 defmodule Kotiko.LLM.QuotaTest do
   # Slice 10 section 3: the free lookups left today, from a stubbed GET /key.
   use Kotiko.DataCase, async: false
-  alias Kotiko.LLMStub
   alias Kotiko.LLM.{Quota, Slots}
+  alias Kotiko.LLMStub
 
   @moduletag :capture_log
 

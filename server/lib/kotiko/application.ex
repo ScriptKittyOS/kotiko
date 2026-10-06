@@ -23,6 +23,7 @@ defmodule Kotiko.Application do
   require Logger
   alias Kotiko.{Config, DataDir, Exposure, Token}
   alias Kotiko.Log.Redact
+  alias Kotiko.Plug.HostCheck
 
   @impl true
   def start(_type, _args) do
@@ -31,7 +32,7 @@ defmodule Kotiko.Application do
     DataDir.resolve_and_migrate!()
     token_source = load_token()
     Redact.put_secrets(Redact.configured_secrets())
-    Kotiko.Plug.HostCheck.init_table()
+    HostCheck.init_table()
     words = Kotiko.Migrations.run!()
     http = http_settings()
     log_summary(token_source, words, http)

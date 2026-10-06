@@ -31,9 +31,9 @@
 
   // { locale, messages, fallback } while an override is active.
   let override = null;
-  let loader = async (locale) => {
-    const res = await fetch(ext.runtime.getURL(`_locales/${locale}/messages.json`));
-    if (!res.ok) throw new Error(`No messages for ${locale}`);
+  let loader = async (tag) => {
+    const res = await fetch(ext.runtime.getURL(`_locales/${tag}/messages.json`));
+    if (!res.ok) throw new Error(`No messages for ${tag}`);
     return res.json();
   };
 

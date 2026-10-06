@@ -10,12 +10,14 @@
     "test": "node --test 'test/{unit,dom,bg}/**/*.test.mjs'",
     "e2e": "playwright test",
     "lint": "eslint . && web-ext lint --source-dir extension --self-hosted",
+    "lint:fix": "eslint . --fix",
     "perf": "node test/perf/run.mjs"
   },
   "devDependencies": {
     "@devicefarmer/adbkit": "file:scripts/no-adbkit",
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.63.0",
+    "@stylistic/eslint-plugin": "5.10.0",
     "axe-core": "4.13.0",
     "chrome-webstore-upload": "6.0.1",
     "chrome-webstore-upload-cli": "4.0.2",

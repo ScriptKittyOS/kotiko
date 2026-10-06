@@ -163,7 +163,6 @@ benchmarks["wordcard.cardFor.x1000"] = () => {
     n += cardFor(w, { all: POPOVER_WORDS, others: [] }).also.length;
   }
   return `${n}`; // not a swap count
-
 };
 benchmarks["speak.pickVoice.x1000"] = () => {
   const langs = ["ru", "zh", "zh-Hant", "yue", "ja", "ar", "en", "es", "sr-Latn", "th"];
@@ -275,10 +274,10 @@ benchmarks["precedence.pick.100k"] = {
   },
   run: ({ P, keyOf, words, entries, E }) => {
     const counts = {};
-    for (let page = 0; page < 100; page++) {
-      const s = P.createSession({ salt: "bench", pageKey: `https://example.com/${page}`, dayKey: "2026-10-04", eligible: E, words, keyOf, now: Date.parse("2026-10-04T00:00:00Z") });
+    for (let n = 0; n < 100; n++) {
+      const s = P.createSession({ salt: "bench", pageKey: `https://example.com/${n}`, dayKey: "2026-10-04", eligible: E, words, keyOf, now: Date.parse("2026-10-04T00:00:00Z") });
       for (let i = 0; i < 1000; i++) {
-        const entry = entries[(page * 1000 + i) % entries.length];
+        const entry = entries[(n * 1000 + i) % entries.length];
         const c = s.choose({ base: "en", entry, surface: entry.key });
         counts[c.lang] = (counts[c.lang] ?? 0) + 1;
       }

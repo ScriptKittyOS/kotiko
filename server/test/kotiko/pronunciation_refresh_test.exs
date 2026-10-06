@@ -5,6 +5,7 @@ defmodule Kotiko.PronunciationRefreshTest do
   # Slice 07 section 8, with the model stubbed and the clock passed in.
   use Kotiko.DataCase, async: false
   import ExUnit.CaptureLog
+  alias Kotiko.LLM.Quota
   alias Kotiko.{LLMStub, PronunciationRefresh}
 
   @respellings %{{"ja", "en"} => "ee-noo", {"ja", "es"} => "i-nu"}
@@ -159,17 +160,17 @@ defmodule Kotiko.PronunciationRefreshTest do
     start_job()
     stub_model()
     put_app_env(:llm_url, "https://openrouter.ai/api/v1")
-    Kotiko.LLM.Quota.put(%{"free_model_daily_requests" => %{"remaining" => 10}})
-    resets = Kotiko.LLM.Quota.next_midnight(DateTime.utc_now())
+    Quota.put(%{"free_model_daily_requests" => %{"remaining" => 10}})
+    resets = Quota.next_midnight(DateTime.utc_now())
 
     assert {:wait, ^resets} = PronunciationRefresh.step()
     assert %{state: "waiting", retry_at: retry_at} = PronunciationRefresh.status()
-    assert retry_at == Kotiko.Word.timestamp(resets)
+    assert retry_at == Word.timestamp(resets)
     assert {:wait, again} = PronunciationRefresh.step()
     assert DateTime.compare(again, resets) == :eq
     assert requests() == []
 
-    Kotiko.LLM.Quota.put(%{"free_model_daily_requests" => %{"remaining" => 40}})
+    Quota.put(%{"free_model_daily_requests" => %{"remaining" => 40}})
     assert {:continue, 1} = PronunciationRefresh.step(now: DateTime.add(resets, 1, :second))
   end
 
@@ -182,7 +183,7 @@ defmodule Kotiko.PronunciationRefreshTest do
       LLMStub.status(conn, 429, "Rate limit exceeded: free-models-per-day")
     end)
 
-    midnight = Kotiko.LLM.Quota.next_midnight(DateTime.utc_now())
+    midnight = Quota.next_midnight(DateTime.utc_now())
     assert {:wait, ^midnight} = PronunciationRefresh.step(now: now)
     assert {:wait, _} = PronunciationRefresh.step(now: now)
     # OpenRouter's own limit is shared by every free model: no second model is asked.

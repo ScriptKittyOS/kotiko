@@ -2062,10 +2062,9 @@
 
   function confirmDialog({ text, confirm }) {
     return new Promise((resolve) => {
-      let d;
       const yes = el("button", { class: "btn btn-danger-fill", type: "button", onclick: () => { d.close(true); } }, confirm);
       const no = el("button", { class: "btn btn-secondary", type: "button", onclick: () => d.close(false) }, t("dash_cancel"));
-      d = dialog({ title: text, body: null, actions: [no, yes], onClose: (v) => resolve(v === true) });
+      const d = dialog({ title: text, body: null, actions: [no, yes], onClose: (v) => resolve(v === true) });
       no.focus();
     });
   }
@@ -2127,14 +2126,13 @@
   }
 
   function showShortcuts() {
-    const rows = [
+    const shortcuts = [
       ["/", "dash_key_search"], ["↑ ↓", "dash_key_move"], [t("dash_kbd_enter"), "dash_key_open"], [t("dash_kbd_space"), "dash_key_toggle"],
       [`${t("dash_kbd_shift")} + ↑ ↓`, "dash_key_extend"], ["Ctrl/⌘ + A", "dash_key_select_all"], [t("dash_kbd_delete"), "dash_key_delete"],
       ["P", "dash_key_pause"], ["M", "dash_key_move_lang"], ["N", "dash_key_add"], ["Esc", "dash_key_escape"], ["Ctrl/⌘ + Z", "dash_key_undo"], ["?", "dash_key_help"],
     ];
-    let d;
-    const list = el("dl", { class: "keys" }, rows.map(([k, key]) => [el("dt", {}, el("kbd", {}, k)), el("dd", {}, t(key))]));
-    d = dialog({ title: t("dash_keys_title"), body: list, actions: [el("button", { class: "btn btn-primary", type: "button", onclick: () => d.close(null) }, t("dash_done"))] });
+    const list = el("dl", { class: "keys" }, shortcuts.map(([k, key]) => [el("dt", {}, el("kbd", {}, k)), el("dd", {}, t(key))]));
+    const d = dialog({ title: t("dash_keys_title"), body: list, actions: [el("button", { class: "btn btn-primary", type: "button", onclick: () => d.close(null) }, t("dash_done"))] });
     d.card.querySelector(".btn").focus();
   }
 
@@ -2304,7 +2302,7 @@
     renderWords();
   }
 
-  async function undoAdd(job, entry) {
+  async function undoAdd(entry) {
     entry.undo = "pending";
     renderAddJobs();
     const ids = [...state.records.values()].filter((r) => r.lang === entry.word.lang && M.nativeKey(r.native) === M.nativeKey(entry.word.native)).map((r) => r.id);
@@ -2341,7 +2339,7 @@
             entry.undo === "done"
               ? el("span", { class: "add-job-text" }, I18n.parts("undo_done_created", { native: bdi(entry.word.native, entry.word.lang) }))
               : [el("span", { class: "add-job-text" }, I18n.parts("dash_add_added", { word: candidateLine(entry.word) })),
-                el("button", { class: "btn btn-quiet btn-sm", type: "button", "aria-disabled": entry.undo === "pending" ? "true" : null, "aria-label": t("add_undo_label", { native: entry.word.native }), onclick: () => entry.undo !== "pending" && undoAdd(job, entry) }, icon("undo", 16), t("add_undo"))]));
+                el("button", { class: "btn btn-quiet btn-sm", type: "button", "aria-disabled": entry.undo === "pending" ? "true" : null, "aria-label": t("add_undo_label", { native: entry.word.native }), onclick: () => entry.undo !== "pending" && undoAdd(entry) }, icon("undo", 16), t("add_undo"))]));
         }
         if (job.known?.length) {
           items.push(el("li", { class: "add-job is-known" }, el("span", { class: "add-job-text" }, I18n.parts("add_already_known", { words: el("span", {}, job.known.map((n, i) => [i ? ", " : "", bdi(n, null, "word")])) }))));
@@ -2503,7 +2501,7 @@
     renderSegmented($("mixingMode"), [["balanced", "dash_mixing_balanced"], ["mix", "dash_mixing_mix"], ["priority", "dash_mixing_priority"]], m.mode, (v) => setMixing({ mode: v }));
     const langs = [...new Set(state.groups.map((g) => g.lang))];
     const order = [...m.priority.filter((l) => langs.includes(l)), ...langs.filter((l) => !m.priority.includes(l))];
-    const rows = (m.mode === "priority" ? order : langs).map((lang, i) => {
+    const langRows = (m.mode === "priority" ? order : langs).map((lang, i) => {
       const id = `weight-${lang}`;
       const control = m.mode === "priority"
         ? el("button", { class: "btn btn-quiet btn-sm", type: "button", disabled: i === 0 ? "" : null, "aria-label": t("dash_priority_up", { language: languageName(lang) }), onclick: () => setMixing({ priority: [...order.slice(0, i - 1), lang, order[i - 1], ...order.slice(i + 1)] }) }, icon("up", 14))
@@ -2511,7 +2509,7 @@
       if (m.mode !== "priority") renderSegmented(control, WEIGHTS, String(m.weights[lang] ?? 1), (v) => setMixing({ weights: { ...m.weights, [lang]: Number(v) } }));
       return el("li", { class: "mixing-lang" }, el("span", { id, class: "field-label" }, m.mode === "priority" ? `${i + 1}. ${languageName(lang)}` : languageName(lang)), control);
     });
-    $("mixingLangs").replaceChildren(...rows);
+    $("mixingLangs").replaceChildren(...langRows);
     $("freshFirst").setAttribute("aria-checked", String(m.freshDays > 0));
   }
 
@@ -2671,7 +2669,7 @@
     if (!baseFocus && $("baseList").contains(active)) baseFocus = { lang: active.closest(".base-row")?.dataset.lang, action: active.dataset.action ?? null };
     const list = bases();
     const number = new Intl.NumberFormat(I18n.locale());
-    const rows = list.map((tag, i) => {
+    const baseRows = list.map((tag, i) => {
       const name = languageName(tag);
       const endo = endonym(tag);
       const full = Bases.levelOf(tag) === "full";
@@ -2716,9 +2714,9 @@
         baseButton("remove", t("dash_base_remove", { language: name }), false, () => removeBase(tag))));
       return row;
     });
-    $("baseList").replaceChildren(...rows);
+    $("baseList").replaceChildren(...baseRows);
     if (baseFocus) {
-      const row = rows.find((r) => r.dataset.lang === baseFocus.lang);
+      const row = baseRows.find((r) => r.dataset.lang === baseFocus.lang);
       const buttons = row ? [...row.querySelectorAll("button[data-action]")] : [];
       (buttons.find((b) => b.dataset.action === baseFocus.action && !b.disabled) ?? buttons.find((b) => !b.disabled))?.focus();
       baseFocus = null;

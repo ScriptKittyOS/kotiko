@@ -66,7 +66,8 @@ site in `site/` (its own `package.json`, build and tests), in
 ## Commits and pull requests
 
 - Code follows [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md); CI checks formatting
-  and lint, so run `mix format`, `mix credo` and `npm run lint` before pushing.
+  and lint, so run `mix format`, `mix credo --strict` and `npm run lint` before pushing
+  (`npm run lint:fix` fixes the JavaScript layout).
 - CI scans the dependencies (OSV-Scanner, `mix deps.audit`) and the code (Sobelow,
   CodeQL) for security problems. What fails a pull request, the licenses a new dependency
   may have, and how to accept a false positive are in the

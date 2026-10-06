@@ -46,8 +46,8 @@ function fixture(manifest = BASE_MANIFEST, extra = {}) {
     "ext/_locales/en/messages.json": "{}",
     "ext/Zeta.js": "// capital Z sorts before lowercase\n",
     "ext/.buildignore": "# comment\nui/tools/\n*.txt~\n",
-    "LICENSE": "license\n",
-    "NOTICE": "notice\n",
+    LICENSE: "license\n",
+    NOTICE: "notice\n",
     "LICENSES/Apache-2.0.txt": "apache\n",
     ...extra,
   };

@@ -58,7 +58,7 @@ export function declarations(body) {
   return [...stripComments(body).matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1], m[2].replace(/\s+/g, " ").trim()]);
 }
 
-export const remToPx = (value) => value.replace(/(\d*\.?\d+)rem\b/g, (_m, n) => `${+(Number(n) * 16).toFixed(3)}px`);
+export const remToPx = (value) => value.replace(/(\d*\.?\d+)rem\b/g, (_m, n) => `${Number((Number(n) * 16).toFixed(3))}px`);
 
 // The token sets of tokens.css.
 export function readTokens(css = fs.readFileSync(TOKENS_CSS, "utf8")) {
