@@ -269,6 +269,8 @@ defmodule Kotiko.Config do
   end
 
   # {:ok, value, mode} or {:error, why}; `why` never contains the file's contents.
+  # Sobelow: the path is a NAME_FILE setting the server's owner wrote in .env, never a request's.
+  # sobelow_skip ["Traversal.FileModule"]
   defp read_secret_file(path) do
     path = Path.expand(path)
 
