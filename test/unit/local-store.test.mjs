@@ -210,6 +210,9 @@ describe("the add queue", () => {
       none: { ok: true, result: { words: [], code: "no_word_found", rejected: [] } },
       key: { ok: false, error: { code: "key_rejected", details: {} } },
       setup: { ok: false, error: { code: "lookup_not_set_up", details: {} } },
+      // 28 §7: refused because the address was rewritten; the background repairs it at once,
+      // so the job retries on a short timer rather than waiting for a wake it may have missed.
+      moved: { ok: false, error: { code: "address_changed", details: { route: "lookup:openrouter" } } },
       // 25 §2: a provider that wants credit (402) won't answer later either; no retry.
       unpaid: { ok: false, error: { code: "quota_exhausted", details: { reason: "payment_required", provider: "openrouter" } } },
     };
@@ -225,6 +228,8 @@ describe("the add queue", () => {
     assert.equal(job("key").state, "failed");
     assert.equal(job("setup").state, "waiting");
     assert.equal(job("setup").retryAt, null);
+    assert.equal(job("moved").state, "waiting");
+    assert.ok(job("moved").retryAt > Date.now() && job("moved").retryAt <= Date.now() + 5_000, "retries shortly, by itself");
     assert.equal(job("unpaid").state, "failed");
     assert.equal(job("unpaid").retryAt, null);
     assert.equal(job("unpaid").error.details.reason, "payment_required");
