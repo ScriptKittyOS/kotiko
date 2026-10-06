@@ -80,12 +80,13 @@ export function parse(text) {
       continue;
     }
     if (row.every((c) => /^-+$/.test(c))) continue;
-    const at = (name) => row[header.indexOf(name)] ?? "";
+    const cell = {};
+    for (let i = 0; i < header.length; i++) cell[header[i]] = row[i] ?? "";
     group.rows.push({
-      criterion: at("Criterion").replace(/`/g, ""),
-      level: at("Level"),
-      status: at("Status"),
-      answer: at("Answer"),
+      criterion: cell.Criterion.replace(/`/g, ""),
+      level: cell.Level ?? "",
+      status: cell.Status,
+      answer: cell.Answer,
     });
   }
   return { project, groups: groups.filter((g) => g.rows.length) };
