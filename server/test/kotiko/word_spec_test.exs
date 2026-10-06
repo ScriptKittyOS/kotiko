@@ -151,6 +151,16 @@ defmodule Kotiko.WordSpecTest do
     assert {:ok, _} = WordSpec.prepare_input(String.duplicate("a", 200))
   end
 
+  # Found by the prepare_input property: a byte-mode \v matched 0x85, a byte inside the
+  # UTF-8 of Å (C3 85) and Ņ (C5 85), so the text became invalid and the next step raised.
+  test "letters whose UTF-8 holds the byte 0x85 or 0xA0 pass through unchanged" do
+    for text <- ["Åland", "Ņ", "Рим", "à la carte", "\u{4D1C5}"] do
+      assert WordSpec.prepare_input(text) == {:ok, text}
+    end
+
+    assert WordSpec.prepare_input("a\vb\fc\u0085d") == {:ok, "a b cd"}
+  end
+
   test "no tag in lang-tags.json crashes the pipeline (F17)" do
     tags =
       @fixtures

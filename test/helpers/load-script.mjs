@@ -21,17 +21,22 @@ export const manifest = () => JSON.parse(readExt("manifest.json"));
 // Loads a lib file in this realm, like `require`, and returns its module.exports.
 // (The root package.json says "type": "module", so Node's own require would treat a .js
 // file as ESM; this wraps it the way CommonJS does instead.)
+// vm.compileFunction takes the file as the function's body, with no wrapper text before
+// it, so code coverage offsets line up with the file whichever way a test loaded it.
 export function requireExt(rel) {
   const module = { exports: {} };
-  const wrapper = vm.runInThisContext(`(function (module, exports) {${readExt(rel)}\n})`, {
-    filename: extPath(rel),
-  });
+  const wrapper = vm.compileFunction(readExt(rel), ["module", "exports"], { filename: extPath(rel) });
   wrapper(module, module.exports);
   return module.exports;
 }
 
+// Assertion mode (helpers/assert-mode.mjs): the flag is passed on to every window and vm
+// context an extension script runs in, so its invariant checks run there too.
+const assertMode = () => globalThis.__KOTIKO_ASSERT__ === true;
+
 // Runs an extension script inside a jsdom window (created with runScripts: "outside-only").
 export function runInWindow(dom, rel) {
+  if (assertMode()) dom.window.__KOTIKO_ASSERT__ = true;
   return vm.runInContext(readExt(rel), dom.getInternalVMContext(), { filename: extPath(rel) });
 }
 
@@ -114,6 +119,7 @@ export function runInVm(rel, globals = {}) {
     indexedDB: new IDBFactory(),
     IDBKeyRange,
     fetch: () => Promise.reject(new TypeError("fetch is not stubbed in this test")),
+    ...(assertMode() ? { __KOTIKO_ASSERT__: true } : {}),
     ...globals,
   });
   ctx.fetch = withOwnFiles(ctx.fetch, globals.wiktionary);

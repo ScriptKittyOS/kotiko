@@ -18,6 +18,14 @@
    "text": "abc"
   },
   {
+   "input": "Åland Ņ",
+   "text": "Åland Ņ"
+  },
+  {
+   "input": "a\u000bb\u0085c",
+   "text": "a bc"
+  },
+  {
    "input": "",
    "error": "empty_input"
   },

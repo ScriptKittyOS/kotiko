@@ -4,3 +4,5 @@
 *.db
 *.db-*
 /tmp/
+# mix test --cover
+/cover/

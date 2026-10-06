@@ -66,33 +66,11 @@ defmodule Kotiko.RouterV1 do
   get "/export" do
     conn = fetch_query_params(conn)
     q = conn.query_params
-    pending? = "pending" in String.split(q["include"] || "", ",", trim: true)
 
-    conn =
-      if q["download"] == "1" do
-        name = "kotiko-backup-#{Date.to_iso8601(Date.utc_today())}.json"
-        put_resp_header(conn, "content-disposition", ~s(attachment; filename="#{name}"))
-      else
-        conn
-      end
-
-    conn =
-      conn
-      |> put_resp_content_type("application/json")
-      |> put_resp_header("cache-control", "no-store")
-      |> send_chunked(200)
-
-    {_count, conn} =
-      Backup.reduce(
-        conn,
-        fn data, conn ->
-          {:ok, conn} = chunk(conn, data)
-          conn
-        end,
-        include_pending: pending?
-      )
-
-    conn
+    case q["include"] || "" do
+      include when is_binary(include) -> export(conn, q, "pending" in String.split(include, ","))
+      _ -> invalid(conn, %{field: "include"})
+    end
   end
 
   # Deletes every word, pending lookup and tombstone; only with the confirmation in the
@@ -413,6 +391,35 @@ defmodule Kotiko.RouterV1 do
     error(conn, 404, "not_found")
   end
 
+  # The backup, streamed in chunks as Kotiko.Backup reads it.
+  defp export(conn, q, pending?) do
+    conn =
+      if q["download"] == "1" do
+        name = "kotiko-backup-#{Date.to_iso8601(Date.utc_today())}.json"
+        put_resp_header(conn, "content-disposition", ~s(attachment; filename="#{name}"))
+      else
+        conn
+      end
+
+    conn =
+      conn
+      |> put_resp_content_type("application/json")
+      |> put_resp_header("cache-control", "no-store")
+      |> send_chunked(200)
+
+    {_count, conn} =
+      Backup.reduce(
+        conn,
+        fn data, conn ->
+          {:ok, conn} = chunk(conn, data)
+          conn
+        end,
+        include_pending: pending?
+      )
+
+    conn
+  end
+
   # ── parameters ───────────────────────────────────────────────────────
 
   # Pending words (Telegram lookups not yet added) are server-local: never shown here.
@@ -429,12 +436,16 @@ defmodule Kotiko.RouterV1 do
   defp tags(nil, _normalize, _field), do: {:ok, nil}
   defp tags("", _normalize, _field), do: {:ok, nil}
 
+  # A repeated or nested parameter (lang[]=ru) arrives as a list or a map: refused.
+  defp tags(value, _normalize, field) when not is_binary(value), do: {:error, field}
+
   defp tags(value, normalize, field) do
     tags = value |> String.split(",", trim: true) |> Enum.map(normalize)
     if Enum.all?(tags, &is_binary/1), do: {:ok, tags}, else: {:error, field}
   end
 
   defp statuses(nil), do: {:ok, nil}
+  defp statuses(value) when not is_binary(value), do: {:error, "status"}
 
   defp statuses(value) do
     statuses = String.split(value, ",", trim: true)
@@ -445,6 +456,7 @@ defmodule Kotiko.RouterV1 do
   end
 
   defp limit(nil), do: {:ok, @max_limit}
+  defp limit(value) when not is_binary(value), do: {:error, "limit"}
 
   defp limit(value) do
     case Integer.parse(value) do
