@@ -273,7 +273,29 @@
     }
     if (index.symbolicRe) addSymbolic(text, index, matches);
     matches.sort((a, b) => a.start - b.start);
+    if (globalThis.__KOTIKO_ASSERT__ === true) checkScan(text, index, matches, tokenCount);
     return { matches, tokenCount };
+  }
+
+  // Assertion mode (test/helpers/assert-mode.mjs): what every scan promises the content
+  // script, checked after each scan under the tests. The shipped extension never sets the
+  // flag, so this never runs there.
+  function checkScan(text, index, matches, tokenCount) {
+    const fail = (what, m) => {
+      throw new Error(`KotikoMatcher invariant: ${what} (${JSON.stringify({ text, start: m?.start, end: m?.end, surface: m?.surface })})`);
+    };
+    let last = 0;
+    let tokens = 0;
+    for (const m of matches) {
+      if (!(Number.isInteger(m.start) && Number.isInteger(m.end) && m.start >= 0 && m.start < m.end && m.end <= text.length)) fail("a match lies outside its text", m);
+      if (text.slice(m.start, m.end) !== m.surface) fail("a match's surface isn't the text it covers", m);
+      if (m.start < last) fail("matches overlap or are out of order", m);
+      last = m.end;
+      const entry = (m.tokenIndex === -1 ? index.symbolic : index.entries).get(m.key);
+      if (!entry || m.entry !== entry || !entry.candidates.length) fail("a match has no entry in the index", m);
+      if (m.tokenIndex !== -1) tokens += m.tokens;
+    }
+    if (tokens > tokenCount) fail(`matches cover ${tokens} words of ${tokenCount}`);
   }
 
   // English "the house's roof": the word before 's, with 's left as written. After "it",

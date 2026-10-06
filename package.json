@@ -7,7 +7,7 @@
     "node": ">=22.22.2"
   },
   "scripts": {
-    "test": "node --test 'test/{unit,dom,bg}/**/*.test.mjs'",
+    "test": "node --test --import ./test/helpers/assert-mode.mjs 'test/{unit,dom,bg}/**/*.test.mjs'",
     "e2e": "playwright test",
     "lint": "eslint . && web-ext lint --source-dir extension --self-hosted",
     "perf": "node test/perf/run.mjs"
@@ -23,6 +23,7 @@
     "eslint": "10.11.0",
     "eslint-plugin-no-unsanitized": "4.1.5",
     "fake-indexeddb": "6.2.5",
+    "fast-check": "4.10.2",
     "fflate": "0.8.3",
     "globals": "17.13.0",
     "jsdom": "30.1.1",

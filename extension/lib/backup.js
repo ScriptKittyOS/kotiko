@@ -304,7 +304,31 @@
       items.push({ kind: local ? "restore" : "create", id: rec.id });
       counts.new++;
     }
-    return { items, counts, writes: [...writes.values()], restoreDeleted: restoreAll };
+    const out = { items, counts, writes: [...writes.values()], restoreDeleted: restoreAll };
+    if (globalThis.__KOTIKO_ASSERT__ === true) checkPlan(fileWords, out);
+    return out;
+  }
+
+  // Assertion mode (test/helpers/assert-mode.mjs): what a restore plan promises the store's
+  // one transaction and its Undo, checked under the tests only.
+  function checkPlan(fileWords, { items, counts, writes }) {
+    const fail = (what) => {
+      throw new Error(`KotikoBackup.plan invariant: ${what}`);
+    };
+    if (items.length !== fileWords.length) fail(`${items.length} items for ${fileWords.length} words`);
+    const kinds = {};
+    for (const i of items) kinds[i.kind] = (kinds[i.kind] ?? 0) + 1;
+    if ((kinds.create ?? 0) + (kinds.restore ?? 0) !== counts.new) fail("new words miscounted");
+    for (const k of ["merge", "identical", "kept"]) if ((kinds[k] ?? 0) !== counts[k]) fail(`${k} miscounted`);
+    if (counts.restoredDeleted > counts.deletedLater) fail("restored more deleted words than there were");
+    const ids = new Set();
+    for (const { record, previous } of writes) {
+      if (typeof record.id !== "string" || !record.id) fail("a write has no id");
+      if (ids.has(record.id)) fail(`${record.id} is written twice`);
+      ids.add(record.id);
+      if (previous && previous.id !== record.id) fail("a write replaces another word");
+      if (record.deleted_at) fail("a restore writes a deleted word");
+    }
   }
 
   function pick(w, fields) {
