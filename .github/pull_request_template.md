@@ -6,6 +6,7 @@ Slice or issue:
 
 ## Checklist
 
+- [ ] Every commit is signed off (`git commit -s`; see CONTRIBUTING.md, "Developer Certificate of Origin")
 - [ ] Tests added or updated
 - [ ] Bug fix: a regression test fails without the fix (or the pull request says why not)
 - [ ] `mix format`, `npm run lint` and the test suites pass

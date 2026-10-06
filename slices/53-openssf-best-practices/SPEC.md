@@ -971,9 +971,8 @@ Built 2026-10-05, against the passing criteria as published on 2026-10-05 (read 
 
 ## Open questions
 
-1. **DCO (§6).** Keep slice 03's decision and mark `dco` unmet with a justification, or
-   adopt the DCO with the GitHub DCO app? Recommendation: keep the decision for now (Option
-   A); revisit at the first large company contribution or before gold.
+1. ~~**DCO (§6).**~~ Decided 2026-10-06: adopted (Option B), enforced by CI's `secrets` job
+   with `scripts/check-dco.mjs` rather than the DCO app; see DECISIONS.md.
 2. **Who is the steward?** Someone trusted who would answer within a week, does not need to
    code, and becomes a second owner of the organization and the store accounts.
    Recommendation: a person already trusted with another ScriptKittyOS project, named

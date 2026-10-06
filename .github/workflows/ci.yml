@@ -16,7 +16,10 @@ concurrency:
 
 jobs:
   # No secret in any commit of this branch's history (gitleaks with .gitleaks.toml). The
-  # binary is a pinned release checked against its SHA-256, no third-party action.
+  # binary is a pinned release checked against its SHA-256, no third-party action. Also: no
+  # .env, database, key or oversized file in the tree or a pull request's commits (GitHub's
+  # push rulesets work only on private repositories), and every commit a pull request adds
+  # is signed off (the Developer Certificate of Origin, CONTRIBUTING.md).
   secrets:
     runs-on: ubuntu-24.04
     env:
@@ -35,6 +38,17 @@ jobs:
           tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
       - name: Scan the full history
         run: '"$RUNNER_TEMP/gitleaks" git --log-opts="--all" --redact --config .gitleaks.toml --exit-code 1 .'
+      - name: No secret, database or oversized files
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/check-forbidden-files.mjs $BASE $HEAD
+      - name: Every commit is signed off (DCO)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/check-dco.mjs "$BASE" "$HEAD"
 
   server:
     name: server (${{ matrix.elixir }})
