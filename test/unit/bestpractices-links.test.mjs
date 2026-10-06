@@ -9,7 +9,7 @@ import { MAX_URL, cells, changes, links, page, parse, validate } from "../../scr
 
 const doc = (rows, heading = "## Passing: Basics") => `# Answers
 
-- **Entry:** https://www.bestpractices.dev/en/projects/42
+- **Entry:** https://www.bestpractices.dev/en/projects/15259
 
 ${heading}
 
@@ -30,7 +30,7 @@ test("a row splits on pipes but keeps escaped ones", () => {
 
 test("reads the project number and only the form tables", () => {
   const parsed = parse(doc(["| `floss_license` | MUST | Met | Apache-2.0. | `LICENSE` | – |"]));
-  assert.equal(parsed.project, "42");
+  assert.equal(parsed.project, "15259");
   assert.deepEqual(parsed.groups, [
     { section: "passing", name: "Basics", rows: [{ criterion: "floss_license", level: "MUST", status: "Met", answer: "Apache-2.0." }] },
   ]);
@@ -42,7 +42,7 @@ test("field names keep their case, as the form matches them exactly", () => {
   assert.deepEqual(validate(parsed), []);
   const [link] = links(parsed);
   assert.equal(new URL(link.url).searchParams.get("require_2FA_status"), "Met");
-  assert.match(link.url, /\/projects\/42\/gold\/edit\?/);
+  assert.match(link.url, /\/projects\/15259\/gold\/edit\?/);
 });
 
 test("the page shows the metal series unless Baseline is asked for", () => {
@@ -77,6 +77,11 @@ test("only answers that differ from the saved entry are listed, keyed the entry'
   assert.match(page(parse(text), { entry }), /Up to date|1 to update/);
 });
 
+test("the document must name the entry the script reads", () => {
+  const other = doc(["| `english` | SHOULD | Met | English. | – | – |"]).replace("projects/15259", "projects/99");
+  assert.deepEqual(validate(parse(other)), ["The document names entry 99, the script reads entry 15259."]);
+});
+
 test("baseline headings map to the baseline sections", () => {
   const parsed = parse(doc(["| `osps_ac_01_01` | MUST [N/A J] | Met | Org requires 2FA. | gh api | – |"], "## Baseline 1: Access Control"));
   assert.equal(parsed.groups[0].section, "baseline-1");
@@ -89,7 +94,7 @@ test("links carry each status and justification, and the force link adds overrid
   ]));
   const [link] = links(parsed);
   const url = new URL(link.url);
-  assert.equal(url.origin + url.pathname, "https://www.bestpractices.dev/en/projects/42/passing/edit");
+  assert.equal(url.origin + url.pathname, "https://www.bestpractices.dev/en/projects/15259/passing/edit");
   assert.equal(url.searchParams.get("floss_license_status"), "Met");
   assert.equal(url.searchParams.get("floss_license_justification"), "Apache-2.0 & more.");
   assert.equal(url.searchParams.get("dco_status"), "Unmet");
@@ -125,7 +130,7 @@ test("the page escapes its links and has one button per link", () => {
   const parsed = parse(doc(["| `english` | SHOULD | Met | Reports in <b>English</b> & more. | – | – |"]));
   const html = page(parsed);
   assert.equal(html.match(/class="cta"/g).length, 1);
-  assert.match(html, /href="https:\/\/www\.bestpractices\.dev\/en\/projects\/42\/passing\/edit\?english_status=Met&amp;/);
+  assert.match(html, /href="https:\/\/www\.bestpractices\.dev\/en\/projects\/15259\/passing\/edit\?english_status=Met&amp;/);
   assert.doesNotMatch(html, /<b>English<\/b>/);
   assert.match(html, /<title>Kotiko badge answers<\/title>/);
 });

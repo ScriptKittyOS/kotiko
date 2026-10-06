@@ -19,6 +19,9 @@ import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const SITE = "https://www.bestpractices.dev";
+// Kotiko's entry. The live answers are read from here, never from a URL built out of the
+// document; --check fails if the document names a different entry.
+export const PROJECT = "15259";
 // The form's sections, in the order a maintainer fills them.
 export const SECTIONS = [
   ["Passing", "passing"],
@@ -97,6 +100,7 @@ export function parse(text) {
 export function validate({ project, groups }) {
   const problems = [];
   if (!project) problems.push("No bestpractices.dev project number found in the document.");
+  else if (project !== PROJECT) problems.push(`The document names entry ${project}, the script reads entry ${PROJECT}.`);
   const seen = new Map();
   for (const g of groups) {
     for (const r of g.rows) {
@@ -324,7 +328,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   } else {
     let entry = null;
     if (!args.includes("--all")) {
-      const res = await fetch(`${SITE}/projects/${parsed.project}.json`, { cache: "no-store" });
+      const res = await fetch(`${SITE}/projects/${PROJECT}.json`, { cache: "no-store" });
       if (!res.ok) {
         console.error(`Couldn't read the entry (${res.status}). Use --all to list every answer instead.`);
         process.exit(1);
