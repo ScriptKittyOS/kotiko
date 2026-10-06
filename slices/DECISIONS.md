@@ -6,6 +6,14 @@ and why. Open questions live in each slice's own "Open questions" section and in
 
 ## 2026-10-05
 
+**The first public release is v1.0.0.** *Maintainer.* "If we are using versions then it
+needs to make sense so that the final release is v1.0.0." 0.2.0 was the last version of the
+personal tool. There are no 0.x releases between it and the public launch: release-please is
+pinned with `release-as: 1.0.0`, builds for the pre-release security review are
+`v1.0.0-rc.N` pre-releases (never sent to the stores), and the first store upload is
+`v1.0.0`. After it ships, the pin is removed and versions follow the commits (SemVer). See
+[30](30-release-pipeline/SPEC.md) and `docs/stores.md`.
+
 **English is the only interface language required at launch.** *Correction by the agent.*
 The maintainer never asked for a Spanish interface. Their Puerto Rico quote (2026-10-01)
 was about not assuming English is the reader's language, and "I was only using Spanish as

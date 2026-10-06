@@ -5,6 +5,19 @@ release, what has to be set up once, and the checklist ticked in every release p
 The pipeline is [slice 30](../slices/30-release-pipeline/SPEC.md); the workflow is
 [`.github/workflows/release.yml`](../.github/workflows/release.yml).
 
+## Versions
+
+The first public release is **v1.0.0** (DECISIONS 2026-10-05). 0.2.0 was the last version of
+the personal tool, so `main` keeps saying 0.2.0 until 1.0.0 is released; the work since is
+under `## Unreleased` in the CHANGELOG. `release-please-config.json` pins the next release
+with `"release-as": "1.0.0"`, so the release PR proposes 1.0.0 whatever the commits say.
+Before launch, builds for slice 54's review are release candidates on the release PR's head:
+`v1.0.0-rc.1`, `v1.0.0-rc.2`, and so on (below). The stores get `v1.0.0` only.
+
+**After v1.0.0 ships, remove `"release-as"`** (one line, in the PR that follows the
+release); from then on release-please picks the version from the commits: `fix` gives
+1.0.1, `feat` 1.1.0, a breaking change 2.0.0.
+
 ## How a release happens
 
 1. **The release PR.** On every push to `main`, release-please updates a pull request called
@@ -196,7 +209,7 @@ respelling keys or the pronunciation prompt (07, 09):
 
 The `store-gate` job passes only when the tagged tree has a
 `docs/security/review-vX.Y.Z[-rc.N].md` with a line starting `Gate: closed` (for example
-`Gate: closed 2026-11-02 by <lead>, fixes confirmed on v0.3.0-rc.2`), which slice 54's lead
+`Gate: closed 2026-11-02 by <lead>, fixes confirmed on v1.0.0-rc.2`), which slice 54's lead
 writes when the review ends. That blocks every store upload until the first review is done.
 Later reviews (for releases that touch the areas above) are enforced by the checklist box,
 not by the workflow, because no script can tell which releases need one.
