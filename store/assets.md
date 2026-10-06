@@ -11,8 +11,8 @@ The full artwork list (Edge, social previews, favicons) is in
 |---|---|---|---|---|
 | Icon | 128x128 PNG: 96x96 artwork with 16 px of transparent padding per side | From the package (`icons` in the manifest); shown at 32 and 64 px | `brand/logo/store-icon-128.png` (placeholder kitten, correct padding) and `extension/icon128.png` | The artist (slice 05) |
 | Screenshots | 1280x800 (or 640x400), PNG, square corners, full bleed; at least 1, up to 5 | Same files (1280x800, 1.6:1); no fixed limit | Scripted, below | This script, after the artwork lands |
-| Small promo tile | 440x280, **required** | n/a | No | The artist: mark and "Kotiko" on the brand color, legible at half size (slice 05 §6) |
-| Marquee promo tile | 1400x560, optional | n/a | No | The artist |
+| Small promo tile | 440x280, **required** | n/a | No | **Done (2026-10-06):** `brand/store/promo-small.png`, exported from `brand/illustrations/store-promo-tile.png` (the kitten on the moon with "Kotiko"; checked legible at half size) |
+| Marquee promo tile | 1400x560, optional | n/a | No | **Done (2026-10-06):** `brand/store/promo-marquee.png`, exported from `brand/illustrations/marquee.png` (every word checked for spelling) |
 
 Text on the promo tiles comes from `promo_small` and `promo_marquee` in
 [`listing/en.json`](listing/en.json). No mascot name on any store artwork or text

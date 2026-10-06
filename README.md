@@ -1,27 +1,53 @@
-# Kotiko
+<h1 align="center">
+  <img src="brand/logo/kotiko-logo.png" alt="Kotiko" width="420">
+</h1>
 
 <!-- legacy-name-ok-start -->
 > Formerly Slovo. Updating from it? See [Updating from Slovo](#updating-from-slovo).
 <!-- legacy-name-ok-end -->
 
-[![CI](https://github.com/ScriptKittyOS/kotiko/actions/workflows/ci.yml/badge.svg)](https://github.com/ScriptKittyOS/kotiko/actions/workflows/ci.yml)
-[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+<p align="center"><strong>Read the web in the words you're learning.</strong></p>
 
-Learn a word in any language and from then on it replaces its English on every web page
-you read. Russian, Mandarin, Arabic, Japanese, all of them at once or just the ones you pick.
-Hover a swapped word to see the English and how it's said in your other languages.
+<p align="center">
+  <a href="https://github.com/ScriptKittyOS/kotiko/actions/workflows/ci.yml"><img src="https://github.com/ScriptKittyOS/kotiko/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License: Apache-2.0"></a>
+</p>
+
+Learn a word in any language, and Kotiko slips it into the pages you already read, in
+whatever language you read them. Spanish, Japanese, Russian, Arabic: one at a time, or all
+of them mixed. Hover a swapped word to see what it means in your language and how it's
+said.
+
+<p align="center">
+  <img src="brand/demo/kotiko-demo.gif" alt="An article about a morning walk, first as written; then the same page with a few words swapped for the reader's words: perro, agua, 猫, 本, дом, ありがとう; then the card for perro, with its pronunciation PEH-rro, Spanish, and its meaning, dog." width="800">
+</p>
+
+- **Your words, your languages.** Type a word in any language, in your own words, and
+  Kotiko looks it up. Its meaning is kept in the language you read, never assumed to be
+  English.
+- **Local first.** Your words live in your browser. Lookups use your own AI key (a free
+  OpenRouter key works) or a model on your own computer. Nothing else is needed.
+- **An optional server.** Run the small Kotiko server yourself to keep your words in one
+  place and add them from your phone with your own Telegram bot.
+- **Private by design.** Page text never leaves your device; the
+  [privacy policy](docs/privacy/en.md) lists everything that does.
+
+<!-- legacy-name-ok-start: Mira is the mascot (slices/05-brand-identity) -->
+<p align="center">
+  <img src="brand/illustrations/hero-words-moon.png" alt="Mira, a black kitten with orange eyes, peeking over a purple moon while greetings in six languages float around her: Hola, Привет, Ciao, 你好, مرحبا, こんにちは." width="100%">
+</p>
+
+**Meet Mira.** Kotiko's mascot is a small black kitten. *Kotiko* bends котик (kotik),
+Russian for "kitty", the way a learner bends a word they're still getting to know. And
+Mira's name is a clue: in Spanish it means "look", in Latin "wonderful", in Russian
+"of the world" and "of peace". Read the [whole story](extension/story/en.md).
+<!-- legacy-name-ok-end -->
 
 ```
-extension popup ─┐
-                 ├──▶ server (Elixir + SQLite) ──▶ OpenRouter (free model works out the word)
-Telegram (phone) ┘          ▲
-                            └── browser extension syncs your words every minute
+browser extension ──▶ your words in the browser ──▶ your AI key or a local model
+        │
+        └──(optional)──▶ your Kotiko server (Elixir + SQLite) ◀── your Telegram bot
 ```
-
-- `server/` is a small Elixir app: a JSON API for the extension, an optional Telegram bot
-  (long polling, so no public URL or webhook), and a SQLite file for your words.
-- `extension/` is a Chrome/Brave/Edge extension (Manifest V3). It syncs every minute and on
-  every page load, so a word you add from your phone is live on the next page you open.
 
 ---
 
