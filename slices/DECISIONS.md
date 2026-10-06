@@ -4,6 +4,16 @@ Decisions already made, so slices don't reopen them. Newest first. Each says who
 and why. Open questions live in each slice's own "Open questions" section and in the
 [index](README.md#open-questions-for-the-maintainers).
 
+## 2026-10-06
+
+**Kotiko adopts the Developer Certificate of Origin.** *Maintainer.* Asked about the OpenSSF
+silver `dco` criterion, which slice 53 had left unmet: "for dco figure out how to get it
+met". Every commit is signed off (`git commit -s`), CONTRIBUTING.md explains it, and CI's
+required `secrets` job checks every commit of a pull request (`scripts/check-dco.mjs`); bots
+and merge commits are exempt. This replaces slice 53's open question 1 and slice 03's "no
+sign-off to add". Contributions stay under Apache-2.0 section 5 (inbound = outbound); the DCO
+adds the contributor's statement that they may submit them.
+
 ## 2026-10-05
 
 **The first public release is v1.0.0.** *Maintainer.* "If we are using versions then it

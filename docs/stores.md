@@ -109,8 +109,10 @@ All of these are the maintainer's to do; nothing in the repository can do them.
   the `kotiko-maintainers` team (since 2026-10-06).
   Only maintainers can start a release; nobody else can create, move or delete a release
   tag. Two more rulesets: `main` takes changes only through pull requests whose CI checks
-  pass (no force pushes or deletion, no bypass), and a push ruleset rejects `.env`,
-  database, private-key and token files and files over 10 MB on every branch.
+  pass (no force pushes or deletion, no bypass). GitHub allows push rulesets only on
+  private repositories, so the old push ruleset is disabled; CI's required `secrets` job
+  rejects `.env`, database, private-key and token files and files over 10 MB instead
+  (`scripts/check-forbidden-files.mjs`), along with unsigned commits (the DCO).
 - **Settings, Secrets and variables, Actions, Variables** (optional):
   `CHROME_STORE_URL` and `FIREFOX_STORE_URL` (the listing pages, used in release notes once
   the items exist), `CWS_DEPLOY_PERCENTAGE` (a staged rollout, 1 to 100; leave unset to

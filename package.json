@@ -13,6 +13,7 @@
     "perf": "node test/perf/run.mjs"
   },
   "devDependencies": {
+    "@devicefarmer/adbkit": "file:scripts/no-adbkit",
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.63.0",
     "axe-core": "4.13.0",
@@ -32,6 +33,7 @@
     "web-ext": "10.7.0"
   },
   "overrides": {
-    "shell-quote": "1.11.0"
+    "shell-quote": "1.11.0",
+    "@devicefarmer/adbkit": "$@devicefarmer/adbkit"
   }
 }
