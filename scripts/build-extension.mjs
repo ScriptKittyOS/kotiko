@@ -15,6 +15,11 @@
 // byte-identical files. The Firefox tree is then checked with `web-ext lint` (listed
 // channel); errors fail the build.
 //
+// Code only the tests use sits between `// test-only: start` and `// test-only: end` lines
+// (background.js's `globalThis.__kotiko` hook, slice 54 A-09). The unpacked extension, which
+// the tests load, keeps it; the zips leave each block out, and the build fails on a block
+// left open or a `__kotiko` outside one.
+//
 // Options: --source <dir> (default extension/), --mtime <unix seconds>, --skip-lint.
 
 import { execFileSync } from "node:child_process";
@@ -180,6 +185,31 @@ export function zipEntries(entries, unixSeconds) {
   return zipSync(input, { level: 9, mtime, os: UNIX, attrs: FILE_ATTRS });
 }
 
+const TEST_ONLY_START = /^[ \t]*\/\/ test-only: start\b.*$/;
+const TEST_ONLY_END = /^[ \t]*\/\/ test-only: end\b.*$/;
+
+/** A script as it ships: every test-only block left out, lines and all. */
+export function stripTestOnly(path, text) {
+  const out = [];
+  let open = false;
+  for (const line of text.split("\n")) {
+    if (!open && TEST_ONLY_START.test(line)) open = true;
+    else if (open && TEST_ONLY_END.test(line)) open = false;
+    else if (!open) out.push(line);
+  }
+  if (open) throw new BuildError(`${path}: a "// test-only: start" block has no "// test-only: end".`);
+  const shipped = out.join("\n");
+  if (shipped.includes("__kotiko")) throw new BuildError(`${path}: the tests' __kotiko hook is outside a test-only block.`);
+  return shipped;
+}
+
+function shippedBytes(path, bytes) {
+  if (!path.endsWith(".js")) return bytes;
+  const text = new TextDecoder().decode(bytes);
+  const shipped = stripTestOnly(path, text);
+  return shipped === text ? bytes : new TextEncoder().encode(shipped);
+}
+
 function manifestBytes(m) {
   return new TextEncoder().encode(JSON.stringify(m, null, 2) + "\n");
 }
@@ -202,7 +232,7 @@ export function build({ version, out, source = join(ROOT, "extension"), root = R
   const seconds = resolveMtime(mtime, process.env, root);
 
   const files = collectFiles(source).filter((p) => p !== "manifest.json");
-  const shared = files.map((p) => [p, new Uint8Array(readFileSync(join(source, p)))]);
+  const shared = files.map((p) => [p, shippedBytes(p, new Uint8Array(readFileSync(join(source, p))))]);
   for (const name of LICENSE_FILES) shared.push([name, new Uint8Array(readFileSync(join(root, name)))]);
   for (const dir of LICENSE_DIRS) {
     for (const p of walk(join(root, dir), root, [])) shared.push([p, new Uint8Array(readFileSync(join(root, p)))]);

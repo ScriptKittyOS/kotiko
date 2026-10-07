@@ -1990,7 +1990,9 @@ ext.tabs?.onUpdated?.addListener((_id, change, tab) => {
 });
 updateAllBadges();
 
+// test-only: start (scripts/build-extension.mjs leaves this block out of the store zips)
 // For tests: the parts a test drives directly.
 // `seed` writes the trusted copy, as Kotiko's own code does (tests can't write storage.local
 // and have it stay, any more than a content script can).
 globalThis.__kotiko = { ensureSeedSalt, adoptSync, ready, getStore, queue, refresh, projector, client, settings, currentBases, mirrorBaseRules, injectOpenTabs, toServer, toLocal, openWelcome, claimMilestone, onInstalled, area, seed: async (items) => (await ready(), area.set(items)) };
+// test-only: end
