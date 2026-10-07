@@ -47,11 +47,18 @@
 
     async function write(writer) {
       if (!(await enabled())) return false;
-      const b = await bases();
-      const words = project(await list(), b);
-      const prev = (await storage.get({ wordsVersion: null })).wordsVersion;
-      n = Math.max(n, typeof prev?.n === "number" ? prev.n : 0) + 1;
-      await storage.set({ words, baseLangs: b, wordsVersion: { n, at: now(), by: writer ?? null } });
+      const items = async (get) => {
+        const b = await bases(get);
+        const words = project(await list(), b);
+        const prev = (await get({ wordsVersion: null })).wordsVersion;
+        n = Math.max(n, typeof prev?.n === "number" ? prev.n : 0) + 1;
+        return { words, baseLangs: b, wordsVersion: { n, at: now(), by: writer ?? null } };
+      };
+      // The bases are read and the list for them written in one step where the storage
+      // can (the background's trusted copy, `update`): a change of bases while the store's
+      // list is read is then never written over with the old ones (slice 54, C-08).
+      if (typeof storage.update === "function") await storage.update(items);
+      else await storage.set(await items((q) => storage.get(q)));
       return true;
     }
 

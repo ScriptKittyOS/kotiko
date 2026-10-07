@@ -268,6 +268,45 @@ describe("Kotiko's pages change settings through the background", () => {
     assert.equal(bg.store.ui.uiLang, "es");
   });
 
+  // The welcome test that flaked under load (slice 54, C-08): the pages' word list is
+  // projected for the bases read before the store's list, and written after it, so a
+  // change of bases in between was written over with the old ones until the next projection.
+  test("a projection that read the bases before they changed never writes the old ones back", async () => {
+    const bg = loadBackground({ sync: { ui: { uiLang: "auto", baseLangs: ["es", "en"], baseLangsConfirmed: false } } });
+    await bg.k.ready();
+    await bg.k.seed({ baseLangs: ["es", "en"] });
+    await bg.k.projector.flush();
+    // The store's list is held, as a slow IndexedDB read under load is.
+    const store = await bg.k.getStore();
+    const list = store.list.bind(store);
+    let release;
+    const held = new Promise((r) => (release = r));
+    let reading;
+    const inList = new Promise((r) => (reading = r));
+    store.list = async (...a) => {
+      reading();
+      await held;
+      return list(...a);
+    };
+    // The page's change reaches its write while the projection waits for the list.
+    const set = bg.k.area.set;
+    let writing;
+    const changing = new Promise((r) => (writing = r));
+    bg.k.area.set = (items) => {
+      if (items?.baseLangs?.join?.() === "es") writing();
+      return set(items);
+    };
+    const projected = bg.k.projector.schedule();
+    await inList;
+    const change = bg.send({ type: "settings.set", merge: { ui: { baseLangs: ["es"] } }, set: { baseLangs: ["es"] } });
+    await changing;
+    release();
+    await projected;
+    assert.deepEqual(await change, { ok: true });
+    assert.deepEqual(plain(bg.store.baseLangs), ["es"], "the pages' copy");
+    assert.deepEqual(plain((await bg.k.area.get("baseLangs")).baseLangs), ["es"], "the trusted copy");
+  });
+
   test("what they may not change, or not in that shape, is refused and nothing is written", async () => {
     const bg = loadBackground();
     await bg.k.ready();

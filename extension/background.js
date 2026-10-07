@@ -138,7 +138,7 @@ const trustedCopy = Settings.createArea({
 });
 // Everything outside the upgrade itself waits for it, so an install from before this
 // version never reads its settings before they were taken over (`adoptOnce`).
-const area = Object.fromEntries(["get", "set", "remove", "heal", "has"].map((op) => [op, async (...a) => (await ready().catch(() => {}), trustedCopy[op](...a))]));
+const area = Object.fromEntries(["get", "set", "update", "remove", "heal", "has"].map((op) => [op, async (...a) => (await ready().catch(() => {}), trustedCopy[op](...a))]));
 area.reset = () => trustedCopy.reset();
 
 // What Kotiko keeps in storage.local; an install from before the trusted copy has these to
@@ -212,8 +212,10 @@ async function adoptSync(changes) {
 }
 
 // storage.sync's `ui` (slice 50) follows the trusted copy, for the learner's other browsers.
-async function saveUi(ui) {
-  await area.set({ ui });
+// `with` goes into the trusted copy in the same write (the pages' `baseLangs`), so nothing
+// reads the bases half changed.
+async function saveUi(ui, { with: also = {} } = {}) {
+  await area.set({ ...also, ui });
   await Promise.resolve().then(() => ext.storage.sync.set({ ui })).catch(() => {});
 }
 
@@ -243,8 +245,8 @@ function saveSettings(m) {
     if (patch.ui?.baseLangs && !patch.baseLangs) patch.baseLangs = patch.ui.baseLangs;
     const { ui } = patch;
     delete patch.ui;
-    await area.set(patch);
-    if (ui) await saveUi(ui);
+    if (ui) await saveUi(ui, { with: patch });
+    else await area.set(patch);
     if (patch.baseLangs) {
       projector.schedule();
       mirrorBaseRules().catch(() => {});
@@ -382,9 +384,10 @@ const home = async () => (await settings()).wordsHome ?? "local";
 
 // The learner's base languages: slice 50's list (`ui`, the trusted copy of what
 // storage.sync holds) when it exists, else the pages' copy, else the browser's language.
-async function currentBases() {
-  await ready().catch(() => {});
-  const { ui, baseLangs } = await area.get({ ui: null, baseLangs: null });
+// `get` reads the trusted copy directly, inside one of its updates (the projector's).
+async function currentBases(get = null) {
+  if (!get) await ready().catch(() => {});
+  const { ui, baseLangs } = await (get ?? area.get)({ ui: null, baseLangs: null });
   if (Array.isArray(ui?.baseLangs) && ui.baseLangs.length) return ui.baseLangs.slice(0, 4);
   if (Array.isArray(baseLangs) && baseLangs.length) return baseLangs.slice(0, 4);
   return Local.detectBases(uiLanguage());
@@ -630,7 +633,7 @@ async function requestSync(opts) {
 const projector = globalThis.KotikoProjection.createProjector({
   list: async () => (await getStore()).list(),
   storage: area,
-  bases: currentBases,
+  bases: (get) => currentBases(get),
   enabled: async () => !wiped && (await home()) === "local",
   onError: (e) => console.warn("Kotiko couldn't update the page word list:", e?.message ?? e),
 });
@@ -1264,11 +1267,10 @@ async function firstInstall() {
   const { ui } = await area.get({ ui: {} });
   const keep = ui?.baseLangsConfirmed === true && Array.isArray(ui.baseLangs) && ui.baseLangs.length;
   const next = keep ? ui.baseLangs.slice(0, 4) : bases;
-  await saveUi({ uiLang: "auto", ...ui, baseLangs: next, baseLangsDetected: bases, baseLangsConfirmed: !!keep });
   const { onboarding } = await area.get({ onboarding: null });
   const patch = { baseLangs: next };
   if (!onboarding) patch.onboarding = { completedAt: null, skipped: false, version: 2 };
-  await area.set(patch);
+  await saveUi({ uiLang: "auto", ...ui, baseLangs: next, baseLangsDetected: bases, baseLangsConfirmed: !!keep }, { with: patch });
   projector.schedule();
   await openWelcome();
 }
@@ -1295,8 +1297,7 @@ async function upgradeBases() {
   // Over four: drop detected languages no word uses, from the end.
   for (let i = next.length - 1; next.length > 4 && i >= 0; i--) if (!present.includes(next[i])) next.splice(i, 1);
   const bases = next.slice(0, 4);
-  await saveUi({ uiLang: "auto", ...ui, baseLangs: bases, baseLangsDetected: detected, baseLangsConfirmed: false });
-  await area.set({ baseLangs: bases });
+  await saveUi({ uiLang: "auto", ...ui, baseLangs: bases, baseLangsDetected: detected, baseLangsConfirmed: false }, { with: { baseLangs: bases } });
   projector.schedule();
 }
 
