@@ -785,15 +785,21 @@
     }
 
     // --- Lifecycle ------------------------------------------------------------------
+    // Only the learner opens, closes or speaks the card: events a page script makes
+    // (isTrusted false) are ignored, or any site could open the card on a word and search
+    // its closed shadow root with window.find (security review A-04).
+    const learner = (fn) => (e) => {
+      if (e.isTrusted) fn(e);
+    };
     const LISTENERS = [
-      ["pointerover", onPointerOver, { capture: true, passive: true }],
-      ["pointerout", onPointerOut, { capture: true, passive: true }],
-      ["pointerdown", onPointerDown, { capture: true, passive: true }],
+      ["pointerover", learner(onPointerOver), { capture: true, passive: true }],
+      ["pointerout", learner(onPointerOut), { capture: true, passive: true }],
+      ["pointerdown", learner(onPointerDown), { capture: true, passive: true }],
       // Not passive: only to cancel the click a long press inside a link leaves behind.
-      ["click", onClick, { capture: true }],
-      ["keydown", onKeyDown, { capture: true }],
+      ["click", learner(onClick), { capture: true }],
+      ["keydown", learner(onKeyDown), { capture: true }],
       // Not passive: suppresses the context menu only after a long press on a word.
-      ["contextmenu", onContextMenu, { capture: true }],
+      ["contextmenu", learner(onContextMenu), { capture: true }],
     ];
 
     function install() {

@@ -9,7 +9,7 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { createFakeChrome } from "../helpers/fake-chrome.mjs";
 import { createI18n } from "../helpers/fake-i18n.mjs";
-import { createPage, injectContentScripts, sleep } from "../helpers/load-script.mjs";
+import { createPage, injectContentScripts, sleep, dispatchTrusted } from "../helpers/load-script.mjs";
 import { voiceLists } from "../helpers/speech-stub.mjs";
 import { BOOK, CASTLE, DOG, GOOD, PLEASE, THANKS_RU, THANKS_ZH, WATER } from "../helpers/popover-words.mjs";
 
@@ -80,7 +80,7 @@ async function load({ html = PAGE, words = WORDS, locale = "en", voices = voiceL
   const card = () => shadow()?.querySelector(".k-card");
   const word = (native) => [...doc.querySelectorAll("kotiko-w")].find((w) => w.textContent.toLowerCase() === native.toLowerCase());
   const pointer = (type, target, init = {}) =>
-    target.dispatchEvent(new window.PointerEvent(type, { bubbles: true, cancelable: true, composed: true, pointerType: "mouse", clientX: 10, clientY: 10, ...init }));
+    dispatchTrusted(target, new window.PointerEvent(type, { bubbles: true, cancelable: true, composed: true, pointerType: "mouse", clientX: 10, clientY: 10, ...init }));
   return {
     window,
     doc,
@@ -99,12 +99,12 @@ async function load({ html = PAGE, words = WORDS, locale = "en", voices = voiceL
     },
     click(target, init = {}) {
       const e = new window.PointerEvent("click", { bubbles: true, cancelable: true, composed: true, pointerType: "mouse", ...init });
-      target.dispatchEvent(e);
+      dispatchTrusted(target, e);
       return e;
     },
     key(target, key, init = {}) {
       const e = new window.KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, composed: true, ...init });
-      target.dispatchEvent(e);
+      dispatchTrusted(target, e);
       return e;
     },
     async set(patch) {
@@ -255,6 +255,37 @@ describe("the card's content (19 §1, §1a)", () => {
   });
 });
 
+describe("events a page script makes (security review A-04)", () => {
+  // A page's own script can dispatch clicks, keys and pointer events on a swap. None of them
+  // opens the card (whose closed shadow root window.find could then search) or speaks.
+  test("a synthetic click, Enter, pointerover or long press never opens the card", async () => {
+    const p = await load();
+    const w = p.word("пожалуйста");
+    const W = p.window;
+    w.dispatchEvent(new W.MouseEvent("click", { bubbles: true, cancelable: true, composed: true }));
+    w.dispatchEvent(new W.PointerEvent("click", { bubbles: true, cancelable: true, composed: true, pointerType: "touch" }));
+    w.tabIndex = 0;
+    w.dispatchEvent(new W.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true, composed: true }));
+    w.dispatchEvent(new W.PointerEvent("pointerover", { bubbles: true, composed: true, pointerType: "mouse", clientX: 10, clientY: 10 }));
+    p.$("link").querySelector("kotiko-w").dispatchEvent(new W.PointerEvent("pointerdown", { bubbles: true, composed: true, pointerType: "touch" }));
+    await sleep(HOVER_MS + 300);
+    assert.equal(p.isOpen(), false);
+    assert.equal(p.doc.querySelector("kotiko-popover"), null, "no card host either");
+  });
+
+  test("with the card open, a synthetic S doesn't speak and a synthetic Escape doesn't close", async () => {
+    const p = await load();
+    p.click(p.word("пожалуйста"));
+    assert.equal(p.isOpen(), true);
+    const W = p.window;
+    p.doc.body.dispatchEvent(new W.KeyboardEvent("keydown", { key: "s", code: "KeyS", bubbles: true, cancelable: true, composed: true }));
+    p.doc.body.dispatchEvent(new W.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true, composed: true }));
+    await sleep(50);
+    assert.equal(p.spoken.length, 0);
+    assert.equal(p.isOpen(), true);
+  });
+});
+
 describe("opening and closing (19 §3)", () => {
   test("hover intent: 300 ms of rest opens; a moving pointer doesn't", async () => {
     const p = await load();
@@ -346,7 +377,7 @@ describe("opening and closing (19 §3)", () => {
     await sleep(560);
     assert.equal(p.isOpen(), true);
     const menu = new p.window.MouseEvent("contextmenu", { bubbles: true, cancelable: true });
-    w.dispatchEvent(menu);
+    dispatchTrusted(w, menu);
     assert.equal(menu.defaultPrevented, true);
     p.pointer("pointerup", w, { pointerType: "touch" });
     assert.equal(p.click(w, { pointerType: "touch" }).defaultPrevented, true);
@@ -363,7 +394,7 @@ describe("opening and closing (19 §3)", () => {
     await sleep(500);
     assert.equal(p.isOpen(), false);
     const menu = new p.window.MouseEvent("contextmenu", { bubbles: true, cancelable: true });
-    w.dispatchEvent(menu);
+    dispatchTrusted(w, menu);
     assert.equal(menu.defaultPrevented, false);
   });
 
