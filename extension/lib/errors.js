@@ -125,6 +125,10 @@
         return { key: "error_server_key_rejected" };
       case "server_address_invalid":
         return { key: d.reason === "host_not_allowed" ? "error_server_address_invalid_host_not_allowed" : "error_server_address_invalid" };
+      case "not_kotiko_server":
+        // Nothing there proved it holds the token, so it wasn't sent (slice 54, B-01): an
+        // older server, or another program at the address.
+        return { key: d.reason === "no_proof" ? "error_not_kotiko_server_no_proof" : "error_not_kotiko_server" };
       case "address_changed":
         return { key: "error_address_changed", actions: String(d.route ?? "").startsWith("lookup:") ? ["setupLookups"] : ["settings"] };
       case "quota_exhausted": {

@@ -3,7 +3,7 @@
 
 // Slice 12 in the real background.js (vm, fake chrome, fake-indexeddb, the fixture
 // server): restoring a backup into this browser and into a server, its Undo, and "delete
-// everything", which leaves no storage area, database, job or key behind.
+// everything", which leaves no storage area, job or key behind, and a database with no data.
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -48,6 +48,19 @@ function loadBackground({ local = {}, sync = {}, session = {}, fetch: f = fetch 
 
 const plain = (v) => JSON.parse(JSON.stringify(v));
 const databases = async (bg) => (await bg.ctx.indexedDB.databases()).map((d) => d.name);
+// What "delete everything" leaves (slice 54, A-06): a new `kotiko` database with no words, no
+// secrets and one mark, so the store set up next takes nothing from storage.local.
+async function onlyTheMark(bg) {
+  assert.deepEqual(await databases(bg), ["kotiko"]);
+  const s = await bg.ctx.KotikoStore.open({ indexedDB: bg.ctx.indexedDB });
+  try {
+    assert.deepEqual((await s.meta.entries("")).map((r) => r.key), ["bornFromWipe"]);
+    assert.deepEqual(await s.all(), []);
+    assert.deepEqual(await s.secrets.ids(), []);
+  } finally {
+    s.close();
+  }
+}
 
 describe("restoring a backup into this browser (§5)", () => {
   test("preview counts without writing; restore in one go; the same file again changes nothing; Undo", async () => {
@@ -112,7 +125,7 @@ describe("delete everything (§6)", () => {
     return bg;
   }
 
-  test("every storage area empty, the database gone, no job, alarm or key left; pages get an empty list", async () => {
+  test("every storage area empty, the database emptied, no job, alarm or key left; pages get an empty list", async () => {
     const bg = await full();
     assert.ok(bg.fake.alarms.size > 0);
     const described = await bg.send({ type: "data.describe" });
@@ -127,13 +140,13 @@ describe("delete everything (§6)", () => {
     assert.deepEqual(plain(bg.fake.store.local), {});
     assert.deepEqual(plain(bg.fake.store.session), {});
     assert.deepEqual(plain(bg.fake.store.sync), {});
-    assert.deepEqual(await databases(bg), [], "no kotiko database");
+    await onlyTheMark(bg);
     assert.equal(bg.fake.alarms.size, 0);
     // A page left open asks for something at once: refused, and nothing is set up again.
     assert.equal((await bg.send({ type: "words.list" })).details?.reason, "deleted");
     await bg.fake.idle();
     assert.deepEqual(plain(bg.fake.store.local), {});
-    assert.deepEqual(await databases(bg), []);
+    await onlyTheMark(bg);
     // A page opened a moment later (or anything a person asks for) starts afresh: no key, no words.
     await sleep(2100);
     const secrets = await bg.send({ type: "secrets.describe" });

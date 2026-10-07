@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // The page OpenRouter returns to after "Connect OpenRouter" (slice 11 §4):
-// https://kotiko.org/connect/?code=…
+// https://kotiko.org/connect/?code=…&state=…
 //
 // It has no script of its own and loads nothing but its stylesheet. Kotiko's content script
-// for exactly this origin and path (extension/content/connect.js) reads `?code=` from the
-// address, sends it to Kotiko's background as {type: "oauth.code", code}, and writes the
-// outcome into #kotiko-connect-status. The code is useless without the verifier, which
+// for exactly this origin and path (extension/content/connect.js) reads `?code=` and the
+// sign-in's `state` from the address, sends them to Kotiko's background as
+// {type: "oauth.code", code, state}, and writes the outcome into #kotiko-connect-status. The code is useless without the verifier, which
 // never leaves Kotiko's background. Nothing on this page sends it anywhere: the Content
 // Security Policy below forbids scripts, connections and forms, and `no-referrer` keeps the
 // address out of any link's Referer header.

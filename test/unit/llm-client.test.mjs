@@ -59,8 +59,8 @@ describe("presets (spec/providers.json): URL, headers and JSON mode", () => {
     ["anthropic", null, "https://api.anthropic.com/v1", { "anthropic-dangerous-direct-browser-access": "true" }, false],
     ["gemini", null, "https://generativelanguage.googleapis.com/v1beta/openai", {}, true],
     ["groq", null, "https://api.groq.com/openai/v1", {}, true],
-    ["ollama", null, "http://localhost:11434/v1", {}, true],
-    ["lmstudio", null, "http://localhost:1234/v1", {}, false],
+    ["ollama", null, "http://127.0.0.1:11434/v1", {}, true],
+    ["lmstudio", null, "http://127.0.0.1:1234/v1", {}, false],
     ["custom", "https://llm.example.net/v1/", "https://llm.example.net/v1", {}, true],
   ];
   test("there are eight presets, OpenRouter first and the default", () => {
@@ -85,6 +85,27 @@ describe("presets (spec/providers.json): URL, headers and JSON mode", () => {
       assert.match(chat.body.messages[0].content, /English/, "the prompt names the base");
       assert.equal(chat.body.messages[1].content, "shukran");
       if (id === "openrouter") assert.equal(chat.body.model, "fake/model-a:free");
+    });
+  }
+
+  // Slice 54, A-07: a model stuck repeating itself could write until the model's own limit
+  // on every lookup, billed to the learner's key. Every request now carries the spec's cap
+  // (spec/models.json policy.max_tokens), in the field the preset's API reads.
+  for (const [id, baseUrl] of cases.map((c) => [c[0], c[1]])) {
+    test(`${id}: every lookup and respelling carries the spec's output cap`, async () => {
+      const keyless = id === "ollama" || id === "lmstudio";
+      const field = id === "openai" ? "max_completion_tokens" : "max_tokens";
+      const other = field === "max_tokens" ? "max_completion_tokens" : "max_tokens";
+      // OpenRouter's model doesn't list max_tokens among its parameters: the cap goes anyway
+      // (OpenRouter ignores a parameter a model doesn't take).
+      const s = stub({ models: (req) => json200Models(id, req) });
+      const c = client({ provider: id, baseUrl, key: keyless ? null : KEY, fetch: s.fetch });
+      assert.equal((await c.lookup(REQ)).ok, true);
+      await c.respell([{ lang: "ar", native: "شكرا", sense: null, base_langs: ["en"] }]);
+      const [lookup, respell] = s.chats();
+      assert.equal(lookup.body[field], L.spec.models.policy.max_tokens.lookup, "lookup");
+      assert.equal(respell.body[field], L.spec.models.policy.max_tokens.respell, "respell");
+      assert.equal(other in lookup.body, false, `no ${other} beside it`);
     });
   }
 
@@ -284,14 +305,20 @@ describe("quota, cache and the Test button", () => {
 
 describe("PKCE (Connect OpenRouter's hook)", () => {
   test("an S256 pair, the auth URL, and the callback check", async () => {
-    const { verifier, challenge } = await L.PKCE.pair();
+    const { verifier, challenge, state } = await L.PKCE.pair();
     assert.match(verifier, /^[A-Za-z0-9_-]{43}$/);
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
     assert.equal(challenge, Buffer.from(digest).toString("base64url"));
-    const u = new URL(L.PKCE.authUrl({ challenge }));
+    // 128 random bits, new for each sign-in, sent as OpenRouter's `state` (slice 54, A-05).
+    assert.match(state, /^[A-Za-z0-9_-]{22}$/);
+    assert.notEqual((await L.PKCE.pair()).state, state);
+    const u = new URL(L.PKCE.authUrl({ challenge, state }));
     assert.equal(u.origin + u.pathname, "https://openrouter.ai/auth");
     assert.equal(u.searchParams.get("callback_url"), "https://kotiko.org/connect/");
     assert.equal(u.searchParams.get("code_challenge_method"), "S256");
+    assert.equal(u.searchParams.get("state"), state);
+    assert.ok(L.PKCE.sameState(state, `${state}`));
+    for (const other of [null, undefined, "", state.slice(1), `${state.slice(0, -1)}${state.endsWith("A") ? "B" : "A"}`, 42]) assert.equal(L.PKCE.sameState(other, state), false, String(other));
     assert.ok(L.PKCE.isCallback("https://kotiko.org/connect/?code=abc"));
     assert.ok(!L.PKCE.isCallback("https://evil.example/connect/?code=abc"));
     assert.ok(!L.PKCE.isCallback("https://kotiko.org/other/?code=abc"));

@@ -363,7 +363,7 @@ describe("upgrading an existing install (slice 11 §8)", () => {
     await fetch(`${srv.url}/__control`, { method: "POST", body: JSON.stringify({ words: LEGACY_WORDS }) });
     const legacy = { serverUrl: srv.kotikoUrl, token: srv.token, words: LEGACY_WORDS, enabled: true, hiddenLangs: [], lastSync: 1 };
     const bg = loadBackground({ local: legacy });
-    bg.fake.fireInstalled({ reason: "update" });
+    bg.fake.fireInstalled({ reason: "update", previousVersion: "0.2.0" });
     await bg.k.ready();
     await bg.until(() => bg.store.lastSync > 1);
     assert.equal(bg.store.token, undefined);

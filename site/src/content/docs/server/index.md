@@ -40,7 +40,7 @@ Then start it:
 
 The first run fetches dependencies and compiles, then prints a short summary: version, data
 folder, who can reach the server, model and Telegram. Check it with
-`curl localhost:4747/health`, which prints `{"ok":true,...}` with the version. A mistake in
+`curl http://127.0.0.1:4747/health`, which prints `{"ok":true,...}` with the version. A mistake in
 `.env` stops the server with a message naming each setting to fix.
 
 The first start also makes an **access key** (the API token), saves it in the data folder and
@@ -61,7 +61,9 @@ keys). Replacing a key is then replacing its file and restarting. See
 ## Connect Kotiko to it
 
 1. In Kotiko, open **Settings**, then **Your Kotiko server**.
-2. Enter the server address, `http://localhost:4747` on the same computer.
+2. Enter the server address, `http://127.0.0.1:4747` on the same computer. (Kotiko uses
+   127.0.0.1 even if you type `localhost`: browsers try `[::1]` first for that name, where
+   another account on the computer could be listening.)
 3. Paste the access key and select **Save and connect**.
 
 Settings then say "Connected. Your server has 0 words." If your words were in the browser,

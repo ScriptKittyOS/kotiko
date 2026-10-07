@@ -95,14 +95,142 @@ defmodule Kotiko.DataDir do
     target = Application.fetch_env!(:kotiko, :data_dir)
     source = Application.get_env(:kotiko, :data_dir_source)
 
-    case migrate(target, legacy_dirs(target, source, System.user_home())) do
+    # Before anything in the folder is read or written (slice 54, B-02). Status 78: like a
+    # settings mistake, starting again won't help until someone looks.
+    with {:error, message} <- check_safe(target, Private.uid()),
+         do: Kotiko.Config.halt!(message, 78)
+
+    legacy_dirs = legacy_dirs(target, source, System.user_home())
+
+    case migrate(target, legacy_dirs) do
       {:ok, _result} ->
         make_private(target)
+        make_legacy_private(legacy_dirs -- [target])
         target
 
       {:error, message} ->
         Kotiko.Config.halt!(message, 1)
     end
+  end
+
+  @doc """
+  Checks that nobody else could have put files in the data folder `dir` that Kotiko would
+  trust, before any of them is used: the API token found there opens the server, and the
+  words are written to `kotiko.db` (slice 54, B-02). `uid` is the account the server runs
+  as (nil: unknown, so owners aren't compared). Returns `:ok` or `{:error, message}`.
+
+  A problem, each named in the message:
+
+    * the folder, or any of Kotiko's files in it, belongs to another account;
+    * one of Kotiko's files (`kotiko.db` and the files SQLite keeps next to it,
+      `api-token`, the model list cache, an old `slovo.db`, `backups` and the backups in
+      it) is a symbolic link. Kotiko never makes links, and following one would read a
+      token or write the words wherever it points; telling a harmless link from a
+      planted one would mean trusting where it points, so none is accepted. To keep the
+      words on another disk, point KOTIKO_DATA_DIR there (the folder itself may be a link);
+    * other users can write in the folder, and it holds files that aren't Kotiko's (then it
+      is shared on purpose, and Kotiko won't change its permissions).
+
+  A folder others can write in that holds only Kotiko's files, and is this account's, is
+  made 0700 first, with a warning, before its files are checked: then nobody else can add
+  or swap a file while the server runs.
+  """
+  def check_safe(dir, uid) do
+    case File.stat(dir) do
+      {:ok, %File.Stat{type: :directory} = stat} ->
+        problems = folder_problems(dir, stat, uid) ++ file_problems(dir, uid)
+        if problems == [], do: :ok, else: {:error, unsafe_message(dir, problems)}
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp folder_problems(dir, %File.Stat{uid: owner, mode: mode}, uid) do
+    cond do
+      is_integer(uid) and owner != uid ->
+        ["the folder #{dir} belongs to another account (uid #{owner})"]
+
+      Bitwise.band(mode, 0o022) == 0 ->
+        []
+
+      own_folder?(dir) ->
+        case Private.restrict(dir) do
+          :changed ->
+            Logger.warning(
+              "Other users of this computer could write in the data folder #{dir}. Made " <>
+                "it private: only your account can open it now."
+            )
+
+            []
+
+          {:error, :ignored} ->
+            [
+              "other users of this computer can write in the folder #{dir}, and its disk " <>
+                "doesn't keep permissions (a Windows drive in WSL, say), so Kotiko can't " <>
+                "change that: keep the data folder on a disk that does"
+            ]
+
+          _ ->
+            ["other users of this computer can write in the folder #{dir}"]
+        end
+
+      true ->
+        ["other users of this computer can write in the folder #{dir}"]
+    end
+  end
+
+  defp file_problems(dir, uid) do
+    backups = Path.join(dir, @backups)
+
+    backup_files =
+      case File.lstat(backups) do
+        {:ok, %File.Stat{type: :directory}} -> Enum.map(ls(backups), &Path.join(backups, &1))
+        _ -> []
+      end
+
+    for path <-
+          Enum.map(@private_files ++ @legacy_files ++ [@backups], &Path.join(dir, &1)) ++
+            backup_files,
+        problem = file_problem(path, uid),
+        do: problem
+  end
+
+  defp file_problem(path, uid) do
+    case File.lstat(path) do
+      {:ok, %File.Stat{type: :symlink}} ->
+        "#{path} is a link (to #{link_target(path)})"
+
+      {:ok, %File.Stat{uid: owner}} when is_integer(uid) and owner != uid ->
+        "#{path} belongs to another account (uid #{owner})"
+
+      _ ->
+        nil
+    end
+  end
+
+  defp link_target(path) do
+    case File.read_link(path) do
+      {:ok, target} -> target
+      {:error, _} -> "somewhere"
+    end
+  end
+
+  defp own_folder?(dir) do
+    match?({:ok, %File.Stat{type: :directory}}, File.lstat(dir)) and
+      Enum.all?(ls(dir), &(&1 in @own_names))
+  end
+
+  defp unsafe_message(dir, problems) do
+    "The server can't start: someone else may have put files in #{dir}, the data " <>
+      "folder.\n\n" <>
+      Enum.map_join(problems, "", &"  - #{&1}\n") <>
+      "\nKotiko trusts the files in its data folder: the API token there opens the server, " <>
+      "and your words are written to kotiko.db. Kotiko never makes links, and its files " <>
+      "are always your account's. Check each file above: if it's yours, put the real file " <>
+      "in the folder in place of the link and make it yours (chown, chmod 600); if not, " <>
+      "delete it. Make the folder writable only by you (chmod 700 #{dir}), or give Kotiko " <>
+      "a folder of its own with KOTIKO_DATA_DIR. Then start the server again.\n"
   end
 
   @doc """
@@ -216,6 +344,33 @@ defmodule Kotiko.DataDir do
   end
 
   @doc """
+  Makes the old name's files private in each folder of `dirs` the words were copied from
+  (it has `MOVED-TO-KOTIKO.txt`): `slovo.db` and the files next to it, and the old
+  `api-token`, which is the live token too (slice 54, B-03). A 0.2 install made them with
+  umask 022, so others could read every word in the old copy. Runs after the copy and at
+  every start, for installs copied before this check. Logs one warning per folder it
+  changed. Returns `:ok`.
+  """
+  def make_legacy_private(dirs) do
+    for dir <- dirs, File.regular?(Path.join(dir, @note)) do
+      changed =
+        for name <- @legacy_files ++ ["api-token"],
+            Private.restrict(Path.join(dir, name)) == :changed,
+            do: name
+
+      if changed != [] do
+        Logger.warning(
+          "Made the old files in #{dir} private (#{Enum.join(changed, ", ")}): other users " <>
+            "of this computer could read them. Kotiko copied your words from there; you can " <>
+            "delete that folder once you've checked your words."
+        )
+      end
+    end
+
+    :ok
+  end
+
+  @doc """
   Folders to look in for an old `slovo.db`, in order: the data folder itself, then the
   old default folder, but only when nobody chose the data folder (`source` `:default`).
   """
@@ -310,6 +465,7 @@ defmodule Kotiko.DataDir do
     case result do
       {:ok, words} ->
         write_note(legacy, database)
+        if Path.dirname(legacy) != target, do: make_legacy_private([Path.dirname(legacy)])
 
         Logger.info(
           "Moved your words from #{legacy} to #{database} (#{plural(words, "word")}). " <>

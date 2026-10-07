@@ -10,6 +10,13 @@
 //   normalizeServerUrl("http://user:pw@host")
 //     -> { ok: false, code: "server_address_invalid", hint: "..." }
 //   sendsInClear("http://192.168.1.5:4747")  -> true  (the token would cross the network unencrypted)
+//   pinLoopback("http://localhost:11434/v1") -> "http://127.0.0.1:11434/v1"
+//
+// Plain-http `localhost` always becomes 127.0.0.1 (slice 54, B-01). Browsers resolve the
+// name themselves and try [::1] first, where another account on the computer can listen
+// while Kotiko's server (and Ollama, LM Studio) listen on 127.0.0.1 only; the first request
+// already carries the token. An https:// address keeps its name, which its certificate
+// names, and so does *.localhost, which names a site behind a local proxy.
 (() => {
   const INVALID = "server_address_invalid";
   const fail = (hint) => ({ ok: false, code: INVALID, hint });
@@ -44,12 +51,18 @@
     return hostPort.replace(/:\d*$/, "");
   }
 
+  // "http://localhost:4747/x" -> "http://127.0.0.1:4747/x"; anything else as given.
+  const LOCALHOST = /^http:\/\/localhost\.?(?=[:/]|$)/i;
+  function pinLoopback(url) {
+    return typeof url === "string" ? url.replace(LOCALHOST, "http://127.0.0.1") : url;
+  }
+
   const USER_INFO_HINT =
     "Leave the user name and password out of the address; paste the token in the API token field.";
 
   function normalizeServerUrl(input) {
     const raw = typeof input === "string" ? input.trim() : "";
-    if (!raw) return fail("Enter the server address, for example http://localhost:4747.");
+    if (!raw) return fail("Enter the server address, for example http://127.0.0.1:4747.");
 
     let withScheme = raw;
     if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) {
@@ -66,7 +79,7 @@
     try {
       u = new URL(withScheme);
     } catch {
-      return fail("That doesn't look like a web address. Try something like http://localhost:4747.");
+      return fail("That doesn't look like a web address. Try something like http://127.0.0.1:4747.");
     }
     if (u.protocol !== "http:" && u.protocol !== "https:") {
       return fail("Use an http:// or https:// address.");
@@ -75,11 +88,11 @@
     if (u.search || u.hash || /[?#]/.test(raw)) {
       return fail("Remove the part of the address after ? or #.");
     }
-    if (!u.hostname) return fail("The address needs a host name, for example localhost.");
+    if (!u.hostname) return fail("The address needs a host name, for example 127.0.0.1.");
 
     // Keep the port and any path (a reverse proxy may mount the server under a prefix).
     const path = u.pathname.replace(/\/+$/, "");
-    return { ok: true, url: `${u.protocol}//${u.host}${path}` };
+    return { ok: true, url: pinLoopback(`${u.protocol}//${u.host}${path}`) };
   }
 
   // An address whose requests (and the token in them) cross a network unencrypted: plain
@@ -98,7 +111,7 @@
     return true;
   }
 
-  const api = { normalizeServerUrl, isLocalHost, sendsInClear };
+  const api = { normalizeServerUrl, isLocalHost, sendsInClear, pinLoopback };
   globalThis.ServerUrl = api;
   if (typeof module === "object" && module.exports) module.exports = api;
 })();

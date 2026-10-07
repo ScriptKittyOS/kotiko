@@ -993,7 +993,9 @@ describe("sensitive sites and page settings (slice 16)", () => {
   });
 
   test("a word on the never-swap list stays, on every page, until it is taken off", async () => {
-    const { $, set } = await load(`<p id="p">my house, thanks</p>`, { prefs: { neverSwap: ["house"] } });
+    // Russian words only: with three languages for "thanks", which one shows is drawn per
+    // day (slice 18), and the release build of rc.1 ran on a day that drew Mandarin.
+    const { $, set } = await load(`<p id="p">my house, thanks</p>`, { words: WORDS.filter((w) => w.lang === "ru"), prefs: { neverSwap: ["house"] } });
     assert.equal($("p").textContent, "my house, спасибо");
     await set({ prefs: { neverSwap: [] } });
     assert.equal($("p").textContent, "my дом, спасибо");

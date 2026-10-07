@@ -229,20 +229,72 @@ describe("the lookup settings", () => {
 });
 
 describe("Connect OpenRouter (slice 11 §4)", () => {
+  const DOCS = { id: EXT_ID, url: "https://kotiko.org/connect/?code=c0de", tab: { id: 4, url: "https://kotiko.org/connect/?code=c0de" } };
+  // OpenRouter's key exchange: only `real` is a code it issued.
+  const exchange = (real = "c0de") => recorder(async (url, init) => {
+    if (String(url) !== "https://openrouter.ai/api/v1/auth/keys") return Promise.reject(new TypeError("offline"));
+    return JSON.parse(init.body).code === real ? new Response(JSON.stringify({ key: KEY }), { status: 200, headers: { "content-type": "application/json" } }) : new Response("{}", { status: 400 });
+  });
+  // The sign-in's `state`, from the OpenRouter address the start opened.
+  const start = async (bg) => new URL((await bg.send({ type: "oauth.start" })).url).searchParams.get("state");
+
   test("the key's arrival chooses OpenRouter in the trusted copy, so pages see it and a rewrite is put back", async () => {
-    const DOCS = { id: EXT_ID, url: "https://kotiko.org/connect/?code=c0de", tab: { id: 4, url: "https://kotiko.org/connect/?code=c0de" } };
-    const rec = recorder(async (url) => (String(url) === "https://openrouter.ai/api/v1/auth/keys" ? new Response(JSON.stringify({ key: KEY }), { status: 200, headers: { "content-type": "application/json" } }) : Promise.reject(new TypeError("offline"))));
+    const rec = exchange();
     const bg = loadBackground({ fetch: rec.fetch });
     bg.fake.chrome.tabs.create = async () => {};
     await bg.k.ready();
-    assert.equal((await bg.send({ type: "oauth.start" })).ok, true);
-    assert.deepEqual(await bg.send({ type: "oauth.code", code: "c0de" }, DOCS), { ok: true });
+    const state = await start(bg);
+    assert.match(state, /^[A-Za-z0-9_-]{22,}$/);
+    assert.deepEqual(await bg.send({ type: "oauth.code", code: "c0de", state }, DOCS), { ok: true });
     await bg.fake.idle();
     const chosen = { kind: "provider", provider: "openrouter", baseUrl: null };
     assert.deepEqual(plain((await bg.k.area.get("lookup")).lookup), { ...plain(bg.store.lookup), ...chosen });
     assert.equal(bg.store.keys.providers.openrouter, true, "the pages' copy says a key is saved");
     await bg.plant({ lookup: { ...plain(bg.store.lookup), provider: "custom", baseUrl: "https://evil.example/v1" }, keys: { server: false, providers: {} } });
     await bg.until(() => bg.store.lookup.provider === "openrouter" && bg.store.keys.providers.openrouter === true);
+  });
+});
+
+describe("a page can't spoil a sign-in in progress (slice 54, A-05)", () => {
+  const DOCS = { id: EXT_ID, url: "https://kotiko.org/connect/?code=x", tab: { id: 4, url: "https://kotiko.org/connect/?code=x" } };
+  const exchange = (real) => recorder(async (url, init) => {
+    if (String(url) !== "https://openrouter.ai/api/v1/auth/keys") return Promise.reject(new TypeError("offline"));
+    return JSON.parse(init.body).code === real ? new Response(JSON.stringify({ key: KEY }), { status: 200, headers: { "content-type": "application/json" } }) : new Response("{}", { status: 400 });
+  });
+
+  // Any page can send the browser to kotiko.org/connect/?code=<junk>, where Kotiko's content
+  // script hands the code on. That used to use up the waiting sign-in: the learner's real code
+  // then got "This sign-in has expired".
+  test("a junk code, with no state or the wrong one, is refused unused, and the real one still works", async () => {
+    const rec = exchange("real-code-0123456789");
+    const bg = loadBackground({ fetch: rec.fetch });
+    bg.fake.chrome.tabs.create = async () => {};
+    await bg.k.ready();
+    const state = new URL((await bg.send({ type: "oauth.start" })).url).searchParams.get("state");
+    for (const junk of [{ code: "junk-from-a-page" }, { code: "junk-from-a-page", state: "guessed" }]) {
+      const r = await bg.send({ type: "oauth.code", ...junk }, DOCS);
+      assert.equal(r.code, "key_rejected", JSON.stringify(junk));
+      assert.equal(r.details.reason, "not_this_sign_in");
+    }
+    assert.deepEqual(rec.requests, [], "a code without this sign-in's state never reaches OpenRouter");
+    assert.deepEqual(await bg.send({ type: "oauth.code", code: "real-code-0123456789", state }, DOCS), { ok: true });
+    assert.deepEqual(rec.requests.map((r) => r.body.code), ["real-code-0123456789"]);
+    assert.deepEqual(Object.keys((await bg.send({ type: "secrets.describe" })).secrets), ["provider:openrouter"]);
+  });
+
+  test("a code OpenRouter refuses leaves the sign-in waiting; a used one is gone", async () => {
+    const rec = exchange("real-code-0123456789");
+    const bg = loadBackground({ fetch: rec.fetch });
+    bg.fake.chrome.tabs.create = async () => {};
+    await bg.k.ready();
+    const state = new URL((await bg.send({ type: "oauth.start" })).url).searchParams.get("state");
+    const refused = await bg.send({ type: "oauth.code", code: "stale-code", state }, DOCS);
+    assert.equal(refused.code, "key_rejected");
+    assert.notEqual(refused.details.reason, "expired");
+    assert.deepEqual(await bg.send({ type: "oauth.code", code: "real-code-0123456789", state }, DOCS), { ok: true });
+    // Done: the verifier is gone, so the same address again says the sign-in expired.
+    const again = await bg.send({ type: "oauth.code", code: "real-code-0123456789", state }, DOCS);
+    assert.deepEqual([again.code, again.details.reason], ["key_rejected", "expired"]);
   });
 });
 
@@ -266,6 +318,45 @@ describe("Kotiko's pages change settings through the background", () => {
     assert.deepEqual(plain(bg.store.baseLangs), ["es", "en"]);
     assert.deepEqual(plain(bg.fake.store.sync.ui), plain(bg.store.ui));
     assert.equal(bg.store.ui.uiLang, "es");
+  });
+
+  // The welcome test that flaked under load (slice 54, C-08): the pages' word list is
+  // projected for the bases read before the store's list, and written after it, so a
+  // change of bases in between was written over with the old ones until the next projection.
+  test("a projection that read the bases before they changed never writes the old ones back", async () => {
+    const bg = loadBackground({ sync: { ui: { uiLang: "auto", baseLangs: ["es", "en"], baseLangsConfirmed: false } } });
+    await bg.k.ready();
+    await bg.k.seed({ baseLangs: ["es", "en"] });
+    await bg.k.projector.flush();
+    // The store's list is held, as a slow IndexedDB read under load is.
+    const store = await bg.k.getStore();
+    const list = store.list.bind(store);
+    let release;
+    const held = new Promise((r) => (release = r));
+    let reading;
+    const inList = new Promise((r) => (reading = r));
+    store.list = async (...a) => {
+      reading();
+      await held;
+      return list(...a);
+    };
+    // The page's change reaches its write while the projection waits for the list.
+    const set = bg.k.area.set;
+    let writing;
+    const changing = new Promise((r) => (writing = r));
+    bg.k.area.set = (items) => {
+      if (items?.baseLangs?.join?.() === "es") writing();
+      return set(items);
+    };
+    const projected = bg.k.projector.schedule();
+    await inList;
+    const change = bg.send({ type: "settings.set", merge: { ui: { baseLangs: ["es"] } }, set: { baseLangs: ["es"] } });
+    await changing;
+    release();
+    await projected;
+    assert.deepEqual(await change, { ok: true });
+    assert.deepEqual(plain(bg.store.baseLangs), ["es"], "the pages' copy");
+    assert.deepEqual(plain((await bg.k.area.get("baseLangs")).baseLangs), ["es"], "the trusted copy");
   });
 
   test("what they may not change, or not in that shape, is refused and nothing is written", async () => {
@@ -367,4 +458,75 @@ describe("installs and upgrades", () => {
     assert.equal(await (await bg.k.getStore()).meta.get("route:lookup:custom"), null);
     assert.deepEqual(plain(await (await bg.k.getStore()).secrets.ids()), []);
   });
+});
+
+// Slice 54, A-06: after "Delete everything" the database is gone, so the next store was set
+// up like an update from 0.2, from storage.local, which content scripts can write: a planted
+// `token` and `serverUrl` became the trusted server, and everything typed next went there.
+// A store born from a wipe now takes nothing from storage.local, in this worker's life or a
+// later one (the in-memory "wiped" flag doesn't survive the worker stopping).
+describe("after Delete everything, nothing planted in storage.local is adopted", () => {
+  let evil;
+  before(async () => {
+    evil = await startFixtureServer();
+  });
+  after(() => evil.close());
+  const PLANT = () => ({ token: evil.token, serverUrl: evil.kotikoUrl, wordsHome: "server", lookup: { kind: "provider", provider: "custom", baseUrl: evil.llmUrl } });
+  const untouched = (bg) => {
+    assert.deepEqual(evil.state.log, [], "nothing reached the planted address");
+    assert.notEqual(bg.store.server?.url, evil.kotikoUrl);
+    assert.notEqual(bg.store.wordsHome, "server");
+  };
+
+  test("in the same worker: the learner's next word stays in this browser", async () => {
+    evil.reset();
+    const rec = recorder((u, i) => fetch(u, i));
+    const bg = loadBackground({ fetch: rec.fetch });
+    await bg.k.ready();
+    assert.deepEqual(await bg.send({ type: "data.deleteAll", confirm: "delete-everything" }), { ok: true, server: null });
+    // Code in a content script's world writes the 0.2 keys.
+    await bg.plant(PLANT());
+    const res = await bg.send({ type: "add", text: "my secret diary word" }, POPUP);
+    assert.equal(res.ok, true, JSON.stringify(res));
+    await bg.until(() => bg.store.addJobs?.find((j) => j.id === res.job.id && j.state !== "queued" && j.state !== "running"));
+    untouched(bg);
+    assert.deepEqual(await (await bg.k.getStore()).secrets.ids(), []);
+    assert.equal(rec.requests.some((r) => JSON.stringify(r.body ?? "").includes("my secret diary word")), false);
+  });
+
+  test("after the worker stops while wiped: the next one starts fresh too", async () => {
+    evil.reset();
+    const indexedDB = new IDBFactory();
+    const first = loadBackground({ indexedDB });
+    await first.k.ready();
+    await first.send({ type: "data.deleteAll", confirm: "delete-everything" });
+    await first.plant(PLANT());
+    // A new worker over the same browser storage and database: its own start-up runs.
+    const rec = recorder((u, i) => fetch(u, i));
+    const bg = loadBackground({ local: plain(first.store), indexedDB, fetch: rec.fetch });
+    await bg.k.ready();
+    await bg.send({ type: "sync", force: true }, POPUP);
+    const res = await bg.send({ type: "add", text: "my secret diary word" }, POPUP);
+    await bg.until(() => bg.store.addJobs?.find((j) => j.id === res.job.id && j.state !== "queued" && j.state !== "running"));
+    untouched(bg);
+    assert.deepEqual(await (await bg.k.getStore()).secrets.ids(), []);
+  });
+});
+
+// Slice 54, A-06's second half: a 0.2 token is read only on a real update from 0.2. A store
+// set up from storage.local on any other start (the database lost, say) keeps nothing.
+describe("a 0.2 token counts only on an update from 0.2", () => {
+  for (const [previousVersion, kept] of [["0.2.0", true], ["0.1.0", true], ["1.0.0", false]]) {
+    test(`update from ${previousVersion}: the token is ${kept ? "kept" : "dropped"}`, async () => {
+      const bg = loadBackground({ local: { token: "planted-0123456789", serverUrl: "http://127.0.0.1:6666", words: [] } });
+      await bg.k.ready();
+      bg.fake.fireInstalled({ reason: "update", previousVersion });
+      if (kept) await bg.until(() => bg.store.onboarding);
+      else await bg.until(() => bg.store.server?.url === "http://127.0.0.1:4747" && bg.store.wordsHome === "local");
+      await bg.fake.idle();
+      const store = await bg.k.getStore();
+      assert.deepEqual(await store.secrets.ids(), kept ? ["server"] : []);
+      assert.equal(await store.meta.get("route:server"), kept ? "http://127.0.0.1:6666" : "http://127.0.0.1:4747");
+    });
+  }
 });

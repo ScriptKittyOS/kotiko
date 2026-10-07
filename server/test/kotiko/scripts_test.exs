@@ -404,6 +404,52 @@ defmodule Kotiko.ScriptsTest do
       refute File.exists?(ctx.data)
     end
 
+    # B-03 (slice 54): the words copied from the old name's folder stayed there, and
+    # --delete-data left them. legacy-name-ok-start
+    test "--delete-data deletes the old copy the server moved the words from", ctx do
+      old = Path.join(ctx.home, ".local/share/slovo")
+      File.mkdir_p!(old)
+      for name <- ~w(slovo.db slovo.db-wal api-token), do: File.write!(Path.join(old, name), "x")
+
+      File.write!(
+        Path.join(old, "MOVED-TO-KOTIKO.txt"),
+        "Kotiko copied this database (slovo.db) to #{ctx.data}/kotiko.db on 2026-10-01.\n"
+      )
+
+      # Moved in place: the old database in the data folder itself.
+      File.write!(Path.join(ctx.data, "slovo.db"), "x")
+
+      File.write!(
+        Path.join(ctx.data, "MOVED-TO-KOTIKO.txt"),
+        "Kotiko copied this database (slovo.db) to #{ctx.data}/kotiko.db on 2026-10-01.\n"
+      )
+
+      {output, 0} = run(ctx, "install-service.sh", ["--uninstall", "--delete-data"])
+
+      refute File.exists?(old)
+      refute File.exists?(ctx.data)
+      assert output =~ "Deleted #{old}/slovo.db"
+      assert output =~ "Deleted #{old}/api-token"
+      assert output =~ "Deleted the folder #{old}"
+      assert output =~ "Deleted #{ctx.data}/slovo.db"
+    end
+
+    test "--delete-data leaves an old folder whose words went elsewhere", ctx do
+      old = Path.join(ctx.home, ".local/share/slovo")
+      File.mkdir_p!(old)
+      File.write!(Path.join(old, "slovo.db"), "x")
+
+      File.write!(
+        Path.join(old, "MOVED-TO-KOTIKO.txt"),
+        "Kotiko copied this database (slovo.db) to /somewhere/else/kotiko.db on 2026-10-01.\n"
+      )
+
+      {_output, 0} = run(ctx, "install-service.sh", ["--uninstall", "--delete-data"])
+      assert File.read!(Path.join(old, "slovo.db")) == "x"
+    end
+
+    # legacy-name-ok-end
+
     test "finds the default data folder as the server does", ctx do
       write_env(ctx, "", 0o600)
       xdg = Path.join(ctx.root, "xdg data")

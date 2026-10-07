@@ -33,6 +33,7 @@ defmodule Kotiko.Application do
     token_source = load_token()
     Redact.put_secrets(Redact.configured_secrets())
     HostCheck.init_table()
+    Kotiko.AuthThrottle.init()
     words = Kotiko.Migrations.run!()
     http = http_settings()
     log_summary(token_source, words, http)
@@ -55,6 +56,10 @@ defmodule Kotiko.Application do
       {:ok, token, source} ->
         Application.put_env(:kotiko, :api_token, token)
         if match?({:generated, _}, source), do: print_new_token(token)
+        # API_TOKEN was checked with the other settings; a saved token is checked here.
+        with {:file, path} <- source,
+             do: Enum.each(Config.weak_token(token, "The token in #{path}"), &Logger.warning/1)
+
         source
 
       {:error, message} ->
@@ -132,13 +137,16 @@ defmodule Kotiko.Application do
   defp model_line do
     url = Application.fetch_env!(:kotiko, :llm_url)
     models = Application.fetch_env!(:kotiko, :llm_models)
-    provider = if Config.openrouter?(url), do: "OpenRouter", else: url
+    # Config refuses a user name or password in LLM_URL; never log one anyway (B-05).
+    provider = if Config.openrouter?(url), do: "OpenRouter", else: without_userinfo(url)
 
     case Application.get_env(:kotiko, :llm_model_source, :env) do
       :default -> "#{provider}, its current free models (checked 10 s after start)"
       :env -> "#{provider}, #{plural(length(models), "model")} from LLM_MODEL"
     end
   end
+
+  defp without_userinfo(url), do: URI.to_string(%{URI.parse(url) | userinfo: nil})
 
   defp telegram_line do
     cond do
@@ -158,8 +166,9 @@ defmodule Kotiko.Application do
 
   defp http_children(nil), do: []
 
+  # BIND's address, and the other loopback address too (Kotiko.Listener).
   defp http_children(%{ip: ip, port: port, exposure: {_level, class, message}}) do
-    [{Bandit, plug: Kotiko.Router, ip: ip, port: port}] ++ repeat_public_warning(class, message)
+    Kotiko.Listener.child_specs(ip, port) ++ repeat_public_warning(class, message)
   end
 
   # Reachable from the internet: say so again every day, not just once at boot.

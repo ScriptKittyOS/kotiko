@@ -154,4 +154,35 @@ defmodule Kotiko.PrivateTest do
       assert File.stat!(copy).size > 0
     end
   end
+
+  describe "read_own/3 and uid/0 (slice 54, B-02)" do
+    test "uid/0 is the owner of the files this account makes", %{root: root} do
+      path = Path.join(root, "mine")
+      File.write!(path, "x")
+      assert Private.uid() == File.stat!(path).uid
+    end
+
+    test "reads a regular file of this account's", %{root: root} do
+      path = Path.join(root, "token")
+      File.write!(path, "secret\n")
+      assert Private.read_own(path) == {:ok, "secret\n"}
+      File.write!(path, "")
+      assert Private.read_own(path) == {:ok, ""}
+    end
+
+    test "refuses a link, a folder, another account's file and a big one", %{root: root} do
+      path = Path.join(root, "token")
+      File.write!(path, "secret")
+      link = Path.join(root, "link")
+      File.ln_s!(path, link)
+
+      assert Private.read_own(link) == {:error, :link}
+      assert Private.read_own(root) == {:error, :not_regular}
+      uid = File.stat!(path).uid
+      assert Private.read_own(path, uid + 1) == {:error, {:owner, uid}}
+      assert Private.read_own(path, nil) == {:ok, "secret"}
+      assert Private.read_own(path, uid, 3) == {:error, :too_big}
+      assert Private.read_own(Path.join(root, "missing")) == {:error, :enoent}
+    end
+  end
 end

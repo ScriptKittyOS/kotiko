@@ -65,8 +65,13 @@ async function signInTab(context, button) {
   expect(auth.searchParams.get("code_challenge_method")).toBe("S256");
   expect(auth.searchParams.get("code_challenge")).toMatch(/^[A-Za-z0-9_-]{43}$/);
   expect(auth.searchParams.get("key_label")).toBe("Kotiko");
+  // OpenRouter returns this unchanged on the callback, beside the code (slice 54, A-05).
+  expect(auth.searchParams.get("state")).toMatch(/^[A-Za-z0-9_-]{22}$/);
   return tab;
 }
+
+// Where OpenRouter sends the browser back: the code, and the state the sign-in tab carried.
+const callback = (tab, code) => `${CALLBACK}?code=${code}&state=${new URL(tab.url()).searchParams.get("state")}`;
 
 test("the return page hands the code to Kotiko, which saves the key and says so", async ({ context, serviceWorker, extensionId, blocked }) => {
   const done = await serveSite(context, blocked);
@@ -85,7 +90,7 @@ test("the return page hands the code to Kotiko, which saves the key and says so"
 
   // OpenRouter sends the browser back with a code, in the same tab.
   const page = tab;
-  await page.goto(`${CALLBACK}?code=test-code-0123456789`);
+  await page.goto(callback(tab, "test-code-0123456789"));
   await expect(status(page)).toHaveText("Connected. Kotiko now looks words up with OpenRouter's free models. You can close this tab.");
   // The code is gone from the address, so a reload doesn't send it again.
   await expect.poll(() => page.url()).toBe(CALLBACK);
@@ -116,7 +121,7 @@ test("the welcome tab's Connect OpenRouter (free) waits for the sign-in, then sa
   await expect(connect).toHaveText("Connect OpenRouter (free)");
   const tab = await signInTab(context, connect);
   await expect(welcome.locator("#connectStatus")).toHaveText("Waiting for OpenRouter… Finish signing in on the other tab.");
-  await tab.goto(`${CALLBACK}?code=welcome-code-0123456789`);
+  await tab.goto(callback(tab, "welcome-code-0123456789"));
   await expect(status(tab)).toHaveText(/^Connected\./);
   await expect(welcome.locator("#aiConnectedText")).toHaveText("Connected to OpenRouter, free models.");
   done();
@@ -138,5 +143,48 @@ test("no other page's code is read: the same path on another site stays untouche
   await page.waitForTimeout(1000);
   await expect(status(page)).toHaveText(/it is finishing your sign-in now/);
   expect(page.url()).toContain("code=0123456789");
+  done();
+});
+
+// Slice 54, A-05: while a sign-in waits, any page can send the browser to the callback with a
+// code of its own. That used to use up the sign-in, and the learner's real code then said
+// "This sign-in has expired". Now a code without the sign-in's state is refused unused.
+test("a page that opens the callback with a junk code doesn't spoil the learner's sign-in", async ({ context, serviceWorker, extensionId, blocked, server }) => {
+  const done = await serveSite(context, blocked);
+  await serviceWorker.evaluate(() => {
+    const real = globalThis.fetch;
+    globalThis.__exchanges = [];
+    globalThis.fetch = async (url, init) => {
+      if (String(url) === "https://openrouter.ai/api/v1/auth/keys") {
+        const { code } = JSON.parse(init.body);
+        globalThis.__exchanges.push(code);
+        // OpenRouter refuses a code it never issued.
+        if (code !== "real-code-0123456789") return new Response("{}", { status: 400 });
+        return new Response(JSON.stringify({ key: "sk-or-v1-0123456789abcdef0123456789abcdef" }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      if (String(url).startsWith("https://openrouter.ai/api/v1/")) return new Response(JSON.stringify({ data: [] }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return real(url, init);
+    };
+  });
+  const ext = await context.newPage();
+  await ext.goto(`chrome-extension://${extensionId}/dashboard.html#settings/lookups`);
+  const connect = ext.locator("#connectOpenRouter");
+  if (!(await connect.isVisible())) await ext.locator("#providerOptions [role=radio]").first().click();
+  const tab = await signInTab(context, connect);
+
+  // A page the learner has open, with no privilege, sends the browser to the callback.
+  const evil = await context.newPage();
+  await evil.goto(server.page("basic.html"));
+  await evil.evaluate((u) => {
+    location.href = u;
+  }, `${CALLBACK}?code=junk-from-a-page`);
+  await expect(status(evil)).toHaveText("Kotiko couldn't finish connecting to OpenRouter. Try again from Kotiko's settings, or paste a key there instead.");
+
+  // The learner finishes signing in.
+  await tab.goto(callback(tab, "real-code-0123456789"));
+  await expect(status(tab)).toHaveText(/^Connected\./);
+  expect(await serviceWorker.evaluate(() => globalThis.__exchanges)).toEqual(["real-code-0123456789"]);
+  const { secrets } = await ext.evaluate(() => chrome.runtime.sendMessage({ type: "secrets.describe" }));
+  expect(Object.keys(secrets)).toContain("provider:openrouter");
   done();
 });

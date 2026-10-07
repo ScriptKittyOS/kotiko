@@ -27,8 +27,8 @@ Last checked against the code: 2026-10-06 (extension 0.2.0, spec 2.0.0).
 | The model list (any provider whose models Kotiko lists) and your remaining free lookups (OpenRouter only) | IndexedDB `meta`; the list refreshed at most daily, the count at most every 5 minutes while lookups run | The request itself, with your key | Your provider (`/models`); OpenRouter (`/key`) | `lib/llm/client.js`, `lib/llm/catalog.js` |
 | The Test button's lookup | Nothing | The word "hello" and your base languages | Your provider | `lib/llm/client.js` `test()` |
 | Settings: Kotiko on or off, paused sites (host names you paused), words you chose never to swap, languages hidden, amount, speech, celebrations, add jobs | IndexedDB (`meta`), with a copy in `storage.local` that content scripts and pages read | Never | Nobody | `lib/settings.js`, `background.js` `saveSettings()` |
-| Your base languages, Kotiko's interface language, and a random 32-character value that keeps word choices the same across your devices (`seedSalt`) | `storage.sync`, and IndexedDB (`meta`) with a copy in `storage.local` | Through your browser's own sync, if you turned it on | Google or Mozilla, under their sync terms. Stays in your browser account after an uninstall | `background.js` `ensureSeedSalt()`, `welcome.js`, `dashboard.js` |
-| The browser's languages (to suggest your base languages) | Your base languages, above | Never | Nobody | `background.js` `detectBrowserBases()` |
+| Your base languages, Kotiko's interface language, and a random 32-character value that keeps word choices the same across your devices (`seedSalt`) | IndexedDB (`meta`) with a copy in `storage.local`; the languages also in `storage.sync` once you confirm them (your first word, Skip on the welcome page, or a change in Settings), the random value from the start | Through your browser's own sync, if you turned it on | Google or Mozilla, under their sync terms. Stays in your browser account after an uninstall | `background.js` `saveUi()`, `ensureSeedSalt()`, `welcome.js`, `dashboard.js` |
+| The browser's languages (to suggest your base languages) | IndexedDB (`meta`) with a copy in `storage.local` (`ui.baseLangsDetected`); never in `storage.sync` | Never | Nobody | `background.js` `detectBrowserBases()`, `saveUi()` |
 | A word you ask to hear | Not kept | Only if you turn on "Online voices" in Settings (off by default); then your browser may send it to its speech service | Your browser's or operating system's speech service (for example Google, Microsoft or Apple) | `lib/speak.js` (`localService`) |
 | "Try it on a page" on the welcome page | Nothing | Only if you click it: it opens a Wikipedia search for your word in a new tab | Wikipedia (the Wikimedia Foundation), as any link you open | `lib/welcome-model.js` `wikipediaUrl()` |
 | Your base languages and the interface language you chose (none when automatic), for your server's Telegram bot (slice 41 §9) | Your Kotiko server's database (`profile`), if you connect one | Only if you connect a server | Your own Kotiko server, when you change them in the dashboard or the welcome page, after connecting, and after a sync when the server has an older copy | `background.js` `sendProfile()`; `server/lib/kotiko/profile.ex` |
@@ -133,7 +133,8 @@ at run time.
 | `api.anthropic.com` | Yes, when Anthropic is your provider | Lookups |
 | `generativelanguage.googleapis.com` | Yes, when Google Gemini is your provider | Lookups |
 | `api.groq.com` | Yes, when Groq is your provider | Lookups |
-| `localhost` | Yes, when a local provider (Ollama, LM Studio) or a server on this computer is chosen | Default addresses and examples |
+| `127.0.0.1` | Yes, when a local provider (Ollama, LM Studio) or a server on this computer is chosen | Default addresses and examples. An `http://localhost` address you type is sent to 127.0.0.1 instead, because browsers try `[::1]` first for that name, where another account on the computer could listen |
+| `localhost` | No | Code comments and the check that turns `http://localhost` into 127.0.0.1 |
 | `en.wiktionary.org` | Yes, for words in languages with word stress | Pronunciations: the word only |
 | `*.wikipedia.org` | Only when you click "Try it on a page" | A link the welcome page opens |
 | `es.wikipedia.org` | No | An example in a code comment |
@@ -155,7 +156,7 @@ differs from this table.
 
 | File | Count | What they fetch |
 |---|---|---|
-| `extension/background.js` | 7 | `importScripts` of Kotiko's own library files; Kotiko's own `stopwords.json` and `sensitive-sites.json` (from the package, no network); the server (`request()`); the provider client's `fetch`; Wiktionary (`wiktionaryPage()`); OpenRouter's key exchange for the sign-in |
+| `extension/background.js` | 8 | `importScripts` of Kotiko's own library files; Kotiko's own `stopwords.json` and `sensitive-sites.json` (from the package, no network); the server (`request()`), and before the token goes there, its proof that it holds the same token (`askProof()`: a random value out, a keyed hash back, no token); the provider client's `fetch`; Wiktionary (`wiktionaryPage()`); OpenRouter's key exchange for the sign-in |
 | `extension/lib/llm/client.js` | 1 | The provider: `/chat/completions`, `/models`, `/key` (OpenRouter) |
 | `extension/lib/pkce.js` | 1 | OpenRouter's `/api/v1/auth/keys` (the sign-in's code exchange) |
 | `extension/lib/i18n.js` | 1 | Kotiko's own `_locales/*/messages.json` (from the package) |

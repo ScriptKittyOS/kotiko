@@ -233,8 +233,10 @@ defmodule Kotiko.Migrations.LanguageTags do
           "that language's script); they are unchanged. Check them in the dashboard."
       )
 
-      # The words themselves are the learner's: only at debug.
-      Logger.debug("Words that may have the wrong language: #{inspect(stats.suspect_words)}")
+      # The words themselves are the learner's: only at debug, with LOG_LOOKUPS (B-07).
+      if Kotiko.LLM.log_lookups?(),
+        do:
+          Logger.debug("Words that may have the wrong language: #{inspect(stats.suspect_words)}")
     end
   end
 end

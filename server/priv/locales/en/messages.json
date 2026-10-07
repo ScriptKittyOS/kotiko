@@ -99,6 +99,14 @@
     "message": "Word lookup is busy. Try again in a minute.",
     "description": "429: the provider asked to slow down."
   },
+  "error_rate_limited_auth_failures": {
+    "message": "Too many wrong access keys came from this address. Wait a minute, then check the key in Connection.",
+    "description": "429: 10 wrong tokens from this address within a minute; Retry-After says when to try again."
+  },
+  "error_rate_limited_too_many_proofs": {
+    "message": "Too many requests from this address. Try again in a minute.",
+    "description": "429: too many POST /api/v1/proof requests from this address within a minute."
+  },
   "error_model_unavailable": {
     "message": "Word lookup isn't answering right now. Try again in a little while.",
     "description": "502: no model could answer."

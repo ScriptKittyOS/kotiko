@@ -6,7 +6,8 @@
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { createFakeChrome } from "../helpers/fake-chrome.mjs";
-import { startFixtureServer } from "../helpers/fixture-server.mjs";
+import { proofFor, startFixtureServer } from "../helpers/fixture-server.mjs";
+import { webcrypto } from "node:crypto";
 import { manifest, readExt, runInVm, sleep } from "../helpers/load-script.mjs";
 
 const WORDS = [
@@ -20,11 +21,19 @@ const json = (status, body) =>
 // A fetch stub that records requests and answers with `handler(url, init)`. The profile
 // the background sends after a sync (slice 41 §9) is recorded apart, in `profile`, and
 // answered by `onProfile` (an echo by default), so the sync tests count only their own.
-function stubFetch(handler, { onProfile = (init) => json(200, JSON.parse(init.body)) } = {}) {
+// The proof a Kotiko server gives before the token is sent (slice 54, B-01) is answered here
+// too, for `token` (the harness's, or a function for a test that changes it), and recorded in
+// `proofs`.
+function stubFetch(handler, { onProfile = (init) => json(200, JSON.parse(init.body)), token = "good-token" } = {}) {
   const requests = [];
   const profile = [];
+  const proofs = [];
   const fetch = async (url, init = {}) => {
     const r = { url: String(url), method: init.method ?? "GET", headers: { ...init.headers }, body: init.body, cache: init.cache };
+    if (r.url.endsWith("/api/v1/proof")) {
+      proofs.push(r);
+      return json(200, { proof: proofFor(typeof token === "function" ? token() : token, JSON.parse(init.body).nonce) });
+    }
     if (r.url.endsWith("/api/v1/profile")) {
       profile.push(r);
       return onProfile(init);
@@ -32,7 +41,7 @@ function stubFetch(handler, { onProfile = (init) => json(200, JSON.parse(init.bo
     requests.push(r);
     return handler(String(url), init);
   };
-  return { fetch, requests, profile };
+  return { fetch, requests, profile, proofs };
 }
 
 const EXT_ID = "fake-extension-id";
@@ -92,7 +101,8 @@ async function settled(fake, store, id, states = ["done", "failed", "waiting", "
 // Waits until `n` requests were made (the worker's start-up binds routes first, so a fixed
 // sleep isn't enough under load), then a little longer, so an extra request would show.
 async function requested(fake, requests, n) {
-  for (let i = 0; i < 200 && requests.length < n; i++) {
+  // Up to 10 s: the full suite on a busy machine can take more than a second to get there.
+  for (const end = Date.now() + 10_000; requests.length < n && Date.now() < end;) {
     await fake.idle();
     await sleep(5);
   }
@@ -109,7 +119,7 @@ describe("sync", () => {
   test("writes the server's words, the sync time and clears the error", async () => {
     const { fetch, requests } = serverWith(WORDS);
     const { send, store, fake } = loadBackground({ fetch, local: { syncError: "old error" } });
-    assert.deepEqual(await send({ type: "sync", force: true }), { ok: true });
+    assert.deepEqual(await send({ type: "sync", force: true }, POPUP), { ok: true });
     assert.deepEqual(store.words, WORDS);
     assert.equal(store.lastSync, fake.clock.now());
     assert.equal(store.syncError, null);
@@ -119,9 +129,9 @@ describe("sync", () => {
   });
 
   test("trims the token and trailing slashes on the address", async () => {
-    const { fetch, requests } = serverWith(WORDS);
+    const { fetch, requests } = stubFetch(() => json(200, { words: WORDS }), { token: "tok" });
     const { send } = loadBackground({ fetch, local: { serverUrl: " http://127.0.0.1:4999// ", token: "  tok \n" } });
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     assert.equal(requests[0].url, "http://127.0.0.1:4999/api/words");
     assert.equal(requests[0].headers.Authorization, "Bearer tok");
   });
@@ -133,7 +143,7 @@ describe("sync", () => {
     await k.ready();
     await fake.idle();
     const start = fake.calls.set.length;
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     const since = fake.calls.set.slice(start);
     const writes = since.filter((c) => c.area === "local" && "lastSync" in c.items);
     assert.equal(writes.length, 1);
@@ -148,11 +158,25 @@ describe("sync", () => {
     fake.clock.advance(4000);
     await send({ type: "sync" });
     assert.equal(requests.length, 1, "too soon");
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     assert.equal(requests.length, 2, "forced");
     fake.clock.advance(5001);
     await send({ type: "sync" });
     assert.equal(requests.length, 3, "after 5 s");
+  });
+
+  // Slice 54, A-08: code in a content script's world could ask with force and make the
+  // server send the whole list in a tight loop. Only Kotiko's own pages may skip the wait.
+  test("a content script's force is ignored: its syncs keep the 5 s wait", async () => {
+    const { fetch, requests } = serverWith(WORDS);
+    const { send } = loadBackground({ fetch });
+    await send({ type: "sync" });
+    assert.equal(requests.length, 1);
+    for (let i = 0; i < 20; i++) assert.deepEqual(await send({ type: "sync", force: true }, SENDERS.content), { ok: true });
+    assert.equal(requests.length, 1, "twenty forced syncs from a content script, none sent");
+    await send({ type: "sync", force: true }, SENDERS.pageInTab);
+    await send({ type: "sync", force: true }, POPUP);
+    assert.equal(requests.length, 3, "Kotiko's pages still sync at once");
   });
 
   test("a sync requested during another waits for a fresh run, not the old answer", async () => {
@@ -163,7 +187,7 @@ describe("sync", () => {
       return json(200, { words: WORDS });
     });
     const { send } = loadBackground({ fetch });
-    await Promise.all([send({ type: "sync", force: true }), send({ type: "sync", force: true })]);
+    await Promise.all([send({ type: "sync", force: true }, POPUP), send({ type: "sync", force: true }, POPUP)]);
     assert.equal(calls, 2);
   });
 
@@ -175,7 +199,7 @@ describe("sync", () => {
       return json(200, { words: WORDS });
     });
     const { send } = loadBackground({ fetch });
-    const first = send({ type: "sync", force: true });
+    const first = send({ type: "sync", force: true }, POPUP);
     await sleep(10);
     await Promise.all([first, ...Array.from({ length: 5 }, () => send({ type: "sync", force: true }, POPUP))]);
     assert.equal(calls, 2);
@@ -195,7 +219,7 @@ describe("sync", () => {
     test(`reports ${name} as a sync error and keeps the cached words`, async () => {
       const { fetch, requests } = stubFetch(handler ?? (() => json(200, { words: [] })));
       const { send, store, fake } = loadBackground({ fetch, local: { words: WORDS, ...local } });
-      await send({ type: "sync", force: true });
+      await send({ type: "sync", force: true }, POPUP);
       assert.equal(store.syncError.code, expected.code);
       assert.deepEqual(store.syncError.details, expected.details);
       assert.equal(typeof store.syncError.message, "string");
@@ -211,7 +235,7 @@ describe("a profile with no token (slice 11: words in this browser)", () => {
   test("syncing asks no server, reports no error, and pages keep the cached words", async () => {
     const { fetch, requests } = serverWith([]);
     const { send, store, fake } = loadBackground({ fetch, local: { words: WORDS, token: "" } });
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     await sleep(150);
     await fake.idle();
     assert.equal(requests.length, 0);
@@ -238,14 +262,14 @@ describe("the learner's languages on the server (slice 41 §9)", () => {
     const { fetch, profile } = serverWith(WORDS);
     const { send, fake } = loadBackground({ fetch });
     assert.deepEqual(await send({ type: "settings.set", merge: { ui: { uiLang: "auto", baseLangs: ["es", "en"] } } }, PAGE), { ok: true });
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     await settle(fake);
     assert.deepEqual(sentProfiles(profile), [["PUT", "http://127.0.0.1:4999/api/v1/profile", { base_langs: ["es", "en"], ui_lang: null }]]);
     assert.equal(profile[0].headers.Authorization, "Bearer good-token");
 
     // Nothing changed: the next sync sends nothing.
     fake.clock.advance(60_000);
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     await settle(fake);
     assert.equal(profile.length, 1);
 
@@ -270,7 +294,7 @@ describe("the learner's languages on the server (slice 41 §9)", () => {
     const { send, fake } = loadBackground({ fetch });
     assert.deepEqual(await send({ type: "profile.sync" }, PAGE), { ok: false, code: "internal" });
     answer = () => json(200, {});
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     await settle(fake);
     assert.equal(profile.length, 2, "tried again after the sync");
 
@@ -278,7 +302,7 @@ describe("the learner's languages on the server (slice 41 §9)", () => {
     const old = stubFetch(() => json(200, { words: WORDS }), { onProfile: () => json(404, { error: "No such route." }) });
     const bg = loadBackground({ fetch: old.fetch });
     assert.deepEqual(await bg.send({ type: "profile.sync" }, PAGE), { ok: true });
-    await bg.send({ type: "sync", force: true });
+    await bg.send({ type: "sync", force: true }, POPUP);
     await settle(bg.fake);
     assert.equal(old.profile.length, 1);
   });
@@ -304,6 +328,11 @@ describe("triggers", () => {
       periodInMinutes: 1,
     });
     assert.equal(requests.length, 1);
+    // The answer is written after the request; wait for it, not a fixed time.
+    for (const end = Date.now() + 10_000; JSON.stringify(store.words) !== JSON.stringify(WORDS) && Date.now() < end;) {
+      await fake.idle();
+      await sleep(5);
+    }
     assert.deepEqual(store.words, WORDS);
   });
 
@@ -342,13 +371,15 @@ describe("triggers", () => {
   });
 
   test("changing the token or address syncs; other settings don't", async () => {
-    const { fetch, requests } = serverWith(WORDS);
+    let serverToken = "good-token";
+    const { fetch, requests } = stubFetch(() => json(200, { words: WORDS }), { token: () => serverToken });
     const { fake, send } = loadBackground({ fetch });
     await fake.chrome.storage.local.set({ enabled: false, hiddenLangs: ["ru"] });
     await fake.idle();
     await sleep(10);
     assert.equal(requests.length, 0);
     // A new token comes from a Kotiko page (slice 28 §7: never from storage.local).
+    serverToken = "new-token";
     await send({ type: "server.connect", token: "new-token" }, POPUP);
     await requested(fake, requests, 1);
     assert.equal(requests.length, 1);
@@ -523,7 +554,7 @@ describe("against the fixture server", () => {
   test("sync, add and Undo round-trip through the fake Kotiko API", async () => {
     srv.reset();
     const { send, store, fake } = loadBackground({ fetch, local: { serverUrl: srv.kotikoUrl, token: srv.token } });
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     assert.equal(store.syncError, null);
     assert.deepEqual(store.words, srv.state.words);
 
@@ -545,15 +576,15 @@ describe("against the fixture server", () => {
       ["html", "not_kotiko_server"],
     ]) {
       srv.state.kotiko = mode;
-      await send({ type: "sync", force: true });
+      await send({ type: "sync", force: true }, POPUP);
       assert.equal(store.syncError?.code, code, mode);
     }
     assert.equal(store.syncError.details.error, undefined);
     srv.state.kotiko = "500";
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     assert.equal(store.syncError.details.error, "Something broke on the fake server.");
     srv.state.kotiko = null;
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     assert.equal(store.syncError, null);
   });
 });
@@ -571,7 +602,7 @@ describe("sync correctness (slice 26)", () => {
       serverWords = [{ ...WORDS[0], id: 2, native: "new" }, ...serverWords];
     });
     const { send, store, fake } = loadBackground({ fetch });
-    const syncing = send({ type: "sync", force: true });
+    const syncing = send({ type: "sync", force: true }, POPUP);
     await sleep(5);
     await send({ type: "add", id: JOB, text: "new" }, POPUP);
     await settled(fake, store, JOB);
@@ -582,14 +613,17 @@ describe("sync correctness (slice 26)", () => {
   });
 
   test("F11: saving a new token during an in-flight sync uses the new token", async () => {
+    // The server proves for the token the learner holds at the time (slice 54, B-01).
+    let serverToken = "bad";
     const { fetch } = stubFetch(async (_url, init) => {
       const bad = init.headers.Authorization.endsWith("bad");
       await sleep(bad ? 150 : 5);
       return bad ? new Response("unauthorized", { status: 401 }) : json(200, { words: WORDS });
-    });
+    }, { token: () => serverToken });
     const { send, store, fake } = loadBackground({ fetch, local: { token: "bad" } });
-    send({ type: "sync", force: true });
+    send({ type: "sync", force: true }, POPUP);
     await sleep(10);
+    serverToken = "good";
     send({ type: "server.connect", token: "good" }, POPUP);
     await fake.idle();
     await sleep(250);
@@ -600,18 +634,19 @@ describe("sync correctness (slice 26)", () => {
   test("F31: a 200 that isn't a Kotiko answer is an error, not an empty sync", async () => {
     const { fetch } = stubFetch(() => new Response("<!doctype html><p>Captive portal</p>", { status: 200, headers: { "content-type": "text/html" } }));
     const { send, store } = loadBackground({ fetch, local: { words: WORDS } });
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     assert.ok(store.syncError, "reports an error");
     assert.equal(store.lastSync, undefined, "doesn't claim a sync");
     assert.deepEqual(store.words, WORDS, "keeps the cached words");
   });
 
-  for (const address of ["localhost:4747", "192.168.1.5:4747"]) {
+  // localhost is asked at 127.0.0.1 (slice 54, B-01).
+  for (const [address, base] of [["localhost:4747", "http://127.0.0.1:4747"], ["192.168.1.5:4747", "http://192.168.1.5:4747"]]) {
     test(`F32: a server address without a scheme gets http:// (${address})`, async () => {
       const { fetch, requests } = serverWith(WORDS);
       const { send } = loadBackground({ fetch, local: { serverUrl: address } });
-      await send({ type: "sync", force: true });
-      assert.equal(requests[0]?.url, `http://${address}/api/words`);
+      await send({ type: "sync", force: true }, POPUP);
+      assert.equal(requests[0]?.url, `${base}/api/words`);
     });
   }
 
@@ -634,7 +669,7 @@ describe("sync correctness (slice 26)", () => {
       return json(200, { words: snapshot });
     });
     const { send, store } = loadBackground({ fetch, local: { words: WORDS } });
-    const syncing = send({ type: "sync", force: true });
+    const syncing = send({ type: "sync", force: true }, POPUP);
     await sleep(5);
     await send({ type: "remove", id: 2 }, POPUP);
     await syncing;
@@ -663,9 +698,12 @@ describe("sync correctness (slice 26)", () => {
 
   test("F11: the old request is aborted and its 401 never shows", async () => {
     const seen = [];
+    // The server proves for the token the learner holds at the time (slice 54, B-01).
+    let serverToken = "bad";
     const fetch = (url, init) => {
       // The profile sent after connecting (slice 41 §9) isn't the sync this test watches.
       if (String(url).endsWith("/api/v1/profile")) return Promise.resolve(json(200, {}));
+      if (String(url).endsWith("/api/v1/proof")) return Promise.resolve(json(200, { proof: proofFor(serverToken, JSON.parse(init.body).nonce) }));
       const token = init.headers.Authorization.slice("Bearer ".length);
       const entry = { token, aborted: false };
       seen.push(entry);
@@ -686,6 +724,7 @@ describe("sync correctness (slice 26)", () => {
     // comes from the secrets store, so how soon that request starts depends on the machine.
     for (let i = 0; i < 200 && seen.length === 0; i++) await sleep(5);
     assert.equal(seen.length, 1, "the first sync started");
+    serverToken = "good";
     send({ type: "server.connect", token: "good" }, POPUP);
     await fake.idle();
     assert.deepEqual(await first, { ok: true });
@@ -704,7 +743,7 @@ describe("sync correctness (slice 26)", () => {
       return json(200, { words: url.includes(":4999") ? [] : WORDS });
     });
     const { send, store, fake } = loadBackground({ fetch });
-    send({ type: "sync", force: true });
+    send({ type: "sync", force: true }, POPUP);
     for (let i = 0; i < 200 && requests.length === 0; i++) await sleep(5);
     assert.equal(requests.length, 1, "the first sync started");
     // A Kotiko page names the new address (slice 28 §7: only a page can move the token).
@@ -719,12 +758,12 @@ describe("sync correctness (slice 26)", () => {
   test("slice 28 §7: an address or token written straight to storage.local (as a content script can) is never used", async () => {
     const { fetch, requests } = stubFetch(async () => json(200, { words: WORDS }));
     const { send, store, fake } = loadBackground({ fetch });
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     assert.equal(requests.length, 1);
     for (const patch of [{ serverUrl: "http://127.0.0.1:6666" }, { server: { url: "http://127.0.0.1:6666" } }, { token: "planted", serverUrl: "http://127.0.0.1:6666" }]) {
       await fake.chrome.storage.local.set(patch);
       await fake.idle();
-      await send({ type: "sync", force: true });
+      await send({ type: "sync", force: true }, POPUP);
       await fake.idle();
       assert.ok(requests.every((r) => !r.url.includes(":6666")), JSON.stringify(patch));
       assert.ok(requests.every((r) => r.headers.Authorization === "Bearer good-token"), JSON.stringify(patch));
@@ -735,7 +774,7 @@ describe("sync correctness (slice 26)", () => {
     }
     // A Kotiko page that names the address moves the token there.
     await send({ type: "server.connect", url: "http://127.0.0.1:6666" }, POPUP);
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     await fake.idle();
     assert.equal(requests.at(-1).url, "http://127.0.0.1:6666/api/words");
     assert.equal(requests.at(-1).headers.Authorization, "Bearer good-token");
@@ -746,7 +785,7 @@ describe("sync correctness (slice 26)", () => {
     try {
       srv.state.kotiko = "html";
       const { send, store } = loadBackground({ fetch, local: { serverUrl: srv.kotikoUrl, token: srv.token, words: WORDS } });
-      await send({ type: "sync", force: true });
+      await send({ type: "sync", force: true }, POPUP);
       assert.equal(store.syncError.code, "not_kotiko_server");
       assert.equal(store.lastSync, undefined);
       assert.deepEqual(store.words, WORDS);
@@ -764,7 +803,7 @@ describe("sync correctness (slice 26)", () => {
     test(`F31: JSON with ${name} is not a word list`, async () => {
       const { fetch } = stubFetch(() => json(200, body));
       const { send, store } = loadBackground({ fetch, local: { words: WORDS } });
-      await send({ type: "sync", force: true });
+      await send({ type: "sync", force: true }, POPUP);
       assert.equal(store.syncError.code, "not_kotiko_server");
       assert.deepEqual(store.words, WORDS);
     });
@@ -779,7 +818,7 @@ describe("sync correctness (slice 26)", () => {
     const { fetch } = serverWith([...WORDS, ...bad]);
     const warnings = [];
     const { send, store } = loadBackground({ fetch, globals: { console: { ...console, warn: (...a) => warnings.push(a) } } });
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     assert.deepEqual(store.words, WORDS);
     assert.equal(store.syncError, null);
     assert.equal(store.syncWarnings.dropped, 3);
@@ -790,7 +829,7 @@ describe("sync correctness (slice 26)", () => {
   test("E2: a clean sync clears earlier warnings", async () => {
     const { fetch } = serverWith(WORDS);
     const { send, store } = loadBackground({ fetch, local: { syncWarnings: { dropped: 1, reasons: { bad_forms: 1 } } } });
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     assert.equal(store.syncWarnings, null);
   });
 
@@ -810,7 +849,7 @@ describe("sync correctness (slice 26)", () => {
   });
 
   const addresses = [
-    ["localhost:4747/", "http://localhost:4747/api/words"],
+    ["localhost:4747/", "http://127.0.0.1:4747/api/words"],
     ["[::1]:4747", "http://[::1]:4747/api/words"],
     ["100.101.102.103:4747", "http://100.101.102.103:4747/api/words"],
     ["kotiko.tail1234.ts.net", "https://kotiko.tail1234.ts.net/api/words"],
@@ -820,7 +859,7 @@ describe("sync correctness (slice 26)", () => {
     test(`F32: the address ${address} is normalised before the request`, async () => {
       const { fetch, requests } = serverWith(WORDS);
       const { send } = loadBackground({ fetch, local: { serverUrl: address } });
-      await send({ type: "sync", force: true });
+      await send({ type: "sync", force: true }, POPUP);
       assert.equal(requests[0]?.url, url);
     });
   }
@@ -829,7 +868,7 @@ describe("sync correctness (slice 26)", () => {
     test(`F32: ${address} is reported as an invalid address, without a request`, async () => {
       const { fetch, requests } = serverWith(WORDS);
       const { send, store } = loadBackground({ fetch, local: { serverUrl: address, words: WORDS } });
-      await send({ type: "sync", force: true });
+      await send({ type: "sync", force: true }, POPUP);
       assert.equal(requests.length, 0);
       assert.equal(store.syncError.code, "server_address_invalid");
       assert.ok(store.syncError.details.hint);
@@ -846,7 +885,7 @@ describe("sync correctness (slice 26)", () => {
     };
     const { fetch } = stubFetch(() => new Promise(() => {}));
     const { send, store } = loadBackground({ fetch, local: { words: WORDS }, globals: { setTimeout: fastTimeout } });
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     assert.ok(timers.includes(20_000));
     assert.equal(store.syncError.code, "server_unreachable");
     assert.deepEqual(store.syncError.details, { reason: "timeout" });
@@ -1034,5 +1073,86 @@ describe("toolbar badge (slice 20 §5)", () => {
     await until(() => badges.get(2) === "off");
     assert.deepEqual([badges.get(1), badges.get(2)], ["off", "off"]);
     assert.equal(titles.get(2), "Kotiko · off");
+  });
+});
+
+// Slice 54, B-01's defence in depth: the token goes to an address only after the server there
+// has proved it holds the same token (POST /api/v1/proof, HMAC-SHA256 of a fresh nonce), so a
+// program listening at the address in its place (on [::1], or on 127.0.0.1 while Kotiko's
+// server is stopped) never gets it.
+describe("the server proves it holds the token before it gets it", () => {
+  const withToken = (requests) => requests.filter((r) => r.headers?.Authorization);
+
+  test("the server's own test vector (fix/sec-server): the token is sent only after it matches", async () => {
+    const TOKEN = "example-token-0123456789abcdef";
+    const NONCE = "q1aP3n0ZKcB1x5mW0u7S9bJ2rV4yT6dE8gH0iL2nO4p";
+    const PROOF = "E5CHaF60VqTTPPduGD1yAlfWMF5xf9_hmV2qCufV-ek";
+    // The test servers' proof is the real server's: its own vector.
+    assert.equal(proofFor(TOKEN, NONCE), PROOF);
+    const requests = [];
+    const proofs = [];
+    const fetch = async (url, init = {}) => {
+      if (String(url).endsWith("/api/v1/proof")) {
+        const body = JSON.parse(init.body);
+        proofs.push({ headers: { ...init.headers }, body, credentials: init.credentials });
+        return json(200, { proof: proofFor(TOKEN, body.nonce) });
+      }
+      if (String(url).endsWith("/api/v1/profile")) return json(200, {});
+      requests.push({ url: String(url), headers: { ...init.headers } });
+      return json(200, { words: WORDS });
+    };
+    // The vector's 32 random bytes, from the worker's random source. (The vector's nonce has
+    // its last character's two spare bits set; Kotiko writes the same bytes as "…O4o".)
+    const fixed = Buffer.from(NONCE, "base64url");
+    const sent = fixed.toString("base64url");
+    const crypto = { subtle: webcrypto.subtle, getRandomValues: (a) => (a.length === 32 ? (a.set(fixed), a) : webcrypto.getRandomValues(a)) };
+    const { send, store } = loadBackground({ fetch, local: { token: TOKEN }, globals: { crypto } });
+    assert.deepEqual(await send({ type: "sync", force: true }, POPUP), { ok: true });
+    assert.deepEqual(proofs, [{ headers: { "Content-Type": "application/json" }, body: { nonce: sent }, credentials: "omit" }], "the nonce goes alone, with no token");
+    assert.equal(requests[0]?.headers.Authorization, `Bearer ${TOKEN}`);
+    assert.equal(store.syncError, null);
+    assert.deepEqual(store.words, WORDS);
+  });
+
+  const impostors = [
+    ["a route it doesn't have (404)", () => new Response("not found", { status: 404 }), "not_kotiko_server", "no_proof"],
+    ["a 401, as a server from before the proof answers", () => new Response("unauthorized", { status: 401 }), "not_kotiko_server", "no_proof"],
+    ["a 200 with no proof", () => json(200, { words: [] }), "not_kotiko_server", "no_proof"],
+    ["a 200 with a proof made with another token", (init) => json(200, { proof: proofFor("another-token", JSON.parse(init.body).nonce) }), "server_key_rejected", "wrong_proof"],
+    ["a 200 with a proof for another nonce", () => json(200, { proof: proofFor("good-token", "q1aP3n0ZKcB1x5mW0u7S9bJ2rV4yT6dE8gH0iL2nO4p") }), "server_key_rejected", "wrong_proof"],
+  ];
+  for (const [name, answer, code, reason] of impostors) {
+    test(`a listener that answers ${name} never gets the token`, async () => {
+      const requests = [];
+      const fetch = async (url, init = {}) => {
+        requests.push({ url: String(url), headers: { ...init.headers } });
+        return String(url).endsWith("/api/v1/proof") ? answer(init) : json(200, { words: WORDS });
+      };
+      const { send, store } = loadBackground({ fetch, local: { words: WORDS } });
+      await send({ type: "sync", force: true }, POPUP);
+      assert.deepEqual(withToken(requests), [], "no request carried the token");
+      assert.deepEqual([store.syncError?.code, store.syncError?.details?.reason], [code, reason]);
+      assert.deepEqual(store.words, WORDS, "the cached words stay");
+      // An add, which would carry the token and the typed text, isn't sent either.
+      await send({ type: "add", text: "my secret diary word" }, POPUP);
+      for (const end = Date.now() + 5000; !(store.addJobs ?? []).some((j) => j.state !== "queued" && j.state !== "running") && Date.now() < end;) await sleep(5);
+      assert.deepEqual(withToken(requests), []);
+    });
+  }
+
+  test("one proof per address and token in a worker's life; again after the server couldn't be reached", async () => {
+    let down = false;
+    const { fetch, proofs } = stubFetch(() => (down ? Promise.reject(new TypeError("fetch failed")) : json(200, { words: WORDS })));
+    const { send, store } = loadBackground({ fetch });
+    await send({ type: "sync", force: true }, POPUP);
+    await send({ type: "sync", force: true }, POPUP);
+    assert.equal(proofs.length, 1);
+    down = true;
+    await send({ type: "sync", force: true }, POPUP);
+    assert.equal(store.syncError.code, "server_unreachable");
+    down = false;
+    await send({ type: "sync", force: true }, POPUP);
+    assert.equal(proofs.length, 2, "proved again before the token went out after the failure");
+    assert.equal(store.syncError, null);
   });
 });

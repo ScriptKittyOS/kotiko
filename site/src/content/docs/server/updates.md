@@ -52,7 +52,9 @@ Kotiko used to be called Slovo. The first start after the update moves everythin
 4. **Check the log**: the first start copies `~/.local/share/slovo/slovo.db` to
    `~/.local/share/kotiko/kotiko.db` and says "Moved your words from ... (N words)". Your
    access key is copied too, so the extension stays connected. The old folder is left as a
-   backup with a `MOVED-TO-KOTIKO.txt` note in it; delete it once you've checked your words.
+   backup with a `MOVED-TO-KOTIKO.txt` note in it, its files made readable only by you;
+   delete it once you've checked your words (`install-service.sh --uninstall --delete-data`
+   deletes it too).
 5. **If you set `SLOVO_DATA_DIR`** in `.env`, rename it to `KOTIKO_DATA_DIR` (and
    `SLOVO_LOG_SQL` to `KOTIKO_LOG_SQL`). The old names still work for now, with a warning.
    The words in that folder are copied to `kotiko.db` next to the old `slovo.db`.

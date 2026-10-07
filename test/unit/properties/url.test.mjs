@@ -58,7 +58,8 @@ describe("normalizeServerUrl", () => {
         const r = U.normalizeServerUrl(`${h}${p === null ? "" : `:${p}`}${pa}/`);
         assert.equal(r.ok, true);
         const u = new URL(r.url);
-        assert.equal(u.hostname, new URL(`http://${h}`).hostname);
+        // Plain-http localhost is pinned to 127.0.0.1 (slice 54, B-01).
+        assert.equal(u.hostname, h === "localhost" ? "127.0.0.1" : new URL(`http://${h}`).hostname);
         assert.equal(u.pathname === "/" ? "" : u.pathname, pa);
         if (p !== null && !(p === 80 && u.protocol === "http:") && !(p === 443 && u.protocol === "https:")) assert.equal(u.port, String(p));
       }),
@@ -95,6 +96,17 @@ describe("normalizeServerUrl", () => {
     );
     fc.assert(
       fc.property(fc.constantFrom("ftp", "file", "javascript", "data", "ws", "chrome-extension"), host, (scheme, h) => assert.equal(U.normalizeServerUrl(`${scheme}://${h}`).ok, false)),
+    );
+  });
+});
+
+describe("pinLoopback (slice 54, B-01)", () => {
+  test("no normalised plain-http address names localhost, so none can reach [::1]", () => {
+    fc.assert(
+      fc.property(anything, (input) => {
+        const r = U.normalizeServerUrl(input);
+        if (r.ok && r.url.startsWith("http://")) assert.notEqual(new URL(r.url).hostname, "localhost");
+      }),
     );
   });
 });

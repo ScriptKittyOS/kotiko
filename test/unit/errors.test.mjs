@@ -26,7 +26,7 @@ const en = readMessages("en");
 
 // Every context and detail that changes which key a code reads as.
 const CTX = [{}, { n: 1 }, { n: 42 }, { local: true }, { text: "perro", base: "Spanish", language: "Russian" }, { surface: "banner" }, { surface: "line", n: 3, local: true, text: "x", base: "German" }];
-const DETAILS = [{}, { provider: "openrouter" }, { reason: "payment_required" }, { reason: "payment_required", provider: "openrouter" }, { retry_at: "2026-10-06T00:00:00.000Z" }, { reason: "no_token" }, { reason: "host_not_allowed" }, { reason: "duplicate" }, { route: "lookup:openrouter" }, ...Object.keys(E.STORAGE).map((reason) => ({ reason }))];
+const DETAILS = [{}, { provider: "openrouter" }, { reason: "payment_required" }, { reason: "payment_required", provider: "openrouter" }, { retry_at: "2026-10-06T00:00:00.000Z" }, { reason: "no_token" }, { reason: "host_not_allowed" }, { reason: "no_proof" }, { reason: "wrong_proof" }, { reason: "duplicate" }, { route: "lookup:openrouter" }, ...Object.keys(E.STORAGE).map((reason) => ({ reason }))];
 
 function everyKey() {
   const keys = new Set();

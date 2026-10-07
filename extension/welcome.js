@@ -459,9 +459,16 @@
     const url = $("otherUrl");
     if (document.activeElement !== url && !url.dataset.dirty) url.value = (state.backend?.lookup?.provider === p.id ? state.backend.lookup.baseUrl : null) ?? p.baseUrl ?? "";
     url.placeholder = p.baseUrl ?? "https://…/v1";
+    warnOtherHttp();
     $("otherKeyField").hidden = !(p.keyRequired || p.id === "custom");
     $("otherKeyLabel").textContent = p.id === "custom" ? t("dash_key_label_custom") : t("dash_key_label", { provider: providerLabel(p) });
     $("otherNote").textContent = t(NOTES[p.id] ?? "dash_note_custom");
+  }
+
+  // Slice 54, B-06: the key and every word looked up go to this address in clear over plain
+  // http to another machine; the field says so, as the server's does.
+  function warnOtherHttp() {
+    $("otherUrlWarn").hidden = $("otherUrlField").hidden || !globalThis.ServerUrl?.sendsInClear($("otherUrl").value);
   }
 
   async function pickOther(id) {
@@ -499,7 +506,7 @@
     if (!token) return $("serverKey").focus();
     state.check = { status: "busy", panel: "server", text: t("welcome_ai_checking") };
     renderAi();
-    const res = await call({ type: "server.connect", url: url || "http://localhost:4747", token });
+    const res = await call({ type: "server.connect", url: url || "http://127.0.0.1:4747", token });
     $("serverKey").value = "";
     await refreshBackend();
     const problem = failed(res) ? res : res.sync?.code ? res.sync : null;
@@ -1131,7 +1138,10 @@
     });
     bindKeyField($("pasteKey"), (v) => saveKey("openrouter", v, "paste"));
     bindKeyField($("otherKey"), (v) => saveKey(state.other, v, "other"));
-    $("otherUrl").addEventListener("input", () => ($("otherUrl").dataset.dirty = "1"));
+    $("otherUrl").addEventListener("input", () => {
+      $("otherUrl").dataset.dirty = "1";
+      warnOtherHttp();
+    });
     $("otherUrl").addEventListener("change", saveOtherUrl);
     $("otherUrl").addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
