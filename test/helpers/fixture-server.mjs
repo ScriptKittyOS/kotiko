@@ -361,8 +361,8 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
     if (route === "/api/v1/proof" && req.method === "POST" && state.kotiko !== "html" && state.kotiko !== "500") {
       const { nonce } = await readBody(req);
       if (typeof nonce !== "string" || !/^[A-Za-z0-9_-]{32,128}$/.test(nonce)) return send(res, 400, { error: { code: "invalid_request", message: "nonce", details: { field: "nonce" } } });
-      const token = state.kotiko === "401" ? `another-${state.token}` : state.token;
-      return send(res, 200, { proof: proofFor(token, nonce) }, { "cache-control": "no-store" });
+      const held = state.kotiko === "401" ? `another-${state.token}` : state.token;
+      return send(res, 200, { proof: proofFor(held, nonce) }, { "cache-control": "no-store" });
     }
     if (state.kotiko === "401") return send(res, 401, "unauthorized");
     if (state.kotiko === "500") return send(res, 500, { error: "Something broke on the fake server." });

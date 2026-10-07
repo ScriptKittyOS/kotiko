@@ -1495,12 +1495,13 @@ async function pinLoopbackAddresses() {
     const patch = {};
     const pinned = routeUrl("server", s.server.url);
     if (pinned && pinned !== s.server.url && /^http:\/\/localhost\b/i.test(s.server.url.trim())) patch.server = { ...s.server, url: pinned };
-    if (s.lookup.baseUrl && globalThis.ServerUrl.pinLoopback(s.lookup.baseUrl.trim()) !== s.lookup.baseUrl.trim()) patch.lookup = { ...s.lookup, baseUrl: globalThis.ServerUrl.pinLoopback(s.lookup.baseUrl.trim()) };
+    const lookupUrl = s.lookup.baseUrl ? globalThis.ServerUrl.pinLoopback(s.lookup.baseUrl.trim()) : null;
+    if (lookupUrl && lookupUrl !== s.lookup.baseUrl.trim()) patch.lookup = { ...s.lookup, baseUrl: lookupUrl };
     for (const { key, value } of await store.meta.entries("route:")) {
       if (typeof value !== "string" || value.startsWith(RAW) || key === CHOSEN) continue;
       const route = key.slice("route:".length);
-      const now = routeUrl(route, value);
-      if (now && now !== value) await store.meta.set(key, now);
+      const bound = routeUrl(route, value);
+      if (bound && bound !== value) await store.meta.set(key, bound);
     }
     if (Object.keys(patch).length) await area.set(patch);
   });

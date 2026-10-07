@@ -331,7 +331,7 @@ describe("localhost becomes 127.0.0.1 (slice 54, B-01)", () => {
     assert.equal(bg.store.server.url, `http://127.0.0.1:${port}/kotiko`);
     assert.equal(await (await bg.k.getStore()).meta.get("route:server"), `http://127.0.0.1:${port}/kotiko`);
     await bg.send({ type: "sync", force: true }, POPUP);
-    await bg.until(() => sent.some((r) => r.auth === `Bearer ${srv.token}`));
+    await bg.until(() => sent.some((x) => x.auth === `Bearer ${srv.token}`));
     assert.deepEqual(sent.filter((x) => new URL(x.url).hostname === "localhost"), []);
   });
 });
