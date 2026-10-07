@@ -36,6 +36,13 @@ Conventional Commits by release-please.
   new proof and sends the request again by itself. Update the server and the extension
   together: each turns the other's older version away and says so.
 
+- Release process: the check that holds store uploads until the security review is closed
+  still missed "Gate: open" written as a list item, a table row, code, HTML, an entity or
+  math, a fake "Appendix" heading inside a comment or code block, a closing line hidden in
+  a comment, and "the review is still open" written as prose. It now reads all of these as
+  open, counts the closing line and the heading only where a reader sees them, and says
+  which line keeps the gate open.
+
 - Self-hosted server: the two addresses that answer without your access key, `/health` and
   `/api/v1/proof`, also answered when written another way, such as `/health/` or
   `//api/v1/proof`. Now only the exact addresses do; any other spelling needs the key.

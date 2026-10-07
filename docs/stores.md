@@ -264,7 +264,13 @@ The candidate it names is one of the reviewed version's. A second `Gate:` line (
 `Gate: open`) above the appendix keeps the gate open, and lines under the appendix count for
 nothing. Lines are read as a reader sees them: a gate line written with a lookalike letter
 from another alphabet, an invisible character or a fullwidth colon still counts as a second
-gate line, and the closing line itself must be plain ASCII (security review D-05). When the
+gate line, and the closing line itself must be plain ASCII (security review D-05). So does
+an open line dressed up as a list item, a table row, inline code, HTML, an entity or math
+(`1. Gate: open`, `| Gate | open |`, `<b>Gate</b>: open`, `G&#97;te: open`), a line in an
+HTML comment or a code block, and prose that says "open" beside "gate", "review" or
+"status". The closing line and the `## Appendix` heading count only where a reader sees
+them: not in an HTML comment, a code block or an HTML block, and the heading in plain ASCII.
+Keep the closing line in a paragraph of its own (security review E-06). When the
 gate stays open, the job says why for each report. That blocks every store upload until the first review is done. When a review is
 opened for the version being released (a `review-vX.Y.Z-rc.N.md` for that version), that
 review must be the closed one. Whether a later release needs a review at all (it touches
