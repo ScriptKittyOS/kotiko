@@ -633,8 +633,36 @@ defmodule Kotiko.Config do
           []
       end
 
-    key_warning ++ weak_token(vars["API_TOKEN"]) ++ renamed(vars) ++ unknown_prefixed(vars)
+    key_warning ++
+      weak_token(vars["API_TOKEN"]) ++
+      plain_http("LLM_API_KEY", vars["LLM_API_KEY"], "LLM_URL", llm_url) ++
+      plain_http(
+        "TRANSCRIBE_API_KEY",
+        vars["TRANSCRIBE_API_KEY"],
+        "TRANSCRIBE_URL",
+        optional_url("TRANSCRIBE_URL", vars["TRANSCRIBE_URL"])
+      ) ++ renamed(vars) ++ unknown_prefixed(vars)
   end
+
+  # A key sent in the clear to another machine (slice 54, B-06): anyone on the network in
+  # between can read it. This computer and Tailscale (encrypted) are fine.
+  defp plain_http(_key_var, nil, _url_var, _url), do: []
+
+  defp plain_http(key_var, _key, url_var, {:ok, "http://" <> _ = url}) do
+    host = URI.parse(url).host
+
+    if Kotiko.Exposure.network(host) in [:loopback, :tailscale] do
+      []
+    else
+      [
+        "#{key_var} is sent over plain HTTP to #{host} (#{url_var}), so anyone on the " <>
+          "network in between can read it, and what is sent with it. Use an https:// " <>
+          "address, or reach that machine over Tailscale."
+      ]
+    end
+  end
+
+  defp plain_http(_key_var, _key, _url_var, _url), do: []
 
   @doc """
   A warning when a token the owner chose looks easy to guess (`Kotiko.Token.weakness/1`),

@@ -5,6 +5,10 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Self-hosted server: when your model or transcription key would go over plain `http://`
+  to another machine (not this computer, not Tailscale), the server now warns at start,
+  because anyone on the network in between could read it.
+
 - Self-hosted server: a user name and password written inside `LLM_URL` or
   `TRANSCRIBE_URL` (`https://user:password@host/...`) went into the log at start. The
   server now refuses to start with such an address, without showing it; put the key in

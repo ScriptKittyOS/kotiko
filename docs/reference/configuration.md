@@ -128,7 +128,9 @@ The key for the model API that works out which word you mean. A secret.
   and adds answer `503 lookup_not_set_up` until you set it. A local model such as Ollama
   needs no key.
 - Example: a key from <https://openrouter.ai/keys>.
-- Sent only to `LLM_URL`.
+- Sent only to `LLM_URL`. When `LLM_URL` is a plain `http://` address on another machine
+  (not this computer, not a Tailscale address or `*.ts.net` name), the server warns at
+  start: anyone on the network in between can read the key.
 - Or from a file: [`LLM_API_KEY_FILE`](#llm_api_key_file).
 
 ### `LLM_URL`
@@ -197,6 +199,8 @@ The model name sent with each voice note.
 Sent as `Authorization: Bearer <key>` to `TRANSCRIBE_URL`, for hosted services. A secret.
 
 - Default: none (a local whisper.cpp server needs none).
+- With a plain `http://` `TRANSCRIBE_URL` on another machine (not this computer or
+  Tailscale), the server warns at start, as for `LLM_API_KEY`.
 - Or from a file: [`TRANSCRIBE_API_KEY_FILE`](#transcribe_api_key_file).
 
 ### `KOTIKO_DATA_DIR`

@@ -584,4 +584,48 @@ defmodule Kotiko.ConfigTest do
                "https://llm.example/v1/@team"
     end
   end
+
+  # B-06 (slice 54): a key sent over plain HTTP to another machine gave no warning.
+  describe "a key sent over plain HTTP" do
+    defp plain_http_warnings(vars) do
+      assert {:ok, _, warnings} = parse(vars)
+      Enum.filter(warnings, &(&1 =~ "plain HTTP"))
+    end
+
+    test "to another machine gets a warning naming the key and the host" do
+      key = "sk-secret-key-0123456789abcdef"
+
+      assert [warning] =
+               plain_http_warnings(%{
+                 "LLM_URL" => "http://203.0.113.7/v1",
+                 "LLM_MODEL" => "m",
+                 "LLM_API_KEY" => key
+               })
+
+      assert warning =~ "LLM_API_KEY is sent over plain HTTP to 203.0.113.7"
+      refute warning =~ key
+
+      assert [warning] =
+               plain_http_warnings(%{
+                 "TRANSCRIBE_URL" => "http://whisper.lan:8178/inference",
+                 "TRANSCRIBE_API_KEY" => key,
+                 "LLM_API_KEY" => "k"
+               })
+
+      assert warning =~ "TRANSCRIBE_API_KEY is sent over plain HTTP to whisper.lan"
+    end
+
+    test "not to this machine, over Tailscale, over HTTPS, or without a key" do
+      for url <- ~w(http://127.0.0.1:11434/v1 http://localhost:11434/v1 http://[::1]:1/v1
+                    http://ollama.localhost/v1 http://100.101.102.103/v1
+                    http://gpu.tail1234.ts.net/v1 https://203.0.113.7/v1) do
+        assert plain_http_warnings(%{"LLM_URL" => url, "LLM_MODEL" => "m", "LLM_API_KEY" => "k"}) ==
+                 [],
+               url
+      end
+
+      assert plain_http_warnings(%{"LLM_URL" => "http://203.0.113.7/v1", "LLM_MODEL" => "m"}) ==
+               []
+    end
+  end
 end
