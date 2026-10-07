@@ -33,6 +33,25 @@ const WORDS = [
 
 const FLUSH_MS = 300; // content.js batches page mutations for 250 ms
 
+// The language a word shows in is drawn per page per day (slice 18), so every test page
+// starts at noon on one fixed day, and its clock runs on from there. Without this, a test
+// expecting one language passed on some days and failed on others (security review C-08).
+const TEST_DAY = new Date(2026, 9, 6, 12).getTime();
+function pinDay(win) {
+  const Real = win.Date;
+  const shift = TEST_DAY - Real.now();
+  class TestDate extends Real {
+    constructor(...args) {
+      if (args.length) super(...args);
+      else super(Real.now() + shift);
+    }
+    static now() {
+      return Real.now() + shift;
+    }
+  }
+  win.Date = TestDate;
+}
+
 async function load(html, { words = WORDS, url = "https://example.com/", beforeInject, lang = "en", detect = null, ...local } = {}) {
   // As the background writes it: rules for the learner's bases (theirs, else their words').
   if (!("baseRules" in local)) local.baseRules = baseRulesFor(local.baseLangs ?? basesOf(words));
@@ -47,6 +66,7 @@ async function load(html, { words = WORDS, url = "https://example.com/", beforeI
   fake.chrome.i18n = { detectLanguage: async (text) => (detect ? detect(text) : { isReliable: false, languages: [] }) };
   const page = /<html[\s>]/i.test(html) ? html : `<!doctype html><html${lang ? ` lang="${lang}"` : ""}><head></head><body>${html}</body></html>`;
   const dom = createPage({ html: page, url, chrome: fake.chrome });
+  pinDay(dom.window);
   beforeInject?.(dom);
   injectContentScripts(dom);
   await fake.idle();
