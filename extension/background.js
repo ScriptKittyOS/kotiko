@@ -1377,8 +1377,11 @@ async function discardPlanted() {
 const fromBeforeStore = (version) => /^0\.[0-2]\./.test(String(version ?? ""));
 async function keepLegacyOnlyFrom(details) {
   await ready();
-  if (!adoptedLegacy || (details?.reason === "update" && fromBeforeStore(details.previousVersion))) return;
+  if (!adoptedLegacy) return;
+  // Decided once, by the first event after the set-up: a browser update that follows an
+  // update from 0.2 in the same worker must not drop the words that update kept.
   adoptedLegacy = false;
+  if (details?.reason === "update" && fromBeforeStore(details.previousVersion)) return;
   await discardPlanted();
 }
 
@@ -1508,16 +1511,20 @@ async function pinLoopbackAddresses() {
 }
 
 function onInstalled(details) {
-  if (details?.reason === "update") {
-    Promise.resolve(ext.alarms.clear(OLD_ALARM)).catch(() => {});
-    migrateHiddenLangs().catch(() => {});
-    pinLoopbackAddresses().catch(() => {});
-    // The bases after the first-run state: writing them projects the words again, and the
-    // first-run check reads the old list first.
-    upgradeOnboarding().catch(() => {}).then(upgradeBases).catch(() => {});
-  }
   if (details?.reason === "install") firstInstall().catch((e) => console.warn("Kotiko couldn't open the welcome tab:", e?.message ?? e));
-  else keepLegacyOnlyFrom(details).catch((e) => console.warn("Kotiko update:", e?.message ?? e));
+  else {
+    // What storage.local held is dropped first, so no upgrade step writes something the
+    // drop then erases (it once raced the first-run state, and lost it).
+    const kept = keepLegacyOnlyFrom(details).catch((e) => console.warn("Kotiko update:", e?.message ?? e));
+    if (details?.reason === "update") {
+      Promise.resolve(ext.alarms.clear(OLD_ALARM)).catch(() => {});
+      kept.then(migrateHiddenLangs).catch(() => {});
+      kept.then(pinLoopbackAddresses).catch(() => {});
+      // The bases after the first-run state: writing them projects the words again, and
+      // the first-run check reads the old list first.
+      kept.then(upgradeOnboarding).catch(() => {}).then(upgradeBases).catch(() => {});
+    }
+  }
   if (details?.reason === "install" || details?.reason === "update") injectOpenTabs().catch(() => {});
   ensureAlarm();
   mirrorBaseRules({ force: true }).catch(() => {});
