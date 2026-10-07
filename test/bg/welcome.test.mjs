@@ -48,7 +48,8 @@ describe("install and update (22 §1)", () => {
     await bg.fake.fireInstalled({ reason: "install" });
     await bg.until(() => bg.created.length);
     assert.deepEqual(plain(bg.created), [{ url: WELCOME, active: true }]);
-    assert.deepEqual(plain(bg.sync.ui), { uiLang: "auto", baseLangs: ["es"], baseLangsDetected: ["es"], baseLangsConfirmed: false });
+    assert.deepEqual(plain(bg.store.ui), { uiLang: "auto", baseLangs: ["es"], baseLangsDetected: ["es"], baseLangsConfirmed: false });
+    assert.equal(bg.sync.ui, undefined, "not synced until the learner confirms (slice 54, C-07)");
     assert.deepEqual(plain(bg.store.onboarding), { completedAt: null, skipped: false, version: 2 });
     assert.deepEqual(plain(bg.store.baseLangs), ["es"]);
     assert.deepEqual(plain(await bg.k.currentBases()), ["es"]);
@@ -59,7 +60,9 @@ describe("install and update (22 §1)", () => {
     const bg = loadBackground({ sync: { ui: { uiLang: "es", baseLangs: ["es", "en"], baseLangsConfirmed: true } }, ui: "en-US", accept: ["en-US"] });
     await bg.fake.fireInstalled({ reason: "install" });
     await bg.until(() => bg.created.length);
-    assert.deepEqual(plain(bg.sync.ui), { uiLang: "es", baseLangs: ["es", "en"], baseLangsConfirmed: true, baseLangsDetected: ["en"] });
+    await bg.until(() => bg.store.ui?.baseLangsDetected);
+    assert.deepEqual(plain(bg.store.ui), { uiLang: "es", baseLangs: ["es", "en"], baseLangsConfirmed: true, baseLangsDetected: ["en"] });
+    assert.deepEqual(plain(bg.sync.ui), { uiLang: "es", baseLangs: ["es", "en"], baseLangsConfirmed: true }, "the browser's languages stay here");
   });
 
   test("an update (and a browser update) never opens it; an existing learner is past the first run", async () => {
@@ -72,8 +75,9 @@ describe("install and update (22 §1)", () => {
     assert.equal(bg.store.onboarding.upgraded, true);
     assert.ok(bg.store.celebrations.done["vocab:first"], "no first-word celebration for an old list");
     assert.ok(bg.store.celebrations.done["page:first-swap"]);
-    await bg.until(() => bg.sync.ui);
-    assert.deepEqual(plain(bg.sync.ui), { uiLang: "auto", baseLangs: ["en"], baseLangsDetected: ["en"], baseLangsConfirmed: false }, "50's upgrade rule, not the welcome tab");
+    await bg.until(() => bg.store.ui);
+    assert.deepEqual(plain(bg.store.ui), { uiLang: "auto", baseLangs: ["en"], baseLangsDetected: ["en"], baseLangsConfirmed: false }, "50's upgrade rule, not the welcome tab");
+    assert.equal(bg.sync.ui, undefined);
   });
 
   test("50's upgrade rule: a Spanish browser keeps swapping the old English words", async () => {
@@ -81,8 +85,8 @@ describe("install and update (22 §1)", () => {
     const bg = loadBackground({ local: { words }, ui: "es-PR", accept: ["es-PR", "es"] });
     await bg.fake.fireInstalled({ reason: "update", previousVersion: "0.2.0" });
     // The projection mirrors the bases into storage.local too; wait for the rule's own write.
-    await bg.until(() => bg.sync.ui && bg.store.baseLangs?.length === 2);
-    assert.deepEqual(plain(bg.sync.ui), { uiLang: "auto", baseLangs: ["es", "en"], baseLangsDetected: ["es"], baseLangsConfirmed: false });
+    await bg.until(() => bg.store.ui && bg.store.baseLangs?.length === 2);
+    assert.deepEqual(plain(bg.store.ui), { uiLang: "auto", baseLangs: ["es", "en"], baseLangsDetected: ["es"], baseLangsConfirmed: false });
     assert.deepEqual(plain(bg.store.baseLangs), ["es", "en"]);
   });
 

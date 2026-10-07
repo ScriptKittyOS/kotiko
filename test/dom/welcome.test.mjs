@@ -222,20 +222,22 @@ describe("the languages you read (22 §2b)", () => {
     const p = await openWelcome({ bases: ["es", "en"] });
     assert.deepEqual(p.$$(".base-chip").map((c) => [c.textContent.trim(), c.getAttribute("aria-label")]), [["Spanish", "Spanish, Español"], ["English", "English"]]);
     p.click(p.$$(".base-chip")[1]);
-    await p.until(() => plain(p.sync.ui.baseLangs).join() === "es");
+    await p.until(() => plain(p.store.ui.baseLangs).join() === "es");
     assert.deepEqual(plain(p.store.baseLangs), ["es"]);
     assert.equal(p.$$(".base-chip")[1].getAttribute("aria-checked"), "false", "an unticked chip stays, to tick again");
     p.click(p.$$(".base-chip")[0]);
     await p.fake.idle();
     assert.equal(p.text("#basesNote"), "Kotiko needs at least one language you read.");
-    assert.deepEqual(plain(p.sync.ui.baseLangs), ["es"]);
+    assert.deepEqual(plain(p.store.ui.baseLangs), ["es"]);
     p.click("#addBase");
     p.type("#baseSearchField", "fren");
     assert.equal(p.$("#baseSearchList .lang-option").dataset.lang, "fr");
     p.enter("#baseSearchField");
-    await p.until(() => plain(p.sync.ui.baseLangs).join() === "es,fr");
+    await p.until(() => plain(p.store.ui.baseLangs).join() === "es,fr");
     assert.ok(p.$("#baseSearch").hidden);
-    assert.equal(p.sync.ui.baseLangsConfirmed, false, "confirmed only by the first word or Skip");
+    assert.equal(p.store.ui.baseLangsConfirmed, false, "confirmed only by the first word or Skip");
+    // Not confirmed, so nothing new went to storage.sync (slice 54, C-07).
+    assert.ok(!p.fake.calls.set.some((c) => c.area === "sync" && c.items.ui), "nothing synced before the learner confirms");
   });
 
   test("with a server connected, its Telegram bot follows the change (slice 41 §9)", async () => {
@@ -249,7 +251,7 @@ describe("the languages you read (22 §2b)", () => {
       return deliver(msg, from);
     };
     p.click(p.$$(".base-chip")[1]);
-    await p.until(() => plain(p.sync.ui.baseLangs).join() === "es");
+    await p.until(() => plain(p.store.ui.baseLangs).join() === "es");
     await p.until(() => asked.includes("profile.sync"));
     await p.until(() => srv.state.profile?.base_langs?.join() === "es");
     assert.equal(srv.state.profile.ui_lang, null);

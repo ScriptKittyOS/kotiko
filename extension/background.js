@@ -201,7 +201,9 @@ async function adoptSync(changes) {
   await ready();
   const patch = {};
   const current = await area.get({ ui: null, seedSalt: null });
-  const ui = changes.ui ? pageValue("ui", changes.ui.newValue) : undefined;
+  const incoming = changes.ui ? pageValue("ui", changes.ui.newValue) : undefined;
+  // The languages detected here stay this browser's own, whatever another one synced.
+  const ui = incoming && { ...incoming, ...(current.ui?.baseLangsDetected ? { baseLangsDetected: current.ui.baseLangsDetected } : {}) };
   if (ui && !Settings.same(ui, current.ui)) {
     patch.ui = ui;
     if (ui.baseLangs) patch.baseLangs = ui.baseLangs;
@@ -211,12 +213,17 @@ async function adoptSync(changes) {
   await area.set(patch);
 }
 
-// storage.sync's `ui` (slice 50) follows the trusted copy, for the learner's other browsers.
+// storage.sync's `ui` (slice 50) follows the trusted copy, for the learner's other browsers,
+// once the learner has confirmed their languages, and never with the ones read from this
+// browser's settings (`baseLangsDetected`): those stay on the device (slice 54, C-07).
 // `with` goes into the trusted copy in the same write (the pages' `baseLangs`), so nothing
 // reads the bases half changed.
 async function saveUi(ui, { with: also = {} } = {}) {
   await area.set({ ...also, ui });
-  await Promise.resolve().then(() => ext.storage.sync.set({ ui })).catch(() => {});
+  if (ui?.baseLangsConfirmed !== true) return;
+  const synced = { ...ui };
+  delete synced.baseLangsDetected;
+  await Promise.resolve().then(() => ext.storage.sync.set({ ui: synced })).catch(() => {});
 }
 
 // Reactions to a change of the trusted copy, whoever in this file made it.

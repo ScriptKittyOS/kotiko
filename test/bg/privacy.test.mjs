@@ -335,3 +335,35 @@ describe("localhost becomes 127.0.0.1 (slice 54, B-01)", () => {
     assert.deepEqual(sent.filter((x) => new URL(x.url).hostname === "localhost"), []);
   });
 });
+
+// Slice 54, C-07: the languages read from the browser's settings stay on the device (the
+// policy's "What stays on your device"). A fresh install wrote them, and the list made from
+// them, to storage.sync, which the browser syncs to the learner's account, before the learner
+// had confirmed anything. Now storage.sync gets `ui` only once the learner confirms, and never
+// the browser's languages (`baseLangsDetected`).
+describe("the browser's languages stay on the device (slice 54, C-07)", () => {
+  test("nothing reaches storage.sync before the learner confirms; then the list, never what was detected", async () => {
+    const fake = createFakeChrome({ runtimeId: EXT_ID });
+    fake.chrome.i18n = { ...(fake.chrome.i18n ?? {}), getUILanguage: () => "en-US", getAcceptLanguages: async () => ["en-US", "de-CH", "ja", "tr"], getMessage: fake.chrome.i18n?.getMessage ?? (() => "") };
+    fake.chrome.tabs.create = async () => {};
+    const ctx = runInVm("background.js", { chrome: fake.chrome, fetch: offline });
+    await ctx.__kotiko.ready();
+    fake.fireInstalled({ reason: "install" });
+    const until = async (fn) => {
+      for (const end = Date.now() + 5000; !(await fn()); await sleep(20)) if (Date.now() > end) throw new Error("timed out waiting");
+    };
+    await until(async () => fake.store.local.ui?.baseLangsDetected);
+    await fake.idle();
+    assert.deepEqual(JSON.parse(JSON.stringify(fake.store.local.ui.baseLangsDetected)), ["en", "de", "ja"], "detected, kept here");
+    assert.equal(fake.store.sync.ui, undefined, "nothing synced before the learner confirms");
+    // The learner unticks one on the welcome page: still not confirmed, still not synced.
+    await fake.deliver({ type: "settings.set", merge: { ui: { baseLangs: ["en", "de"] } }, set: { baseLangs: ["en", "de"] } }, PAGE);
+    await fake.idle();
+    assert.equal(fake.store.sync.ui, undefined);
+    // The first word (or Skip) confirms: now the list follows the learner's other browsers.
+    await fake.deliver({ type: "settings.set", merge: { ui: { baseLangs: ["en", "de"], baseLangsConfirmed: true } } }, PAGE);
+    await until(async () => fake.store.sync.ui);
+    assert.deepEqual(JSON.parse(JSON.stringify(fake.store.sync.ui)), { uiLang: "auto", baseLangs: ["en", "de"], baseLangsConfirmed: true });
+    assert.ok(!fake.calls.set.some((c) => c.area === "sync" && c.items.ui?.baseLangsDetected), "the browser's languages never went to storage.sync");
+  });
+});

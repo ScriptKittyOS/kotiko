@@ -128,8 +128,10 @@ account, the language you asked the bot to write in.
 
 If your browser syncs extension data, the languages you read in, Kotiko's interface
 language, and a random value that keeps word choices the same on all your devices are
-stored in your browser account by Google or Mozilla, under their terms. Your words and
-keys are not synced this way.
+stored in your browser account by Google or Mozilla, under their terms. The languages go
+there only once you've confirmed them (with your first word, Skip on the welcome page, or a
+change in Settings); the ones Kotiko suggests from your browser's languages don't. Your
+words and keys are not synced this way.
 
 ## Keeping and deleting your data
 
