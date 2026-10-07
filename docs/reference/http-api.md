@@ -45,14 +45,20 @@ one address within a minute, every request from that address that needs the toke
 until the minute is over, even with the right token, so guessing learns nothing while it
 waits. Other addresses are not affected. A request with no token, another scheme or a
 malformed signature doesn't count. An IPv6 address counts by its /64 network. The server
-logs the lockout once an hour per address. This computer's own addresses (127.0.0.0/8,
-`::1` and IPv4-mapped 127.x) are never locked out: every program on the computer, and any
-web page open in a browser there, reaches the server from them, so any of them could
-otherwise lock the extension out. A token the server made (256 random bits) can't be
-guessed in any case; a weak token you chose can, and the server warns about it at start
-([`API_TOKEN`](configuration.md#api_token)). Behind a reverse proxy on the same machine,
-every request comes from the proxy's loopback address, so the lockout doesn't apply there:
-limit attempts at the proxy and keep the generated token.
+logs the lockout once an hour per address.
+
+A request from this computer (127.0.0.0/8, `::1` or IPv4-mapped 127.x) with no forwarding
+header is never locked out: every program on the computer, and any web page open in a
+browser there, reaches the server from those addresses, so any of them could otherwise
+lock the extension out. A request from this computer that carries a forwarding header
+(`Forwarded`, `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`, `CF-Connecting-IP` or `True-Client-IP`, any value) is what a reverse proxy on the same machine sends
+for each remote client: those are counted, all together under one key per proxy address,
+whatever client address the header claims (it can be forged). A stranger's lockout there
+refuses everyone who comes through the proxy for the rest of that minute, but never the
+extension, which sends no forwarding header; a local program that adds one locks out only
+the proxied requests. A token the server made (256 random bits) can't be guessed in any
+case; a weak token you chose can, and the server warns about it at start
+([`API_TOKEN`](configuration.md#api_token)).
 
 **Host names.** Before anything else, the server checks the `Host` header, to stop web pages
 reaching it through DNS rebinding. It answers to `localhost`, IP addresses, this machine's
@@ -310,9 +316,10 @@ requests only if they match. Use a new nonce each time.
   base64url characters. The body may be at most 1,000 bytes (`413`).
 - `429 rate_limited` (`details.reason`: `too_many_proofs`): more than 30 proofs with a
   well-formed nonce from one address within a minute; `Retry-After` says when to try
-  again. Refused requests (`415`, `400`) don't count, and neither do this computer's own
-  addresses (127.0.0.0/8, `::1`, IPv4-mapped 127.x), which every local program and web
-  page shares.
+  again. Refused requests (`415`, `400`) don't count, and neither do requests from this
+  computer (127.0.0.0/8, `::1`, IPv4-mapped 127.x) without a forwarding header, which every
+  local program and web page shares. Requests from this computer with a forwarding header
+  (a reverse proxy's) are limited all together, as for wrong tokens ([Requests](#requests)).
 - The answer never contains the token and is sent with `cache-control: no-store`. Like
   `/health`, it is checked against the `Host` names the server answers to.
 - Only this exact path and `POST` are open: any other method or spelling

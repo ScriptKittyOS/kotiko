@@ -146,6 +146,21 @@ defmodule Kotiko.RouterProofTest do
     assert prove(%{nonce: @nonce}, ip: ip).status == 429
   end
 
+  test "proofs through a reverse proxy on this computer are limited together; the extension's aren't" do
+    put_app_env(:proof_requests_per_minute, 3)
+
+    via_proxy = fn forwarded_for ->
+      build_conn(%{nonce: @nonce}, ip: {127, 0, 0, 1})
+      |> Plug.Conn.put_req_header("x-forwarded-for", forwarded_for)
+      |> Kotiko.Router.call(Kotiko.Router.init([]))
+    end
+
+    for i <- 1..3, do: assert(via_proxy.("203.0.113.#{i}").status == 200)
+    assert via_proxy.("203.0.113.99").status == 429
+    # The extension, on the same address without a forwarding header, isn't limited.
+    for _ <- 1..10, do: assert(prove(%{nonce: @nonce}, ip: {127, 0, 0, 1}).status == 200)
+  end
+
   test "an unknown Host is refused before the proof" do
     conn = request("POST", "/api/v1/proof", [], body: %{nonce: @nonce}, host: "evil.example")
     assert conn.status == 421

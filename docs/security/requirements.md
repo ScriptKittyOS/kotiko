@@ -24,8 +24,9 @@ Kotiko has two parts: the browser extension, and an optional server you run your
   pick your own with `API_TOKEN`, it must be at least 24 characters, or the server won't
   start, and one that looks easy to guess gets a warning at every start. After 10 wrong
   tokens from one address within a minute, that address is refused until the minute is
-  over; other addresses keep working, and this computer's own addresses are never
-  refused, so no local program or web page can lock the extension out.
+  over; other addresses keep working. Requests from this computer itself are never
+  refused, so no local program or web page can lock the extension out; those a reverse
+  proxy on this computer forwards are limited together.
 - **Other accounts on the computer can't read your words.** The database, its `-wal` and
   `-shm` files, the backups, the token and the model list cache are readable only by you
   (0600), and a data folder the server makes only by you (0700). At every start it makes

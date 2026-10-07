@@ -39,11 +39,36 @@ defmodule Kotiko.RateLimit do
     :ok
   end
 
+  # Headers a reverse proxy adds for the client it forwards (any value, any case).
+  @forwarding ~w(forwarded x-forwarded-for x-real-ip x-forwarded-host cf-connecting-ip true-client-ip)
+
   @doc """
-  Whether `remote_ip` is this computer: 127.0.0.0/8, `::1`, or an IPv4-mapped 127.x.
-  Such peers are exempt from the proof limit and the wrong-token lockout (slice 54,
-  D-02): every local program shares them, so one could lock the extension out.
+  Who a request counts as for the proof limit and the wrong-token lockout (slice 54, D-02):
+
+    * `:local`: a loopback peer with no forwarding header. Every program on this computer,
+      and any web page in a browser here, shares it, so a limit there would let any of
+      them lock the extension out: it is never limited.
+    * `{:proxied, peer}`: a loopback peer with a forwarding header, as a reverse proxy on
+      this computer (Caddy, nginx) sends every remote client. Limited, all of them
+      together: the header's claimed client address can be forged, so it isn't used.
+      A local program that adds such a header can only lock out this bucket, never the
+      extension, which sends none.
+    * otherwise the peer's address as `client/1` counts it.
   """
+  def peer(%Plug.Conn{remote_ip: ip, req_headers: headers}) do
+    cond do
+      not loopback?(ip) ->
+        client(ip)
+
+      Enum.any?(headers, fn {name, _} -> String.downcase(name) in @forwarding end) ->
+        {:proxied, client(ip)}
+
+      true ->
+        :local
+    end
+  end
+
+  @doc "Whether `remote_ip` is this computer: 127.0.0.0/8, `::1`, or an IPv4-mapped 127.x."
   def loopback?({127, _, _, _}), do: true
   def loopback?({0, 0, 0, 0, 0, 0, 0, 1}), do: true
   def loopback?({0, 0, 0, 0, 0, 0xFFFF, ab, _}), do: ab >>> 8 == 127

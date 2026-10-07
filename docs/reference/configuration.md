@@ -113,14 +113,17 @@ send it as `Authorization: Bearer <token>` (see the [HTTP API](http-api.md#reque
   are the same). This is a simple check that catches typed tokens, not a guarantee. The
   same check runs on a token you put in `api-token` yourself. Ten wrong tokens or failed
   signatures from one address within a minute lock that address out for the rest of the
-  minute ([HTTP API](http-api.md#requests)), except this computer's own addresses
-  (127.0.0.0/8 and `::1`), which every local program and web page shares, so none of them
-  can lock the extension out; [`POST /api/v1/proof`](http-api.md#post-apiv1proof) isn't
-  limited from them either. A token the server made (256 random bits) can't be guessed,
-  so this costs nothing; a weak token you chose can be guessed by any program on this
-  computer, without limit, and through a reverse proxy on this computer, which reaches
-  the server from `127.0.0.1`, by anyone the proxy lets in. The proof also lets anyone
-  who can reach the server test guesses offline. Keep the generated token.
+  minute ([HTTP API](http-api.md#requests)), except requests from this computer
+  (127.0.0.0/8 and `::1`) without a forwarding header, which every local program and web
+  page shares, so none of them can lock the extension out;
+  [`POST /api/v1/proof`](http-api.md#post-apiv1proof) isn't limited for them either.
+  Requests a reverse proxy on this computer forwards (they carry a header such as
+  `X-Forwarded-For` or `Forwarded`) are limited, all together: a stranger's lockout
+  refuses everyone coming through the proxy for the rest of that minute, never the
+  extension. A token the server made (256 random bits) can't be guessed, so this costs
+  nothing; a weak token you chose can be guessed by any program on this computer without
+  limit, and the proof lets anyone who can reach the server test guesses offline. Keep
+  the generated token.
 - To replace the saved token: `mix kotiko.token --rotate`, then restart. With
   `API_TOKEN` set, edit `.env` instead; with [`API_TOKEN_FILE`](#api_token_file), replace
   the file's contents.

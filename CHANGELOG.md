@@ -16,7 +16,7 @@ Conventional Commits by release-please.
 - Security: a web page, or any program on your computer, could lock Kotiko out of your
   server for a minute by sending it a burst of wrong keys or malformed checks. Requests
   from your own computer are no longer locked out; requests from other computers still
-  are.
+  are, including those a reverse proxy on your computer passes on.
 
 - Security: a web page could read your word list. It could hide a long list of words on
   the page, where you'd never see them, and read back which ones Kotiko swapped. Kotiko

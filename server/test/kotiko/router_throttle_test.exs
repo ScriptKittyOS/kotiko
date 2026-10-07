@@ -72,6 +72,34 @@ defmodule Kotiko.RouterThrottleTest do
     assert from({198, 51, 100, 99}, auth()).status == 429
   end
 
+  # A reverse proxy on this computer (Caddy, nginx) hands the server every remote client from
+  # 127.0.0.1, with a forwarding header: those are strangers and are limited, all together
+  # under one key (the header's claimed address can be forged). The extension sends no such
+  # header, so a local program that adds one can only lock the proxied requests out.
+  test "loopback requests with a forwarding header are limited together; the extension isn't" do
+    proxied = [{"x-forwarded-for", "203.0.113.9"}]
+
+    log =
+      capture_log(fn ->
+        for _ <- 1..10, do: assert(from({127, 0, 0, 1}, @wrong ++ proxied).status == 401)
+      end)
+
+    assert from({127, 0, 0, 1}, @wrong ++ proxied).status == 429
+    # The header's address doesn't matter: every proxied request shares the lockout.
+    assert from({127, 0, 0, 1}, auth() ++ [{"x-forwarded-for", "198.51.100.1"}]).status == 429
+
+    for header <- ~w(forwarded x-real-ip x-forwarded-host cf-connecting-ip true-client-ip) do
+      assert from({127, 0, 0, 1}, auth() ++ [{header, "x"}]).status == 429, header
+    end
+
+    assert from({0, 0, 0, 0, 0, 0, 0, 1}, auth() ++ [{"x-forwarded-for", "x"}]).status == 200,
+           "another loopback address is another proxy"
+
+    # The extension (no forwarding header) still gets in from 127.0.0.1.
+    assert from({127, 0, 0, 1}, auth()).status == 200
+    assert log =~ "wrong API tokens from requests forwarded by 127.0.0.1"
+  end
+
   test "requests without a token don't count; the lockout line is logged once" do
     ip = {203, 0, 113, 10}
     for _ <- 1..20, do: assert(from(ip, []).status == 401)

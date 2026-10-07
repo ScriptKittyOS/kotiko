@@ -86,7 +86,7 @@ defmodule Kotiko.Router do
       not Token.nonce?(nonce) ->
         error(conn, true, 400, "invalid_request", %{field: "nonce"})
 
-      seconds = too_many_proofs(conn.remote_ip) ->
+      seconds = too_many_proofs(RateLimit.peer(conn)) ->
         rate_limited(conn, "too_many_proofs", seconds)
 
       true ->
@@ -103,14 +103,17 @@ defmodule Kotiko.Router do
     end
   end
 
-  # Seconds to wait, or nil. This computer's own addresses aren't limited (slice 54, D-02):
-  # every local program shares 127.0.0.1, so any of them could use up the extension's
-  # proofs. Strangers on the network keep the limit.
-  defp too_many_proofs(ip) do
+  # Seconds to wait, or nil. This computer's own requests (`:local`, no forwarding header)
+  # aren't limited (slice 54, D-02): every local program shares 127.0.0.1, so any of them
+  # could use up the extension's proofs. Strangers on the network, and those a reverse
+  # proxy here forwards (all together), keep the limit (Kotiko.RateLimit.peer/1).
+  defp too_many_proofs(:local), do: nil
+
+  defp too_many_proofs(peer) do
     limit = Application.get_env(:kotiko, :proof_requests_per_minute, 30)
 
-    if is_integer(limit) and not RateLimit.loopback?(ip) do
-      {count, seconds} = RateLimit.hit(:proof, RateLimit.client(ip), 60_000)
+    if is_integer(limit) do
+      {count, seconds} = RateLimit.hit(:proof, peer, 60_000)
       if count > limit, do: seconds
     end
   end
@@ -288,7 +291,7 @@ defmodule Kotiko.Router do
   # An address that sent too many wrong tokens gets 429 whatever it sends now
   # (Kotiko.AuthThrottle).
   defp authorize(conn, _opts) do
-    case AuthThrottle.check(conn.remote_ip) do
+    case AuthThrottle.check(RateLimit.peer(conn)) do
       :ok -> check_token(conn)
       {:locked, seconds} -> rate_limited(conn, "auth_failures", seconds)
     end
@@ -305,7 +308,7 @@ defmodule Kotiko.Router do
         if Plug.Crypto.secure_compare(token, expected) do
           conn
         else
-          AuthThrottle.failed(conn.remote_ip)
+          AuthThrottle.failed(RateLimit.peer(conn))
           deny(conn)
         end
 
@@ -340,7 +343,7 @@ defmodule Kotiko.Router do
   end
 
   defp signature_failed(conn, reason) do
-    AuthThrottle.failed(conn.remote_ip)
+    AuthThrottle.failed(RateLimit.peer(conn))
     deny(conn, Atom.to_string(reason))
   end
 

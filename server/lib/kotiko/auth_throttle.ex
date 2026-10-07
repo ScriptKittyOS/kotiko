@@ -13,16 +13,18 @@ defmodule Kotiko.AuthThrottle do
   fails; a request with no token, another scheme or a malformed signature can't be a
   guess.
 
-  This computer's own addresses (`Kotiko.RateLimit.loopback?/1`) are never locked out
-  (slice 54, D-02): every local program shares them, so any of them, or a web page in a
-  browser here, could otherwise lock the extension out. A token the server made (256
-  random bits) can't be guessed anyway, and a weak chosen one gets a warning at start. Addresses are counted as `Kotiko.RateLimit.client/1` says (an IPv6 /64 is one).
+  Requests count as `Kotiko.RateLimit.peer/1` says (slice 54, D-02). This computer's own
+  requests without a forwarding header (`:local`) are never locked out: every local
+  program shares that address, so any of them, or a web page in a browser here, could
+  otherwise lock the extension out. Loopback requests with a forwarding header, as a
+  reverse proxy on this computer sends every remote client, are counted together under
+  one key: a stranger's lockout there locks out everyone behind the proxy for the rest
+  of the minute, but never the extension. Addresses are counted as `Kotiko.RateLimit.client/1` says (an IPv6 /64 is one).
   Each lockout is logged once an hour per address, for at most 100 addresses an hour
   (`Kotiko.Log.Limiter`). `auth_failures_per_minute: nil` turns the throttle off (tests).
 
-  Behind a reverse proxy on the same machine every request comes from the proxy's
-  loopback address, so the lockout doesn't apply there: limit attempts at the proxy, and
-  keep the token the server made.
+  A token the server made (256 random bits) can't be guessed anyway, and a weak chosen
+  one gets a warning at start.
   """
   require Logger
   alias Kotiko.Log.Limiter
@@ -45,23 +47,24 @@ defmodule Kotiko.AuthThrottle do
     Limiter.reset(@log_table)
   end
 
-  @doc "`:ok`, or `{:locked, seconds_left}` when `remote_ip` sent too many wrong tokens."
-  def check(remote_ip) do
-    with false <- RateLimit.loopback?(remote_ip),
+  @doc """
+  `:ok`, or `{:locked, seconds_left}` when `peer` sent too many wrong tokens. `peer` is
+  `Kotiko.RateLimit.peer/1` of the request, or an address.
+  """
+  def check(peer) do
+    with key when key != :local <- key(peer),
          limit when is_integer(limit) <- limit(),
-         {count, seconds} when count >= limit <-
-           RateLimit.peek(@kind, RateLimit.client(remote_ip)) do
+         {count, seconds} when count >= limit <- RateLimit.peek(@kind, key) do
       {:locked, seconds}
     else
       _ -> :ok
     end
   end
 
-  @doc "Counts a wrong token from `remote_ip`; logs the lockout when it starts."
-  def failed(remote_ip) do
-    with false <- RateLimit.loopback?(remote_ip),
+  @doc "Counts a wrong token from `peer` (as for `check/1`); logs the lockout when it starts."
+  def failed(peer) do
+    with client when client != :local <- key(peer),
          limit when is_integer(limit) <- limit() do
-      client = RateLimit.client(remote_ip)
       {count, _seconds} = RateLimit.hit(@kind, client, @window_ms)
       if count == limit, do: log_lockout(client, limit)
     end
@@ -70,6 +73,15 @@ defmodule Kotiko.AuthThrottle do
   end
 
   defp limit, do: Application.get_env(:kotiko, :auth_failures_per_minute, 10)
+
+  # A key from RateLimit.peer/1 as it is; an address as a request without forwarding
+  # headers from it would count.
+  defp key(:local), do: :local
+  defp key({:proxied, _} = key), do: key
+  defp key({_, _, _, _, :"/64"} = key), do: key
+
+  defp key(ip) when is_tuple(ip),
+    do: if(RateLimit.loopback?(ip), do: :local, else: RateLimit.client(ip))
 
   defp log_lockout(client, limit) do
     {decision, unlogged} = Limiter.check(@log_table, client, max_keys: @max_logged)
@@ -99,6 +111,8 @@ defmodule Kotiko.AuthThrottle do
         :ok
     end
   end
+
+  defp format({:proxied, peer}), do: "requests forwarded by " <> format(peer)
 
   defp format({a, b, c, d, :"/64"}),
     do: Enum.map_join([a, b, c, d], ":", &String.downcase(Integer.to_string(&1, 16))) <> "::/64"
