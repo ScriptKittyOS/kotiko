@@ -5,6 +5,25 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Security: a web page could read your word list. It could hide a long list of words on
+  the page, where you'd never see them, and read back which ones Kotiko swapped. Kotiko
+  now swaps only words you can see: text a page hides isn't touched, and text below the
+  screen is swapped as you scroll to it, which also makes very long pages faster. One
+  visit to a page swaps at most 500 different words, each in at most 3 of your languages,
+  so no page can read your whole list at once. The privacy policy (version 3) says what
+  sites can and can't see.
+
+- Security: any web page could switch Kotiko off on itself, and could tell that you use
+  Kotiko even on sites you paused, on sites Kotiko leaves alone such as banks, or with
+  Kotiko turned off. Where Kotiko doesn't swap, it now adds nothing to the page.
+
+- Security: a web page could open a word's card with a fake click and search the card's
+  text. The card now opens only when you point at, click, tap or press a key on a word.
+
+- Security: the popup's "This page is in …" line showed the page's own language label as
+  written, so a page could put any sentence it liked in Kotiko's popup. Kotiko now shows
+  only a language name your browser knows, and nothing otherwise.
+
 - Security: a web page that managed to run code inside Kotiko's page script could change
   Kotiko's settings, because browsers let that script write Kotiko's storage. It could turn
   Kotiko off, pause sites, hide languages, change the words pages show, queue a word to be

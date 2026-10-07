@@ -45,12 +45,26 @@ dictionaries, the model list and words are data, checked by the word spec before
 - The swapped words themselves: they are in the page, so the page's own scripts, and any
   session-recording tool it runs, can read them, and can tell from the `<kotiko-w>`
   element and its `lang` attribute that Kotiko is installed and which language each word
-  is in.
-- Not the original words, not the meanings, not word ids: the swaps carry only `lang`,
-  `dir`, `translate="no"` and `class="notranslate"`; the word card is a
-  `<kotiko-popover>` element with a closed shadow root (slice 19). Checked by
-  `test/e2e/popover.spec.mjs` and `test/e2e/privacy.spec.mjs`.
-- Pausing Kotiko on a site, or turning it off, stops the swaps there.
+  is in. The page knows its own text, so each swap also tells it which of its words the
+  learner has a word for (security review A-01).
+- How much: only text the learner can see is swapped (rendered, on screen or within a
+  screen of it, not clipped away; `content/engine.js` `sight()`), so text a page hides
+  reveals nothing. One page view swaps at most `max_page_concepts` (500) distinct
+  concepts, each in at most `max_page_langs_per_concept` (3) languages
+  (`spec/rules.json`, `content.js` `reveal()`). The cap is per page view: a page that
+  reloads itself, or one the learner visits often, can learn more over time. Checked by
+  `test/security/page.spec.mjs` (A-01) and `test/dom/content.test.mjs`.
+- Not the swaps' details: the swaps carry only `lang`, `dir`, `translate="no"` and
+  `class="notranslate"`; the word card is a `<kotiko-popover>` element with a closed
+  shadow root (slice 19) that only the learner's own input opens (A-04). While the
+  learner has a card open, `window.find()` on the page can still match its text. Checked
+  by `test/e2e/popover.spec.mjs`, `test/e2e/privacy.spec.mjs` and
+  `test/security/page.spec.mjs`.
+- The swap stylesheet (`ui/swap-style.js`) is added with the first swap and removed when
+  Kotiko is paused or off there.
+- Pausing Kotiko on a site, a sensitive site Kotiko leaves alone, or turning Kotiko off:
+  Kotiko adds nothing to the page and changes nothing on it (no swaps, no stylesheet, no
+  events), so the page can't tell Kotiko is installed (A-03, C-04).
 
 ## 3. What Kotiko's own page scripts (content scripts) can reach
 

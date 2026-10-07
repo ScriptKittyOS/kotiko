@@ -1,6 +1,6 @@
 # Kotiko privacy policy
 
-Version 2 · 6 October 2026
+Version 3 · 6 October 2026
 
 Kotiko is a browser extension that swaps words on the web pages you read for words you're
 learning in other languages. This page says exactly what it keeps, what it sends, and to
@@ -103,10 +103,21 @@ Any request to another computer also tells it your IP address, as every web requ
 ## What websites can see
 
 The words Kotiko swaps in are part of the page, so the website's own scripts, including
-any session-recording tools it uses, can see them, and can tell that you use Kotiko and
-which language each swapped word is in. They can't see the original words, their
-meanings or your word list. To stop this on a site, pause Kotiko there from its toolbar
-button, or turn it off.
+any session-recording tools it uses, can see them. From them a site can tell that you use
+Kotiko and, for each word it swapped, which of the site's own words you have a word for,
+that word, and its language.
+
+Kotiko limits this to what it shows you. It swaps only text that is on your screen or
+near it, never text the page hides, and in one visit to a page it swaps at most 500
+different words, each in at most 3 of your languages. So a site can't read your whole
+word list at once, but one you visit often, or that keeps reloading itself, can learn
+more of it over time. Sites can't open a word's card. While you have one open, a site
+that searches its page for a word it guesses could find the card's text.
+
+On a site you paused, on sites Kotiko leaves alone (such as banks), and while Kotiko is
+turned off, it adds nothing to the page and changes nothing on it, so the site has nothing
+of Kotiko's to see. To stop this on a site, pause Kotiko there from its toolbar button, or
+turn it off.
 
 ## Your own server (optional)
 
@@ -168,6 +179,9 @@ everything in Kotiko's Settings.
 
 ## Changelog
 
+- **Version 3, 6 October 2026.** "What websites can see" now says what a site can learn
+  from the words Kotiko swaps: Kotiko swaps only text on your screen, at most 500
+  different words in one visit to a page, and adds nothing where it's paused or off.
 - **Version 2, 6 October 2026.** Added "Connecting OpenRouter": the one-time sign-in code
   passes through kotiko.org.
 - **Version 1, 5 October 2026.** First version.
