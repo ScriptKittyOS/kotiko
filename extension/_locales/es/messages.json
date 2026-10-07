@@ -459,7 +459,7 @@
     "description": "The server answered that the access key is wrong."
   },
   "error_server_address_invalid": {
-    "message": "Esa dirección de servidor no parece correcta. Prueba una como http://localhost:4747.",
+    "message": "Esa dirección de servidor no parece correcta. Prueba una como http://127.0.0.1:4747.",
     "description": "The server address can't be used as typed. Keep the example address as it is."
   },
   "error_not_kotiko_server": {

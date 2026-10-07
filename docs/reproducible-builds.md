@@ -36,6 +36,10 @@ text file's line endings as LF on checkout, so the files match.
 - **Which files**: everything in `extension/` except dotfiles, `*.map`, editor leftovers and
   the patterns in `extension/.buildignore`, plus `LICENSE`, `NOTICE` and `LICENSES/`. A
   symlink stops the build.
+- **Code only the tests use**: the lines between `// test-only: start` and
+  `// test-only: end` in a script (the `globalThis.__kotiko` hook at the end of
+  `background.js`) are left out of the zips, so a zip's `background.js` is the source file
+  without them. A block left open, or `__kotiko` outside one, stops the build.
 - **The manifests**: written from `extension/manifest.json` by fixed rules (Chrome drops
   Firefox's keys, Firefox drops `background.service_worker`), as JSON with two-space
   indentation.

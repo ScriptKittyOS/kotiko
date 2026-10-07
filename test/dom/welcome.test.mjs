@@ -24,7 +24,7 @@ const FRESH = { onboarding: { completedAt: null, skipped: false, version: 2 } };
 const SCRIPTS = [
   "spec/spec.js", "lib/lang.js", "lib/wordspec.js", "lib/word-merge.js", "lib/local-mode.js", "lib/text.js", "lib/matcher.js", "lib/casing.js",
   "lib/i18n.js", "ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/lookup-status.js", "lib/errors.js", "ui/popover-style.js",
-  "content/popover.js", "ui/confetti.js", "lib/welcome-model.js", "welcome.js",
+  "content/popover.js", "ui/confetti.js", "lib/welcome-model.js", "lib/url.js", "welcome.js",
 ];
 
 let srv;
@@ -222,20 +222,22 @@ describe("the languages you read (22 §2b)", () => {
     const p = await openWelcome({ bases: ["es", "en"] });
     assert.deepEqual(p.$$(".base-chip").map((c) => [c.textContent.trim(), c.getAttribute("aria-label")]), [["Spanish", "Spanish, Español"], ["English", "English"]]);
     p.click(p.$$(".base-chip")[1]);
-    await p.until(() => plain(p.sync.ui.baseLangs).join() === "es");
+    await p.until(() => plain(p.store.ui.baseLangs).join() === "es");
     assert.deepEqual(plain(p.store.baseLangs), ["es"]);
     assert.equal(p.$$(".base-chip")[1].getAttribute("aria-checked"), "false", "an unticked chip stays, to tick again");
     p.click(p.$$(".base-chip")[0]);
     await p.fake.idle();
     assert.equal(p.text("#basesNote"), "Kotiko needs at least one language you read.");
-    assert.deepEqual(plain(p.sync.ui.baseLangs), ["es"]);
+    assert.deepEqual(plain(p.store.ui.baseLangs), ["es"]);
     p.click("#addBase");
     p.type("#baseSearchField", "fren");
     assert.equal(p.$("#baseSearchList .lang-option").dataset.lang, "fr");
     p.enter("#baseSearchField");
-    await p.until(() => plain(p.sync.ui.baseLangs).join() === "es,fr");
+    await p.until(() => plain(p.store.ui.baseLangs).join() === "es,fr");
     assert.ok(p.$("#baseSearch").hidden);
-    assert.equal(p.sync.ui.baseLangsConfirmed, false, "confirmed only by the first word or Skip");
+    assert.equal(p.store.ui.baseLangsConfirmed, false, "confirmed only by the first word or Skip");
+    // Not confirmed, so nothing new went to storage.sync (slice 54, C-07).
+    assert.ok(!p.fake.calls.set.some((c) => c.area === "sync" && c.items.ui), "nothing synced before the learner confirms");
   });
 
   test("with a server connected, its Telegram bot follows the change (slice 41 §9)", async () => {
@@ -249,7 +251,7 @@ describe("the languages you read (22 §2b)", () => {
       return deliver(msg, from);
     };
     p.click(p.$$(".base-chip")[1]);
-    await p.until(() => plain(p.sync.ui.baseLangs).join() === "es");
+    await p.until(() => plain(p.store.ui.baseLangs).join() === "es");
     await p.until(() => asked.includes("profile.sync"));
     await p.until(() => srv.state.profile?.base_langs?.join() === "es");
     assert.equal(srv.state.profile.ui_lang, null);
@@ -507,6 +509,25 @@ describe("with the learner's own AI (22 §4, §5)", () => {
   });
 });
 
+describe("another service's address (slice 54, B-06)", () => {
+  test("plain http to another machine says the key and words travel unencrypted", async () => {
+    const p = await openWelcome();
+    p.click("#aiOther");
+    await p.until(() => p.$('#providerOptions [data-value="custom"]'));
+    p.click('#providerOptions [data-value="custom"]');
+    await p.until(() => p.visible("#otherUrl"));
+    const warn = p.$("#otherUrlWarn");
+    assert.equal(warn.hidden, true);
+    assert.ok(p.$("#otherUrl").getAttribute("aria-describedby").split(" ").includes("otherUrlWarn"));
+    for (const [url, shown] of [["http://203.0.113.7/v1", true], ["http://127.0.0.1:1234/v1", false], ["https://llm.example.net/v1", false]]) {
+      p.type("#otherUrl", url);
+      assert.equal(warn.hidden, !shown, url);
+    }
+    p.type("#otherUrl", "http://203.0.113.7/v1");
+    assert.equal(p.text("#otherUrlWarn"), "This address starts with http://, so your key and the words you look up travel unencrypted. If anyone else shares this network, use an https:// address.");
+  });
+});
+
 describe("Connect OpenRouter (11 §4, 22 §4)", () => {
   const CODE = "code-0123456789";
   const CALLBACK = `https://kotiko.org/connect/?code=${CODE}`;
@@ -531,8 +552,9 @@ describe("Connect OpenRouter (11 §4, 22 §4)", () => {
     assert.match(pending.verifier, /^[A-Za-z0-9_-]{43}$/);
     assert.deepEqual(p.requests, [], "starting the sign-in sends nothing; the tab goes to OpenRouter");
 
-    // OpenRouter sends the browser back to kotiko.org/connect/ with a code.
-    const res = await p.fake.deliver({ type: "oauth.code", code: CODE }, RETURN_PAGE);
+    // OpenRouter sends the browser back to kotiko.org/connect/ with a code and the state.
+    assert.match(pending.state, /^[A-Za-z0-9_-]{22}$/);
+    const res = await p.fake.deliver({ type: "oauth.code", code: CODE, state: pending.state }, RETURN_PAGE);
     assert.deepEqual(plain(res), { ok: true });
     assert.deepEqual(exchanged, [{ code: CODE, code_verifier: pending.verifier, code_challenge_method: "S256" }]);
     await p.until(() => p.visible("#aiConnected"));
@@ -546,14 +568,16 @@ describe("Connect OpenRouter (11 §4, 22 §4)", () => {
     const p = await openWelcome({ exchange: () => new Response("{}", { status: 400 }) });
     p.click("#aiConnect");
     await p.until(() => p.$("#connectStatus.status-busy"));
-    const res = await p.fake.deliver({ type: "oauth.code", code: CODE }, RETURN_PAGE);
+    const pending = async () => JSON.parse((await (await p.bg.__kotiko.getStore()).secrets.get("pkce:pending")) ?? "null");
+    const first = await pending();
+    const res = await p.fake.deliver({ type: "oauth.code", code: CODE, state: first.state }, RETURN_PAGE);
     assert.equal(res.code, "key_rejected");
     await p.fake.idle();
     assert.ok(p.visible("#aiSetup"));
     assert.ok(!p.visible("#aiConnected"));
     // Selecting it again starts a new sign-in.
     p.click("#aiConnect");
-    await p.until(async () => (await (await p.bg.__kotiko.getStore()).secrets.get("pkce:pending")) !== null);
+    await p.until(async () => (await pending())?.state !== first.state);
   });
 
   test("Change goes back to the step with Connect OpenRouter focused", async () => {

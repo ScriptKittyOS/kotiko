@@ -22,7 +22,8 @@
 //   KotikoLocal.createLocalWordHandlers({...}) -> MessageRouter handlers (words.*, job.refresh)
 (() => {
   const SCHEMA = 1;
-  const DEFAULT_SERVER = "http://localhost:4747";
+  // 127.0.0.1, not localhost, which browsers try at [::1] first (slice 54, B-01).
+  const DEFAULT_SERVER = "http://127.0.0.1:4747";
   const DEFAULT_LOOKUP = { kind: "none", provider: "openrouter", baseUrl: null, model: null, dataCollection: "allow" };
   const DELETED_DAYS = 30;
   const DAY = 86_400_000;

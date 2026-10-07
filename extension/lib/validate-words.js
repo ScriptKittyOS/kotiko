@@ -143,7 +143,8 @@
   // raw: { status, contentType, body } where body is the response text.
   function validateWordsResponse(raw) {
     const status = raw?.status;
-    const contentType = String(raw?.contentType ?? "");
+    // A header is a string; anything else (even an object whose toString throws) is none.
+    const contentType = typeof raw?.contentType === "string" ? raw.contentType : "";
     let body;
     try {
       body = JSON.parse(raw?.body ?? "");

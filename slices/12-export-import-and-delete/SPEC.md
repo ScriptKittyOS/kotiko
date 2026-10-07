@@ -436,6 +436,13 @@ the Spanish deck names below read "in the interface language"; the English ones 
   - Root cause found on the way: `content.js` kept a removed key's old value
     (`newValue ?? state[k]`), so clearing storage left swaps on open tabs. A removed key
     now goes back to its default.
+  - *2026-10-07, slice 54 (A-06):* after deleting the database the background creates it
+    again with one row, `meta.bornFromWipe` (the time). The store set up in it later takes
+    nothing from `storage.local`, which content scripts can write: before, a 0.2-style
+    `token` and `serverUrl` planted there while Kotiko was wiped were adopted as the
+    trusted server, also by a worker started after this one stopped (the in-memory
+    "wiped" state doesn't survive that). The acceptance criterion above says "holds no
+    words, keys or settings" instead of "does not exist".
   - Until an extension page asks for something, the background opens no store and writes
     nothing. Pages left open (the popup, a welcome tab) react to the cleared storage at
     once, and their status requests fail for 2 s rather than set Kotiko up again. After
@@ -514,9 +521,10 @@ the Spanish deck names below read "in the interface language"; the English ones 
 - [ ] A file from a newer `schemaVersion` is refused with the "newer version" message
       and changes nothing.
 - [ ] Undo import within 24 hours restores the pre-import store exactly.
-- [ ] After "Delete everything", every storage area is empty, the `kotiko` database does
-      not exist, no tab shows a swapped word, and no API key remains (checked by the test
-      harness from both a page context and the background).
+- [ ] After "Delete everything", every storage area is empty, the `kotiko` database holds
+      no words, keys or settings (only the mark below), no tab shows a swapped word, and no
+      API key remains (checked by the test harness from both a page context and the
+      background).
 - [ ] The server checkbox, when ticked, leaves zero rows in `words` and increments
       `reset_epoch`; when unticked, the server is untouched.
 - [ ] `DELETE /api/v1/words` without the confirm body returns 400 and deletes nothing.

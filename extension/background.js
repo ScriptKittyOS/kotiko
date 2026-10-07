@@ -72,6 +72,16 @@ function getStore() {
   return storeP;
 }
 
+// "Delete everything" leaves a new database holding only this mark (slice 54, A-06): the
+// store set up in it later, by this worker or by one started after this one stopped, takes
+// nothing from storage.local, which content scripts can write while Kotiko is wiped. Without
+// it, a 0.2-style `token` and `serverUrl` planted there were adopted as the trusted server.
+const BORN_FROM_WIPE = "bornFromWipe";
+const NO_LEGACY = { get: async (defaults) => ({ ...defaults }), remove: async () => {} };
+// Whether this worker's start set the store up from what storage.local held (an update from
+// 0.2, or a database lost some other way); `onInstalled` keeps it only for the former.
+let adoptedLegacy = false;
+
 // Everything that reads settings or secrets waits for the upgrade (slice 11 section 8),
 // which runs at every worker start until it has finished once.
 let readyP = null;
@@ -83,10 +93,11 @@ function ready() {
     const r = await Local.migrate({
       store,
       storage: trustedCopy,
-      legacy: ext.storage.local,
+      legacy: (await store.meta.get(BORN_FROM_WIPE)) ? NO_LEGACY : ext.storage.local,
       uiLanguage: uiLanguage(),
       beforeDone: async (from) => from === "new" && (await store.meta.get(TRUSTED)) !== true && store.meta.set(TRUSTED, "fresh"),
     });
+    if (r.migrated && (await store.meta.get("migratedFrom")) !== "new") adoptedLegacy = true;
     await adoptOnce(store);
     if (r.migrated && r.home === "local" && r.seeded) projector.schedule();
     if (r.migrated) refresh.nudge().catch(() => {});
@@ -138,7 +149,7 @@ const trustedCopy = Settings.createArea({
 });
 // Everything outside the upgrade itself waits for it, so an install from before this
 // version never reads its settings before they were taken over (`adoptOnce`).
-const area = Object.fromEntries(["get", "set", "remove", "heal", "has"].map((op) => [op, async (...a) => (await ready().catch(() => {}), trustedCopy[op](...a))]));
+const area = Object.fromEntries(["get", "set", "update", "remove", "heal", "has"].map((op) => [op, async (...a) => (await ready().catch(() => {}), trustedCopy[op](...a))]));
 area.reset = () => trustedCopy.reset();
 
 // What Kotiko keeps in storage.local; an install from before the trusted copy has these to
@@ -201,7 +212,9 @@ async function adoptSync(changes) {
   await ready();
   const patch = {};
   const current = await area.get({ ui: null, seedSalt: null });
-  const ui = changes.ui ? pageValue("ui", changes.ui.newValue) : undefined;
+  const incoming = changes.ui ? pageValue("ui", changes.ui.newValue) : undefined;
+  // The languages detected here stay this browser's own, whatever another one synced.
+  const ui = incoming && { ...incoming, ...(current.ui?.baseLangsDetected ? { baseLangsDetected: current.ui.baseLangsDetected } : {}) };
   if (ui && !Settings.same(ui, current.ui)) {
     patch.ui = ui;
     if (ui.baseLangs) patch.baseLangs = ui.baseLangs;
@@ -211,10 +224,17 @@ async function adoptSync(changes) {
   await area.set(patch);
 }
 
-// storage.sync's `ui` (slice 50) follows the trusted copy, for the learner's other browsers.
-async function saveUi(ui) {
-  await area.set({ ui });
-  await Promise.resolve().then(() => ext.storage.sync.set({ ui })).catch(() => {});
+// storage.sync's `ui` (slice 50) follows the trusted copy, for the learner's other browsers,
+// once the learner has confirmed their languages, and never with the ones read from this
+// browser's settings (`baseLangsDetected`): those stay on the device (slice 54, C-07).
+// `with` goes into the trusted copy in the same write (the pages' `baseLangs`), so nothing
+// reads the bases half changed.
+async function saveUi(ui, { with: also = {} } = {}) {
+  await area.set({ ...also, ui });
+  if (ui?.baseLangsConfirmed !== true) return;
+  const synced = { ...ui };
+  delete synced.baseLangsDetected;
+  await Promise.resolve().then(() => ext.storage.sync.set({ ui: synced })).catch(() => {});
 }
 
 // Reactions to a change of the trusted copy, whoever in this file made it.
@@ -243,8 +263,8 @@ function saveSettings(m) {
     if (patch.ui?.baseLangs && !patch.baseLangs) patch.baseLangs = patch.ui.baseLangs;
     const { ui } = patch;
     delete patch.ui;
-    await area.set(patch);
-    if (ui) await saveUi(ui);
+    if (ui) await saveUi(ui, { with: patch });
+    else await area.set(patch);
     if (patch.baseLangs) {
       projector.schedule();
       mirrorBaseRules().catch(() => {});
@@ -268,20 +288,22 @@ function saveSettings(m) {
 const routeKey = (route) => `route:${route}`;
 const providerOf = (id) => globalThis.KOTIKO_SPEC.providers.providers.find((p) => p.id === id) ?? null;
 
-// The address a request on `route` would use, in the form routes are stored in.
+// The address a request on `route` would use, in the form routes are stored in: plain-http
+// localhost as 127.0.0.1 (slice 54, B-01), like every request.
 function routeUrl(route, url) {
   if (route === "server") {
     const n = normalizeServerUrl(url ?? "");
     return n.ok ? n.url : null;
   }
-  return url ? String(url).trim().replace(/\/+$/, "") || null : null;
+  return url ? globalThis.ServerUrl.pinLoopback(String(url).trim().replace(/\/+$/, "")) || null : null;
 }
 
 // Read from the store every time (one small read), so a wiped store (slice 12's "delete
-// everything") is never outlived by a remembered address.
+// everything") is never outlived by a remembered address. One bound before addresses were
+// pinned to 127.0.0.1 compares in today's form.
 async function trustedUrl(route) {
   const bound = await (await getStore()).meta.get(routeKey(route));
-  if (bound) return bound;
+  if (bound) return bound.startsWith(RAW) ? bound : routeUrl(route, bound) ?? bound;
   // Nothing named yet (a new install, or after "delete everything"): the built-in addresses.
   if (route.startsWith("lookup:")) return routeUrl(route, providerOf(route.slice("lookup:".length))?.baseUrl ?? null);
   return route === "server" ? routeUrl(route, Local.DEFAULT_SERVER) : null;
@@ -382,9 +404,10 @@ const home = async () => (await settings()).wordsHome ?? "local";
 
 // The learner's base languages: slice 50's list (`ui`, the trusted copy of what
 // storage.sync holds) when it exists, else the pages' copy, else the browser's language.
-async function currentBases() {
-  await ready().catch(() => {});
-  const { ui, baseLangs } = await area.get({ ui: null, baseLangs: null });
+// `get` reads the trusted copy directly, inside one of its updates (the projector's).
+async function currentBases(get = null) {
+  if (!get) await ready().catch(() => {});
+  const { ui, baseLangs } = await (get ?? area.get)({ ui: null, baseLangs: null });
   if (Array.isArray(ui?.baseLangs) && ui.baseLangs.length) return ui.baseLangs.slice(0, 4);
   if (Array.isArray(baseLangs) && baseLangs.length) return baseLangs.slice(0, 4);
   return Local.detectBases(uiLanguage());
@@ -454,7 +477,93 @@ async function connection() {
   // Only the address a Kotiko page named gets the token (slice 28 §7).
   const token = await secretFor("server", n.url);
   if (!token) throw addressChanged("server");
+  // And only once the server there has shown it holds the same token (below).
+  await proveServer(n.url, token);
   return { base: n.url, token };
+}
+
+// Slice 54, B-01 (defence in depth). Before the token goes to an address, the server there
+// proves it holds the same token without either side sending it: Kotiko sends a fresh random
+// nonce to `POST /api/v1/proof` (no token), the server answers base64url(HMAC-SHA256(token,
+// "kotiko-proof-v1:" + nonce)), and Kotiko checks it with WebCrypto (`subtle.verify`, which
+// compares in constant time). Another program listening at the address (on [::1], or on
+// 127.0.0.1 while Kotiko's server is stopped) never gets the token. A proof holds for this
+// worker's life and that address and token, and is asked for again after the server can't be
+// reached (it may have stopped, and something else started listening).
+//   - 200 with a proof that doesn't match: that server has another token (the learner's is
+//     wrong, or it isn't theirs): server_key_rejected, reason "wrong_proof".
+//   - no route (401, 404 or 405: a server from before this check), or an answer with no
+//     proof: not_kotiko_server, reason "no_proof". An older server has to be updated:
+//     anything could answer 404, so a missing route can't be trusted either.
+const PROOF_CONTEXT = "kotiko-proof-v1:";
+const PROOF_TIMEOUT_MS = 10_000;
+let proven = null; // {base, token} proven in this worker's life
+let proving = null; // {base, token, promise} under way
+const utf8 = (text) => new TextEncoder().encode(text);
+const b64url = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const B64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+// Already checked to be 43 base64url characters (32 bytes).
+function fromB64url(text) {
+  const out = [];
+  let bits = 0;
+  let n = 0;
+  for (const c of text) {
+    bits = ((bits << 6) | B64URL.indexOf(c)) & 0xffff;
+    n += 6;
+    if (n >= 8) {
+      n -= 8;
+      out.push((bits >> n) & 0xff);
+    }
+  }
+  return Uint8Array.from(out);
+}
+
+function proveServer(base, token) {
+  if (proven?.base === base && proven.token === token) return Promise.resolve();
+  if (proving?.base === base && proving.token === token) return proving.promise;
+  const promise = askProof(base, token)
+    .then(() => {
+      proven = { base, token };
+    })
+    .finally(() => {
+      if (proving?.promise === promise) proving = null;
+    });
+  proving = { base, token, promise };
+  return promise;
+}
+
+async function askProof(base, token) {
+  const nonce = b64url(crypto.getRandomValues(new Uint8Array(32)));
+  let res;
+  try {
+    res = await fetch(`${base}/api/v1/proof`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nonce }),
+      cache: "no-store",
+      credentials: "omit",
+      signal: AbortSignal.timeout(PROOF_TIMEOUT_MS),
+    });
+  } catch (e) {
+    if (e?.name === "AbortError") throw e;
+    throw codedError("server_unreachable", `Can't reach ${base}. Is the server running?`, { reason: e?.name === "TimeoutError" ? "timeout" : "network" });
+  }
+  const noProof = (status) => codedError("not_kotiko_server", `${base} didn't prove it holds this token, so it wasn't sent.`, { reason: "no_proof", status });
+  if (res.status === 401 || res.status === 404 || res.status === 405) throw noProof(res.status);
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    const e = body?.error;
+    const code = e && typeof e === "object" && typeof e.code === "string" ? e.code : fromStatus(res.status);
+    // A server error's own words (a 0.2-style string) go in the details, as for a sync.
+    const said = typeof e === "string" ? { error: e.slice(0, 200) } : {};
+    throw codedError(code, `The server answered ${res.status} to the proof.`, { ...(e?.details && typeof e.details === "object" ? e.details : {}), ...said, status: res.status });
+  }
+  const proof = typeof body?.proof === "string" && /^[A-Za-z0-9_-]{43}$/.test(body.proof) ? body.proof : null;
+  if (!proof) throw noProof(res.status);
+  const key = await crypto.subtle.importKey("raw", utf8(token), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+  if (!(await crypto.subtle.verify("HMAC", key, fromB64url(proof), utf8(PROOF_CONTEXT + nonce)))) {
+    throw codedError("server_key_rejected", `The server at ${base} has another token.`, { reason: "wrong_proof", status: res.status });
+  }
 }
 
 // Calls the server and returns the raw response. Network failures become coded errors.
@@ -466,6 +575,8 @@ async function request(conn, path, init = {}) {
       cache: "no-store",
     });
   } catch (e) {
+    // The server may have stopped, and another program may listen there next: prove again.
+    if (e?.name !== "AbortError") proven = null;
     if (e?.name === "TimeoutError") {
       throw codedError("server_unreachable", `${conn.base} took too long to answer.`, { reason: "timeout" });
     }
@@ -630,7 +741,7 @@ async function requestSync(opts) {
 const projector = globalThis.KotikoProjection.createProjector({
   list: async () => (await getStore()).list(),
   storage: area,
-  bases: currentBases,
+  bases: (get) => currentBases(get),
   enabled: async () => !wiped && (await home()) === "local",
   onError: (e) => console.warn("Kotiko couldn't update the page word list:", e?.message ?? e),
 });
@@ -1130,6 +1241,10 @@ async function wipeEverything(m) {
   secretCache.clear();
   client.reset();
   await globalThis.KotikoStore.wipe({ indexedDB: globalThis.indexedDB });
+  // An empty database with one mark, so the next store is set up afresh (A-06, above).
+  const born = await globalThis.KotikoStore.open({ indexedDB: globalThis.indexedDB, now });
+  await born.meta.set(BORN_FROM_WIPE, wipedAt);
+  born.close();
   await ext.storage.local.set({ words: [] });
   await ext.storage.local.clear();
   await Promise.resolve(ext.storage.session?.clear?.()).catch(() => {});
@@ -1255,6 +1370,18 @@ async function discardPlanted() {
   ensureSeedSalt().catch(() => {});
 }
 
+// Slice 54, A-06: a 0.2 `token` and `serverUrl` (and whatever else storage.local held) count
+// only on an update from 0.1 or 0.2, the versions that kept them there. A store set up from
+// storage.local at any other start (an update from a later version whose database was lost,
+// a browser update) keeps none of it. `ready()` first, so this start's set-up has run.
+const fromBeforeStore = (version) => /^0\.[0-2]\./.test(String(version ?? ""));
+async function keepLegacyOnlyFrom(details) {
+  await ready();
+  if (!adoptedLegacy || (details?.reason === "update" && fromBeforeStore(details.previousVersion))) return;
+  adoptedLegacy = false;
+  await discardPlanted();
+}
+
 async function firstInstall() {
   await ready().catch(() => {});
   await discardPlanted().catch((e) => console.warn("Kotiko install:", e?.message ?? e));
@@ -1264,11 +1391,10 @@ async function firstInstall() {
   const { ui } = await area.get({ ui: {} });
   const keep = ui?.baseLangsConfirmed === true && Array.isArray(ui.baseLangs) && ui.baseLangs.length;
   const next = keep ? ui.baseLangs.slice(0, 4) : bases;
-  await saveUi({ uiLang: "auto", ...ui, baseLangs: next, baseLangsDetected: bases, baseLangsConfirmed: !!keep });
   const { onboarding } = await area.get({ onboarding: null });
   const patch = { baseLangs: next };
   if (!onboarding) patch.onboarding = { completedAt: null, skipped: false, version: 2 };
-  await area.set(patch);
+  await saveUi({ uiLang: "auto", ...ui, baseLangs: next, baseLangsDetected: bases, baseLangsConfirmed: !!keep }, { with: patch });
   projector.schedule();
   await openWelcome();
 }
@@ -1295,8 +1421,7 @@ async function upgradeBases() {
   // Over four: drop detected languages no word uses, from the end.
   for (let i = next.length - 1; next.length > 4 && i >= 0; i--) if (!present.includes(next[i])) next.splice(i, 1);
   const bases = next.slice(0, 4);
-  await saveUi({ uiLang: "auto", ...ui, baseLangs: bases, baseLangsDetected: detected, baseLangsConfirmed: false });
-  await area.set({ baseLangs: bases });
+  await saveUi({ uiLang: "auto", ...ui, baseLangs: bases, baseLangsDetected: detected, baseLangsConfirmed: false }, { with: { baseLangs: bases } });
   projector.schedule();
 }
 
@@ -1359,15 +1484,40 @@ async function injectOpenTabs() {
   return n;
 }
 
+// Slice 54, B-01: an address saved as plain-http localhost by an earlier version, and the
+// route it is bound to, become 127.0.0.1, so the settings show where requests really go.
+// Requests already went there (routes compare pinned addresses); this only rewrites them.
+async function pinLoopbackAddresses() {
+  await ready();
+  await underRoutes(async () => {
+    const store = await getStore();
+    const s = await Local.readSettings(area);
+    const patch = {};
+    const pinned = routeUrl("server", s.server.url);
+    if (pinned && pinned !== s.server.url && /^http:\/\/localhost\b/i.test(s.server.url.trim())) patch.server = { ...s.server, url: pinned };
+    const lookupUrl = s.lookup.baseUrl ? globalThis.ServerUrl.pinLoopback(s.lookup.baseUrl.trim()) : null;
+    if (lookupUrl && lookupUrl !== s.lookup.baseUrl.trim()) patch.lookup = { ...s.lookup, baseUrl: lookupUrl };
+    for (const { key, value } of await store.meta.entries("route:")) {
+      if (typeof value !== "string" || value.startsWith(RAW) || key === CHOSEN) continue;
+      const route = key.slice("route:".length);
+      const bound = routeUrl(route, value);
+      if (bound && bound !== value) await store.meta.set(key, bound);
+    }
+    if (Object.keys(patch).length) await area.set(patch);
+  });
+}
+
 function onInstalled(details) {
   if (details?.reason === "update") {
     Promise.resolve(ext.alarms.clear(OLD_ALARM)).catch(() => {});
     migrateHiddenLangs().catch(() => {});
+    pinLoopbackAddresses().catch(() => {});
     // The bases after the first-run state: writing them projects the words again, and the
     // first-run check reads the old list first.
     upgradeOnboarding().catch(() => {}).then(upgradeBases).catch(() => {});
   }
   if (details?.reason === "install") firstInstall().catch((e) => console.warn("Kotiko couldn't open the welcome tab:", e?.message ?? e));
+  else keepLegacyOnlyFrom(details).catch((e) => console.warn("Kotiko update:", e?.message ?? e));
   if (details?.reason === "install" || details?.reason === "update") injectOpenTabs().catch(() => {});
   ensureAlarm();
   mirrorBaseRules({ force: true }).catch(() => {});
@@ -1468,10 +1618,13 @@ ext.runtime.onMessage.addListener(
     docsOrigin: globalThis.KotikoPKCE.DOCS_ORIGIN,
     handlers: {
       ...wordRoutes,
+      // Only Kotiko's own pages skip the 5 s wait (`force`): a content script's sync waits
+      // like a page load's, whatever it asks (slice 54, A-08).
       sync: {
         from: ["page", "content"],
-        async run(msg) {
-          await requestSync(msg.force ? { reason: "manual", force: true } : { reason: "page" });
+        async run(msg, sender) {
+          const fromPage = globalThis.MessageRouter.senderKinds(sender, ext.runtime).has("page");
+          await requestSync(msg.force === true && fromPage ? { reason: "manual", force: true } : { reason: "page" });
           return { ok: true };
         },
       },
@@ -1664,9 +1817,13 @@ ext.runtime.onMessage.addListener(
         async run(m) {
           await ready();
           if (typeof m.url === "string") {
+            // Saved as it will be used (localhost as 127.0.0.1, slice 54 B-01); an address
+            // that isn't one is kept as typed, so the settings can show it with its error.
+            const typed = m.url.trim() || Local.DEFAULT_SERVER;
+            const n = normalizeServerUrl(typed);
             await underRoutes(async () => {
-              await bindRoute("server", m.url.trim() || Local.DEFAULT_SERVER);
-              await area.set({ server: { url: m.url.trim() || Local.DEFAULT_SERVER } });
+              await bindRoute("server", typed);
+              await area.set({ server: { url: n.ok ? n.url : typed } });
             });
           }
           if (typeof m.token === "string") await setSecret("server", m.token.trim() || null);
@@ -1726,24 +1883,32 @@ ext.runtime.onMessage.addListener(
         from: ["page"],
         async run() {
           await ready();
-          const { verifier, challenge } = await globalThis.KotikoPKCE.pair();
-          await (await getStore()).secrets.set("pkce:pending", JSON.stringify({ verifier, expires: now() + globalThis.KotikoPKCE.PENDING_MS }));
-          const url = globalThis.KotikoPKCE.authUrl({ challenge });
+          const { verifier, challenge, state } = await globalThis.KotikoPKCE.pair();
+          await (await getStore()).secrets.set("pkce:pending", JSON.stringify({ verifier, state, expires: now() + globalThis.KotikoPKCE.PENDING_MS }));
+          const url = globalThis.KotikoPKCE.authUrl({ challenge, state });
           await Promise.resolve(ext.tabs?.create?.({ url })).catch(() => {});
           return { ok: true, url };
         },
       },
+      // A code counts only with the state of the sign-in waiting here: any page can open
+      // the callback with a code of its own, and that must neither reach OpenRouter nor use
+      // up the learner's sign-in. The verifier is kept until a code works or it expires
+      // (slice 54, A-05).
       "oauth.code": {
         from: ["docs"],
-        check: (m) => (typeof m.code === "string" && m.code.length > 0 && m.code.length <= 512 ? null : "code must be a string"),
+        check: (m) => (typeof m.code !== "string" || m.code.length === 0 || m.code.length > 512 ? "code must be a string" : m.state !== undefined && (typeof m.state !== "string" || m.state.length > 128) ? "state must be a string" : null),
         async run(m, sender) {
           if (!globalThis.KotikoPKCE.isCallback(sender?.url)) throw codedError("forbidden", "Not the callback page.");
           const store = await getStore();
           const raw = await store.secrets.get("pkce:pending");
-          await store.secrets.remove("pkce:pending");
           const pending = raw ? JSON.parse(raw) : null;
-          if (!pending || pending.expires < now()) throw codedError("key_rejected", "That sign-in has expired.", { reason: "expired", provider: "openrouter" });
+          if (!pending || pending.expires < now()) {
+            if (raw) await store.secrets.remove("pkce:pending");
+            throw codedError("key_rejected", "That sign-in has expired.", { reason: "expired", provider: "openrouter" });
+          }
+          if (!globalThis.KotikoPKCE.sameState(m.state, pending.state)) throw codedError("key_rejected", "That code isn't from the sign-in Kotiko started.", { reason: "not_this_sign_in", provider: "openrouter" });
           const key = await globalThis.KotikoPKCE.exchange({ fetch: (...a) => fetch(...a), code: m.code, verifier: pending.verifier });
+          await store.secrets.remove("pkce:pending");
           await setSecret("provider:openrouter", key);
           await underRoutes(async () => {
             await bindRoute("lookup:openrouter", globalThis.KotikoLLMClient.endpoint({ provider: "openrouter" }).baseUrl);
@@ -1986,7 +2151,9 @@ ext.tabs?.onUpdated?.addListener((_id, change, tab) => {
 });
 updateAllBadges();
 
+// test-only: start (scripts/build-extension.mjs leaves this block out of the store zips)
 // For tests: the parts a test drives directly.
 // `seed` writes the trusted copy, as Kotiko's own code does (tests can't write storage.local
 // and have it stay, any more than a content script can).
 globalThis.__kotiko = { ensureSeedSalt, adoptSync, ready, getStore, queue, refresh, projector, client, settings, currentBases, mirrorBaseRules, injectOpenTabs, toServer, toLocal, openWelcome, claimMilestone, onInstalled, area, seed: async (items) => (await ready(), area.set(items)) };
+// test-only: end

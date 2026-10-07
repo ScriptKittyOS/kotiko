@@ -51,9 +51,11 @@ test("fixing the token during a slow sync shows the new result, never the old 40
   const shown = await p.evaluate(() => window.__statuses);
   expect(shown.filter((t) => /didn't accept/i.test(t))).toEqual([]);
 
-  // The server did see the wrong token once; that answer was dropped.
-  const log = (await server.state()).log.filter((r) => r.path === "/kotiko/api/words");
-  expect(log.some((r) => r.auth === "Bearer wrong-token")).toBe(true);
+  // The server never saw the wrong token: it couldn't prove it holds that one, so it was
+  // never sent (slice 54, B-01). The refusal of that superseded sync was dropped too.
+  const log = (await server.state()).log;
+  expect(log.some((r) => r.auth === "Bearer wrong-token")).toBe(false);
+  expect(log.some((r) => r.path === "/kotiko/api/v1/proof")).toBe(true);
 });
 
 test("a word added against a slow server is on the next page", async ({ context, server, popup }) => {
@@ -89,7 +91,7 @@ test("an address with a user name explains what to do instead of 'can't reach'",
   await p.locator("#accessKey").fill(server.token);
   await p.locator("#saveConn").click();
   await expect(p.locator("#connStatus .banner-body")).toHaveText(
-    "That server address doesn't look right. Try one like http://localhost:4747.",
+    "That server address doesn't look right. Try one like http://127.0.0.1:4747.",
   );
   await p.locator("#connStatus summary").click();
   await expect(p.locator("#connStatus details pre")).toContainText("Leave the user name and password out of the address");

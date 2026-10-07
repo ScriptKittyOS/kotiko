@@ -41,7 +41,7 @@ once it's back."
 <details>
 <summary>For self-hosters</summary>
 
-Check that the server runs: `curl http://localhost:4747/health` on its machine should print
+Check that the server runs: `curl http://127.0.0.1:4747/health` on its machine should print
 `{"ok":true,...}`. Check that the address in Kotiko's settings matches `PORT` and `BIND`. A
 proxy in front of the server that answers 502, 503 or 504 shows this message too. See
 [Using the server from another machine](/server/remote-access/).
@@ -50,7 +50,7 @@ proxy in front of the server that answers 502, 503 or 504 shows this message too
 
 <h3 id="server_address_invalid">That server address doesn't look right</h3>
 
-"That server address doesn't look right. Try one like http://localhost:4747."
+"That server address doesn't look right. Try one like http://127.0.0.1:4747."
 
 - **What happened:** the address in Kotiko's settings isn't a web address Kotiko can use, or
   the server refused the name you reached it by.
@@ -74,6 +74,15 @@ in `server/.env` and restart. See the [configuration reference](/server/configur
 
 - **What happened:** another program answered at that address.
 - **What to do:** check the port number. Kotiko's server uses 4747 unless you changed `PORT`.
+
+"Kotiko didn't send your access key: the server at that address couldn't show it has the same
+key. If it's your Kotiko server, update it. Otherwise, check the address."
+
+- **What happened:** before it sends your access key, Kotiko asks the server to show it has the
+  same key, without either side sending it. Kotiko servers from before version 1.0 can't, and
+  neither can another program listening at that address (for example while your server is
+  stopped), so the key wasn't sent.
+- **What to do:** update your Kotiko server, or check the address and the port.
 
 <h3 id="server_key_rejected">Your server didn't accept the access key</h3>
 

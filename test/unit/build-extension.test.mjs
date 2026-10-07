@@ -257,3 +257,37 @@ test("the real extension builds into both zips with matching file lists", (t) =>
   assert.equal(sha(again.chrome.file), sha(r.chrome.file));
   assert.equal(sha(again.firefox.file), sha(r.firefox.file));
 });
+
+// Slice 54, A-09: background.js ends with `globalThis.__kotiko`, the hook the tests drive the
+// worker through (seed, toServer, getStore…). The unpacked extension keeps it for the tests;
+// the store zips leave out everything between the test-only markers.
+test("the store zips leave out the test hook, and the unpacked extension keeps it", (t) => {
+  const out = mkdtempSync(join(tmpdir(), "kotiko-build-hook-"));
+  t.after(() => rmSync(out, { recursive: true, force: true }));
+  const source = readFileSync(join(ROOT, "extension/background.js"), "utf8");
+  assert.match(source, /globalThis\.__kotiko = /, "the tests' hook is in the source");
+  const version = JSON.parse(readFileSync(join(ROOT, "extension/manifest.json"), "utf8")).version;
+  const r = build({ version, out, mtime: String(MTIME), lint: false, log: () => {} });
+  for (const store of ["chrome", "firefox"]) {
+    const shipped = new TextDecoder().decode(unzipSync(readFileSync(r[store].file))["background.js"]);
+    assert.doesNotMatch(shipped, /__kotiko/, `${store}: no test hook`);
+    assert.ok(shipped.includes("ext.runtime.onMessage.addListener("), `${store}: the rest of background.js ships`);
+    assert.ok(source.length - shipped.length < 2000, `${store}: only the hook is left out`);
+  }
+});
+
+test("test-only blocks are cut from every script; an unclosed block or a stray hook fails the build", (t) => {
+  const hooked = "const a = 1;\n// test-only: start\nglobalThis.__kotiko = { a };\n// test-only: end\nconst b = 2;\n";
+  const ok = fixture(BASE_MANIFEST, { "ext/bg.js": hooked });
+  t.after(() => rmSync(ok, { recursive: true, force: true }));
+  const r = buildFixture(ok);
+  assert.equal(new TextDecoder().decode(unzipSync(readFileSync(r.chrome.file))["bg.js"]), "const a = 1;\nconst b = 2;\n");
+  for (const [name, body, message] of [
+    ["unclosed", "// test-only: start\nglobalThis.__kotiko = {};\n", /test-only/],
+    ["stray", "globalThis.__kotiko = {};\n", /__kotiko/],
+  ]) {
+    const dir = fixture(BASE_MANIFEST, { "ext/lib/a.js": body });
+    t.after(() => rmSync(dir, { recursive: true, force: true }));
+    assert.throws(() => buildFixture(dir), (e) => e instanceof BuildError && message.test(e.message), name);
+  }
+});

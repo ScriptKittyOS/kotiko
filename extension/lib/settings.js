@@ -19,6 +19,7 @@
 //   const area = KotikoSettings.createArea({ meta, mirror: ext.storage.local, onChange });
 //   await area.get({ enabled: true })        like storage.local.get, from the trusted copy
 //   await area.set({ enabled: false })       trusted copy, then mirror
+//   await area.update(async (get) => items)  a read and a write with nothing in between
 //   await area.heal(changes)                 puts back what someone else wrote
 //   KotikoSettings.edit(current, msg, { isTag }) -> { patch } | { error }
 //   KotikoSettings.same(a, b)                equal as storage keeps them (key order aside)
@@ -85,19 +86,32 @@
       return pick(await load(), query);
     }
 
+    const entriesOf = (items) => Object.entries(items ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, clone(v)]);
+
+    // Inside `serial` only.
+    async function write(entries) {
+      if (!entries.length) return;
+      const all = await load();
+      await meta.write(entries.map(([k, v]) => ({ key: PREFIX + k, value: v })), []);
+      for (const [k, v] of entries) {
+        all.set(k, v);
+        canons.delete(k);
+      }
+      await mirror.set(Object.fromEntries(entries));
+      onChange(entries.map(([k]) => k));
+    }
+
     function set(items) {
-      const entries = Object.entries(items ?? {}).filter(([, v]) => v !== undefined).map(([k, v]) => [k, clone(v)]);
+      const entries = entriesOf(items);
       if (!entries.length) return Promise.resolve();
-      return serial(async () => {
-        const all = await load();
-        await meta.write(entries.map(([k, v]) => ({ key: PREFIX + k, value: v })), []);
-        for (const [k, v] of entries) {
-          all.set(k, v);
-          canons.delete(k);
-        }
-        await mirror.set(Object.fromEntries(entries));
-        onChange(entries.map(([k]) => k));
-      });
+      return serial(() => write(entries));
+    }
+
+    // Reads and writes in one step: `fn(get)` reads the trusted copy and returns what to
+    // set (or nothing), and no other write or heal runs between its reads and that write.
+    // `fn` must not call this area's set, remove, heal or update.
+    function update(fn) {
+      return serial(async () => write(entriesOf(await fn(get))));
     }
 
     function remove(keys) {
@@ -146,6 +160,7 @@
     return {
       get,
       set,
+      update,
       remove,
       heal,
       // Whether the trusted copy holds a key (the one-time adoption takes only missing ones).

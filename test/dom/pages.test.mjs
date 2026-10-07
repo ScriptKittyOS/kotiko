@@ -216,6 +216,12 @@ describe("the Connect OpenRouter return page (slice 11 §4)", () => {
     await until(() => dom.window.location.href === "https://kotiko.org/connect/");
   });
 
+  test("the sign-in's state goes with the code (slice 54, A-05)", async () => {
+    const { status, sent } = openReturnPage({ url: "https://kotiko.org/connect/?code=abc123&state=s7aTe-0123456789_abcde" });
+    await until(() => status() === msg("connect_done"));
+    assert.deepEqual(sent, [{ type: "oauth.code", code: "abc123", state: "s7aTe-0123456789_abcde" }]);
+  });
+
   test("an expired code says so; any other refusal is a plain failure", async () => {
     const expired = openReturnPage({ answer: () => ({ ok: false, code: "key_rejected", details: { reason: "expired" } }) });
     await until(() => expired.status() === msg("connect_expired"));

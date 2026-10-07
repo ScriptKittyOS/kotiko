@@ -459,8 +459,12 @@
     "description": "The server answered that the access key is wrong."
   },
   "error_server_address_invalid": {
-    "message": "That server address doesn't look right. Try one like http://localhost:4747.",
+    "message": "That server address doesn't look right. Try one like http://127.0.0.1:4747.",
     "description": "The server address can't be used as typed. Keep the example address as it is."
+  },
+  "error_not_kotiko_server_no_proof": {
+    "message": "Kotiko didn't send your access key: the server at that address couldn't show it has the same key. If it's your Kotiko server, update it. Otherwise, check the address.",
+    "description": "Slice 25 error (code not_kotiko_server, reason no_proof): before sending the access key, Kotiko asks the server to prove it holds the same key; an older Kotiko server, or another program listening at the address, can't."
   },
   "error_not_kotiko_server": {
     "message": "Something answered at that address, but it isn't a Kotiko server. Check the address.",
@@ -4939,6 +4943,10 @@
   "privacy_unavailable": {
     "message": "The privacy policy couldn't be shown here. Read it at kotiko.org/privacy.",
     "description": "Shown on the privacy policy page if its text can't be loaded. Keep the address kotiko.org/privacy as it is."
+  },
+  "lookup_url_unencrypted": {
+    "message": "This address starts with http://, so your key and the words you look up travel unencrypted. If anyone else shares this network, use an https:// address.",
+    "description": "Warning under the address of a lookup service (\"Another service\", Ollama, LM Studio) in Settings and on the welcome page, when the address uses http:// and isn't on this computer or a Tailscale network. Lookups still work. Keep http:// and https:// as they are."
   },
   "server_url_unencrypted": {
     "message": "This address starts with http://, so your access key travels unencrypted. If anyone else shares this network, use an https:// address (for example with tailscale serve).",

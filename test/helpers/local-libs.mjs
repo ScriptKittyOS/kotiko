@@ -11,6 +11,8 @@ import { requireExt } from "./load-script.mjs";
 
 export function loadLocalLibs() {
   const spec = requireExt("spec/spec.js");
+  // The address rules client.js uses (globalThis.ServerUrl), as the background loads them first.
+  requireExt("lib/url.js");
   globalThis.KOTIKO_SPEC = spec;
   const Lang = requireExt("lib/lang.js").createLang(spec);
   globalThis.KotikoLang = Lang;

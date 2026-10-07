@@ -5,6 +5,30 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Security: before Kotiko sends your server's access key, the server must now show it holds
+  the same key, without either side sending it. Another program listening at the address
+  (for example while your server is stopped) never gets the key. Update your Kotiko server
+  along with the extension: an older server can't show it, and Kotiko says so in Settings.
+
+- Security: after "Delete everything", Kotiko starts afresh and no longer takes an old-style
+  server address and token that a page's script left in the browser's storage meanwhile.
+
+- Settings and the welcome page now warn when the address of your lookup service starts
+  with `http://` and isn't on your computer: your key and the words you look up would
+  travel unencrypted. The server address already warned.
+
+- Security: Kotiko's default server address is now `http://127.0.0.1:4747`, and an address
+  you type as `http://localhost:…` is used as `127.0.0.1`, for your server and for Ollama
+  and LM Studio. Browsers try `localhost` at the IPv6 address `[::1]` first, where another
+  account on the same computer could listen and receive your server's access token. An
+  address saved as `localhost` moves to `127.0.0.1` on update; nothing to do on your side.
+
+- Connect OpenRouter: a web page you have open can no longer spoil a sign-in in progress.
+  Before, any page could open Kotiko's return page with a made-up code while you were
+  signing in, and your real sign-in then said "This sign-in has expired". Kotiko now
+  takes a code only from the sign-in it started, and a code that doesn't work no longer
+  ends the sign-in.
+
 - Self-hosted server: after moving your words from the folder used before the rename to
   Kotiko, the old copy (`~/.local/share/slovo/slovo.db`) and the old access key could stay
   readable by other accounts. The server now makes them private after the move, and at
