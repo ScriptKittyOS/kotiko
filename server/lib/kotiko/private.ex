@@ -118,7 +118,8 @@ defmodule Kotiko.Private do
     end
   end
 
-  # Sobelow: /proc/self, or a file this names itself in the temporary folder.
+  # Sobelow: a file this names itself in the temporary folder (TMPDIR, from the owner's
+  # environment), never a path from a request.
   # sobelow_skip ["Traversal.FileModule"]
   defp find_uid do
     case File.stat("/proc/self") do
@@ -150,8 +151,6 @@ defmodule Kotiko.Private do
   Returns `{:ok, contents}`, or `{:error, reason}`: a file error, `:link`, `:not_regular`,
   `{:owner, uid}`, `:changed` or `:too_big` (over `max_bytes`).
   """
-  # Sobelow: `api-token` in the configured data folder, never a path from a request.
-  # sobelow_skip ["Traversal.FileModule"]
   def read_own(path, uid \\ uid(), max_bytes \\ 64 * 1024) do
     with {:ok, %File.Stat{} = stat} <- File.lstat(path),
          :ok <- own_regular(stat, uid),

@@ -135,8 +135,6 @@ defmodule Kotiko.DataDir do
   made 0700 first, with a warning, before its files are checked: then nobody else can add
   or swap a file while the server runs.
   """
-  # Sobelow: the data folder comes from the server's settings, never from a request.
-  # sobelow_skip ["Traversal.FileModule"]
   def check_safe(dir, uid) do
     case File.stat(dir) do
       {:ok, %File.Stat{type: :directory} = stat} ->
@@ -198,8 +196,6 @@ defmodule Kotiko.DataDir do
         do: problem
   end
 
-  # Sobelow: as check_safe/2.
-  # sobelow_skip ["Traversal.FileModule"]
   defp file_problem(path, uid) do
     case File.lstat(path) do
       {:ok, %File.Stat{type: :symlink}} ->
@@ -213,8 +209,6 @@ defmodule Kotiko.DataDir do
     end
   end
 
-  # Sobelow: as check_safe/2.
-  # sobelow_skip ["Traversal.FileModule"]
   defp link_target(path) do
     case File.read_link(path) do
       {:ok, target} -> target
@@ -222,8 +216,6 @@ defmodule Kotiko.DataDir do
     end
   end
 
-  # Sobelow: as check_safe/2.
-  # sobelow_skip ["Traversal.FileModule"]
   defp own_folder?(dir) do
     match?({:ok, %File.Stat{type: :directory}}, File.lstat(dir)) and
       Enum.all?(ls(dir), &(&1 in @own_names))
