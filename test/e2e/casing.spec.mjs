@@ -4,10 +4,9 @@
 // Slice 17 in the browser: swapped words in taller scripts never change a line's height,
 // and right-to-left swaps keep punctuation on the correct side. Chromium runs the real
 // extension; Firefox (when installed) checks the same stylesheet on its own.
-import fs from "node:fs";
-import path from "node:path";
 import { firefox } from "@playwright/test";
-import { test, expect, EXT_DIR, connectServer } from "./fixtures.mjs";
+import { test, expect, connectServer } from "./fixtures.mjs";
+import { requireExt } from "../helpers/load-script.mjs";
 
 const w = (id, lang, native, english, base_lang = "en") => ({ id, lang, language: null, native, romanization: null, english, forms: [english], note: null, base_lang });
 
@@ -100,7 +99,8 @@ test("Firefox: Kotiko's stylesheet keeps line heights too", async () => {
   }
   try {
     const page = await browser.newPage();
-    const css = fs.readFileSync(path.join(EXT_DIR, "content.css"), "utf8");
+    // The sheet content.js adds when it swaps (ui/swap-style.js).
+    const { CSS: css } = requireExt("ui/swap-style.js");
     const line = (cls, inner) => `<p class="${cls}">Many ${inner} for the help.</p>`;
     const words = TALL.map((x) => `<kotiko-w lang="${x.lang}" dir="auto">${x.native}</kotiko-w>`);
     await page.setContent(`<!doctype html><html lang="en"><head><meta charset="utf-8"><style>${css} body{font:16px serif} p{white-space:nowrap;margin:0} .tall{line-height:1.6}</style></head><body>

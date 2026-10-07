@@ -376,19 +376,19 @@ describe("after the rename", () => {
   });
 
   test("swaps from before the <kotiko-w> element (span.kotiko-w with data-en) go back too", async () => {
-    const { $, doc } = await load(
-      `<p id="p">My <span class="kotiko-w" data-en="house" lang="ru" dir="auto" title="house = дом · Russian">дом</span>.</p>`,
-      { enabled: false },
-    );
+    const { $, doc } = await load(`<p id="p">My <span class="kotiko-w" data-en="house" lang="ru" dir="auto" title="house = дом · Russian">дом</span>.</p>`, { words: [] });
     assert.equal(doc.querySelectorAll("span.kotiko-w").length, 0);
     assert.equal($("p").textContent, "My house.");
     assert.ok([...$("p").childNodes].every((n) => n.nodeType === 3));
   });
 
-  test("switched off, the old spans are still restored", async () => {
-    const { $, doc } = await load(`<p id="p">My ${oldSpan("house", "дом")}.</p>`, { enabled: false });
-    assert.equal(doc.querySelectorAll(`span.${OLD}`).length, 0);
-    assert.equal($("p").textContent, "My house.");
+  // Security review A-03: a page could plant such a span to see Kotiko act where it's off.
+  test("switched off or paused, Kotiko touches nothing, old spans included", async () => {
+    for (const local of [{ enabled: false }, { pausedHosts: ["example.com"] }]) {
+      const { $, doc } = await load(`<p id="p">My ${oldSpan("house", "дом")}.</p>`, local);
+      assert.equal(doc.querySelectorAll(`span.${OLD}`).length, 1, JSON.stringify(local));
+      assert.equal($("p").textContent, "My дом.");
+    }
   });
 });
 
@@ -698,6 +698,84 @@ describe("starting up", () => {
     for (let i = 0; i < 400 && !fake.calls.sendMessage.some((m) => m.type === "sync"); i++) await sleep(5);
     await sleep(10);
     assert.equal(dom.window.document.getElementById("p").textContent, "my дом");
+  });
+});
+
+// Security review A-03 and C-04: what a page sees of Kotiko. Nothing at all where it's off,
+// paused or on a sensitive site; on a page it swaps, the swaps and their stylesheet, and no
+// way to switch Kotiko off.
+describe("what a page sees of Kotiko (A-03, C-04)", () => {
+  // Records every event dispatched in the page, as a page listening on document would.
+  const recordEvents = (dom) => {
+    const seen = [];
+    const real = dom.window.EventTarget.prototype.dispatchEvent;
+    dom.window.EventTarget.prototype.dispatchEvent = function (e) {
+      seen.push(e.type);
+      return real.call(this, e);
+    };
+    return seen;
+  };
+  const kotikoEvents = (seen) => seen.filter((t) => /kotiko|handoff/i.test(t));
+  // Kotiko's stylesheets in the page: constructed (adoptedStyleSheets, where the browser has
+  // them; jsdom doesn't) or <style> elements.
+  const sheets = (doc) => [...(doc.adoptedStyleSheets ?? []).map((sh) => [...sh.cssRules].map((r) => r.cssText).join(" ")), ...[...doc.querySelectorAll("style")].map((st) => st.textContent)];
+
+  test("off, paused or on a sensitive site: no event, no stylesheet, nothing changed", async () => {
+    const BANK = [{ pattern: "example.com", category: "banking" }];
+    for (const local of [{ enabled: false }, { pausedHosts: ["example.com"] }, { sensitiveSites: BANK }]) {
+      let seen;
+      const { doc, $ } = await load(`<p id="p">my house</p><kotiko-w id="planted">probe</kotiko-w>`, { ...local, beforeInject: (dom) => (seen = recordEvents(dom)) });
+      assert.deepEqual(kotikoEvents(seen), [], JSON.stringify(local));
+      assert.deepEqual(sheets(doc), [], JSON.stringify(local));
+      assert.equal(doc.querySelectorAll("link").length, 0, JSON.stringify(local));
+      assert.equal($("p").textContent, "my house");
+      assert.equal($("planted").textContent, "probe");
+    }
+  });
+
+  test("on a page it swaps, the stylesheet comes with the first swap, and no event is sent", async () => {
+    let seen;
+    const { doc, spans, set } = await load(`<p id="p">my house</p>`, { beforeInject: (dom) => (seen = recordEvents(dom)) });
+    assert.equal(spans().length, 1);
+    assert.equal(sheets(doc).length, 1);
+    assert.match(sheets(doc)[0], /kotiko-w/);
+    assert.deepEqual(kotikoEvents(seen), []);
+    // Paused: the words and the sheet go.
+    await set({ pausedHosts: ["example.com"] });
+    assert.equal(spans().length, 0);
+    assert.deepEqual(sheets(doc), []);
+  });
+
+  test("a page's own kotiko:handoff event leaves Kotiko running", async () => {
+    const { doc, $, spans } = await load(`<p id="p">my house</p>`);
+    doc.dispatchEvent(new doc.defaultView.CustomEvent("kotiko:handoff", { detail: "page" }));
+    const p = doc.createElement("p");
+    p.id = "later";
+    p.textContent = "thanks for the house";
+    doc.body.append(p);
+    await sleep(20);
+    assert.equal($("p").textContent, "my дом");
+    assert.equal($("later").textContent, "спасибо for the дом");
+    assert.equal(spans().length, 3);
+  });
+
+  test("a second copy of the content scripts takes over from the first, with no duplicate text", async () => {
+    const { dom, doc, $, fake } = await load(`<p id="p">my house and thanks</p>`);
+    assert.equal($("p").textContent, "my дом and спасибо");
+    const before = fake.calls.sendMessage.filter((m) => m.type === "sync").length;
+    injectContentScripts(dom);
+    for (let i = 0; i < 400 && fake.calls.sendMessage.filter((m) => m.type === "sync").length === before; i++) await sleep(5);
+    await sleep(10);
+    assert.equal($("p").textContent, "my дом and спасибо");
+    assert.equal(doc.querySelectorAll("kotiko-w").length, 2);
+    // Only the new copy reacts: a change re-swaps once, not twice.
+    const q = doc.createElement("p");
+    q.id = "q";
+    q.textContent = "a house";
+    doc.body.append(q);
+    await sleep(20);
+    assert.equal($("q").textContent, "a дом");
+    assert.equal(sheets(doc).length, 1, "one stylesheet");
   });
 });
 

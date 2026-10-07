@@ -21,6 +21,7 @@
   const Text = globalThis.KotikoText; // lib/text.js
   const PageLang = globalThis.KotikoPageLang; // lib/page-lang.js
   const { createControlCheck } = globalThis.KotikoControls; // lib/controls.js
+  const SwapStyle = globalThis.KotikoSwapStyle; // ui/swap-style.js
   const MARK = "kotiko-w";
   const SKIP = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA", "INPUT", "SELECT", "OPTION", "CODE", "PRE", "KBD", "SAMP", "SVG", "MATH", "CANVAS", "IFRAME", "TITLE"]);
   const SAMPLE = 2000;
@@ -354,6 +355,10 @@
       rules = globalThis.KotikoRules.create();
     }
     if (indexes) engine.reapply();
+    // The page may have dropped the sheet; it comes back with the swaps, and goes once
+    // Kotiko is off or paused here.
+    if (!indexes) unstyle();
+    else if (styled) SwapStyle.install(document);
     if (cur) {
       const { id } = cur.info.word;
       const gone = !(state.words || []).some((w) => sameId(w.id, id));
@@ -457,7 +462,8 @@
 
   // Swaps made before this version kept the original text in data-en: the span from
   // before the rename and span.kotiko-w (before slice 15's element). Put the page's own
-  // text back. Remove two releases after 0.3.
+  // text back, on pages Kotiko swaps (elsewhere a page could plant one to see Kotiko act).
+  // Remove two releases after 0.3.
   function unwrapLegacy() {
     document.querySelectorAll("span.slovo-w, span.kotiko-w").forEach((span) => { // legacy-name-ok
       span.before(document.createTextNode(span.dataset.en ?? span.textContent));
@@ -465,21 +471,67 @@
     });
   }
 
-  // One live instance per document (slice 15): a newer instance (after an update or a
-  // reload of the extension, or injected into a tab open at install) announces itself, and
-  // this one restores the page and stops.
-  const instanceId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-  function onHandoff(e) {
-    if (e.detail !== instanceId) teardown();
+  // One live instance per document (slice 15). Nothing about this is on the page: an event
+  // or attribute there would let any site switch Kotiko off, or see it installed where it's
+  // paused or off (security review A-03). Instances of one extension in a frame share this
+  // script world, so a newer one (injected into a tab open at install, or injected twice)
+  // finds the live one here and tears it down. One left from before an update or a reload
+  // has lost its extension context: it tears down at its next DOM change (the engine checks
+  // contextValid()), which waitForOrphans() makes happen before this one swaps.
+  const LIVE = "__kotikoContent";
+  function claimDocument() {
+    const prev = globalThis[LIVE];
+    globalThis[LIVE] = { teardown };
+    try {
+      prev?.teardown?.();
+    } catch {
+      // the old instance's script is gone
+    }
+  }
+
+  // Swaps on the page that aren't this instance's are an orphan's: one DOM change wakes it,
+  // and this instance waits (up to a second) until it has put the page's text back. Only
+  // where Kotiko swaps anyway, so a page that plants a <kotiko-w> learns nothing.
+  async function waitForOrphans() {
+    if (!document.querySelector(MARK)) return;
+    const poke = document.createTextNode("");
+    document.documentElement.append(poke);
+    poke.remove();
+    await new Promise((resolve) => {
+      const mo = new MutationObserver(() => {
+        if (!document.querySelector(MARK)) done();
+      });
+      const timer = setTimeout(done, 1000);
+      function done() {
+        mo.disconnect();
+        clearTimeout(timer);
+        resolve();
+      }
+      mo.observe(document, { childList: true, subtree: true });
+    });
+  }
+
+  // The swap stylesheet goes in with the first swap: nothing of Kotiko's styles a page it
+  // doesn't swap (ui/swap-style.js).
+  let styled = false;
+  function styleSwaps() {
+    styled = true;
+    SwapStyle.install(document);
+  }
+  function unstyle() {
+    if (!styled) return;
+    styled = false;
+    SwapStyle.uninstall(document);
   }
 
   function teardown() {
     if (torn) return;
     torn = true;
+    if (globalThis[LIVE]?.teardown === teardown) delete globalThis[LIVE];
     clearTimeout(recheckTimer);
     engine?.teardown();
+    unstyle();
     popover?.destroy();
-    document.removeEventListener("kotiko:handoff", onHandoff);
     document.removeEventListener("focusin", onFocus, true);
     try {
       ext.storage.onChanged.removeListener(onStorage);
@@ -496,7 +548,7 @@
     configureSpeech();
     popover = globalThis.KotikoPopover.createPopover({ infoFor, actions: popoverActions, reduceMotion: () => prefs().motion === "reduce" });
     popover.install();
-    engine = globalThis.KotikoEngine.create({ plan, skip, afterSlice: () => rules.settle(), contextValid });
+    engine = globalThis.KotikoEngine.create({ plan, skip, afterSlice: () => rules.settle(), contextValid, onSwap: () => styled || styleSwaps() });
     ext.runtime.onMessage.addListener(onMessage);
     // Installed a moment ago: the background may not have copied the list yet.
     if (!Array.isArray(state.sensitiveSites)) {
@@ -507,6 +559,7 @@
     await decidePage();
     if (torn) return;
     rebuild();
+    if (active()) unwrapLegacy();
     // The word segmenter loads its data on first use: pay for that in a task of its own, not
     // in the first slice of swapping (no task over 50 ms, slice 15).
     if (indexes) {
@@ -514,6 +567,8 @@
       // Any style work the page left pending, before the first slice reads a style.
       if (document.body) void getComputedStyle(document.body).cursor;
       await new Promise((r) => setTimeout(r, 0));
+      if (torn) return;
+      await waitForOrphans();
       if (torn) return;
     }
     engine.start();
@@ -530,8 +585,6 @@
     ext.runtime.sendMessage({ type: "sync" }).catch(() => {});
   }
 
-  document.dispatchEvent(new CustomEvent("kotiko:handoff", { detail: instanceId }));
-  document.addEventListener("kotiko:handoff", onHandoff);
-  unwrapLegacy();
+  claimDocument();
   if (document.body) init();
 })();

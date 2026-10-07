@@ -36,7 +36,9 @@ describe("injection into open tabs (slice 15)", () => {
       const cs = manifest().content_scripts[0];
       assert.ok(queried.some((q) => JSON.stringify(q?.url) === JSON.stringify(["http://*/*", "https://*/*"])), "asks for web pages only");
       assert.deepEqual(JSON.parse(JSON.stringify(calls.filter((c) => c[0] === "js"))), [["js", 1, cs.js], ["js", 2, cs.js]], reason);
-      assert.ok(calls.some((c) => c[0] === "css" && c[1] === 1));
+      // No stylesheet: content.js adds its own with the first swap, so a page Kotiko doesn't
+      // swap sees nothing of it (security review A-03).
+      assert.ok(!calls.some((c) => c[0] === "css"));
     }
   });
 

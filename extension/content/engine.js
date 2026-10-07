@@ -500,6 +500,7 @@
     }
 
     function onVisibility() {
+      if (!contextValid()) return teardown();
       if (!doc.hidden && dirty) reapply();
     }
 
