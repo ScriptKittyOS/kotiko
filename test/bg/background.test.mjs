@@ -517,8 +517,11 @@ describe("add and remove relay", () => {
     assert.ok(signedWith(requests.at(-1), "good-token"));
 
     await send({ type: "add", text: "x" }, POPUP);
-    await sleep(20);
-    await fake.idle();
+    // The add, then its status refresh, each signed and checked (slice 54, D-01): wait for it.
+    for (const end = Date.now() + 5000; store.lookupStatus?.quota?.remaining !== 37 && Date.now() < end;) {
+      await fake.idle();
+      await sleep(5);
+    }
     assert.equal(store.lookupStatus.quota.remaining, 37);
 
     route = false;
