@@ -5,8 +5,20 @@ defmodule Kotiko.Router do
   use Plug.Router
   use Plug.ErrorHandler
   require Logger
-  alias Kotiko.{AddRequests, AuthThrottle, I18n, Lookup, RateLimit, Token, Word, Words}
-  alias Plug.Conn.Utils
+
+  alias Kotiko.{
+    AddRequests,
+    AuthThrottle,
+    I18n,
+    Lookup,
+    RateLimit,
+    RequestAuth,
+    Token,
+    Word,
+    Words
+  }
+
+  alias Plug.Conn.{Utils, WrapperError}
 
   # First, on every route including /health: refuse names we don't answer to (DNS rebinding).
   plug Kotiko.Plug.HostCheck
@@ -17,20 +29,36 @@ defmodule Kotiko.Router do
   plug :dispatch
 
   # Only JSON: a body of another type is refused with 415 (slice 25), never passed on unread.
-  @parsers [parsers: [:json], json_decoder: Jason]
+  # The body reader hands over the body a signed request's check already read (D-01).
+  @parsers [
+    parsers: [:json],
+    json_decoder: Jason,
+    body_reader: {RequestAuth, :read_body, []}
+  ]
   @small_body Plug.Parsers.init([length: 64_000] ++ @parsers)
   @batch_body Plug.Parsers.init([length: 1_000_000] ++ @parsers)
   @proof_body Plug.Parsers.init([length: 1_000] ++ @parsers)
 
   # 64 KB everywhere, except the batch add, which takes up to 500 words (slice 07), and the
-  # proof, which anyone may send: a nonce fits in 1 KB.
-  defp parse_body(%{path_info: ["api", "v1", "words", "batch"]} = conn, _opts),
-    do: Plug.Parsers.call(conn, @batch_body)
+  # proof, which anyone may send: a nonce fits in 1 KB. A signed request's body is read
+  # first and checked against the hash it was signed with (Kotiko.RequestAuth).
+  defp parse_body(conn, _opts) do
+    {length, parsers} = body_limit(conn.path_info)
 
-  defp parse_body(%{path_info: ["api", "v1", "proof"]} = conn, _opts),
-    do: Plug.Parsers.call(conn, @proof_body)
+    case RequestAuth.check_body(conn, length) do
+      {:ok, conn} -> Plug.Parsers.call(conn, parsers)
+      {:error, :too_large} -> raise Plug.Parsers.RequestTooLargeError
+      {:error, :unreadable} -> raise Plug.BadRequestError
+      {:error, :body_mismatch} -> signature_failed(conn, :body_mismatch)
+    end
+  rescue
+    # With this conn, so handle_errors' answer to a signed request is signed too.
+    e -> WrapperError.reraise(conn, :error, e, __STACKTRACE__)
+  end
 
-  defp parse_body(conn, _opts), do: Plug.Parsers.call(conn, @small_body)
+  defp body_limit(["api", "v1", "words", "batch"]), do: {1_000_000, @batch_body}
+  defp body_limit(["api", "v1", "proof"]), do: {1_000, @proof_body}
+  defp body_limit(_), do: {64_000, @small_body}
 
   # Open (no token): which server this is, its version and whether the database works.
   # Clients that only check for a 200 keep working.
@@ -45,7 +73,7 @@ defmodule Kotiko.Router do
   end
 
   # Open (no token): proves this server holds the API token without revealing it, so the
-  # extension can check an address before it sends the token there (slice 54, B-01).
+  # extension can check an address before it sends requests there (slice 54, B-01, D-01).
   post "/api/v1/proof" do
     nonce = conn.body_params["nonce"]
 
@@ -266,6 +294,9 @@ defmodule Kotiko.Router do
     end
   end
 
+  # `Bearer <token>` (curl and other tools), or a signed request (the extension, which
+  # never sends the token: slice 54, D-01, Kotiko.RequestAuth). A wrong token or a failed
+  # signature counts towards the lockout; a missing or malformed header can't be a guess.
   defp check_token(conn) do
     expected = Application.fetch_env!(:kotiko, :api_token)
 
@@ -278,9 +309,39 @@ defmodule Kotiko.Router do
           deny(conn)
         end
 
+      [value] ->
+        if RequestAuth.signed?(value), do: check_signed(conn, value, expected), else: deny(conn)
+
       _ ->
         deny(conn)
     end
+  end
+
+  defp check_signed(conn, value, token) do
+    case RequestAuth.parse(value) do
+      {:ok, header} ->
+        case RequestAuth.verify(conn, token, header) do
+          :ok ->
+            RequestAuth.accept(conn, token, header)
+
+          # Genuine, but too many at once to remember their nonces: refused, and signed.
+          {:error, :full} ->
+            conn
+            |> RequestAuth.accept(token, header)
+            |> rate_limited("too_many_requests", RequestAuth.retry_after())
+
+          {:error, reason} ->
+            signature_failed(conn, reason)
+        end
+
+      :error ->
+        deny(conn, "malformed")
+    end
+  end
+
+  defp signature_failed(conn, reason) do
+    AuthThrottle.failed(conn.remote_ip)
+    deny(conn, Atom.to_string(reason))
   end
 
   defp rate_limited(conn, reason, seconds) do
@@ -290,17 +351,25 @@ defmodule Kotiko.Router do
     |> halt()
   end
 
-  defp deny(conn) do
-    body = %{
-      error: %{
+  # The challenge names both schemes; for a signed request, why it failed (`malformed`,
+  # `bad_mac`, `stale`, `replayed`, `body_mismatch`). The extension tells a server from
+  # before signed requests by its plain `Bearer` challenge.
+  defp deny(conn, reason \\ nil) do
+    error =
+      %{
         code: "server_key_rejected",
         message: I18n.error_message(I18n.locale(conn), "server_key_rejected")
       }
-    }
+
+    {challenge, error} =
+      if reason,
+        do:
+          {~s(Bearer, Kotiko-HMAC error="#{reason}"), Map.put(error, :details, %{reason: reason})},
+        else: {"Bearer, Kotiko-HMAC", error}
 
     conn
-    |> put_resp_header("www-authenticate", "Bearer")
-    |> json(401, body)
+    |> put_resp_header("www-authenticate", challenge)
+    |> json(401, %{error: error})
     |> halt()
   end
 end

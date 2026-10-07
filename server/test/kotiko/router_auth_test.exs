@@ -55,7 +55,7 @@ defmodule Kotiko.RouterAuthTest do
           assert conn.status == 401,
                  "#{method} #{path} answered #{conn.status} without the right token"
 
-          assert get_resp_header(conn, "www-authenticate") == ["Bearer"]
+          assert get_resp_header(conn, "www-authenticate") == ["Bearer, Kotiko-HMAC"]
           assert %{"error" => %{"code" => "server_key_rejected"}} = json_body(conn)
           assert get_resp_header(conn, "access-control-allow-origin") == []
         end
