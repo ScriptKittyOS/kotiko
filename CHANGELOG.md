@@ -5,6 +5,11 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Security: before Kotiko sends your server's access key, the server must now show it holds
+  the same key, without either side sending it. Another program listening at the address
+  (for example while your server is stopped) never gets the key. Update your Kotiko server
+  along with the extension: an older server can't show it, and Kotiko says so in Settings.
+
 - Security: after "Delete everything", Kotiko starts afresh and no longer takes an old-style
   server address and token that a page's script left in the browser's storage meanwhile.
 

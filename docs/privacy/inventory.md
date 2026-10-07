@@ -142,7 +142,7 @@ differs from this table.
 
 | File | Count | What they fetch |
 |---|---|---|
-| `extension/background.js` | 7 | `importScripts` of Kotiko's own library files; Kotiko's own `stopwords.json` and `sensitive-sites.json` (from the package, no network); the server (`request()`); the provider client's `fetch`; Wiktionary (`wiktionaryPage()`); OpenRouter's key exchange for the sign-in |
+| `extension/background.js` | 8 | `importScripts` of Kotiko's own library files; Kotiko's own `stopwords.json` and `sensitive-sites.json` (from the package, no network); the server (`request()`), and before the token goes there, its proof that it holds the same token (`askProof()`: a random value out, a keyed hash back, no token); the provider client's `fetch`; Wiktionary (`wiktionaryPage()`); OpenRouter's key exchange for the sign-in |
 | `extension/lib/llm/client.js` | 1 | The provider: `/chat/completions`, `/models`, `/key` (OpenRouter) |
 | `extension/lib/pkce.js` | 1 | OpenRouter's `/api/v1/auth/keys` (the sign-in's code exchange) |
 | `extension/lib/i18n.js` | 1 | Kotiko's own `_locales/*/messages.json` (from the package) |

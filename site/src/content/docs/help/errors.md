@@ -75,6 +75,15 @@ in `server/.env` and restart. See the [configuration reference](/server/configur
 - **What happened:** another program answered at that address.
 - **What to do:** check the port number. Kotiko's server uses 4747 unless you changed `PORT`.
 
+"Kotiko didn't send your access key: the server at that address couldn't show it has the same
+key. If it's your Kotiko server, update it. Otherwise, check the address."
+
+- **What happened:** before it sends your access key, Kotiko asks the server to show it has the
+  same key, without either side sending it. Kotiko servers from before version 1.0 can't, and
+  neither can another program listening at that address (for example while your server is
+  stopped), so the key wasn't sent.
+- **What to do:** update your Kotiko server, or check the address and the port.
+
 <h3 id="server_key_rejected">Your server didn't accept the access key</h3>
 
 "Your Kotiko server didn't accept the access key. Paste it again in Connection settings."

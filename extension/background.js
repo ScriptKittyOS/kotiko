@@ -477,7 +477,93 @@ async function connection() {
   // Only the address a Kotiko page named gets the token (slice 28 §7).
   const token = await secretFor("server", n.url);
   if (!token) throw addressChanged("server");
+  // And only once the server there has shown it holds the same token (below).
+  await proveServer(n.url, token);
   return { base: n.url, token };
+}
+
+// Slice 54, B-01 (defence in depth). Before the token goes to an address, the server there
+// proves it holds the same token without either side sending it: Kotiko sends a fresh random
+// nonce to `POST /api/v1/proof` (no token), the server answers base64url(HMAC-SHA256(token,
+// "kotiko-proof-v1:" + nonce)), and Kotiko checks it with WebCrypto (`subtle.verify`, which
+// compares in constant time). Another program listening at the address (on [::1], or on
+// 127.0.0.1 while Kotiko's server is stopped) never gets the token. A proof holds for this
+// worker's life and that address and token, and is asked for again after the server can't be
+// reached (it may have stopped, and something else started listening).
+//   - 200 with a proof that doesn't match: that server has another token (the learner's is
+//     wrong, or it isn't theirs): server_key_rejected, reason "wrong_proof".
+//   - no route (401, 404 or 405: a server from before this check), or an answer with no
+//     proof: not_kotiko_server, reason "no_proof". An older server has to be updated:
+//     anything could answer 404, so a missing route can't be trusted either.
+const PROOF_CONTEXT = "kotiko-proof-v1:";
+const PROOF_TIMEOUT_MS = 10_000;
+let proven = null; // {base, token} proven in this worker's life
+let proving = null; // {base, token, promise} under way
+const utf8 = (text) => new TextEncoder().encode(text);
+const b64url = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const B64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+// Already checked to be 43 base64url characters (32 bytes).
+function fromB64url(text) {
+  const out = [];
+  let bits = 0;
+  let n = 0;
+  for (const c of text) {
+    bits = ((bits << 6) | B64URL.indexOf(c)) & 0xffff;
+    n += 6;
+    if (n >= 8) {
+      n -= 8;
+      out.push((bits >> n) & 0xff);
+    }
+  }
+  return Uint8Array.from(out);
+}
+
+function proveServer(base, token) {
+  if (proven?.base === base && proven.token === token) return Promise.resolve();
+  if (proving?.base === base && proving.token === token) return proving.promise;
+  const promise = askProof(base, token)
+    .then(() => {
+      proven = { base, token };
+    })
+    .finally(() => {
+      if (proving?.promise === promise) proving = null;
+    });
+  proving = { base, token, promise };
+  return promise;
+}
+
+async function askProof(base, token) {
+  const nonce = b64url(crypto.getRandomValues(new Uint8Array(32)));
+  let res;
+  try {
+    res = await fetch(`${base}/api/v1/proof`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nonce }),
+      cache: "no-store",
+      credentials: "omit",
+      signal: AbortSignal.timeout(PROOF_TIMEOUT_MS),
+    });
+  } catch (e) {
+    if (e?.name === "AbortError") throw e;
+    throw codedError("server_unreachable", `Can't reach ${base}. Is the server running?`, { reason: e?.name === "TimeoutError" ? "timeout" : "network" });
+  }
+  const noProof = (status) => codedError("not_kotiko_server", `${base} didn't prove it holds this token, so it wasn't sent.`, { reason: "no_proof", status });
+  if (res.status === 401 || res.status === 404 || res.status === 405) throw noProof(res.status);
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    const e = body?.error;
+    const code = e && typeof e === "object" && typeof e.code === "string" ? e.code : fromStatus(res.status);
+    // A server error's own words (a 0.2-style string) go in the details, as for a sync.
+    const said = typeof e === "string" ? { error: e.slice(0, 200) } : {};
+    throw codedError(code, `The server answered ${res.status} to the proof.`, { ...(e?.details && typeof e.details === "object" ? e.details : {}), ...said, status: res.status });
+  }
+  const proof = typeof body?.proof === "string" && /^[A-Za-z0-9_-]{43}$/.test(body.proof) ? body.proof : null;
+  if (!proof) throw noProof(res.status);
+  const key = await crypto.subtle.importKey("raw", utf8(token), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+  if (!(await crypto.subtle.verify("HMAC", key, fromB64url(proof), utf8(PROOF_CONTEXT + nonce)))) {
+    throw codedError("server_key_rejected", `The server at ${base} has another token.`, { reason: "wrong_proof", status: res.status });
+  }
 }
 
 // Calls the server and returns the raw response. Network failures become coded errors.
@@ -489,6 +575,8 @@ async function request(conn, path, init = {}) {
       cache: "no-store",
     });
   } catch (e) {
+    // The server may have stopped, and another program may listen there next: prove again.
+    if (e?.name !== "AbortError") proven = null;
     if (e?.name === "TimeoutError") {
       throw codedError("server_unreachable", `${conn.base} took too long to answer.`, { reason: "timeout" });
     }

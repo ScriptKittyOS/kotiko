@@ -462,6 +462,10 @@
     "message": "That server address doesn't look right. Try one like http://127.0.0.1:4747.",
     "description": "The server address can't be used as typed. Keep the example address as it is."
   },
+  "error_not_kotiko_server_no_proof": {
+    "message": "Kotiko didn't send your access key: the server at that address couldn't show it has the same key. If it's your Kotiko server, update it. Otherwise, check the address.",
+    "description": "Slice 25 error (code not_kotiko_server, reason no_proof): before sending the access key, Kotiko asks the server to prove it holds the same key; an older Kotiko server, or another program listening at the address, can't."
+  },
   "error_not_kotiko_server": {
     "message": "Something answered at that address, but it isn't a Kotiko server. Check the address.",
     "description": "The address answered with something other than Kotiko's word list."

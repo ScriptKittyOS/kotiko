@@ -13,7 +13,8 @@
 //                 and slice 12's DELETE /words with its confirmation),
 //                 jobs/pronunciation-refresh (GET, POST pause/resume), profile (GET, PUT;
 //                 slice 41 §9, kept as sent in `state.profile`) and llm/status
-//                 (slice 10: the quota is `llmRemaining` of 50; each add uses one)
+//                 (slice 10: the quota is `llmRemaining` of 50; each add uses one), and
+//                 POST /api/v1/proof (slice 54 B-01, no token: the HMAC of the nonce)
 //   /llm/v1/*     a fake OpenAI-compatible model: /models, /key, /chat/completions
 //   /__control    POST to switch behaviours, GET to read state and the request log
 //
@@ -34,6 +35,7 @@
 //     "token": "..." }                     the bearer token /kotiko/api expects
 //
 // Run it by hand with `node test/helpers/fixture-server.mjs [port]`.
+import { createHmac } from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -43,6 +45,9 @@ const FIXTURES = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
 const NODE_MODULES = path.resolve(FIXTURES, "../../node_modules");
 const NPM = { "react.js": "react/umd/react.production.min.js", "react-dom.js": "react-dom/umd/react-dom.production.min.js" };
 const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(FIXTURES, rel), "utf8"));
+
+// What a Kotiko server answers to `POST /api/v1/proof` (slice 54, B-01).
+export const proofFor = (token, nonce) => createHmac("sha256", token).update(`kotiko-proof-v1:${nonce}`).digest("base64url");
 
 // 43 characters, like a token from `openssl rand -base64 32`.
 export const TEST_TOKEN = "test-token-0123456789abcdefghijklmnopqrstuv";
@@ -351,6 +356,14 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
     if (state.kotiko === "down") return req.socket.destroy();
     if (state.kotiko === "slow") await sleep(state.delayMs);
     if (route === "/health" && req.method === "GET") return send(res, 200, "ok");
+    // Slice 54, B-01: the server proves it holds the token before the extension sends it.
+    // In "401" mode it holds another one, as a server would that the learner's token isn't for.
+    if (route === "/api/v1/proof" && req.method === "POST" && state.kotiko !== "html" && state.kotiko !== "500") {
+      const { nonce } = await readBody(req);
+      if (typeof nonce !== "string" || !/^[A-Za-z0-9_-]{32,128}$/.test(nonce)) return send(res, 400, { error: { code: "invalid_request", message: "nonce", details: { field: "nonce" } } });
+      const token = state.kotiko === "401" ? `another-${state.token}` : state.token;
+      return send(res, 200, { proof: proofFor(token, nonce) }, { "cache-control": "no-store" });
+    }
     if (state.kotiko === "401") return send(res, 401, "unauthorized");
     if (state.kotiko === "500") return send(res, 500, { error: "Something broke on the fake server." });
     if (state.kotiko === "html") {
