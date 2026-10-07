@@ -286,6 +286,113 @@ describe("events a page script makes (security review A-04)", () => {
   });
 });
 
+// Security review E-05: the swap is in the page's DOM, so the page can restyle it. The card
+// opens only on a word the learner can see, and from a pointer only on its drawn text.
+// jsdom has no layout: the word's text is drawn at TEXT and each element's box comes from
+// its data-box (x,y,w,h), else the text's.
+describe("only on a word the learner sees, where it's drawn (security review E-05)", () => {
+  const TEXT = { left: 100, top: 50, right: 180, bottom: 70, width: 80, height: 20 };
+  function layout(p, { text = [TEXT] } = {}) {
+    const W = p.window;
+    W.Range.prototype.getClientRects = () => text;
+    W.Element.prototype.getBoundingClientRect = function () {
+      if (!this.dataset?.box) return TEXT;
+      const [x, y, w, h] = this.dataset.box.split(",").map(Number);
+      return { left: x, top: y, right: x + w, bottom: y + h, width: w, height: h, x, y };
+    };
+  }
+
+  test("a click or a resting pointer on the word's text opens it; a few pixels off still does", async () => {
+    const p = await load();
+    layout(p);
+    p.click(p.word("пожалуйста"), { clientX: 120, clientY: 60 });
+    assert.equal(p.isOpen(), true);
+    p.pointer("pointerdown", p.$("p3"));
+    assert.equal(p.isOpen(), false);
+    p.pointer("pointerover", p.word("犬"), { clientX: 182, clientY: 72 });
+    await sleep(HOVER_MS);
+    assert.equal(p.isOpen(), true);
+  });
+
+  test("a click or rest away from the text, on a box the page stretched over the screen, doesn't", async () => {
+    const p = await load();
+    layout(p);
+    // The page's own button sits under the word's (stretched) box.
+    p.click(p.word("пожалуйста"), { clientX: 600, clientY: 400 });
+    assert.equal(p.isOpen(), false, "a click elsewhere in its box");
+    p.pointer("pointerover", p.word("犬"), { clientX: 600, clientY: 400 });
+    await sleep(HOVER_MS);
+    assert.equal(p.isOpen(), false, "a resting pointer elsewhere in its box");
+    // On the text, but the box is the whole screen.
+    const w = p.word("пожалуйста");
+    w.dataset.box = "0,0,1280,720";
+    p.click(w, { clientX: 120, clientY: 60 });
+    assert.equal(p.isOpen(), false, "stretched");
+    w.tabIndex = 0;
+    p.key(w, "Enter");
+    assert.equal(p.isOpen(), false, "stretched, by keyboard");
+    delete w.dataset.box;
+    p.key(w, "Enter");
+    assert.equal(p.isOpen(), true, "Enter on the focused word, as drawn");
+  });
+
+  test("a long press opens only on the word's text", async () => {
+    const p = await load();
+    layout(p);
+    const w = p.$("link").querySelector("kotiko-w");
+    p.pointer("pointerdown", w, { pointerType: "touch", clientX: 600, clientY: 400 });
+    await sleep(600);
+    assert.equal(p.isOpen(), false);
+    p.pointer("pointerup", w, { pointerType: "touch" });
+    p.pointer("pointerdown", w, { pointerType: "touch", clientX: 120, clientY: 60 });
+    await sleep(600);
+    assert.equal(p.isOpen(), true);
+  });
+
+  test("a word with no drawn text doesn't open", async () => {
+    const p = await load();
+    layout(p, { text: [] });
+    p.click(p.word("пожалуйста"), { clientX: 120, clientY: 60 });
+    assert.equal(p.isOpen(), false);
+    layout(p, { text: [{ ...TEXT, width: 0, right: TEXT.left }] });
+    p.click(p.word("пожалуйста"), { clientX: 120, clientY: 60 });
+    assert.equal(p.isOpen(), false, "an empty rectangle");
+  });
+
+  for (const [label, style] of [
+    ["nearly transparent", "opacity: 0.05"],
+    ["transparent through a filter", "filter: opacity(5%) blur(1px)"],
+    ["under a filter Kotiko can't read", "filter: url(#hide)"],
+    ["clipped", "clip-path: inset(100%)"],
+    ["masked", "mask-image: linear-gradient(transparent, transparent)"],
+    ["hidden", "visibility: hidden"],
+  ]) {
+    test(`a word ${label} doesn't open, by pointer or keyboard`, async () => {
+      const p = await load();
+      const w = p.word("пожалуйста");
+      w.parentElement.setAttribute("style", style);
+      p.click(w);
+      w.tabIndex = 0;
+      p.key(w, "Enter");
+      p.pointer("pointerover", w);
+      await sleep(HOVER_MS);
+      assert.equal(p.isOpen(), false);
+    });
+  }
+
+  test("a faded word the learner can still read opens, and so does one in a display: contents parent", async () => {
+    const p = await load();
+    const w = p.word("пожалуйста");
+    w.parentElement.setAttribute("style", "opacity: 0.5; filter: opacity(0.5)");
+    p.click(w);
+    assert.equal(p.isOpen(), true, "a quarter opaque");
+    p.pointer("pointerdown", p.$("p3"));
+    w.parentElement.setAttribute("style", "display: contents; opacity: 0");
+    p.click(w);
+    assert.equal(p.isOpen(), true, "display: contents draws no box of its own");
+  });
+});
+
 describe("opening and closing (19 §3)", () => {
   test("hover intent: 300 ms of rest opens; a moving pointer doesn't", async () => {
     const p = await load();

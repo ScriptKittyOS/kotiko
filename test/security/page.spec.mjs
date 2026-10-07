@@ -242,3 +242,126 @@ test("A-04: a page script can't open the word card or search it with window.find
   await page.locator("#t kotiko-w").click();
   await expect.poll(() => inShadow(page, function () { return this.querySelector(".k-card")?.hidden === false; })).toBe(true);
 });
+
+// E-05 (reviewer E, rc.3): the page restyles its own <kotiko-w> (it's in the page's DOM) so
+// the learner's resting pointer, or their click on the page's own button, lands on it and
+// opens the card, which page script then searches with window.find. The card opens only
+// where the learner's pointer is on the word's drawn text, and only on a word they can see.
+test.describe("E-05: a page can't get the word card opened by stretching or hiding a swap", () => {
+  const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>x</title></head><body><main><p id="t">Please come in, and thanks for the book.</p><button id="go" style="margin:40px;padding:20px">Continue reading</button></main></body></html>`;
+  // Text that is only in the card, never on the page: the romanization, the respellings,
+  // the other language's word in "Also", the note.
+  const CARD_ONLY = ["pozhaluysta", "pa-ZHAL-sta", "pa-ZHA-lu-sta", "xièxie", "shyeh4-shyeh", "spasibo", "warmer"];
+  const STRETCH = "#t kotiko-w:first-of-type{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;z-index:2147483646!important;opacity:0.001!important;display:block!important}";
+  const cardOpen = (page) => inShadow(page, function () { return this.querySelector(".k-card")?.hidden === false; }).then((v) => !!v);
+  const found = (page) =>
+    page.evaluate((gs) => gs.filter((g) => {
+      getSelection().removeAllRanges();
+      const hit = window.find(g, true, false, true, false, false, false);
+      getSelection().removeAllRanges();
+      return hit;
+    }), CARD_ONLY);
+  const restyle = (page, css) => page.evaluate((c) => {
+    const s = document.createElement("style");
+    s.textContent = c;
+    document.head.append(s);
+  }, css);
+
+  test("A-04b: the learner's pointer resting anywhere on the page doesn't open it", async ({ context, serviceWorker, server }) => {
+    await setup({ server, serviceWorker, context });
+    const page = await hostile(context, server, "hover.html", PAGE);
+    await expect(page.locator("#t kotiko-w").first()).toBeVisible();
+    await restyle(page, STRETCH);
+    await page.mouse.move(600, 400, { steps: 5 });
+    await page.mouse.move(602, 401, { steps: 2 });
+    await page.waitForTimeout(1000);
+    expect(await cardOpen(page)).toBe(false);
+    expect(await found(page)).toEqual([]);
+  });
+
+  test("the learner's click on the page's own button under a stretched swap doesn't open it", async ({ context, serviceWorker, server }) => {
+    await setup({ server, serviceWorker, context });
+    const page = await hostile(context, server, "jack.html", PAGE);
+    await expect(page.locator("#t kotiko-w").first()).toBeVisible();
+    await restyle(page, STRETCH);
+    const box = await page.locator("#go").boundingBox();
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await page.waitForTimeout(500);
+    expect(await cardOpen(page)).toBe(false);
+    expect(await found(page)).toEqual([]);
+  });
+
+  test("a transparent swap the page keeps under the pointer doesn't open it either", async ({ context, serviceWorker, server }) => {
+    await setup({ server, serviceWorker, context });
+    const page = await hostile(context, server, "follow.html", PAGE);
+    await expect(page.locator("#t kotiko-w").first()).toBeVisible();
+    // Word-sized, its text right under the pointer, nearly transparent.
+    await page.evaluate(() => {
+      const w = document.querySelector("#t kotiko-w");
+      w.style.cssText = "position:fixed!important;z-index:2147483646!important;opacity:0.01!important";
+      const text = document.createRange();
+      text.selectNodeContents(w);
+      document.addEventListener("pointermove", (e) => {
+        const r = text.getBoundingClientRect();
+        w.style.left = `${parseFloat(w.style.left || 0) + e.clientX - (r.left + r.width / 2)}px`;
+        w.style.top = `${parseFloat(w.style.top || 0) + e.clientY - (r.top + r.height / 2)}px`;
+      }, true);
+    });
+    await page.mouse.move(600, 400, { steps: 5 });
+    await page.mouse.move(602, 401, { steps: 2 });
+    await page.waitForTimeout(1000);
+    const at = await page.evaluate(() => {
+      const text = document.createRange();
+      text.selectNodeContents(document.querySelector("#t kotiko-w"));
+      const r = text.getBoundingClientRect();
+      return { x: r.x, y: r.y, w: r.width, h: r.height, top: document.elementFromPoint(602, 401)?.localName };
+    });
+    expect(at.x < 602 && at.x + at.w > 602 && at.y < 401 && at.y + at.h > 401, `the swap is under the pointer: ${JSON.stringify(at)}`).toBe(true);
+    expect(await cardOpen(page)).toBe(false);
+    await page.mouse.down();
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    expect(await cardOpen(page)).toBe(false);
+    expect(await found(page)).toEqual([]);
+  });
+
+  test("A-04c: a page that reads the card within the frame it opens finds nothing", async ({ context, serviceWorker, server }) => {
+    await setup({ server, serviceWorker, context });
+    const page = await hostile(context, server, "cover.html", PAGE.replace("</main>", `</main><div id="mine" popover="manual" style="position:fixed;inset:0;margin:0;border:0;background:#fff">Loading…</div>`));
+    await expect(page.locator("#t kotiko-w").first()).toBeVisible();
+    await restyle(page, STRETCH);
+    await page.evaluate((gs) => {
+      window.__read = [];
+      const tick = () => {
+        if (document.querySelector("kotiko-popover")?.matches(":popover-open")) {
+          window.__read = gs.filter((g) => {
+            getSelection().removeAllRanges();
+            return window.find(g, true, false, true, false, false, false);
+          });
+          document.getElementById("mine").showPopover();
+          return;
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }, CARD_ONLY);
+    await page.mouse.move(600, 400, { steps: 5 });
+    await page.mouse.move(602, 401, { steps: 2 });
+    await page.waitForTimeout(1000);
+    expect(await page.evaluate(() => window.__read)).toEqual([]);
+    expect(await cardOpen(page)).toBe(false);
+  });
+
+  test("the learner's own hover and click on a swap they see still open it", async ({ context, serviceWorker, server }) => {
+    await setup({ server, serviceWorker, context });
+    const page = await hostile(context, server, "real.html", PAGE);
+    const w = page.locator("#t kotiko-w").first();
+    await expect(w).toBeVisible();
+    await w.hover();
+    await expect.poll(() => cardOpen(page)).toBe(true);
+    await page.mouse.move(5, 5);
+    await expect.poll(() => cardOpen(page)).toBe(false);
+    await w.click();
+    await expect.poll(() => cardOpen(page)).toBe(true);
+  });
+});
