@@ -215,6 +215,21 @@ defmodule Kotiko.BootTest do
     refute output =~ "STARTED"
   end
 
+  test "a weak token saved in the data folder gets a warning, never shown", ctx do
+    data = Path.join(ctx.tmp, "data")
+    File.mkdir_p!(data)
+    File.chmod!(data, 0o700)
+    File.write!(Path.join(data, "api-token"), String.duplicate("password", 3) <> "\n")
+    File.chmod!(Path.join(data, "api-token"), 0o600)
+    vars = %{"PORT" => to_string(free_port()), "KOTIKO_DATA_DIR" => data}
+
+    {output, status} = boot(vars, @start_and_stop, ctx)
+
+    assert status == 0, output
+    assert output =~ "The token in #{data}/api-token looks easy to guess"
+    refute output =~ "passwordpassword"
+  end
+
   test "the VM exits non-zero when the supervision tree dies", ctx do
     vars = %{"KOTIKO_DATA_DIR" => Path.join(ctx.tmp, "data"), "PORT" => to_string(free_port())}
 

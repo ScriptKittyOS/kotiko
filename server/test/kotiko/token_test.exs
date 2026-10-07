@@ -78,4 +78,23 @@ defmodule Kotiko.TokenTest do
     assert %{"url" => "http://100.101.102.103:4747", "token" => "tok"} =
              encoded |> Base.url_decode64!(padding: false) |> Jason.decode!()
   end
+
+  describe "weakness/1 (slice 54, B-09)" do
+    test "few different characters, a repeated piece, or little variety" do
+      assert Token.weakness(String.duplicate("a", 24)) == :few_characters
+      assert Token.weakness(String.duplicate("password", 3)) == :few_characters
+      assert Token.weakness(String.duplicate("abcdefghijkl", 2)) == :repeated
+      assert Token.weakness(String.duplicate("a", 15) <> "bcdefghij") == :little_variety
+    end
+
+    test "generated tokens, hex from openssl and passphrases are fine", %{tmp_dir: dir} do
+      for _ <- 1..200 do
+        assert {:ok, token, _} = Token.generate(Path.join(dir, "api-token"))
+        assert Token.weakness(token) == nil
+      end
+
+      assert Token.weakness(Base.encode16(:crypto.strong_rand_bytes(24), case: :lower)) == nil
+      assert Token.weakness("correct-horse-battery-staple-lamp") == nil
+    end
+  end
 end

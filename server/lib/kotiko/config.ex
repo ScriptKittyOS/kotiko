@@ -615,7 +615,29 @@ defmodule Kotiko.Config do
           []
       end
 
-    key_warning ++ renamed(vars) ++ unknown_prefixed(vars)
+    key_warning ++ weak_token(vars["API_TOKEN"]) ++ renamed(vars) ++ unknown_prefixed(vars)
+  end
+
+  @doc """
+  A warning when a token the owner chose looks easy to guess (`Kotiko.Token.weakness/1`),
+  else nothing. `what` names where it came from; the token itself is never in it.
+  """
+  def weak_token(token, what \\ "API_TOKEN")
+  def weak_token(nil, _what), do: []
+
+  def weak_token(token, what) do
+    case Kotiko.Token.weakness(token) do
+      nil ->
+        []
+
+      reason ->
+        [
+          "#{what} looks easy to guess: #{Kotiko.Token.weakness_text(reason)}. Anyone who " <>
+            "can reach the server can try guesses, and one answer from POST " <>
+            "/api/v1/proof lets them test guesses offline. Use a random token: delete it " <>
+            "and the server makes one, or use the output of `openssl rand -hex 24`."
+        ]
+    end
   end
 
   defp renamed(vars) do

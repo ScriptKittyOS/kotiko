@@ -10,6 +10,10 @@ defmodule Kotiko.Token do
 
   @min_length 24
   @file_name "api-token"
+  # weakness/1's thresholds.
+  @min_different 10
+  @min_bits 64
+  @max_repeat_check 256
 
   def min_length, do: @min_length
 
@@ -74,6 +78,54 @@ defmodule Kotiko.Token do
   def save(path, contents), do: Kotiko.Private.write(path, contents, ".new")
 
   @proof_label "kotiko-proof-v1:"
+
+  @doc """
+  Why `token` looks easy to guess, or nil. A simple check, not a guarantee (slice 54,
+  B-09): it catches tokens a person typed, not ones made at random.
+
+    * `:few_characters`: fewer than 10 different characters (`aaaa...`, `passwordpassword...`)
+    * `:repeated`: one shorter piece repeated (`abcdefghijklabcdefghijkl`)
+    * `:little_variety`: under 64 bits by the characters' frequencies (length times the
+      Shannon entropy of the character counts), as when most characters are the same
+
+  A token the server makes (32 random bytes, 43 characters) has about 220 such bits, and
+  `openssl rand -hex 24` about 190.
+  """
+  def weakness(token) do
+    chars = String.graphemes(token)
+    counts = Enum.frequencies(chars)
+
+    cond do
+      map_size(counts) < @min_different -> :few_characters
+      repeated?(chars) -> :repeated
+      bits(counts, length(chars)) < @min_bits -> :little_variety
+      true -> nil
+    end
+  end
+
+  @doc "The words for `weakness/1`'s reason, for a warning."
+  def weakness_text(:few_characters),
+    do: "it uses fewer than #{@min_different} different characters"
+
+  def weakness_text(:repeated), do: "it repeats a shorter piece"
+  def weakness_text(:little_variety), do: "most of its characters are the same"
+
+  # Only short tokens: the check is quadratic, and a long one with 10 or more different
+  # characters isn't what a person types.
+  defp repeated?(chars) when length(chars) > @max_repeat_check, do: false
+
+  defp repeated?(chars) do
+    t = List.to_tuple(chars)
+    n = tuple_size(t)
+
+    Enum.any?(1..div(n, 2)//1, fn period ->
+      Enum.all?(period..(n - 1)//1, &(elem(t, &1) == elem(t, &1 - period)))
+    end)
+  end
+
+  defp bits(counts, n) do
+    n * -Enum.sum(for {_char, c} <- counts, p = c / n, do: p * :math.log2(p))
+  end
 
   @doc """
   Whether `nonce` is one the extension may send to `POST /api/v1/proof`: 32 to 128

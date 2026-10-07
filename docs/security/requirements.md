@@ -21,7 +21,9 @@ Kotiko has two parts: the browser extension, and an optional server you run your
 - **A strong token, kept private.** On first start the server makes a random 256-bit token
   and saves it in `api-token` in the data folder, readable only by you (mode 0600). If you
   pick your own with `API_TOKEN`, it must be at least 24 characters, or the server won't
-  start.
+  start, and one that looks easy to guess gets a warning at every start. After 10 wrong
+  tokens from one address within a minute, that address is refused until the minute is
+  over; other addresses keep working.
 - **Other accounts on the computer can't read your words.** The database, its `-wal` and
   `-shm` files, the backups, the token and the model list cache are readable only by you
   (0600), and a data folder the server makes only by you (0700). At every start it makes

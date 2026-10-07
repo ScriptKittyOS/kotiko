@@ -5,6 +5,10 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Self-hosted server: an access key you chose yourself that looks easy to guess (few
+  different characters, a repeated piece, mostly one character) now gets a warning at
+  every start. Delete `API_TOKEN` to let the server make a random one.
+
 - Self-hosted server: after 10 wrong access keys from one address within a minute, the
   server refuses that address for the rest of the minute (`429`) and logs it once. Other
   addresses, including yours, keep working. New route `POST /api/v1/proof`: Kotiko can

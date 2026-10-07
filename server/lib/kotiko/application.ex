@@ -56,6 +56,10 @@ defmodule Kotiko.Application do
       {:ok, token, source} ->
         Application.put_env(:kotiko, :api_token, token)
         if match?({:generated, _}, source), do: print_new_token(token)
+        # API_TOKEN was checked with the other settings; a saved token is checked here.
+        with {:file, path} <- source,
+             do: Enum.each(Config.weak_token(token, "The token in #{path}"), &Logger.warning/1)
+
         source
 
       {:error, message} ->

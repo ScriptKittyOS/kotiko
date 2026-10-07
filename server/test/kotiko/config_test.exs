@@ -530,4 +530,25 @@ defmodule Kotiko.ConfigTest do
     refute Config.openrouter?("http://localhost:11434/v1")
     refute Config.openrouter?("https://notopenrouter.ai/v1")
   end
+
+  # B-09 (slice 54): any 24 characters were accepted, even 24 a's.
+  describe "a weak API_TOKEN" do
+    test "starts, with a warning that never shows the token" do
+      for weak <- [String.duplicate("a", 24), String.duplicate("password", 3)] do
+        assert {:ok, config, warnings} = parse(%{"API_TOKEN" => weak, "LLM_API_KEY" => "k"})
+        assert config[:api_token] == weak
+        assert [warning] = Enum.filter(warnings, &(&1 =~ "API_TOKEN"))
+        assert warning =~ "easy to guess"
+        assert warning =~ "openssl rand -hex 24"
+        refute warning =~ weak
+      end
+    end
+
+    test "a random token gets no warning" do
+      for token <- [@token, Base.encode16(:crypto.strong_rand_bytes(24), case: :lower)] do
+        assert {:ok, _, warnings} = parse(%{"API_TOKEN" => token, "LLM_API_KEY" => "k"})
+        assert Enum.filter(warnings, &(&1 =~ "API_TOKEN")) == []
+      end
+    end
+  end
 end

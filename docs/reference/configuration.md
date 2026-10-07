@@ -104,6 +104,16 @@ The token the extension sends as `Authorization: Bearer <token>` (see the
   random source, written as 43 URL-safe characters, in a file only you can read (mode 0600).
 - Allowed: at least 24 characters. Example: the output of `openssl rand -hex 24`.
 - Wrong: a shorter token stops the server (the message gives its length, not its value).
+- A token that looks easy to guess gets a warning at every start (never showing the
+  token): one with fewer than 10 different characters, one that repeats a shorter piece
+  (`passwordpasswordpassword`), or one with under 64 bits by its characters' frequencies
+  (its length times the Shannon entropy of the character counts, low when most characters
+  are the same). This is a simple check that catches typed tokens, not a guarantee. The
+  same check runs on a token you put in `api-token` yourself. Ten wrong tokens from one
+  address within a minute lock that address out for the rest of the minute
+  ([HTTP API](http-api.md#requests)), but [`POST /api/v1/proof`](http-api.md#post-apiv1proof)
+  lets anyone who can reach the server test guesses offline, so only a random token is
+  safe on a network.
 - To replace the saved token: `mix kotiko.token --rotate`, then restart. With
   `API_TOKEN` set, edit `.env` instead; with [`API_TOKEN_FILE`](#api_token_file), replace
   the file's contents.
