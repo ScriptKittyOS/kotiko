@@ -6,10 +6,18 @@
 # allowance: test keys are written as obvious placeholders that contain "0123456789"
 # (for example "sk-or-v1-0123456789abcdef…"). A real key containing that run is
 # vanishingly unlikely; write new test keys the same way.
+#
+# The other stopwords are the nonces of the published test vectors for the server's proof
+# route and signed requests (docs/reference/http-api.md). They are public examples, not
+# secrets, and the extension and server tests check them byte for byte.
 
 [extend]
 useDefault = true
 
 [allowlist]
 description = "Placeholder keys in tests"
-stopwords = ["0123456789"]
+stopwords = [
+  "0123456789",
+  "q1aP3n0ZKcB1x5mW0u7S9b",
+  "dE8gH0iL2nO4pQ6rS8tU0v",
+]
