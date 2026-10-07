@@ -88,6 +88,16 @@ describe("validateWordsResponse", () => {
     });
   }
 
+  // The property test's counterexample (slice 54, C-08; FC_SEED=504574479): a content type
+  // that isn't a string, even one whose toString can't be called, is no content type.
+  test("a content type that isn't a string is treated as none, never thrown on", () => {
+    for (const contentType of [{ toString: false }, Object.create(null), ["application/json"], 42, null]) {
+      const r = validateWordsResponse({ status: 200, contentType, body: '{"words":[]}' });
+      assert.equal(r.code, "not_kotiko_server", String(typeof contentType));
+      assert.equal(r.details.contentType, "");
+    }
+  });
+
   test("status codes map to their errors", () => {
     const code = (status, body = "") => validateWordsResponse({ status, contentType: "application/json", body }).code;
     assert.equal(code(401), "server_key_rejected");
