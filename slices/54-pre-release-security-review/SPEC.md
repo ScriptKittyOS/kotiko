@@ -165,7 +165,9 @@ are summarised without exploit steps (SECURITY.md's disclosure rules, 03).
   `Gate: closed YYYY-MM-DD by <lead>, fixes confirmed on vX.Y.Z-rc.N` (for example
   `Gate: closed 2026-11-02 by Ayla Croft, fixes confirmed on v1.0.0-rc.2`), naming a
   candidate of the reviewed version. Until then the report says `Gate: open`; the part
-  above the appendix has only one line starting `Gate:`. 30's release workflow checks for
+  above the appendix has only one line starting `Gate:`, read as a reader sees it (after
+  NFKC, without invisible characters, with any non-ASCII character standing in for a letter
+  of "Gate"; security review D-05), and the closed line is plain ASCII. 30's release workflow checks for
   the closed line before any store upload (`scripts/check-security-gate.mjs`): anything
   else, including the phrase inside an appended report, keeps the gate open (security
   review C-05).

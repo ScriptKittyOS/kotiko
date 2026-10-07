@@ -130,7 +130,7 @@ is enforced with a monotonic clock; an attempt is not started with less than 4 s
 
 **Request per attempt**: slice 09's messages; `temperature: 0.2`; `response_format:
 {type: "json_object"}` only if the model's `json_mode`; `reasoning: {enabled: false}`
-only on OpenRouter and if `reasoning_toggle`; `max_tokens: 1200` if supported; headers
+only on OpenRouter and if `reasoning_toggle`; `max_tokens: 1200` on every request; headers
 `X-Title: Kotiko` and `HTTP-Referer: https://github.com/ScriptKittyOS/kotiko` on OpenRouter
 (app attribution, as slice 11 specifies); `Req` with `retry: false`.
 
@@ -345,10 +345,15 @@ failing models; when every model is skipped, none is.
   string `error` for 0.2 extensions and adds `code` and `details` beside it, which the
   current popup reads. The plain `message` is English: the server's locales (25, 50) aren't
   built.
-- *Request fields.* `max_tokens` and `reasoning` are sent only when the catalog lists them
-  for the model; a model the catalog doesn't know gets `response_format` (with the
-  400-without-it retry) and neither of the others. A respelling asks for 4,000 tokens, since
-  20 items times their bases don't fit the lookup's 1,200 (`policy.max_tokens`).
+- *Request fields.* `reasoning` is sent only when the catalog lists it for the model; a
+  model the catalog doesn't know gets `response_format` (with the 400-without-it retry) and
+  no `reasoning`. The output cap (`policy.max_tokens`) goes on every request, whatever the
+  catalog says, so a model on a paid endpoint (an `LLM_MODEL` the catalog doesn't know)
+  can't write up to the provider's own limit on the owner's key (security review D-03). Its
+  field is the `maxTokensField` of the `spec/providers.json` preset on `LLM_URL`'s host
+  (`max_completion_tokens` for OpenAI), `max_tokens` otherwise, as the extension does. A
+  respelling asks for 4,000 tokens, since 20 items times their bases don't fit the lookup's
+  1,200.
 - *Quota.* The gate applies only when every model in the chain is free (OpenRouter's daily
   count is for free models). The refresh right after a 429 runs inside the lookup, bounded by
   what's left of the deadline, because its answer decides between `quota_exhausted` and a

@@ -18,7 +18,8 @@ defmodule Kotiko.LLM.Client do
   @doc """
   Asks `model` once. `caps` is the model's `%{json_mode, reasoning_toggle, max_tokens}`;
   `opts`: `:timeout_ms` (required), `:json` (send `response_format`, default
-  `caps.json_mode`), `:max_tokens` (sent when `caps.max_tokens`).
+  `caps.json_mode`), `:max_tokens` (the output cap, sent on every request in the field
+  `max_tokens_field/0` names).
   """
   def attempt(model, caps, messages, opts) do
     timeout = Keyword.fetch!(opts, :timeout_ms)
@@ -29,7 +30,10 @@ defmodule Kotiko.LLM.Client do
       |> put_if(json?, :response_format, %{type: "json_object"})
       # Thinking takes 5-20 s longer and doesn't get these lookups more right.
       |> put_if(openrouter?() and caps.reasoning_toggle, :reasoning, %{enabled: false})
-      |> put_if(caps.max_tokens and is_integer(opts[:max_tokens]), :max_tokens, opts[:max_tokens])
+      # The spec's output cap on every request, whatever the catalog says, so a model on a
+      # paid endpoint that keeps writing can't bill the key up to the provider's own limit
+      # (security review D-03). OpenRouter ignores it for a model that doesn't take it.
+      |> put_if(is_integer(opts[:max_tokens]), max_tokens_field(), opts[:max_tokens])
 
     request = fn ->
       Req.post(
@@ -71,6 +75,29 @@ defmodule Kotiko.LLM.Client do
 
   @doc "Whether LLM_URL is OpenRouter (its catalog, quota and app headers)."
   def openrouter?, do: Kotiko.Config.openrouter?(Application.fetch_env!(:kotiko, :llm_url))
+
+  @doc """
+  The request field for the output cap: the `maxTokensField` of the spec/providers.json
+  preset on LLM_URL's host (OpenAI's reasoning models take only `max_completion_tokens`),
+  `max_tokens` otherwise.
+  """
+  def max_tokens_field do
+    host = host(Application.fetch_env!(:kotiko, :llm_url))
+
+    field =
+      Enum.find_value(Spec.providers(), "max_tokens", fn p ->
+        host && is_binary(p["baseUrl"]) && host(p["baseUrl"]) == host && p["maxTokensField"]
+      end)
+
+    if field == "max_completion_tokens", do: :max_completion_tokens, else: :max_tokens
+  end
+
+  defp host(url) do
+    case URI.parse(url).host do
+      host when is_binary(host) and host != "" -> String.downcase(host)
+      _ -> nil
+    end
+  end
 
   @doc "Whether an API key is configured."
   def key?, do: Application.get_env(:kotiko, :llm_api_key) not in [nil, ""]

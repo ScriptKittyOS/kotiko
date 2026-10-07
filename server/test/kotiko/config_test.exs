@@ -529,6 +529,9 @@ defmodule Kotiko.ConfigTest do
     assert Config.openrouter?("https://eu.openrouter.ai/api/v1")
     refute Config.openrouter?("http://localhost:11434/v1")
     refute Config.openrouter?("https://notopenrouter.ai/v1")
+    # A host name is case-insensitive too (security review D-04's neighbour).
+    assert Config.openrouter?("HTTPS://OpenRouter.ai/api/v1")
+    assert Config.openrouter?("https://EU.OPENROUTER.AI/api/v1")
   end
 
   # B-09 (slice 54): any 24 characters were accepted, even 24 a's.
@@ -613,6 +616,41 @@ defmodule Kotiko.ConfigTest do
                })
 
       assert warning =~ "TRANSCRIBE_API_KEY is sent over plain HTTP to whisper.lan"
+    end
+
+    # D-04 (slice 54): a scheme is case-insensitive (RFC 3986 section 3.1) and Req sends
+    # HTTP://... in the clear, but only a lowercase http:// got the warning.
+    test "whatever the scheme's case" do
+      for url <- ~w(HTTP://203.0.113.7/v1 Http://203.0.113.7/v1 hTtP://203.0.113.7/v1) do
+        assert [warning] =
+                 plain_http_warnings(%{
+                   "LLM_URL" => url,
+                   "LLM_MODEL" => "m",
+                   "LLM_API_KEY" => "k"
+                 }),
+               url
+
+        assert warning =~ "LLM_API_KEY is sent over plain HTTP to 203.0.113.7"
+      end
+
+      assert [_] =
+               plain_http_warnings(%{
+                 "TRANSCRIBE_URL" => "HTTP://whisper.lan:8178/inference",
+                 "TRANSCRIBE_API_KEY" => "k",
+                 "LLM_API_KEY" => "k"
+               })
+
+      assert plain_http_warnings(%{
+               "LLM_URL" => "HTTPS://203.0.113.7/v1",
+               "LLM_MODEL" => "m",
+               "LLM_API_KEY" => "k"
+             }) == []
+
+      assert plain_http_warnings(%{
+               "LLM_URL" => "HTTP://LOCALHOST:11434/v1",
+               "LLM_MODEL" => "m",
+               "LLM_API_KEY" => "k"
+             }) == []
     end
 
     test "not to this machine, over Tailscale, over HTTPS, or without a key" do

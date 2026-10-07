@@ -16,7 +16,7 @@ the server (`Kotiko.Spec`, compiled into the release) and the extension (its cop
 | `rules.json` | Every number the validator uses (caps, minimum lengths), and the content scripts' `max_page_*` caps (how many words one page view may show; security review A-01), which `sync-extension.mjs` also writes to `extension/spec/page.js`. |
 | `pronunciation.json` | Per target language: romanization scheme, stress kind, tone range, vocalization marks. |
 | `models.json` | Slice 10: the free models to prefer for lookups and respellings (from `eval/RESULTS.md`), the ones to deny, the shipped fallback list, and the lookup client's budgets (deadlines, attempts, health, quota reserve, cache). |
-| `providers.json` | Slice 11: the lookup provider presets (OpenRouter by default, OpenAI, Anthropic, Google Gemini, Groq, Ollama, LM Studio, Custom): base URL, whether a key is needed, JSON mode, extra headers, where the model list comes from. Never a key. |
+| `providers.json` | Slice 11: the lookup provider presets (OpenRouter by default, OpenAI, Anthropic, Google Gemini, Groq, Ollama, LM Studio, Custom): base URL, whether a key is needed, JSON mode, extra headers, where the model list comes from, and the field for the output cap (`maxTokensField`, which the server also uses when `LLM_URL` is on a preset's host). Never a key. |
 | `languages.json`, `lang-aliases.json` | Language tags (slice 08), generated from Unicode CLDR. |
 | `lang/` | Per base language: stopwords, stem rules, spelling variants, the respelling key. See `lang/README.md`. |
 | `fixtures/` | Shared fixtures both runtimes must pass (below). |
