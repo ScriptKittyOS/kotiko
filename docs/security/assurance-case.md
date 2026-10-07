@@ -217,13 +217,22 @@ These match "What you can't expect" in the [requirements](requirements.md).
 - **The model provider sees every lookup**, under its own terms.
 - **Pages can see swapped words** in their own DOM, and, since they know their own text,
   which of their words the learner has a word for (security review A-01). Kotiko swaps
-  only text the learner can see (rendered, on screen or within a screen of it, not
-  clipped away) and at most 500 distinct concepts, each in at most 3 languages, per page
+  only text the learner can see (rendered; at least 10 % opaque counting every
+  ancestor's `opacity` and `filter: opacity()`; under no `clip-path`, mask or `url()`
+  filter, E-04; on screen or within a screen of it; not clipped away by an ancestor's
+  overflow) and at most 500 distinct concepts, each in at most 3 languages, per page
   view (`spec/rules.json` `max_page_*`). What's left: a page that shows text the learner
-  can't make out (tiny, the color of the background, under something else, or shown for
-  one frame) still gets swaps within that cap; the cap is per page view, so a page that
-  reloads itself or a site visited often can learn more of a long list over time; and
-  while the learner has a word card open, `window.find()` can match its text. Where
+  can't make out (tiny, the color of the background, blurred or otherwise filtered
+  without `opacity()`, under something else, or shown for one frame) still gets swaps
+  within that cap; the cap is per page view, so a page that reloads itself or a site
+  visited often can learn more of a long list over time. The word card opens only from
+  the learner's own input on a swap drawn at least 10 % opaque, under no clip-path or
+  mask, whose box isn't stretched far past its text, and from a pointer only within 4 px
+  of that text (E-05), so a page can't stretch an invisible swap under the learner's
+  pointer or click; one that keeps a swap under the pointer disguised another way (the
+  background's color, under an element with `pointer-events: none`) can still have its
+  card opened while the pointer rests there, and while a card is open, `window.find()`
+  can match its text. Where
   Kotiko is paused, off or stepping back from a sensitive site it adds nothing to the page
   (A-03, C-04); where it swaps, the swaps and their stylesheet show it's installed.
 - **A subverted content script** (code running in Kotiko's content-script world) can't

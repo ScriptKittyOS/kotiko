@@ -5,7 +5,9 @@
 // turned into a regression test: a hostile web page against the unpacked extension, using
 // only page-world script, as a real site would. A-01: reading the word list from text nobody
 // sees; A-02: the page's lang attribute in the popup; A-03 and C-04: switching Kotiko off,
-// and seeing it where it's paused or off; A-04: opening the word card with synthetic events.
+// and seeing it where it's paused or off; A-04: opening the word card with synthetic events;
+// E-05: getting the learner's own input to open it on a stretched or hidden swap; E-04: text
+// hidden by a filter, clip-path or mask.
 // Pages are served by page.route on the fixture server's origin; nothing leaves the machine.
 import fs from "node:fs";
 import { test, expect, connectServer } from "../e2e/fixtures.mjs";
@@ -241,4 +243,188 @@ test("A-04: a page script can't open the word card or search it with window.find
   // The learner's own click still opens it.
   await page.locator("#t kotiko-w").click();
   await expect.poll(() => inShadow(page, function () { return this.querySelector(".k-card")?.hidden === false; })).toBe(true);
+});
+
+// E-05 (reviewer E, rc.3): the page restyles its own <kotiko-w> (it's in the page's DOM) so
+// the learner's resting pointer, or their click on the page's own button, lands on it and
+// opens the card, which page script then searches with window.find. The card opens only
+// where the learner's pointer is on the word's drawn text, and only on a word they can see.
+test.describe("E-05: a page can't get the word card opened by stretching or hiding a swap", () => {
+  const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>x</title></head><body><main><p id="t">Please come in, and thanks for the book.</p><button id="go" style="margin:40px;padding:20px">Continue reading</button></main></body></html>`;
+  // Text that is only in the card, never on the page: the romanization, the respellings,
+  // the other language's word in "Also", the note.
+  const CARD_ONLY = ["pozhaluysta", "pa-ZHAL-sta", "pa-ZHA-lu-sta", "xièxie", "shyeh4-shyeh", "spasibo", "warmer"];
+  const STRETCH = "#t kotiko-w:first-of-type{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;z-index:2147483646!important;opacity:0.001!important;display:block!important}";
+  const cardOpen = (page) => inShadow(page, function () { return this.querySelector(".k-card")?.hidden === false; }).then((v) => !!v);
+  const found = (page) =>
+    page.evaluate((gs) => gs.filter((g) => {
+      getSelection().removeAllRanges();
+      const hit = window.find(g, true, false, true, false, false, false);
+      getSelection().removeAllRanges();
+      return hit;
+    }), CARD_ONLY);
+  const restyle = (page, css) => page.evaluate((c) => {
+    const s = document.createElement("style");
+    s.textContent = c;
+    document.head.append(s);
+  }, css);
+
+  test("A-04b: the learner's pointer resting anywhere on the page doesn't open it", async ({ context, serviceWorker, server }) => {
+    await setup({ server, serviceWorker, context });
+    const page = await hostile(context, server, "hover.html", PAGE);
+    await expect(page.locator("#t kotiko-w").first()).toBeVisible();
+    await restyle(page, STRETCH);
+    await page.mouse.move(600, 400, { steps: 5 });
+    await page.mouse.move(602, 401, { steps: 2 });
+    await page.waitForTimeout(1000);
+    expect(await cardOpen(page)).toBe(false);
+    expect(await found(page)).toEqual([]);
+  });
+
+  test("the learner's click on the page's own button under a stretched swap doesn't open it", async ({ context, serviceWorker, server }) => {
+    await setup({ server, serviceWorker, context });
+    const page = await hostile(context, server, "jack.html", PAGE);
+    await expect(page.locator("#t kotiko-w").first()).toBeVisible();
+    await restyle(page, STRETCH);
+    const box = await page.locator("#go").boundingBox();
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await page.waitForTimeout(500);
+    expect(await cardOpen(page)).toBe(false);
+    expect(await found(page)).toEqual([]);
+  });
+
+  test("a transparent swap the page keeps under the pointer doesn't open it either", async ({ context, serviceWorker, server }) => {
+    await setup({ server, serviceWorker, context });
+    const page = await hostile(context, server, "follow.html", PAGE);
+    await expect(page.locator("#t kotiko-w").first()).toBeVisible();
+    // Word-sized, its text right under the pointer, nearly transparent.
+    await page.evaluate(() => {
+      const w = document.querySelector("#t kotiko-w");
+      w.style.cssText = "position:fixed!important;z-index:2147483646!important;opacity:0.01!important";
+      const text = document.createRange();
+      text.selectNodeContents(w);
+      document.addEventListener("pointermove", (e) => {
+        const r = text.getBoundingClientRect();
+        w.style.left = `${parseFloat(w.style.left || 0) + e.clientX - (r.left + r.width / 2)}px`;
+        w.style.top = `${parseFloat(w.style.top || 0) + e.clientY - (r.top + r.height / 2)}px`;
+      }, true);
+    });
+    await page.mouse.move(600, 400, { steps: 5 });
+    await page.mouse.move(602, 401, { steps: 2 });
+    await page.waitForTimeout(1000);
+    const at = await page.evaluate(() => {
+      const text = document.createRange();
+      text.selectNodeContents(document.querySelector("#t kotiko-w"));
+      const r = text.getBoundingClientRect();
+      return { x: r.x, y: r.y, w: r.width, h: r.height, top: document.elementFromPoint(602, 401)?.localName };
+    });
+    expect(at.x < 602 && at.x + at.w > 602 && at.y < 401 && at.y + at.h > 401, `the swap is under the pointer: ${JSON.stringify(at)}`).toBe(true);
+    expect(await cardOpen(page)).toBe(false);
+    await page.mouse.down();
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    expect(await cardOpen(page)).toBe(false);
+    expect(await found(page)).toEqual([]);
+  });
+
+  test("A-04c: a page that reads the card within the frame it opens finds nothing", async ({ context, serviceWorker, server }) => {
+    await setup({ server, serviceWorker, context });
+    const page = await hostile(context, server, "cover.html", PAGE.replace("</main>", `</main><div id="mine" popover="manual" style="position:fixed;inset:0;margin:0;border:0;background:#fff">Loading…</div>`));
+    await expect(page.locator("#t kotiko-w").first()).toBeVisible();
+    await restyle(page, STRETCH);
+    await page.evaluate((gs) => {
+      window.__read = [];
+      const tick = () => {
+        if (document.querySelector("kotiko-popover")?.matches(":popover-open")) {
+          window.__read = gs.filter((g) => {
+            getSelection().removeAllRanges();
+            return window.find(g, true, false, true, false, false, false);
+          });
+          document.getElementById("mine").showPopover();
+          return;
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }, CARD_ONLY);
+    await page.mouse.move(600, 400, { steps: 5 });
+    await page.mouse.move(602, 401, { steps: 2 });
+    await page.waitForTimeout(1000);
+    expect(await page.evaluate(() => window.__read)).toEqual([]);
+    expect(await cardOpen(page)).toBe(false);
+  });
+
+  test("the learner's own hover and click on a swap they see still open it", async ({ context, serviceWorker, server }) => {
+    await setup({ server, serviceWorker, context });
+    const page = await hostile(context, server, "real.html", PAGE);
+    const w = page.locator("#t kotiko-w").first();
+    await expect(w).toBeVisible();
+    await w.hover();
+    await expect.poll(() => cardOpen(page)).toBe(true);
+    await page.mouse.move(5, 5);
+    await expect.poll(() => cardOpen(page)).toBe(false);
+    await w.click();
+    await expect.poll(() => cardOpen(page)).toBe(true);
+  });
+});
+
+// E-04 (reviewer E, rc.3): text a page hides with filter: opacity(), clip-path or a mask got
+// swaps, 300 of 300 of the learner's words. A page reads its own DOM, so it learned them.
+test.describe("E-04: text hidden by filter, clip-path or a mask gets no swaps", () => {
+  const letters = (i) => `q${(i + 26 * 26).toString(26).replace(/./g, (c) => "abcdefghijklmnopqrstuvwxyz"[parseInt(c, 26)])}`;
+  const decoy = (i) => `zq${i.toString(36).replace(/\d/g, (d) => "abcdefghij"[d])}`;
+  const LEARNER = Array.from({ length: 300 }, (_, i) => ({ id: 1000 + i, lang: "ru", language: "Russian", native: `дом${i}`, romanization: null, english: letters(i), forms: [letters(i)], note: null, base_lang: "en" }));
+  // The learner's meanings among as many made-up words, 100 to a paragraph.
+  const DICT = LEARNER.flatMap((w, i) => [w.english, decoy(i)]);
+  const paragraphs = () => {
+    const ps = [];
+    for (let i = 0; i < DICT.length; i += 100) ps.push(`<p>${DICT.slice(i, i + 100).join(" ")}.</p>`);
+    return ps.join("");
+  };
+  // The probe sits outside <main>, so the made-up words don't change the page's language.
+  const doc = (style) =>
+    `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>News</title><style>body{margin:0;font:14px/18px sans-serif;background:#fff}p{margin:0 0 4px}</style></head><body><main><p id="seen">Please read this note about the ${letters(0)} today.</p><p>The weather is fine today, and the people in the town are going to the market to buy bread and fruit.</p></main><div id="probe" style="${style}">${paragraphs()}</div></body></html>`;
+  // Distinct swapped words in the probe, as the page's own script counts them.
+  const revealed = (page) => page.evaluate(() => new Set([...document.querySelectorAll("#probe kotiko-w")].map((w) => w.textContent)).size);
+  const settled = async (page) => {
+    let last = -1;
+    await expect.poll(async () => {
+      const n = await page.locator("kotiko-w").count();
+      const same = n === last;
+      last = n;
+      return same;
+    }, { intervals: [400] }).toBe(true);
+  };
+
+  const hidden = {
+    "filter: opacity(0)": "filter:opacity(0)",
+    "clip-path: inset(100%)": "clip-path:inset(100%)",
+    "clip-path: circle(0)": "clip-path:circle(0)",
+    "a fully transparent mask": "mask-image:linear-gradient(transparent,transparent);-webkit-mask-image:linear-gradient(transparent,transparent)",
+    "opacity 0.01": "opacity:0.01",
+  };
+  for (const [label, style] of Object.entries(hidden)) {
+    test(`${label}: none of 300 words revealed`, async ({ context, serviceWorker, server }) => {
+      await setup({ server, serviceWorker, context }, { words: LEARNER });
+      const page = await hostile(context, server, "e04.html", doc(style));
+      await expect(page.locator("#seen kotiko-w").first()).toBeVisible();
+      await settled(page);
+      expect(await revealed(page)).toBe(0);
+    });
+  }
+
+  test("the same probe in plain view is swapped, and a clip-path the page takes away swaps once the learner clicks", async ({ context, serviceWorker, server }) => {
+    await setup({ server, serviceWorker, context }, { words: LEARNER });
+    const plain = await hostile(context, server, "e04-plain.html", doc(""));
+    await expect(plain.locator("#probe kotiko-w").first()).toBeVisible();
+    await settled(plain);
+    expect(await revealed(plain)).toBeGreaterThan(0);
+    const page = await hostile(context, server, "e04-reveal.html", doc("clip-path:inset(100%)"));
+    await expect(page.locator("#seen kotiko-w").first()).toBeVisible();
+    await settled(page);
+    expect(await revealed(page)).toBe(0);
+    await page.evaluate(() => (document.getElementById("probe").style.clipPath = "none"));
+    await page.mouse.click(5, 5);
+    await expect.poll(() => revealed(page)).toBeGreaterThan(0);
+  });
 });

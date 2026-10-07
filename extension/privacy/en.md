@@ -1,6 +1,6 @@
 # Kotiko privacy policy
 
-Version 4 · 7 October 2026
+Version 5 · 7 October 2026
 
 Kotiko is a browser extension that swaps words on the web pages you read for words you're
 learning in other languages. This page says exactly what it keeps, what it sends, and to
@@ -110,11 +110,20 @@ Kotiko and, for each word it swapped, which of the site's own words you have a w
 that word, and its language.
 
 Kotiko limits this to what it shows you. It swaps only text that is on your screen or
-near it, never text the page hides, and in one visit to a page it swaps at most 500
-different words, each in at most 3 of your languages. So a site can't read your whole
-word list at once, but one you visit often, or that keeps reloading itself, can learn
-more of it over time. Sites can't open a word's card. While you have one open, a site
-that searches its page for a word it guesses could find the card's text.
+near it, never text the page hides: not text it doesn't display, makes see-through or
+nearly so (also with a filter), or puts under a clipping shape or a mask (Kotiko leaves
+text under those alone even where you can see it). In one visit to a page it swaps at
+most 500 different words, each in at most 3 of your languages. Text you can't make out
+still counts as shown: very small text, text in the page's background colour, blurred
+text, or text under something else. So a site can't read your whole word list at once,
+but one you visit often, or that keeps reloading itself, can learn more of it over time.
+
+Only you open a word's card: by pointing at, clicking, tapping or pressing Enter on a
+swapped word you can see, where it's drawn. A site can't open one by itself, or by
+stretching an invisible word over its page; one that moves a word under your pointer and
+disguises it (in the page's background colour, or under something else) could still get
+its card opened while your pointer rests there. While you have a card open, a site that
+searches its page for a word it guesses could find the card's text.
 
 On a site you paused, on sites Kotiko leaves alone (such as banks), and while Kotiko is
 turned off, it adds nothing to the page and changes nothing on it, so the site has nothing
@@ -183,6 +192,9 @@ everything in Kotiko's Settings.
 
 ## Changelog
 
+- **Version 5, 7 October 2026.** "What websites can see" now says which hidden text
+  Kotiko never swaps (also text made see-through with a filter, clipped or masked), what
+  text still counts as shown, and when a word's card opens.
 - **Version 4, 7 October 2026.** Your server's access key no longer leaves your browser:
   Kotiko signs each request to your server with it instead of sending it.
 - **Version 3, 6 October 2026.** "What websites can see" now says what a site can learn

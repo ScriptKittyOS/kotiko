@@ -40,11 +40,18 @@
   const HYDRATION_MARKERS = "#__next, [data-reactroot], #__nuxt, [data-sveltekit-hydrated], [ng-version], [data-server-rendered]";
   // Only text the learner can see is swapped (security review A-01): a page reads its own
   // DOM, so a swap in text nobody sees would tell it the learner's words for nothing. Text
-  // is swapped when it's rendered (no display:none, visibility, zero opacity or
-  // content-visibility) and its block is on screen or within a screen of it, at least 2 px
-  // each way after every ancestor's clipping; the rest waits until it is (lazily, which is
-  // also what keeps very long pages fast).
+  // is swapped when it's rendered (no display:none, visibility, or content-visibility), at
+  // least FAINT opaque (every ancestor's opacity and filter: opacity() multiplied), under
+  // no clip-path, mask or url() filter (veil(), E-04), and its block is on screen or within
+  // a screen of it, at least 2 px each way after every ancestor's overflow clipping; the
+  // rest waits until it is (lazily, which is also what keeps very long pages fast).
   const SHOWN = { contentVisibilityAuto: true, opacityProperty: true, visibilityProperty: true };
+  // Security review E-04: checkVisibility() misses text a filter, clip-path or mask hides
+  // (a page got all 300 of 300 words that way). A clip-path's shape or a mask's image can't
+  // be measured cheaply, a mask image not at all, so text under any clip-path or mask isn't
+  // swapped, even where the shape leaves it in view (decorative angled sections, fade-out
+  // edges); a filter with url() likewise. Faint text (under 10 % opacity) can't be read.
+  const FAINT = 0.1;
   const MIN_PX = 2;
   const NEAR = "100% 0px";
   // Whether a block is near comes from an IntersectionObserver, which costs no layout. A
@@ -200,6 +207,9 @@
     let io = null;
     let maskCheck = 0;
     let syncSpent = 0;
+    // element -> how opaque its content is drawn (veil()), for one slice: no page script runs
+    // within a slice, so no style changes either.
+    const veils = new Map();
     // Roots the site just added or changed (handle()), and whether the walk is in one.
     const fromSite = new WeakSet();
     let siteChange = false;
@@ -282,11 +292,52 @@
       return ok;
     }
 
+    // The parent an element is drawn in: its slot, its parent, or its shadow root's host.
+    const drawnParent = (e) => e.assignedSlot ?? e.parentElement ?? e.parentNode?.host ?? null;
+
+    // One element's own share of how visible its content is (popover.js `ownOpacity()` is the
+    // same rule for opening the word card, E-05).
+    function ownOpacity(st) {
+      if (st.display === "contents") return 1;
+      const set = (v) => !!v && v !== "none";
+      if (set(st.clipPath) || set(st.maskImage) || set(st.webkitMaskBoxImage)) return 0;
+      const own = parseFloat(st.opacity);
+      let o = own >= 0 ? own : 1;
+      if (set(st.filter)) {
+        if (/url\(/i.test(st.filter)) return 0;
+        for (const m of st.filter.matchAll(/opacity\(\s*([\d.]+)(%?)\s*\)/gi)) o *= Math.min(1, parseFloat(m[1]) / (m[2] ? 100 : 1));
+      }
+      return o;
+    }
+
+    // How opaque el's content is drawn: its own share times every ancestor's, 0 under a
+    // clip-path or mask. Each element's style is read once a slice, so text nodes sharing
+    // ancestors cost one read of each.
+    function veil(el) {
+      const chain = [];
+      let o = 1;
+      for (let e = el; e; e = drawnParent(e)) {
+        const known = veils.get(e);
+        if (known !== undefined) {
+          o = known;
+          break;
+        }
+        chain.push(e);
+      }
+      for (let i = chain.length - 1; i >= 0; i--) {
+        if (o > 0) o *= ownOpacity(win.getComputedStyle(chain[i]));
+        veils.set(chain[i], o);
+      }
+      return o;
+    }
+
+    const styleHides = (el) => !el.checkVisibility(SHOWN) || veil(el) < FAINT;
+
     // "shown", or why not: "hidden" (a style hides it) or "away" (not near, too small, or
     // not known yet).
     function sight(el) {
       if (!sees) return "shown";
-      if (!el.checkVisibility(SHOWN)) return "hidden";
+      if (styleHides(el)) return "hidden";
       const b = blockOf(el);
       const v = near.get(b);
       // Text the site just added is measured even in a block that was near: the page may
@@ -307,7 +358,7 @@
     function wait(el, why) {
       if (why === "hidden") {
         let top = el;
-        for (let a = el.parentElement; a && a !== doc.body && a !== doc.documentElement && !a.checkVisibility(SHOWN); a = a.parentElement) top = a;
+        for (let a = el.parentElement; a && a !== doc.body && a !== doc.documentElement && styleHides(a); a = a.parentElement) top = a;
         // The observer already said it's near: a style still hides it.
         if (near.get(top) === true || near.get(blockOf(el)) === true) mask(top, "style");
         else watch(top);
@@ -458,6 +509,7 @@
     // Runs queued work until the deadline; true when the queue is empty.
     function run(deadline) {
       syncSpent = 0;
+      veils.clear();
       for (;;) {
         // Blocks that just came near go first: they're what the learner is about to see.
         // A long walk (a big page's first pass) waits for them.

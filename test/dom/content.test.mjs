@@ -866,6 +866,37 @@ describe("only text the learner sees is swapped (A-01)", () => {
     assert.ok(![...io.observed].some((el) => $("none").contains(el) && el !== $("none")));
   });
 
+  // Security review E-04: checkVisibility() doesn't see these.
+  test("text a filter, clip-path or mask hides, or too faint to read, isn't swapped; once that's gone, it is", async () => {
+    let io;
+    const { dom, $, spans } = await load(
+      `<p id="seen">my house</p>
+       <p id="filtered" style="filter: opacity(0)">my house</p>
+       <p id="percent" style="filter: blur(1px) opacity(5%)">my house</p>
+       <p id="svg" style="filter: url(#hide)">my house</p>
+       <div id="clip" style="clip-path: inset(100%)"><p id="clipped">a house</p><p>thanks</p></div>
+       <p id="masked" style="mask-image: linear-gradient(transparent, transparent)">my house</p>
+       <div style="opacity: 0.3"><p id="faint" style="opacity: 0.3">my house</p></div>
+       <div style="opacity: 0.5"><p id="dim" style="filter: opacity(0.5)">my house</p></div>
+       <div style="display: contents; opacity: 0.01"><p id="contents">my house</p></div>`,
+      { beforeInject: (d) => (io = layout(d)) },
+    );
+    assert.equal($("seen").textContent, "my дом");
+    for (const id of ["filtered", "percent", "svg", "clip", "masked", "faint"]) assert.equal($(id).querySelectorAll("kotiko-w").length, 0, id);
+    assert.equal($("dim").textContent, "my дом", "a quarter opaque is readable");
+    assert.equal($("contents").textContent, "my дом", "display: contents draws no box, so its opacity doesn't apply");
+    assert.equal(spans().length, 3);
+    // The clipped block waits as a whole; the observer said it's near, so the next click
+    // (or transition, animation, key or scroll) looks again.
+    assert.ok(io.observed.has($("clip")));
+    io.fire([$("clip")]);
+    assert.equal($("clipped").textContent, "a house");
+    $("clip").removeAttribute("style");
+    $("clip").dispatchEvent(new dom.window.Event("transitionend", { bubbles: true }));
+    for (let i = 0; i < 100 && $("clipped").textContent === "a house"; i++) await sleep(10);
+    assert.equal($("clipped").textContent, "a дом");
+  });
+
   test("text swaps once it shows: a menu opening, or fading in", async () => {
     let io;
     const { dom, $ } = await load(`<p>my house</p><div id="menu" hidden><p id="item">a house</p></div><p id="fade" style="opacity: 0">thanks</p>`, {

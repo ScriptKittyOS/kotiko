@@ -6,6 +6,8 @@
 // what is inside. It opens on hover intent, click, tap, a long press inside links, Enter on
 // a focused word and the "Show details" command, and shows the word's pronunciation block
 // (with 34's speak button), meaning and other candidates in Kotiko's interface language.
+// Only the learner's own input opens it, only on a word they can see, and a pointer only
+// where the word's text is drawn (security review A-04, E-05).
 //
 //   const pop = KotikoPopover.createPopover({ infoFor, isWord, ... });
 //   pop.install();            delegated listeners on document (capture phase)
@@ -28,6 +30,12 @@
   const TOAST_ACTION_MS = 10_000;
   const GAP = 10; // word to card: the 6 px arrow plus air
   const EDGE = 8; // clamp from viewport edges
+  // A word the learner can see (security review E-05): at least this opaque, counting every
+  // ancestor's opacity and filter: opacity(); a pointer within NEAR_PX of its drawn text; and
+  // a box no more than twice its text's size plus STRETCH_PX each way.
+  const FAINT = 0.1;
+  const NEAR_PX = 4;
+  const STRETCH_PX = 32;
   const HOST_STYLE = [
     "all: initial !important",
     "position: fixed !important",
@@ -134,6 +142,34 @@
       for (const e of walked) cache.set(e, theme);
       return theme;
     };
+  }
+
+  // --- What the learner sees (security review E-05) ----------------------------------
+  // The parent an element is drawn in: its slot, its parent, or its shadow root's host.
+  const drawnParent = (e) => e.assignedSlot ?? e.parentElement ?? e.parentNode?.host ?? null;
+
+  // One element's own share of how visible its content is: its opacity times any
+  // filter: opacity(); 0 for a filter Kotiko can't read (url()), a clip-path or a mask,
+  // which can hide text in ways a box can't show. engine.js `veil()` applies the same rule
+  // to what it swaps.
+  function ownOpacity(st) {
+    if (st.display === "contents") return 1;
+    const set = (v) => !!v && v !== "none";
+    if (set(st.clipPath) || set(st.maskImage) || set(st.webkitMaskBoxImage)) return 0;
+    const own = parseFloat(st.opacity);
+    let o = own >= 0 ? own : 1;
+    if (set(st.filter)) {
+      if (/url\(/i.test(st.filter)) return 0;
+      for (const m of st.filter.matchAll(/opacity\(\s*([\d.]+)(%?)\s*\)/gi)) o *= Math.min(1, parseFloat(m[1]) / (m[2] ? 100 : 1));
+    }
+    return o;
+  }
+
+  // How opaque el's content is drawn: its own share times every ancestor's.
+  function drawnOpacity(el, win) {
+    let o = 1;
+    for (let e = el; e && o > 0; e = drawnParent(e)) o *= ownOpacity(win.getComputedStyle(e));
+    return o;
   }
 
   // --- The popover --------------------------------------------------------------------
@@ -463,11 +499,43 @@
     }
 
     // --- Open and close (19 §3) -------------------------------------------------------
-    function canOpenOn(el) {
+    // Whether the learner can see the word, and for a pointer, whether `at` ({ x, y }) is on
+    // its drawn text (security review E-05). The <kotiko-w> is in the page's DOM, so the page
+    // can restyle it: stretch it invisibly over the screen so a resting pointer or a click on
+    // the page's own button lands on it, or keep it, transparent, under the pointer. Then it
+    // could search the open card with window.find. Text in Kotiko's own <kotiko-v> (27 §2)
+    // or the word's own text nodes count, not elements the page put inside.
+    const VISIBLE = { contentVisibilityAuto: true, opacityProperty: true, visibilityProperty: true };
+    function seen(w, at) {
+      const shown = w.querySelector(":scope > kotiko-v") ?? w;
+      if (typeof w.checkVisibility === "function" ? !w.checkVisibility(VISIBLE) : win.getComputedStyle(w).visibility !== "visible") return false;
+      if (drawnOpacity(shown, win) < FAINT) return false;
+      const range = doc.createRange();
+      // No layout (jsdom): nothing more to measure.
+      if (typeof range.getClientRects !== "function") return true;
+      const rects = [];
+      let text = null;
+      for (const n of shown.childNodes) {
+        if (n.nodeType !== 3) continue;
+        range.selectNodeContents(n);
+        for (const r of range.getClientRects()) {
+          if (r.width <= 0 || r.height <= 0) continue;
+          rects.push(r);
+          text = text ? { left: Math.min(text.left, r.left), top: Math.min(text.top, r.top), right: Math.max(text.right, r.right), bottom: Math.max(text.bottom, r.bottom) } : { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+        }
+      }
+      if (!text) return false;
+      // A box far larger than its text: stretched.
+      const box = w.getBoundingClientRect();
+      if (box.width > 2 * (text.right - text.left) + STRETCH_PX || box.height > 2 * (text.bottom - text.top) + STRETCH_PX) return false;
+      return !at || rects.some((r) => at.x >= r.left - NEAR_PX && at.x <= r.right + NEAR_PX && at.y >= r.top - NEAR_PX && at.y <= r.bottom + NEAR_PX);
+    }
+
+    function canOpenOn(el, at) {
       if (!el?.isConnected || editable(el)) return false;
       const fs = doc.fullscreenElement;
       if (fs && !fs.contains(el)) return false;
-      return true;
+      return seen(el, at);
     }
 
     function saveRanges() {
@@ -477,8 +545,9 @@
       return ranges;
     }
 
-    function openFor(el, mode = "click") {
-      if (!canOpenOn(el)) return false;
+    // `at`: where the learner's pointer is, for hover, click and touch.
+    function openFor(el, mode = "click", at = null) {
+      if (!canOpenOn(el, at)) return false;
       const info = infoFor(el);
       if (!info?.word) return false;
       cancelHover();
@@ -592,8 +661,9 @@
       const el = hover.el;
       if (!el.isConnected) return cancelHover();
       if (settled()) {
+        const at = hover.samples.at(-1);
         cancelHover();
-        openFor(el, "hover");
+        openFor(el, "hover", at);
       } else {
         hover.timer = setT(checkIntent, 50);
       }
@@ -635,8 +705,9 @@
       cancelPress();
       press = { el: w, x: e.clientX, y: e.clientY, timer: setT(() => {
         const el = press?.el;
+        const point = press && { x: press.x, y: press.y };
         cancelPress();
-        if (el && openFor(el, "tap")) longPressed = { el, at: now() };
+        if (el && openFor(el, "tap", point)) longPressed = { el, at: now() };
       }, LONG_PRESS_MS) };
       doc.addEventListener("pointermove", onPressMove, { capture: true, passive: true });
       doc.addEventListener("pointerup", cancelPress, { capture: true, passive: true });
@@ -680,7 +751,7 @@
       const sel = win.getSelection?.();
       if (sel && !sel.isCollapsed && sel.toString().trim()) return;
       if (open && open.el === w && open.pinned) return close();
-      openFor(w, e.pointerType === "touch" ? "tap" : "click");
+      openFor(w, e.pointerType === "touch" ? "tap" : "click", { x: e.clientX, y: e.clientY });
     }
 
     // --- Keyboard -------------------------------------------------------------------

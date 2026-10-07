@@ -5,6 +5,19 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Security: a web page could restyle a swapped word (it sits in the page) so that it
+  covered the page invisibly; then your pointer resting anywhere, or your click on one of
+  the page's own buttons, opened the word's card, and the page could search the card's
+  text for guesses. The card now opens only on a swapped word you can see, and from the
+  mouse or a tap only when you point at the word itself. Enter on a focused word still
+  opens it. The privacy policy (version 5) says so.
+
+- Security: Kotiko swapped words in text a page had hidden with a see-through filter, a
+  clipping shape or a mask, so the page could read those swaps and learn your words. Text
+  like that, and text faded to under 10 % opacity, is no longer swapped. Kotiko also
+  leaves text under any clipping shape or mask alone, even where you can see it, since it
+  can't tell how much of it shows.
+
 - Security: Kotiko no longer sends your server's access key; it signs each request. Your
   server signs each answer too, and Kotiko uses an answer only when it carries that
   signature, so if another program takes your server's place (say, while the server

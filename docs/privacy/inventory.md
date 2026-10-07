@@ -47,17 +47,22 @@ dictionaries, the model list and words are data, checked by the word spec before
   element and its `lang` attribute that Kotiko is installed and which language each word
   is in. The page knows its own text, so each swap also tells it which of its words the
   learner has a word for (security review A-01).
-- How much: only text the learner can see is swapped (rendered, on screen or within a
-  screen of it, not clipped away; `content/engine.js` `sight()`), so text a page hides
-  reveals nothing. One page view swaps at most `max_page_concepts` (500) distinct
+- How much: only text the learner can see is swapped (rendered, at least 10 % opaque
+  counting `filter: opacity()`, under no `clip-path`, mask or `url()` filter, on screen or
+  within a screen of it, not clipped away; `content/engine.js` `sight()`, security review
+  E-04), so text a page hides reveals nothing; text the learner can't make out (tiny, the
+  background's color, blurred, covered) still counts as shown. One page view swaps at most `max_page_concepts` (500) distinct
   concepts, each in at most `max_page_langs_per_concept` (3) languages
   (`spec/rules.json`, `content.js` `reveal()`). The cap is per page view: a page that
   reloads itself, or one the learner visits often, can learn more over time. Checked by
   `test/security/page.spec.mjs` (A-01) and `test/dom/content.test.mjs`.
 - Not the swaps' details: the swaps carry only `lang`, `dir`, `translate="no"` and
   `class="notranslate"`; the word card is a `<kotiko-popover>` element with a closed
-  shadow root (slice 19) that only the learner's own input opens (A-04). While the
-  learner has a card open, `window.find()` on the page can still match its text. Checked
+  shadow root (slice 19) that only the learner's own input opens (A-04), and only on a
+  swap they can see, from a pointer only on its drawn text (E-05; `content/popover.js`
+  `seen()`). A page that keeps a disguised swap under the pointer (the background's
+  color, covered) can still have it opened. While the learner has a card open,
+  `window.find()` on the page can still match its text. Checked
   by `test/e2e/popover.spec.mjs`, `test/e2e/privacy.spec.mjs` and
   `test/security/page.spec.mjs`.
 - The swap stylesheet (`ui/swap-style.js`) is added with the first swap and removed when
