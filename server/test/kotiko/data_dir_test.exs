@@ -174,6 +174,37 @@ defmodule Kotiko.DataDirTest do
     assert dump(database) == before
   end
 
+  # B-03 (slice 54): a 0.2 install made slovo.db with umask 022, and the copy left it, and
+  # the old token (now the live one), as they were.
+  test "after the copy, the old database and token are private", ctx do
+    legacy = legacy_db(ctx.legacy_dir, 3)
+    File.chmod!(legacy, 0o644)
+    token = Path.join(ctx.legacy_dir, "api-token")
+    File.write!(token, "token-the-old-server-made-0123456789\n")
+    File.chmod!(token, 0o644)
+
+    log = capture_log(fn -> assert {:ok, {:migrated, 3}} = migrate(ctx) end)
+
+    assert mode(legacy) == 0o600
+    assert mode(token) == 0o600
+    assert log =~ "Made the old files in #{ctx.legacy_dir} private"
+  end
+
+  test "an install moved before this check gets its old files made private at start", ctx do
+    legacy = legacy_db(ctx.legacy_dir, 1)
+    File.write!(Path.join(ctx.legacy_dir, "MOVED-TO-KOTIKO.txt"), "moved")
+    File.chmod!(legacy, 0o644)
+    # Not moved yet: an old folder without the note is left alone.
+    other = Path.join(ctx.root, "other")
+    other_db = legacy_db(other, 1)
+    File.chmod!(other_db, 0o644)
+
+    capture_log(fn -> DataDir.make_legacy_private([ctx.legacy_dir, other]) end)
+
+    assert mode(legacy) == 0o600
+    assert mode(other_db) == 0o644
+  end
+
   test "words that are only in the WAL (a server that was killed) are copied", ctx do
     # A writer that never checkpoints, like a server that is killed: its last writes are
     # only in slovo.db-wal. The three files are copied while it still has them open.
@@ -473,6 +504,87 @@ defmodule Kotiko.DataDirTest do
 
       # The folder holds only Kotiko's files, so it was fixed.
       assert mode(dir) == 0o700
+    end
+  end
+
+  # B-02 (slice 54): someone who could write in the data folder chose the API token (the
+  # server used any api-token it found), and a kotiko.db link sent every word to a file
+  # of their choosing, readable by anyone, without a word in the log.
+  describe "check_safe/2" do
+    setup ctx do
+      dir = Path.join(ctx.root, "data")
+      File.mkdir_p!(dir)
+      File.chmod!(dir, 0o700)
+      %{dir: dir, uid: File.stat!(dir).uid}
+    end
+
+    defp plant!(path, contents \\ "x") do
+      File.mkdir_p!(Path.dirname(path))
+      File.write!(path, contents)
+      File.chmod!(path, 0o600)
+      path
+    end
+
+    test "a private folder of your own files is fine, and so is a missing one", ctx do
+      plant!(Path.join(ctx.dir, "kotiko.db"))
+      plant!(Path.join(ctx.dir, "api-token"), "token")
+      plant!(Path.join(ctx.dir, "backups/kotiko-pre-1.0.0-20261001T000000Z.db"))
+      assert capture_log(fn -> assert DataDir.check_safe(ctx.dir, ctx.uid) == :ok end) == ""
+      assert DataDir.check_safe(Path.join(ctx.root, "missing"), ctx.uid) == :ok
+    end
+
+    test "a link in place of the database, the token or a backup stops the start", ctx do
+      elsewhere = plant!(Path.join(ctx.root, "elsewhere/loot.db"), "")
+      File.chmod!(elsewhere, 0o666)
+      File.ln_s!(elsewhere, Path.join(ctx.dir, "kotiko.db"))
+
+      File.ln_s!(
+        plant!(Path.join(ctx.root, "elsewhere/t"), "token"),
+        Path.join(ctx.dir, "api-token")
+      )
+
+      File.mkdir_p!(Path.join(ctx.dir, "backups"))
+      File.ln_s!(elsewhere, Path.join(ctx.dir, "backups/kotiko-pre-1.0.0-20261001T000000Z.db"))
+
+      assert {:error, message} = DataDir.check_safe(ctx.dir, ctx.uid)
+      assert message =~ "The server can't start: someone else may have put files in #{ctx.dir}"
+      assert message =~ "#{ctx.dir}/kotiko.db is a link"
+      assert message =~ "#{ctx.dir}/api-token is a link"
+      assert message =~ "backups/kotiko-pre-1.0.0-20261001T000000Z.db is a link"
+      assert message =~ "Kotiko never makes links"
+      assert File.read!(elsewhere) == ""
+    end
+
+    test "files or a folder that belong to another account stop the start", ctx do
+      plant!(Path.join(ctx.dir, "api-token"), "token")
+
+      assert {:error, message} = DataDir.check_safe(ctx.dir, ctx.uid + 1)
+      assert message =~ "the folder #{ctx.dir} belongs to another account (uid #{ctx.uid})"
+      assert message =~ "#{ctx.dir}/api-token belongs to another account (uid #{ctx.uid})"
+    end
+
+    test "a folder others can write in, that holds other files too, stops the start", ctx do
+      plant!(Path.join(ctx.dir, "notes.txt"))
+      File.chmod!(ctx.dir, 0o777)
+
+      assert {:error, message} = DataDir.check_safe(ctx.dir, ctx.uid)
+      assert message =~ "other users of this computer can write in the folder #{ctx.dir}"
+      assert message =~ "chmod 700 #{ctx.dir}"
+    end
+
+    test "a folder others can write in that holds only Kotiko's files is made private", ctx do
+      plant!(Path.join(ctx.dir, "kotiko.db"))
+      File.chmod!(ctx.dir, 0o775)
+
+      log = capture_log(fn -> assert DataDir.check_safe(ctx.dir, ctx.uid) == :ok end)
+      assert mode(ctx.dir) == 0o700
+      assert log =~ "Other users of this computer could write in the data folder #{ctx.dir}"
+    end
+
+    test "a data folder that is a link to your own folder is fine", ctx do
+      link = Path.join(ctx.root, "link")
+      File.ln_s!(ctx.dir, link)
+      assert DataDir.check_safe(link, ctx.uid) == :ok
     end
   end
 end

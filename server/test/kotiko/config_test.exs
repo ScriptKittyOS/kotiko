@@ -530,4 +530,102 @@ defmodule Kotiko.ConfigTest do
     refute Config.openrouter?("http://localhost:11434/v1")
     refute Config.openrouter?("https://notopenrouter.ai/v1")
   end
+
+  # B-09 (slice 54): any 24 characters were accepted, even 24 a's.
+  describe "a weak API_TOKEN" do
+    test "starts, with a warning that never shows the token" do
+      for weak <- [String.duplicate("a", 24), String.duplicate("password", 3)] do
+        assert {:ok, config, warnings} = parse(%{"API_TOKEN" => weak, "LLM_API_KEY" => "k"})
+        assert config[:api_token] == weak
+        assert [warning] = Enum.filter(warnings, &(&1 =~ "API_TOKEN"))
+        assert warning =~ "easy to guess"
+        assert warning =~ "openssl rand -hex 24"
+        refute warning =~ weak
+      end
+    end
+
+    test "a random token gets no warning" do
+      for token <- [@token, Base.encode16(:crypto.strong_rand_bytes(24), case: :lower)] do
+        assert {:ok, _, warnings} = parse(%{"API_TOKEN" => token, "LLM_API_KEY" => "k"})
+        assert Enum.filter(warnings, &(&1 =~ "API_TOKEN")) == []
+      end
+    end
+  end
+
+  # B-05 (slice 54): a user name and password in these URLs reached the log at info.
+  describe "a URL with a user name or password in it" do
+    test "is refused for LLM_URL, TRANSCRIBE_URL and PUBLIC_URL, never echoing it" do
+      for name <- ~w(LLM_URL TRANSCRIBE_URL PUBLIC_URL),
+          url <- [
+            "https://proxyuser:Pr0xy-Pa55-SECRET@llm.example/v1",
+            "http://Pr0xy-Pa55-SECRET@127.0.0.1:8080/v1"
+          ] do
+        assert {:error, problems, _} = parse(%{name => url, "LLM_MODEL" => "m"})
+        assert [{label, [line]}] = Enum.filter(problems, fn {l, _} -> l =~ name end)
+        assert label == "#{name} (value hidden)"
+        assert line =~ "user name or password"
+        assert line =~ "_API_KEY"
+        refute inspect(problems) =~ "SECRET"
+      end
+    end
+
+    test "something that isn't an address but has an @ isn't echoed either" do
+      assert {:error, [{"LLM_URL (value hidden)", [line]}], _} =
+               parse(%{
+                 "LLM_URL" => "proxyuser:Pr0xy-Pa55-SECRET@llm.example",
+                 "LLM_MODEL" => "m"
+               })
+
+      assert line =~ "isn't a web address"
+    end
+
+    test "an @ elsewhere in the URL is fine" do
+      assert ok!(%{"LLM_URL" => "https://llm.example/v1/@team", "LLM_MODEL" => "m"})[:llm_url] ==
+               "https://llm.example/v1/@team"
+    end
+  end
+
+  # B-06 (slice 54): a key sent over plain HTTP to another machine gave no warning.
+  describe "a key sent over plain HTTP" do
+    defp plain_http_warnings(vars) do
+      assert {:ok, _, warnings} = parse(vars)
+      Enum.filter(warnings, &(&1 =~ "plain HTTP"))
+    end
+
+    test "to another machine gets a warning naming the key and the host" do
+      key = "sk-secret-key-0123456789abcdef"
+
+      assert [warning] =
+               plain_http_warnings(%{
+                 "LLM_URL" => "http://203.0.113.7/v1",
+                 "LLM_MODEL" => "m",
+                 "LLM_API_KEY" => key
+               })
+
+      assert warning =~ "LLM_API_KEY is sent over plain HTTP to 203.0.113.7"
+      refute warning =~ key
+
+      assert [warning] =
+               plain_http_warnings(%{
+                 "TRANSCRIBE_URL" => "http://whisper.lan:8178/inference",
+                 "TRANSCRIBE_API_KEY" => key,
+                 "LLM_API_KEY" => "k"
+               })
+
+      assert warning =~ "TRANSCRIBE_API_KEY is sent over plain HTTP to whisper.lan"
+    end
+
+    test "not to this machine, over Tailscale, over HTTPS, or without a key" do
+      for url <- ~w(http://127.0.0.1:11434/v1 http://localhost:11434/v1 http://[::1]:1/v1
+                    http://ollama.localhost/v1 http://100.101.102.103/v1
+                    http://gpu.tail1234.ts.net/v1 https://203.0.113.7/v1) do
+        assert plain_http_warnings(%{"LLM_URL" => url, "LLM_MODEL" => "m", "LLM_API_KEY" => "k"}) ==
+                 [],
+               url
+      end
+
+      assert plain_http_warnings(%{"LLM_URL" => "http://203.0.113.7/v1", "LLM_MODEL" => "m"}) ==
+               []
+    end
+  end
 end

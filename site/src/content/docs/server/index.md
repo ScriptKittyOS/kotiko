@@ -40,7 +40,7 @@ Then start it:
 
 The first run fetches dependencies and compiles, then prints a short summary: version, data
 folder, who can reach the server, model and Telegram. Check it with
-`curl localhost:4747/health`, which prints `{"ok":true,...}` with the version. A mistake in
+`curl http://127.0.0.1:4747/health`, which prints `{"ok":true,...}` with the version. A mistake in
 `.env` stops the server with a message naming each setting to fix.
 
 The first start also makes an **access key** (the API token), saves it in the data folder and

@@ -32,6 +32,10 @@ config :kotiko,
   llm_models: ["m1", "m2", "m3"],
   llm_model_source: :env,
   log_lookups: false,
+  # Router tests send many wrong tokens from 127.0.0.1; router_throttle_test.exs and
+  # router_proof_test.exs turn these limits on.
+  auth_failures_per_minute: nil,
+  proof_requests_per_minute: nil,
   llm_req_options: [plug: {Req.Test, Kotiko.LLM}],
   # Slice 10's budgets at 1/20: an add's 25 s deadline is 1.25 s, a Retry-After of 2 s
   # waits 100 ms. Quota refreshes run inline, so a test sees their effect at once.

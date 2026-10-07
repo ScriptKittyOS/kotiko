@@ -257,12 +257,19 @@ defmodule Kotiko.RouterV1 do
     [if(p, do: Map.put(base, :previous, Word.to_api(p)), else: base)]
   end
 
-  # The reason can hold the word itself (a changeset): only its shape at warning level
-  # (slice 10 section 6), the whole of it at debug.
   defp result_json({:error, reason}) do
-    Logger.warning("Couldn't save a word: #{save_error(reason)}")
-    Logger.debug("Couldn't save a word: #{inspect(reason)}")
+    log_save_error(reason)
     []
+  end
+
+  @doc false
+  # The reason can hold the word itself (a changeset): only its shape at warning level
+  # (slice 10 section 6), the whole of it at debug with LOG_LOOKUPS (slice 54, B-07).
+  def log_save_error(reason) do
+    Logger.warning("Couldn't save a word: #{save_error(reason)}")
+
+    if Kotiko.LLM.log_lookups?(),
+      do: Logger.debug("Couldn't save a word: #{inspect(reason)}")
   end
 
   defp save_error(%Ecto.Changeset{errors: errors}),

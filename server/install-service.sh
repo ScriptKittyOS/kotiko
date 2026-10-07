@@ -27,7 +27,8 @@ Usage: install-service.sh [--uninstall [--delete-data]]
   --uninstall     Stop and remove the service. Your words, the data folder and .env
                   are kept.
   --delete-data   With --uninstall: also delete the files Kotiko keeps in its data
-                  folder (your words, the saved API token, the backups).
+                  folder (your words, the saved API token, the backups), and the
+                  old copy of your words from before the rename to Kotiko.
   -h, --help      Show this help.
 USAGE
 }
@@ -132,10 +133,37 @@ delete_data_folder() {
     echo "Deleted $path"
   done
   rmdir "$data/backups" 2>/dev/null || true
+  # The old name's database, when the server moved the words from it into this folder.
+  delete_moved_copy "$data" "$data"
+  # And the old default folder the server copied the words from, if they came here.
+  delete_moved_copy "$HOME/.local/share/slovo" "$data" # legacy-name-ok
   if rmdir "$data" 2>/dev/null; then
     echo "Deleted the folder $data"
   else
     echo "Kept the folder $data: it holds files Kotiko didn't make."
+  fi
+}
+
+# Before the rename to Kotiko the words were in the old name's database; the server copied
+# them into <data>/kotiko.db once and left MOVED-TO-KOTIKO.txt saying so. Deletes that old
+# copy (and the old token, now the same as Kotiko's) only when the note names this data
+# folder.
+delete_moved_copy() {
+  local old=$1 data=$2 name path
+  [ -f "$old/MOVED-TO-KOTIKO.txt" ] || return 0
+  grep -qF -- " to $data/kotiko.db on " "$old/MOVED-TO-KOTIKO.txt" || return 0
+  local names=(slovo.db slovo.db-wal slovo.db-shm slovo.db-journal MOVED-TO-KOTIKO.txt) # legacy-name-ok
+  # In its own folder the old token is the old server's; here it is Kotiko's own.
+  [ "$old" = "$data" ] || names+=(api-token)
+  for name in "${names[@]}"; do
+    path="$old/$name"
+    if [ -e "$path" ] || [ -L "$path" ]; then
+      rm -f -- "$path"
+      echo "Deleted $path"
+    fi
+  done
+  if [ "$old" != "$data" ] && rmdir "$old" 2>/dev/null; then
+    echo "Deleted the folder $old"
   fi
 }
 
