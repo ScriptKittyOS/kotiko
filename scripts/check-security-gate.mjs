@@ -84,7 +84,16 @@ const decode = (text) =>
     const code = dec ? Number(dec) : parseInt(hex, 16);
     return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : "�";
   });
-const render = (line) => visible(decode(line.replace(/<\/?[A-Za-z][^>]*>/g, "")));
+// Tags come out until none is left, so one hidden inside another ("<<b>b>") goes too.
+const stripTags = (line) => {
+  let out = line;
+  for (let prev = null; prev !== out; ) {
+    prev = out;
+    out = out.replace(/<\/?[A-Za-z][^>]*>/g, "");
+  }
+  return out;
+};
+const render = (line) => visible(decode(stripTags(line)));
 
 // The text with every HTML comment taken out (also over several lines; an unclosed one
 // runs to the end), as lines, each with the number of the line it starts on.
