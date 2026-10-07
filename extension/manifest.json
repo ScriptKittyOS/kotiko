@@ -2,54 +2,133 @@
   "manifest_version": 3,
   "name": "__MSG_extStoreName__",
   "short_name": "__MSG_extName__",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "__MSG_extDescription__",
   "default_locale": "en",
-  "permissions": ["storage", "alarms", "unlimitedStorage", "scripting"],
-  "host_permissions": ["<all_urls>"],
+  "permissions": [
+    "storage",
+    "alarms",
+    "unlimitedStorage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "background": {
     "service_worker": "background.js",
     "scripts": [
-      "lib/url.js", "lib/errors.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js", "lib/i18n.js", "lib/badge.js",
-      "spec/spec.js", "lib/text.js", "lib/lang.js", "lib/words-v1.js", "lib/wordspec.js", "lib/word-merge.js", "lib/store.js", "lib/settings.js",
-      "lib/backup.js", "lib/projection.js", "lib/llm/policy.js", "lib/llm/catalog.js", "lib/llm/client.js", "lib/add-queue.js",
-      "lib/refresh-job.js", "lib/local-mode.js", "lib/pkce.js", "lib/celebrations.js", "lib/welcome-model.js",
-      "lib/pronounce.js", "lib/wiktionary-pass.js", "background.js"
+      "lib/url.js",
+      "lib/errors.js",
+      "lib/validate-words.js",
+      "lib/sync-controller.js",
+      "lib/messages.js",
+      "lib/i18n.js",
+      "lib/badge.js",
+      "spec/spec.js",
+      "lib/text.js",
+      "lib/lang.js",
+      "lib/words-v1.js",
+      "lib/wordspec.js",
+      "lib/word-merge.js",
+      "lib/store.js",
+      "lib/settings.js",
+      "lib/backup.js",
+      "lib/projection.js",
+      "lib/llm/policy.js",
+      "lib/llm/catalog.js",
+      "lib/llm/client.js",
+      "lib/add-queue.js",
+      "lib/refresh-job.js",
+      "lib/local-mode.js",
+      "lib/pkce.js",
+      "lib/celebrations.js",
+      "lib/welcome-model.js",
+      "lib/pronounce.js",
+      "lib/wiktionary-pass.js",
+      "background.js"
     ]
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": [
-        "lib/text.js", "lib/matcher.js", "lib/page-lang.js", "lib/rules.js", "lib/sensitive.js", "lib/casing.js", "lib/precedence.js", "lib/controls.js", "lib/i18n.js", "lib/speak.js", "lib/word-card.js",
-        "ui/icons.js", "ui/popover-style.js", "content/popover.js", "content/engine.js", "content.js"
+      "matches": [
+        "<all_urls>"
       ],
-      "css": ["content.css"],
+      "js": [
+        "lib/text.js",
+        "lib/matcher.js",
+        "lib/page-lang.js",
+        "lib/rules.js",
+        "lib/sensitive.js",
+        "lib/casing.js",
+        "lib/precedence.js",
+        "lib/controls.js",
+        "lib/i18n.js",
+        "lib/speak.js",
+        "lib/word-card.js",
+        "ui/icons.js",
+        "ui/popover-style.js",
+        "content/popover.js",
+        "content/engine.js",
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://kotiko.org/connect/*"],
-      "js": ["lib/i18n.js", "content/connect.js"],
+      "matches": [
+        "https://kotiko.org/connect/*"
+      ],
+      "js": [
+        "lib/i18n.js",
+        "content/connect.js"
+      ],
       "run_at": "document_idle"
     }
   ],
-  "options_ui": { "page": "dashboard.html", "open_in_tab": true },
+  "options_ui": {
+    "page": "dashboard.html",
+    "open_in_tab": true
+  },
   "action": {
     "default_popup": "popup.html",
     "default_title": "__MSG_extName__",
-    "default_icon": { "16": "icon16.png", "32": "icon32.png", "48": "icon48.png" }
+    "default_icon": {
+      "16": "icon16.png",
+      "32": "icon32.png",
+      "48": "icon48.png"
+    }
   },
   "commands": {
-    "reveal-word": { "suggested_key": { "default": "Alt+Shift+R" }, "description": "__MSG_cmd_reveal_word__" }
+    "reveal-word": {
+      "suggested_key": {
+        "default": "Alt+Shift+R"
+      },
+      "description": "__MSG_cmd_reveal_word__"
+    }
   },
-  "icons": { "16": "icon16.png", "32": "icon32.png", "48": "icon48.png", "128": "icon128.png" },
-  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'self'" },
+  "icons": {
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
   "browser_specific_settings": {
     "gecko": {
       "id": "kotiko@scriptkittyos.com",
       "strict_min_version": "140.0",
-      "data_collection_permissions": { "required": ["none"] }
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
     },
-    "gecko_android": { "strict_min_version": "142.0" }
+    "gecko_android": {
+      "strict_min_version": "142.0"
+    }
   }
 }
