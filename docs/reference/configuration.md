@@ -92,7 +92,8 @@ behind a reverse proxy). Used only in the pairing string from
 [`mix kotiko.token`](#mix-kotikotoken).
 
 - Default: none. Allowed: an `http://` or `https://` address; a trailing `/` is dropped.
-- Wrong: anything else stops the server ("isn't a web address").
+- Wrong: anything else stops the server ("isn't a web address"), and so does a user name
+  or password in the address (`https://user:password@...`).
 
 ### `API_TOKEN`
 
@@ -137,6 +138,9 @@ The model API: any OpenAI-compatible API's base URL.
 - Default: `https://openrouter.ai/api/v1`.
 - Example: `http://localhost:11434/v1` for a local Ollama.
 - Allowed: an `http://` or `https://` address. Wrong: anything else stops the server.
+- A user name or password in the address (`https://user:password@host/v1`) stops the
+  server too, without showing it: the address is written to the log at start. Put the key
+  in [`LLM_API_KEY`](#llm_api_key) (or [`LLM_API_KEY_FILE`](#llm_api_key_file)) instead.
 - Your typed text goes to this address (README, "A different model").
 
 ### `LLM_MODEL`
@@ -178,7 +182,9 @@ A speech-to-text endpoint for Telegram voice notes: a local whisper.cpp server
 upload.
 
 - Default: none; voice notes aren't transcribed (typing still works).
-- Allowed: an `http://` or `https://` address. Wrong: anything else stops the server.
+- Allowed: an `http://` or `https://` address. Wrong: anything else stops the server, and
+  so does a user name or password in the address: put the key in
+  [`TRANSCRIBE_API_KEY`](#transcribe_api_key) instead.
 
 ### `TRANSCRIBE_MODEL`
 

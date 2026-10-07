@@ -5,6 +5,11 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Self-hosted server: a user name and password written inside `LLM_URL` or
+  `TRANSCRIBE_URL` (`https://user:password@host/...`) went into the log at start. The
+  server now refuses to start with such an address, without showing it; put the key in
+  `LLM_API_KEY` or `TRANSCRIBE_API_KEY` instead. The same goes for `PUBLIC_URL`.
+
 - Self-hosted server: an access key you chose yourself that looks easy to guess (few
   different characters, a repeated piece, mostly one character) now gets a warning at
   every start. Delete `API_TOKEN` to let the server make a random one.

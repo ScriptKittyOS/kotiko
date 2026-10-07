@@ -551,4 +551,37 @@ defmodule Kotiko.ConfigTest do
       end
     end
   end
+
+  # B-05 (slice 54): a user name and password in these URLs reached the log at info.
+  describe "a URL with a user name or password in it" do
+    test "is refused for LLM_URL, TRANSCRIBE_URL and PUBLIC_URL, never echoing it" do
+      for name <- ~w(LLM_URL TRANSCRIBE_URL PUBLIC_URL),
+          url <- [
+            "https://proxyuser:Pr0xy-Pa55-SECRET@llm.example/v1",
+            "http://Pr0xy-Pa55-SECRET@127.0.0.1:8080/v1"
+          ] do
+        assert {:error, problems, _} = parse(%{name => url, "LLM_MODEL" => "m"})
+        assert [{label, [line]}] = Enum.filter(problems, fn {l, _} -> l =~ name end)
+        assert label == "#{name} (value hidden)"
+        assert line =~ "user name or password"
+        assert line =~ "_API_KEY"
+        refute inspect(problems) =~ "SECRET"
+      end
+    end
+
+    test "something that isn't an address but has an @ isn't echoed either" do
+      assert {:error, [{"LLM_URL (value hidden)", [line]}], _} =
+               parse(%{
+                 "LLM_URL" => "proxyuser:Pr0xy-Pa55-SECRET@llm.example",
+                 "LLM_MODEL" => "m"
+               })
+
+      assert line =~ "isn't a web address"
+    end
+
+    test "an @ elsewhere in the URL is fine" do
+      assert ok!(%{"LLM_URL" => "https://llm.example/v1/@team", "LLM_MODEL" => "m"})[:llm_url] ==
+               "https://llm.example/v1/@team"
+    end
+  end
 end

@@ -445,15 +445,33 @@ defmodule Kotiko.Config do
 
   defp optional_url(_name, nil), do: {:ok, nil}
 
+  # A user name or password in the address (slice 54, B-05) would reach the log with the
+  # address, so it's refused, and the value is never echoed.
   defp optional_url(name, raw) do
-    if http_url?(raw) do
-      {:ok, String.trim_trailing(raw, "/")}
-    else
-      error(name, raw, [
-        "#{inspect(raw)} isn't a web address. It should start with http:// or https://."
-      ])
+    cond do
+      userinfo?(raw) ->
+        secret_error(name, [
+          "It has a user name or password in it (before the @), which would end up in " <>
+            "the log. Remove them from the address. A key for the model or transcription " <>
+            "service goes in LLM_API_KEY or TRANSCRIBE_API_KEY (or LLM_API_KEY_FILE, " <>
+            "TRANSCRIBE_API_KEY_FILE)."
+        ])
+
+      http_url?(raw) ->
+        {:ok, String.trim_trailing(raw, "/")}
+
+      # Not an address, but it may hold a password: don't echo it.
+      String.contains?(raw, "@") ->
+        secret_error(name, ["It isn't a web address. It should start with http:// or https://."])
+
+      true ->
+        error(name, raw, [
+          "#{inspect(raw)} isn't a web address. It should start with http:// or https://."
+        ])
     end
   end
+
+  defp userinfo?(raw), do: match?({:ok, %URI{userinfo: info}} when is_binary(info), URI.new(raw))
 
   defp http_url?(raw) do
     case URI.new(raw) do

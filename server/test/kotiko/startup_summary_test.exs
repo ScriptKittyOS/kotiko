@@ -77,4 +77,13 @@ defmodule Kotiko.StartupSummaryTest do
     put_app_env(:transcribe_url, "http://127.0.0.1:8080/inference")
     assert List.last(App.summary_lines(:env, 0, "")) == "Voice notes: on"
   end
+
+  test "the model line never shows a user name or password in LLM_URL (B-05)" do
+    put_app_env(:llm_url, "http://proxyuser:Pr0xy-Pa55-SECRET@127.0.0.1:42100/llm/v1")
+    put_app_env(:llm_model_source, :env)
+    put_app_env(:llm_models, ["m"])
+
+    model = line(App.summary_lines(:env, 0, ""), "Model:")
+    assert model == "Model:     http://127.0.0.1:42100/llm/v1, 1 model from LLM_MODEL"
+  end
 end
