@@ -272,7 +272,10 @@
       if (json) body.response_format = { type: "json_object" };
       // Thinking takes 5-20 s longer and doesn't get these lookups more right.
       if (cfg.openrouter && model.caps.reasoning_toggle) body.reasoning = { enabled: false };
-      if (model.caps.max_tokens && Number.isInteger(ctx.maxTokens)) body.max_tokens = ctx.maxTokens;
+      // The spec's output cap on every request, so a model that keeps writing can't bill the
+      // learner's key up to its own limit (slice 54, A-07). OpenRouter ignores it for a model
+      // that doesn't take it.
+      if (Number.isInteger(ctx.maxTokens)) body[cfg.preset.maxTokensField ?? "max_tokens"] = ctx.maxTokens;
       if (cfg.openrouter && cfg.deny) body.provider = { data_collection: "deny" };
       const r = await call(`${cfg.baseUrl}/chat/completions`, { method: "POST", headers: headers(cfg, true), body: JSON.stringify(body) }, timeoutMs, signal);
       if (r.transport) return { kind: r.transport === "timeout" ? "timeout" : "network", status: null };

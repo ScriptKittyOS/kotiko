@@ -88,6 +88,27 @@ describe("presets (spec/providers.json): URL, headers and JSON mode", () => {
     });
   }
 
+  // Slice 54, A-07: a model stuck repeating itself could write until the model's own limit
+  // on every lookup, billed to the learner's key. Every request now carries the spec's cap
+  // (spec/models.json policy.max_tokens), in the field the preset's API reads.
+  for (const [id, baseUrl] of cases.map((c) => [c[0], c[1]])) {
+    test(`${id}: every lookup and respelling carries the spec's output cap`, async () => {
+      const keyless = id === "ollama" || id === "lmstudio";
+      const field = id === "openai" ? "max_completion_tokens" : "max_tokens";
+      const other = field === "max_tokens" ? "max_completion_tokens" : "max_tokens";
+      // OpenRouter's model doesn't list max_tokens among its parameters: the cap goes anyway
+      // (OpenRouter ignores a parameter a model doesn't take).
+      const s = stub({ models: (req) => json200Models(id, req) });
+      const c = client({ provider: id, baseUrl, key: keyless ? null : KEY, fetch: s.fetch });
+      assert.equal((await c.lookup(REQ)).ok, true);
+      await c.respell([{ lang: "ar", native: "شكرا", sense: null, base_langs: ["en"] }]);
+      const [lookup, respell] = s.chats();
+      assert.equal(lookup.body[field], L.spec.models.policy.max_tokens.lookup, "lookup");
+      assert.equal(respell.body[field], L.spec.models.policy.max_tokens.respell, "respell");
+      assert.equal(other in lookup.body, false, `no ${other} beside it`);
+    });
+  }
+
   function json200Models(id) {
     const ids = { openai: ["whisper-1", "gpt-4o-mini", "gpt-4.1-mini"], gemini: ["models/gemini-2.5-flash"], groq: ["llama-3.3-70b-versatile"], ollama: ["llama3.2"], lmstudio: ["qwen2.5-7b"], custom: ["my-model"] }[id];
     if (!ids) return json(200, { data: [{ id: "fake/model-a:free", context_length: 32768, pricing: { prompt: "0", completion: "0" }, supported_parameters: ["response_format", "reasoning"] }] });

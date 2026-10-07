@@ -1,5 +1,5 @@
 {
-  "_comment": "Where the extension (and a server, in its own config) can look words up (slice 11 section 4). Every preset is an OpenAI-compatible chat API: POST {baseUrl}/chat/completions with a Bearer key. `jsonMode` says whether to send response_format {type: json_object} (the client drops it once on a 400 that names it); `modelSource` is how the model list is found: openrouter-free (slice 10's catalog over GET /models and spec/models.json), models-endpoint (GET {baseUrl}/models, ordered by `prefer`), or manual (`prefer`, or a model id the learner types). `notes` is the English source of the line shown under the field; the extension shows its own translated copy. Never put a key here.",
+  "_comment": "Where the extension (and a server, in its own config) can look words up (slice 11 section 4). Every preset is an OpenAI-compatible chat API: POST {baseUrl}/chat/completions with a Bearer key. `jsonMode` says whether to send response_format {type: json_object} (the client drops it once on a 400 that names it); `maxTokensField` names the request field for the output cap (spec/models.json policy.max_tokens, sent on every request): max_tokens unless given; OpenAI's reasoning models take only max_completion_tokens. `modelSource` is how the model list is found: openrouter-free (slice 10's catalog over GET /models and spec/models.json), models-endpoint (GET {baseUrl}/models, ordered by `prefer`), or manual (`prefer`, or a model id the learner types). `notes` is the English source of the line shown under the field; the extension shows its own translated copy. Never put a key here.",
   "default": "openrouter",
   "providers": [
     {
@@ -23,6 +23,7 @@
       "keyRequired": true,
       "keyUrl": "https://platform.openai.com/api-keys",
       "jsonMode": "json_object",
+      "maxTokensField": "max_completion_tokens",
       "extraHeaders": {},
       "extraBody": {},
       "modelSource": "models-endpoint",
