@@ -17,7 +17,8 @@ a route is added or removed without updating this page.
 
 ## Requests
 
-**Authentication.** Every route except `GET /health` and `HEAD /health` needs the API token:
+**Authentication.** Every route except `GET /health`, `HEAD /health` and
+[`POST /api/v1/proof`](#post-apiv1proof) needs the API token:
 
 ```
 Authorization: Bearer <API token>
@@ -28,6 +29,15 @@ is accepted. The token is compared in constant time. Without the right token, ev
 and path answers `401` with `www-authenticate: Bearer` and the error `server_key_rejected`,
 before the server reads the body or looks at the route. `mix kotiko.token` (in `server/`)
 prints the token; [configuration.md](configuration.md#api_token) says where it comes from.
+
+**Wrong tokens are throttled.** After 10 wrong `Bearer` tokens from one address within a
+minute, every request from that address that needs the token gets `429` with `Retry-After`
+and the error `rate_limited` (`details.reason`: `auth_failures`) until the minute is over,
+even with the right token, so guessing learns nothing while it waits. Other addresses are
+not affected. A request with no token, or another scheme, doesn't count. An IPv6 address
+counts by its /64 network. The server logs the lockout once an hour per address. Behind a
+reverse proxy on the same machine, every request comes from the proxy's address, so a
+lockout there applies to everyone for the rest of that minute.
 
 **Host names.** Before anything else, the server checks the `Host` header, to stop web pages
 reaching it through DNS rebinding. It answers to `localhost`, IP addresses, this machine's
@@ -84,6 +94,7 @@ Routes under `/api/v1` answer errors in one shape:
 | 415 | `invalid_request` | The body isn't JSON (`details.reason`: `content_type`) |
 | 421 | `server_address_invalid` | The `Host` header names a host the server doesn't answer to |
 | 429 | `rate_limited`, `quota_exhausted` | The model provider is busy, or today's free lookups are used up; `Retry-After` (seconds) and `details.retry_at` when known; `details.reason` is `payment_required` when the provider wants credit |
+| 429 | `rate_limited` | Too many wrong tokens from this address (`details.reason`: `auth_failures`), or too many proofs (`too_many_proofs`); `Retry-After` (seconds) |
 | 502 | `key_rejected`, `model_unavailable`, `bad_lookup_result` | The provider refused the server's key, no model could answer, or the answer wasn't usable |
 | 503 | `lookup_timeout`, `lookup_not_set_up` | No answer within the add's deadline, or no model key is set |
 | 500 | `internal` | A bug; `details.ref` is a reference to find in the server log. No stack trace is sent |
@@ -140,6 +151,46 @@ Sent with `cache-control: no-store`.
 ### HEAD /health
 
 The same check as `GET /health`, with the same status (`200` or `503`) and no body.
+
+### POST /api/v1/proof
+
+Proves that this server holds your API token, without sending it. No token needed. The
+extension can call it before it sends the token to an address, so another program
+listening at that address (say, on `[::1]` while the server listens on `127.0.0.1`) gets
+nothing it can use.
+
+Send a fresh random nonce: 32 to 128 base64url characters (`A-Z`, `a-z`, `0-9`, `-`, `_`,
+no `=` padding), for example 32 random bytes encoded as base64url.
+
+```bash
+curl -s -H 'Content-Type: application/json' -d '{"nonce": "q1aP3n0ZKcB1x5mW0u7S9bJ2rV4yT6dE8gH0iL2nO4p"}' \
+  http://127.0.0.1:4747/api/v1/proof
+```
+
+```json
+{"proof": "E5CHaF60VqTTPPduGD1yAlfWMF5xf9_hmV2qCufV-ek"}
+```
+
+That is the answer of a server whose token is `example-token-0123456789abcdef`; use it to
+check your own implementation.
+
+`proof` is `base64url(HMAC-SHA256(key = the API token, message = "kotiko-proof-v1:" + nonce))`,
+without padding (43 characters). The key is the token's UTF-8 bytes as you'd send them
+in `Authorization`; the message is the ASCII prefix followed by the nonce exactly as sent.
+Compute the same value with the token you have and compare in constant time; send the
+token only if they match. Use a new nonce each time.
+
+- `400 invalid_request` (`details.field`: `nonce`): the nonce is missing or not 32 to 128
+  base64url characters. The body may be at most 1,000 bytes (`413`).
+- `429 rate_limited` (`details.reason`: `too_many_proofs`): more than 30 proofs from one
+  address within a minute; `Retry-After` says when to try again.
+- The answer never contains the token and is sent with `cache-control: no-store`. Like
+  `/health`, it is checked against the `Host` names the server answers to.
+- Only this exact path and `POST` are open: any other method or spelling
+  (`/%61pi/v1/proof`) needs the token.
+- Someone who gets a proof can test guesses at the token offline. A token the server made
+  (256 random bits) can't be guessed; a weak one you chose can, and the server warns about
+  those at start ([`API_TOKEN`](configuration.md#api_token)).
 
 ### GET /api/v1/words
 

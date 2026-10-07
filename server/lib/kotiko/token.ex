@@ -73,6 +73,26 @@ defmodule Kotiko.Token do
   """
   def save(path, contents), do: Kotiko.Private.write(path, contents, ".new")
 
+  @proof_label "kotiko-proof-v1:"
+
+  @doc """
+  Whether `nonce` is one the extension may send to `POST /api/v1/proof`: 32 to 128
+  base64url characters (`A-Z a-z 0-9 - _`, no padding).
+  """
+  def nonce?(nonce), do: is_binary(nonce) and nonce =~ ~r/\A[A-Za-z0-9_-]{32,128}\z/
+
+  @doc """
+  The proof that this server holds `token`, for `nonce`:
+  `base64url(HMAC-SHA256(key: token, message: "kotiko-proof-v1:" <> nonce))`, without
+  padding. It reveals nothing about the token that helps someone who doesn't have it,
+  except a value to test guesses against offline, which only a weak token makes useful.
+  """
+  def proof(token, nonce) do
+    :hmac
+    |> :crypto.mac(:sha256, token, @proof_label <> nonce)
+    |> Base.url_encode64(padding: false)
+  end
+
   @doc """
   One pasteable value carrying both the server address and the token, for the
   extension's connection screen: `kotiko-pair:1:<base64url of {"url", "token"}>`.

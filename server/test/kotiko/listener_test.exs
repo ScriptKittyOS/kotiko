@@ -3,8 +3,9 @@
 
 defmodule Kotiko.ListenerTest do
   # Which addresses the server listens on for BIND (slice 54, B-01), on real sockets. The
-  # boot with the default settings is in boot_test.exs.
-  use ExUnit.Case, async: true
+  # boot with the default settings is in boot_test.exs. Not async: its log lines would
+  # land in other tests' capture_log.
+  use ExUnit.Case, async: false
   import ExUnit.CaptureLog
   alias Kotiko.Listener
 

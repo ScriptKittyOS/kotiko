@@ -5,6 +5,12 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Self-hosted server: after 10 wrong access keys from one address within a minute, the
+  server refuses that address for the rest of the minute (`429`) and logs it once. Other
+  addresses, including yours, keep working. New route `POST /api/v1/proof`: Kotiko can
+  check that an address really is your server, which proves it holds your access key
+  without sending it, before Kotiko sends the key there.
+
 - Self-hosted server: another account on the same computer could receive your access key
   by listening on `[::1]:4747`, the address browsers try first for `localhost`. The server
   now listens on both `127.0.0.1` and `::1` by default (and with `BIND=localhost`), so

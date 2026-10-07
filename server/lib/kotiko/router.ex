@@ -5,7 +5,7 @@ defmodule Kotiko.Router do
   use Plug.Router
   use Plug.ErrorHandler
   require Logger
-  alias Kotiko.{AddRequests, I18n, Lookup, Word, Words}
+  alias Kotiko.{AddRequests, AuthThrottle, I18n, Lookup, RateLimit, Token, Word, Words}
 
   # First, on every route including /health: refuse names we don't answer to (DNS rebinding).
   plug Kotiko.Plug.HostCheck
@@ -19,10 +19,15 @@ defmodule Kotiko.Router do
   @parsers [parsers: [:json], json_decoder: Jason]
   @small_body Plug.Parsers.init([length: 64_000] ++ @parsers)
   @batch_body Plug.Parsers.init([length: 1_000_000] ++ @parsers)
+  @proof_body Plug.Parsers.init([length: 1_000] ++ @parsers)
 
-  # 64 KB everywhere, except the batch add, which takes up to 500 words (slice 07).
+  # 64 KB everywhere, except the batch add, which takes up to 500 words (slice 07), and the
+  # proof, which anyone may send: a nonce fits in 1 KB.
   defp parse_body(%{path_info: ["api", "v1", "words", "batch"]} = conn, _opts),
     do: Plug.Parsers.call(conn, @batch_body)
+
+  defp parse_body(%{path_info: ["api", "v1", "proof"]} = conn, _opts),
+    do: Plug.Parsers.call(conn, @proof_body)
 
   defp parse_body(conn, _opts), do: Plug.Parsers.call(conn, @small_body)
 
@@ -36,6 +41,26 @@ defmodule Kotiko.Router do
   match "/health", via: :head do
     {status, _body} = Kotiko.Health.report()
     conn |> put_resp_header("cache-control", "no-store") |> send_resp(status, "")
+  end
+
+  # Open (no token): proves this server holds the API token without revealing it, so the
+  # extension can check an address before it sends the token there (slice 54, B-01).
+  post "/api/v1/proof" do
+    limit = Application.get_env(:kotiko, :proof_requests_per_minute, 30)
+    {count, seconds} = RateLimit.hit(:proof, RateLimit.client(conn.remote_ip), 60_000)
+
+    cond do
+      is_integer(limit) and count > limit ->
+        rate_limited(conn, "too_many_proofs", seconds)
+
+      Token.nonce?(conn.body_params["nonce"]) ->
+        token = Application.fetch_env!(:kotiko, :api_token)
+        proof = Token.proof(token, conn.body_params["nonce"])
+        conn |> put_resp_header("cache-control", "no-store") |> json(200, %{proof: proof})
+
+      true ->
+        error(conn, true, 400, "invalid_request", %{field: "nonce"})
+    end
   end
 
   # Slice 07's versioned API: words with ids, edits, deletes that can be undone.
@@ -200,22 +225,45 @@ defmodule Kotiko.Router do
       else: json(conn, status, %{error: message})
   end
 
-  # Deny by default: only the exact GET or HEAD /health is open. path_info is not yet
-  # percent-decoded here, but routing decodes it, so matching on ["api" | _] let
-  # "/%61pi/words" through without a token.
+  # Deny by default: only the exact GET or HEAD /health and POST /api/v1/proof are open.
+  # path_info is not yet percent-decoded here, but routing decodes it, so matching on
+  # ["api" | _] let "/%61pi/words" through without a token.
   defp authorize(%{path_info: ["health"], method: m} = conn, _opts) when m in ~w(GET HEAD),
     do: conn
 
+  defp authorize(%{path_info: ["api", "v1", "proof"], method: "POST"} = conn, _opts), do: conn
+
+  # An address that sent too many wrong tokens gets 429 whatever it sends now
+  # (Kotiko.AuthThrottle).
   defp authorize(conn, _opts) do
+    case AuthThrottle.check(conn.remote_ip) do
+      :ok -> check_token(conn)
+      {:locked, seconds} -> rate_limited(conn, "auth_failures", seconds)
+    end
+  end
+
+  defp check_token(conn) do
     expected = Application.fetch_env!(:kotiko, :api_token)
 
     case get_req_header(conn, "authorization") do
       ["Bearer " <> token] ->
-        if Plug.Crypto.secure_compare(token, expected), do: conn, else: deny(conn)
+        if Plug.Crypto.secure_compare(token, expected) do
+          conn
+        else
+          AuthThrottle.failed(conn.remote_ip)
+          deny(conn)
+        end
 
       _ ->
         deny(conn)
     end
+  end
+
+  defp rate_limited(conn, reason, seconds) do
+    conn
+    |> put_resp_header("retry-after", to_string(seconds))
+    |> error(true, 429, "rate_limited", %{reason: reason})
+    |> halt()
   end
 
   defp deny(conn) do
