@@ -249,7 +249,7 @@ test("the server address warns when the access key would cross a network unencry
   await dash.goto(`chrome-extension://${extensionId}/dashboard.html#settings/connection`);
   const field = dash.locator("#serverUrl");
   const warn = dash.locator("#serverUrlWarn");
-  await expect(field).toHaveValue("http://localhost:4747");
+  await expect(field).toHaveValue("http://127.0.0.1:4747");
   await expect(warn).toBeHidden();
   await field.fill("http://192.168.1.5:4747");
   await expect(warn).toBeVisible();
