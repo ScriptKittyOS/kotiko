@@ -237,8 +237,10 @@ test("an existing server install upgrades with nothing changed: same words on pa
   const log = (await server.state()).log;
   expect(log.some((r) => r.method === "POST" && r.path === "/kotiko/api/v1/words")).toBe(true);
   expect(log.some((r) => r.method === "POST" && r.path === "/kotiko/api/v1/words/batch")).toBe(true);
-  // Every request but the server's proof (which carries no token: slice 54, B-01) has the token.
-  expect(log.filter((r) => r.path.startsWith("/kotiko/") && r.path !== "/kotiko/api/v1/proof").every((r) => r.auth === `Bearer ${server.token}`)).toBe(true);
+  // Every request but the server's proof (slice 54, B-01) is signed with the token, and none
+  // carries it (D-01).
+  expect(log.filter((r) => r.path.startsWith("/kotiko/") && r.path !== "/kotiko/api/v1/proof").every((r) => r.signed)).toBe(true);
+  expect(log.filter((r) => r.auth?.includes(server.token))).toEqual([]);
   expect(log.filter((r) => r.path === "/kotiko/api/v1/proof").every((r) => r.auth === null)).toBe(true);
   expect(log.filter((r) => r.path.startsWith("/llm/"))).toEqual([]);
 });

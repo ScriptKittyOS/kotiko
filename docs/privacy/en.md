@@ -1,6 +1,6 @@
 # Kotiko privacy policy
 
-Version 3 · 6 October 2026
+Version 4 · 7 October 2026
 
 Kotiko is a browser extension that swaps words on the web pages you read for words you're
 learning in other languages. This page says exactly what it keeps, what it sends, and to
@@ -87,8 +87,10 @@ and once in the background for words saved earlier. Wikimedia's privacy policy:
 <https://foundation.wikimedia.org/wiki/Policy:Privacy_policy>.
 
 **Your key and your server's access key** are kept in a part of the extension's storage
-that web pages and Kotiko's own page scripts can't read. Each is sent only to the service
-it belongs to, at the address you chose in Kotiko's settings.
+that web pages and Kotiko's own page scripts can't read. Your key is sent only to the
+service it belongs to, at the address you chose in Kotiko's settings. Your server's access
+key is never sent at all: Kotiko signs each request to your server with it, and uses an
+answer only if the server signed it with the same key.
 
 **Listening to a word.** Kotiko uses the voices on your computer. If you turn on "Allow
 online voices" in Settings (it's off by default), your browser may send the word you play
@@ -181,6 +183,8 @@ everything in Kotiko's Settings.
 
 ## Changelog
 
+- **Version 4, 7 October 2026.** Your server's access key no longer leaves your browser:
+  Kotiko signs each request to your server with it instead of sending it.
 - **Version 3, 6 October 2026.** "What websites can see" now says what a site can learn
   from the words Kotiko swaps: Kotiko swaps only text on your screen, at most 500
   different words in one visit to a page, and adds nothing where it's paused or off.

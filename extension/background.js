@@ -15,7 +15,7 @@
 // manifest's background.scripts list (before this file) in Firefox's event page.
 if (!globalThis.SyncController && typeof importScripts === "function") {
   importScripts(
-    "lib/url.js", "lib/errors.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js", "lib/i18n.js", "lib/badge.js",
+    "lib/url.js", "lib/server-auth.js", "lib/errors.js", "lib/validate-words.js", "lib/sync-controller.js", "lib/messages.js", "lib/i18n.js", "lib/badge.js",
     "spec/spec.js", "lib/text.js", "lib/lang.js", "lib/words-v1.js", "lib/wordspec.js", "lib/word-merge.js", "lib/store.js",
     "lib/settings.js", "lib/backup.js", "lib/projection.js", "lib/llm/policy.js", "lib/llm/catalog.js", "lib/llm/client.js", "lib/add-queue.js",
     "lib/refresh-job.js", "lib/local-mode.js", "lib/pkce.js", "lib/celebrations.js", "lib/welcome-model.js",
@@ -25,6 +25,7 @@ if (!globalThis.SyncController && typeof importScripts === "function") {
 
 const ext = globalThis.browser ?? globalThis.chrome;
 const { normalizeServerUrl } = globalThis.ServerUrl;
+const ServerAuth = globalThis.KotikoServerAuth;
 const { fromStatus } = globalThis.KotikoErrors;
 const { validateWordsResponse, filterWords } = globalThis.WordValidator;
 const { createSyncController } = globalThis.SyncController;
@@ -127,6 +128,7 @@ async function setSecret(id, value) {
   if (value) await store.secrets.set(id, value);
   else await store.secrets.remove(id);
   secretCache.set(id, value || null);
+  if (id === "server") forgetProof();
   const s = await Local.readSettings(area);
   const keys = { server: s.keys.server, providers: { ...s.keys.providers } };
   if (id === "server") keys.server = !!value;
@@ -343,6 +345,7 @@ async function lookupAllowed(providerId, baseUrl) {
 const RAW = "raw:";
 async function bindRoute(route, url) {
   const value = routeUrl(route, url) ?? (url ? `${RAW}${String(url).trim()}` : null);
+  if (route === "server") forgetProof();
   await (await getStore()).meta.set(routeKey(route), value);
 }
 const sameAddress = (route, url, trusted) => (routeUrl(route, url) ?? `${RAW}${String(url ?? "").trim()}`) === trusted;
@@ -474,7 +477,7 @@ async function connection() {
   if (!stored) throw codedError("server_key_rejected", "Paste your API token to connect.", { reason: "no_token" });
   const n = normalizeServerUrl((await Local.readSettings(area)).server.url);
   if (!n.ok) throw codedError(n.code, n.hint, { hint: n.hint });
-  // Only the address a Kotiko page named gets the token (slice 28 §7).
+  // Only the address a Kotiko page named gets requests signed with the token (slice 28 §7).
   const token = await secretFor("server", n.url);
   if (!token) throw addressChanged("server");
   // And only once the server there has shown it holds the same token (below).
@@ -482,14 +485,20 @@ async function connection() {
   return { base: n.url, token };
 }
 
-// Slice 54, B-01 (defence in depth). Before the token goes to an address, the server there
-// proves it holds the same token without either side sending it: Kotiko sends a fresh random
-// nonce to `POST /api/v1/proof` (no token), the server answers base64url(HMAC-SHA256(token,
-// "kotiko-proof-v1:" + nonce)), and Kotiko checks it with WebCrypto (`subtle.verify`, which
-// compares in constant time). Another program listening at the address (on [::1], or on
-// 127.0.0.1 while Kotiko's server is stopped) never gets the token. A proof holds for this
-// worker's life and that address and token, and is asked for again after the server can't be
-// reached (it may have stopped, and something else started listening).
+// Slice 54, B-01 and D-01. The token never leaves this browser: every request to the
+// server is signed with it (lib/server-auth.js), and every answer must carry the server's
+// signature, made with the same token, before Kotiko reads it. Before the first request to
+// an address, and again whenever its proof is older than 30 s before a request that carries
+// the learner's words or settings (anything but a GET), the server proves it holds the
+// token without either side sending it: Kotiko sends a fresh random nonce to
+// `POST /api/v1/proof`, the server answers base64url(HMAC-SHA256(token, "kotiko-proof-v1:"
+// + nonce)), and Kotiko checks it with WebCrypto (`subtle.verify`, which compares in
+// constant time). So another program listening at the address (on [::1], or on 127.0.0.1
+// while Kotiko's server is stopped) gets no token, can't answer for the server, and gets a
+// word only if it took the port within 30 s of the last proof and before any other request
+// found it out. The proof is forgotten on `server.connect`, when the address or token
+// changes, when the server can't be reached, and after any answer the server didn't sign;
+// nothing more is sent until a new proof succeeds.
 //   - 200 with a proof that doesn't match: that server has another token (the learner's is
 //     wrong, or it isn't theirs): server_key_rejected, reason "wrong_proof".
 //   - no route (401, 404 or 405: a server from before this check), or an answer with no
@@ -497,33 +506,25 @@ async function connection() {
 //     anything could answer 404, so a missing route can't be trusted either.
 const PROOF_CONTEXT = "kotiko-proof-v1:";
 const PROOF_TIMEOUT_MS = 10_000;
-let proven = null; // {base, token} proven in this worker's life
+// How old a proof may be before a request that carries the learner's data.
+const PROOF_FRESH_MS = 30_000;
+let proven = null; // {base, token, at} proven in this worker's life
 let proving = null; // {base, token, promise} under way
 const utf8 = (text) => new TextEncoder().encode(text);
 const b64url = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-const B64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-// Already checked to be 43 base64url characters (32 bytes).
-function fromB64url(text) {
-  const out = [];
-  let bits = 0;
-  let n = 0;
-  for (const c of text) {
-    bits = ((bits << 6) | B64URL.indexOf(c)) & 0xffff;
-    n += 6;
-    if (n >= 8) {
-      n -= 8;
-      out.push((bits >> n) & 0xff);
-    }
-  }
-  return Uint8Array.from(out);
+
+function forgetProof() {
+  proven = null;
+  proving = null;
 }
 
-function proveServer(base, token) {
-  if (proven?.base === base && proven.token === token) return Promise.resolve();
+// Resolves once `base` has proved it holds `token`, within `maxAge` ms when given.
+function proveServer(base, token, maxAge = Infinity) {
+  if (proven?.base === base && proven.token === token && now() - proven.at < maxAge) return Promise.resolve();
   if (proving?.base === base && proving.token === token) return proving.promise;
   const promise = askProof(base, token)
     .then(() => {
-      proven = { base, token };
+      if (proving?.promise === promise) proven = { base, token, at: now() };
     })
     .finally(() => {
       if (proving?.promise === promise) proving = null;
@@ -548,7 +549,7 @@ async function askProof(base, token) {
     if (e?.name === "AbortError") throw e;
     throw codedError("server_unreachable", `Can't reach ${base}. Is the server running?`, { reason: e?.name === "TimeoutError" ? "timeout" : "network" });
   }
-  const noProof = (status) => codedError("not_kotiko_server", `${base} didn't prove it holds this token, so it wasn't sent.`, { reason: "no_proof", status });
+  const noProof = (status) => codedError("not_kotiko_server", `${base} didn't prove it holds this token, so nothing was sent.`, { reason: "no_proof", status });
   if (res.status === 401 || res.status === 404 || res.status === 405) throw noProof(res.status);
   const body = await res.json().catch(() => null);
   if (!res.ok) {
@@ -561,22 +562,45 @@ async function askProof(base, token) {
   const proof = typeof body?.proof === "string" && /^[A-Za-z0-9_-]{43}$/.test(body.proof) ? body.proof : null;
   if (!proof) throw noProof(res.status);
   const key = await crypto.subtle.importKey("raw", utf8(token), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
-  if (!(await crypto.subtle.verify("HMAC", key, fromB64url(proof), utf8(PROOF_CONTEXT + nonce)))) {
+  if (!(await crypto.subtle.verify("HMAC", key, ServerAuth.fromB64url(proof), utf8(PROOF_CONTEXT + nonce)))) {
     throw codedError("server_key_rejected", `The server at ${base} has another token.`, { reason: "wrong_proof", status: res.status });
   }
 }
 
-// Calls the server and returns the raw response. Network failures become coded errors.
+// An answer the server didn't sign: nothing in it is used. A 401 from a server from before
+// signed requests (its challenge is `Bearer` alone) means it needs an update ("no_proof");
+// today's server names `Kotiko-HMAC` and why it refused (`stale`: the clocks differ by
+// over two minutes). Neither is authenticated, so they only choose the message. Anything
+// else (a captive portal, another program) isn't a Kotiko server ("unsigned").
+function unsignedAnswer(base, res) {
+  const c = ServerAuth.challenge(res.headers.get("www-authenticate"));
+  if (res.status === 401 && c.signs) return codedError("server_key_rejected", `${base} refused the request's signature.`, { reason: c.reason ?? "signature", status: 401 });
+  if (res.status === 401) return codedError("not_kotiko_server", `${base} can't check signed requests.`, { reason: "no_proof", status: 401 });
+  if (res.status === 429) return codedError("rate_limited", `${base} answered 429.`, { status: 429 });
+  return codedError("not_kotiko_server", `${base} didn't sign its answer, so it wasn't used.`, { reason: "unsigned", status: res.status });
+}
+
+// Calls the server, signed, and returns its answer once the server's signature on it is
+// checked. Network failures and unsigned answers become coded errors.
 async function request(conn, path, init = {}) {
+  const method = String(init.method ?? "GET").toUpperCase();
+  // The learner's words and settings go only to a server that proved itself just now.
+  if (method !== "GET") await proveServer(conn.base, conn.token, PROOF_FRESH_MS);
+  const url = `${conn.base}${path}`;
+  const body = typeof init.body === "string" ? init.body : "";
+  const { header, nonce } = await ServerAuth.sign(conn.token, { method, path: ServerAuth.target(conn.base, url), body, ts: Math.floor(now() / 1000) });
+  let res;
   try {
-    return await fetch(`${conn.base}${path}`, {
+    res = await fetch(url, {
       ...init,
-      headers: { Authorization: `Bearer ${conn.token}`, ...init.headers },
+      method,
+      headers: { ...init.headers, Authorization: header },
       cache: "no-store",
+      credentials: "omit",
     });
   } catch (e) {
     // The server may have stopped, and another program may listen there next: prove again.
-    if (e?.name !== "AbortError") proven = null;
+    if (e?.name !== "AbortError") forgetProof();
     if (e?.name === "TimeoutError") {
       throw codedError("server_unreachable", `${conn.base} took too long to answer.`, { reason: "timeout" });
     }
@@ -585,6 +609,12 @@ async function request(conn, path, init = {}) {
       reason: "network",
     });
   }
+  if (!(await ServerAuth.verifyResponse(conn.token, nonce, res.status, res.headers.get("x-kotiko-server")))) {
+    forgetProof();
+    res.body?.cancel?.().catch?.(() => {});
+    throw unsignedAnswer(conn.base, res);
+  }
+  return res;
 }
 
 // For add and remove: the parsed body, or an error. A failed lookup carries slice 25's code
@@ -1823,6 +1853,8 @@ ext.runtime.onMessage.addListener(
         check: (m) => (m.url !== undefined && (typeof m.url !== "string" || m.url.length > 500) ? "url must be a string" : m.token !== undefined && (typeof m.token !== "string" || m.token.length > MAX_SECRET) ? "token must be a string" : null),
         async run(m) {
           await ready();
+          // Whatever was proved before, this connection proves itself again.
+          forgetProof();
           if (typeof m.url === "string") {
             // Saved as it will be used (localhost as 127.0.0.1, slice 54 B-01); an address
             // that isn't one is kept as typed, so the settings can show it with its error.

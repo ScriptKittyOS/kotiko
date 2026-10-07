@@ -54,7 +54,8 @@ test("connects to the server, syncs, swaps words on a page and restores them whe
 
   const requests = (await server.state()).log.filter((r) => r.path === "/kotiko/api/words");
   expect(requests.length).toBeGreaterThan(0);
-  expect(requests.every((r) => r.auth === `Bearer ${server.token}`)).toBe(true);
+  // Signed with the token, never carrying it (slice 54, D-01).
+  expect(requests.every((r) => r.signed && !r.auth.includes(server.token))).toBe(true);
 });
 
 test("hiding a language restores its words on the page", async ({ context, server, popup }) => {

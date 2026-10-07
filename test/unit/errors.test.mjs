@@ -26,7 +26,7 @@ const en = readMessages("en");
 
 // Every context and detail that changes which key a code reads as.
 const CTX = [{}, { n: 1 }, { n: 42 }, { local: true }, { text: "perro", base: "Spanish", language: "Russian" }, { surface: "banner" }, { surface: "line", n: 3, local: true, text: "x", base: "German" }];
-const DETAILS = [{}, { provider: "openrouter" }, { reason: "payment_required" }, { reason: "payment_required", provider: "openrouter" }, { retry_at: "2026-10-06T00:00:00.000Z" }, { reason: "no_token" }, { reason: "host_not_allowed" }, { reason: "no_proof" }, { reason: "wrong_proof" }, { reason: "duplicate" }, { route: "lookup:openrouter" }, ...Object.keys(E.STORAGE).map((reason) => ({ reason }))];
+const DETAILS = [{}, { provider: "openrouter" }, { reason: "payment_required" }, { reason: "payment_required", provider: "openrouter" }, { retry_at: "2026-10-06T00:00:00.000Z" }, { reason: "no_token" }, { reason: "host_not_allowed" }, { reason: "no_proof" }, { reason: "wrong_proof" }, { reason: "stale" }, { reason: "unsigned" }, { reason: "duplicate" }, { route: "lookup:openrouter" }, ...Object.keys(E.STORAGE).map((reason) => ({ reason }))];
 
 function everyKey() {
   const keys = new Set();
@@ -81,6 +81,10 @@ describe("the catalog", () => {
     assert.equal(E.message({ code: "rejected_same_as_gloss" }, { text: "perro", base: "español" }), "“perro” is already a word in español. Try naming the language you want it in.");
     assert.equal(E.message({ code: "rejected_same_as_gloss" }, { text: "perro" }), "Couldn't find a word in “perro”. Try the word on its own, or add it yourself.", "no base named: never a guessed one");
     assert.equal(E.message({ code: "word_conflict", details: { reason: "duplicate" } }, { language: "Russian" }), "Another Russian word is already spelled like that.");
+    // Slice 54, D-01: a signed request the server found more than two minutes off its clock.
+    assert.match(E.message({ code: "server_key_rejected", details: { reason: "stale" } }), /clock/);
+    assert.equal(E.message({ code: "not_kotiko_server", details: { reason: "unsigned" } }), en.error_not_kotiko_server.message);
+    assert.equal(E.message({ code: "server_key_rejected", details: { reason: "bad_mac" } }), en.error_server_key_rejected.message);
     assert.equal(E.message({ code: "server_unreachable" }, { n: 3, online: false }), "You're offline. Your 3 words still work on pages; new words will be looked up when you're back.");
   });
 

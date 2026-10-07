@@ -458,6 +458,10 @@
     "message": "Your Kotiko server didn't accept the access key. Paste it again in Connection settings.",
     "description": "The server answered that the access key is wrong."
   },
+  "error_server_key_rejected_stale": {
+    "message": "Your Kotiko server turned Kotiko away because this device's clock and the server's are more than two minutes apart. Set both to the right time.",
+    "description": "Slice 25 error (code server_key_rejected, reason stale; slice 54 D-01): each request is signed with the time, and the server refuses one more than two minutes off its own clock."
+  },
   "error_server_address_invalid": {
     "message": "That server address doesn't look right. Try one like http://127.0.0.1:4747.",
     "description": "The server address can't be used as typed. Keep the example address as it is."

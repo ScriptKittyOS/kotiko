@@ -251,7 +251,9 @@ describe("after slice 12's delete everything, the routes start over like a new i
     await bg.send({ type: "server.connect", url: srv.kotikoUrl, token: srv.token });
     await bg.send({ type: "sync", force: true });
     await bg.fake.idle();
-    assert.ok(srv.state.log.some((r) => r.auth === `Bearer ${srv.token}`));
+    // Signed with the token, which itself never goes out (slice 54, D-01).
+    assert.ok(srv.state.log.some((r) => r.signed));
+    assert.ok(!srv.state.log.some((r) => r.auth?.includes(srv.token)));
   });
 });
 
@@ -312,7 +314,8 @@ describe("localhost becomes 127.0.0.1 (slice 54, B-01)", () => {
     assert.equal(await store.meta.get("route:lookup:ollama"), "http://127.0.0.1:11434/v1");
     sent.length = 0;
     assert.deepEqual(await bg.send({ type: "sync", force: true }, POPUP), { ok: true });
-    await bg.until(() => sent.some((r) => r.auth === `Bearer ${srv.token}`));
+    await bg.until(() => sent.some((r) => r.auth?.startsWith("Kotiko-HMAC ")) && srv.state.log.some((r) => r.signed));
+    assert.ok(!sent.some((r) => r.auth?.includes(srv.token)));
     assert.deepEqual(sent.filter((r) => new URL(r.url).hostname === "localhost"), [], "nothing goes to localhost");
     assert.equal(bg.store.syncError ?? null, null);
   });
@@ -331,7 +334,8 @@ describe("localhost becomes 127.0.0.1 (slice 54, B-01)", () => {
     assert.equal(bg.store.server.url, `http://127.0.0.1:${port}/kotiko`);
     assert.equal(await (await bg.k.getStore()).meta.get("route:server"), `http://127.0.0.1:${port}/kotiko`);
     await bg.send({ type: "sync", force: true }, POPUP);
-    await bg.until(() => sent.some((x) => x.auth === `Bearer ${srv.token}`));
+    await bg.until(() => sent.some((x) => x.auth?.startsWith("Kotiko-HMAC ")) && srv.state.log.some((x) => x.signed));
+    assert.ok(!sent.some((x) => x.auth?.includes(srv.token)));
     assert.deepEqual(sent.filter((x) => new URL(x.url).hostname === "localhost"), []);
   });
 });

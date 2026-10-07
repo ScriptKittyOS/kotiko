@@ -7,6 +7,7 @@ import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { createFakeChrome } from "../helpers/fake-chrome.mjs";
 import { proofFor, startFixtureServer } from "../helpers/fixture-server.mjs";
+import { serverSignature, verifySigned } from "../helpers/kotiko-auth.mjs";
 import { webcrypto } from "node:crypto";
 import { manifest, readExt, runInVm, sleep } from "../helpers/load-script.mjs";
 
@@ -18,28 +19,47 @@ const WORDS = [
 const json = (status, body) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
+// Slice 54, D-01: Kotiko never sends the token; it signs each request with it. Whether a
+// recorded request was signed with `token` (and doesn't carry it).
+const targetOf = (url) => {
+  const u = new URL(url);
+  return u.pathname + u.search;
+};
+const signedWith = (r, token) =>
+  verifySigned(token, { method: r.method ?? "GET", target: targetOf(r.url), body: r.body ?? "", authorization: r.headers?.Authorization }).ok && !JSON.stringify(r).includes(token);
+// A server's answer to a request signed with `token`, signed back as the real server does.
+// A request that isn't signed with it gets the server's 401.
+async function signedAnswer(token, url, init, answer) {
+  const v = verifySigned(token, { method: init.method ?? "GET", target: targetOf(url), body: init.body ?? "", authorization: init.headers?.Authorization });
+  if (!v.ok) return new Response(JSON.stringify({ error: { code: "server_key_rejected" } }), { status: 401, headers: { "www-authenticate": `Bearer, Kotiko-HMAC error="${v.reason}"` } });
+  const res = await answer();
+  res.headers.set("x-kotiko-server", serverSignature(token, v.nonce, res.status));
+  return res;
+}
+
 // A fetch stub that records requests and answers with `handler(url, init)`. The profile
 // the background sends after a sync (slice 41 §9) is recorded apart, in `profile`, and
 // answered by `onProfile` (an echo by default), so the sync tests count only their own.
-// The proof a Kotiko server gives before the token is sent (slice 54, B-01) is answered here
+// The proof a Kotiko server gives before it gets requests (slice 54, B-01) is answered here
 // too, for `token` (the harness's, or a function for a test that changes it), and recorded in
-// `proofs`.
+// `proofs`; every answer is signed with that token, as the real server signs (D-01).
 function stubFetch(handler, { onProfile = (init) => json(200, JSON.parse(init.body)), token = "good-token" } = {}) {
   const requests = [];
   const profile = [];
   const proofs = [];
+  const held = () => (typeof token === "function" ? token() : token);
   const fetch = async (url, init = {}) => {
-    const r = { url: String(url), method: init.method ?? "GET", headers: { ...init.headers }, body: init.body, cache: init.cache };
+    const r = { url: String(url), method: init.method ?? "GET", headers: { ...init.headers }, body: init.body, cache: init.cache, credentials: init.credentials };
     if (r.url.endsWith("/api/v1/proof")) {
       proofs.push(r);
-      return json(200, { proof: proofFor(typeof token === "function" ? token() : token, JSON.parse(init.body).nonce) });
+      return json(200, { proof: proofFor(held(), JSON.parse(init.body).nonce) });
     }
     if (r.url.endsWith("/api/v1/profile")) {
       profile.push(r);
-      return onProfile(init);
+      return signedAnswer(held(), url, init, () => onProfile(init));
     }
     requests.push(r);
-    return handler(String(url), init);
+    return signedAnswer(held(), url, init, () => handler(String(url), init));
   };
   return { fetch, requests, profile, proofs };
 }
@@ -124,7 +144,7 @@ describe("sync", () => {
     assert.equal(store.lastSync, fake.clock.now());
     assert.equal(store.syncError, null);
     assert.deepEqual(requests.map((r) => [r.method, r.url]), [["GET", "http://127.0.0.1:4999/api/words"]]);
-    assert.equal(requests[0].headers.Authorization, "Bearer good-token");
+    assert.ok(signedWith(requests[0], "good-token"));
     assert.equal(requests[0].cache, "no-store");
   });
 
@@ -133,7 +153,7 @@ describe("sync", () => {
     const { send } = loadBackground({ fetch, local: { serverUrl: " http://127.0.0.1:4999// ", token: "  tok \n" } });
     await send({ type: "sync", force: true }, POPUP);
     assert.equal(requests[0].url, "http://127.0.0.1:4999/api/words");
-    assert.equal(requests[0].headers.Authorization, "Bearer tok");
+    assert.ok(signedWith(requests[0], "tok"));
   });
 
   test("doesn't rewrite unchanged words, so open tabs don't redo work", async () => {
@@ -265,7 +285,7 @@ describe("the learner's languages on the server (slice 41 §9)", () => {
     await send({ type: "sync", force: true }, POPUP);
     await settle(fake);
     assert.deepEqual(sentProfiles(profile), [["PUT", "http://127.0.0.1:4999/api/v1/profile", { base_langs: ["es", "en"], ui_lang: null }]]);
-    assert.equal(profile[0].headers.Authorization, "Bearer good-token");
+    assert.ok(signedWith(profile[0], "good-token"));
 
     // Nothing changed: the next sync sends nothing.
     fake.clock.advance(60_000);
@@ -383,7 +403,7 @@ describe("triggers", () => {
     await send({ type: "server.connect", token: "new-token" }, POPUP);
     await requested(fake, requests, 1);
     assert.equal(requests.length, 1);
-    assert.equal(requests[0].headers.Authorization, "Bearer new-token");
+    assert.ok(signedWith(requests[0], "new-token"));
   });
 
   test("ignores messages it doesn't know", async () => {
@@ -417,7 +437,7 @@ describe("add and remove relay", () => {
     assert.deepEqual(posts[0], ["/api/v1/words", { text: "dog in japanese", preview: true, base_langs: ["en"] }]);
     assert.equal(posts[1][0], "/api/v1/words/batch");
     assert.equal(posts[1][1].client_request_id, UUID, "the job's id is the idempotency key");
-    assert.equal(requests[0].headers.Authorization, "Bearer good-token");
+    assert.ok(signedWith(requests[0], "good-token"));
   });
 
   test("a lookup that fails reads as the job's state: a 502 fails with its status, a used-up quota waits for its retry time", async () => {
@@ -494,7 +514,7 @@ describe("add and remove relay", () => {
     const res = await send({ type: "llmStatus" }, POPUP);
     assert.equal(res.quota.remaining, 38);
     assert.deepEqual(store.lookupStatus, { provider: "openrouter", quota, at: fake.clock.now() });
-    assert.equal(requests.at(-1).headers.Authorization, "Bearer good-token");
+    assert.ok(signedWith(requests.at(-1), "good-token"));
 
     await send({ type: "add", text: "x" }, POPUP);
     await sleep(20);
@@ -704,7 +724,8 @@ describe("sync correctness (slice 26)", () => {
       // The profile sent after connecting (slice 41 §9) isn't the sync this test watches.
       if (String(url).endsWith("/api/v1/profile")) return Promise.resolve(json(200, {}));
       if (String(url).endsWith("/api/v1/proof")) return Promise.resolve(json(200, { proof: proofFor(serverToken, JSON.parse(init.body).nonce) }));
-      const token = init.headers.Authorization.slice("Bearer ".length);
+      // Which token signed it (slice 54, D-01: the token itself is never sent).
+      const token = ["bad", "good"].find((t) => signedWith({ url: String(url), method: init.method, headers: init.headers, body: init.body }, t));
       const entry = { token, aborted: false };
       seen.push(entry);
       return new Promise((resolve, reject) => {
@@ -713,7 +734,7 @@ describe("sync correctness (slice 26)", () => {
           reject(Object.assign(new Error("The operation was aborted."), { name: "AbortError" }));
         });
         setTimeout(
-          () => resolve(token === "bad" ? new Response("unauthorized", { status: 401 }) : json(200, { words: WORDS })),
+          () => resolve(token === "bad" ? new Response("unauthorized", { status: 401 }) : signedAnswer(token, url, init, () => json(200, { words: WORDS }))),
           token === "bad" ? 100 : 5,
         );
       });
@@ -751,7 +772,7 @@ describe("sync correctness (slice 26)", () => {
     await fake.idle();
     await sleep(150);
     assert.deepEqual(requests.map((r) => r.url), ["http://127.0.0.1:4999/api/words", "http://127.0.0.1:5000/api/words"]);
-    assert.equal(requests[1].headers.Authorization, "Bearer good-token");
+    assert.ok(signedWith(requests[1], "good-token"));
     assert.deepEqual(store.words, WORDS);
   });
 
@@ -766,7 +787,7 @@ describe("sync correctness (slice 26)", () => {
       await send({ type: "sync", force: true }, POPUP);
       await fake.idle();
       assert.ok(requests.every((r) => !r.url.includes(":6666")), JSON.stringify(patch));
-      assert.ok(requests.every((r) => r.headers.Authorization === "Bearer good-token"), JSON.stringify(patch));
+      assert.ok(requests.every((r) => signedWith(r, "good-token")), JSON.stringify(patch));
       // The trusted address is put back; the 0.2 keys are removed, not adopted.
       assert.equal(store.server.url, "http://127.0.0.1:4999");
       assert.equal(store.token, undefined);
@@ -777,7 +798,7 @@ describe("sync correctness (slice 26)", () => {
     await send({ type: "sync", force: true }, POPUP);
     await fake.idle();
     assert.equal(requests.at(-1).url, "http://127.0.0.1:6666/api/words");
-    assert.equal(requests.at(-1).headers.Authorization, "Bearer good-token");
+    assert.ok(signedWith(requests.at(-1), "good-token"));
   });
 
   test("F31: the fixture server's captive portal is not a word list", async () => {
@@ -1083,7 +1104,7 @@ describe("toolbar badge (slice 20 §5)", () => {
 describe("the server proves it holds the token before it gets it", () => {
   const withToken = (requests) => requests.filter((r) => r.headers?.Authorization);
 
-  test("the server's own test vector (fix/sec-server): the token is sent only after it matches", async () => {
+  test("the server's own test vector (fix/sec-server): requests are signed only after it matches", async () => {
     const TOKEN = "example-token-0123456789abcdef";
     const NONCE = "q1aP3n0ZKcB1x5mW0u7S9bJ2rV4yT6dE8gH0iL2nO4p";
     const PROOF = "E5CHaF60VqTTPPduGD1yAlfWMF5xf9_hmV2qCufV-ek";
@@ -1097,9 +1118,9 @@ describe("the server proves it holds the token before it gets it", () => {
         proofs.push({ headers: { ...init.headers }, body, credentials: init.credentials });
         return json(200, { proof: proofFor(TOKEN, body.nonce) });
       }
-      if (String(url).endsWith("/api/v1/profile")) return json(200, {});
-      requests.push({ url: String(url), headers: { ...init.headers } });
-      return json(200, { words: WORDS });
+      if (String(url).endsWith("/api/v1/profile")) return signedAnswer(TOKEN, url, init, () => json(200, {}));
+      requests.push({ url: String(url), method: init.method, headers: { ...init.headers } });
+      return signedAnswer(TOKEN, url, init, () => json(200, { words: WORDS }));
     };
     // The vector's 32 random bytes, from the worker's random source. (The vector's nonce has
     // its last character's two spare bits set; Kotiko writes the same bytes as "…O4o".)
@@ -1109,7 +1130,7 @@ describe("the server proves it holds the token before it gets it", () => {
     const { send, store } = loadBackground({ fetch, local: { token: TOKEN }, globals: { crypto } });
     assert.deepEqual(await send({ type: "sync", force: true }, POPUP), { ok: true });
     assert.deepEqual(proofs, [{ headers: { "Content-Type": "application/json" }, body: { nonce: sent }, credentials: "omit" }], "the nonce goes alone, with no token");
-    assert.equal(requests[0]?.headers.Authorization, `Bearer ${TOKEN}`);
+    assert.ok(signedWith(requests[0], TOKEN));
     assert.equal(store.syncError, null);
     assert.deepEqual(store.words, WORDS);
   });
@@ -1155,4 +1176,125 @@ describe("the server proves it holds the token before it gets it", () => {
     assert.equal(proofs.length, 2, "proved again before the token went out after the failure");
     assert.equal(store.syncError, null);
   });
+});
+
+// Slice 54, D-01: a proof held for the worker's life let a program that took the port after
+// the server stopped get the token with the next request. Now the token never leaves the
+// browser: each request is signed with it, each answer must carry the server's signature,
+// and anything that carries the learner's words or settings waits for a proof under 30 s old.
+describe("signed requests: the token never leaves the browser (D-01)", () => {
+  const word = { lang: "ru", native: "кот", base_lang: "en", gloss: "cat" };
+  const saved = { ...word, id: "01900000-0000-7000-8000-0000000c0001", forms: [{ text: "cat", enabled: true }] };
+  const save = (send) => send({ type: "words.save", words: [word] }, POPUP);
+  const serverFor = () =>
+    stubFetch((url, init) => {
+      if (url.endsWith("/api/v1/words") && init.method === "POST") return json(200, { results: [{ result: "created", word: saved }], rejected: [] });
+      if (url.endsWith("/api/v1/llm/status")) return json(404, { error: { code: "not_found" } });
+      return json(200, { words: WORDS });
+    });
+
+  test("every request is signed, none carries the token, and every answer's signature is checked", async () => {
+    const { fetch, requests, profile, proofs } = serverFor();
+    const { send, store } = loadBackground({ fetch });
+    assert.deepEqual(await send({ type: "sync", force: true }, POPUP), { ok: true });
+    assert.equal((await save(send)).results[0].result, "created");
+    assert.deepEqual(store.words, WORDS);
+    const all = [...requests, ...profile, ...proofs];
+    assert.ok(requests.length >= 2);
+    assert.deepEqual(all.filter((r) => JSON.stringify(r).includes("good-token")), [], "nothing carried the token");
+    assert.ok([...requests, ...profile].every((r) => signedWith(r, "good-token") && r.credentials === "omit"));
+    assert.ok(all.every((r) => !/Bearer/.test(JSON.stringify(r.headers))));
+  });
+
+  // The reviewer's replay (d-b01.mjs) without a browser: prove and sync, then the server stops
+  // and another program answers at its address.
+  test("after the server stops, a squatter gets no token, and no word once it is found out", async () => {
+    let squatter = false;
+    const heard = [];
+    const server = serverFor();
+    const fetch = async (url, init = {}) => {
+      if (!squatter) return server.fetch(url, init);
+      heard.push({ url: String(url), method: init.method ?? "GET", headers: { ...init.headers }, body: init.body ?? null });
+      // It can't know the token: a made-up proof, and unsigned answers.
+      if (String(url).endsWith("/api/v1/proof")) return json(200, { proof: "A".repeat(43) });
+      return json(200, { words: [] });
+    };
+    const { send, store, fake } = loadBackground({ fetch });
+    assert.deepEqual(await send({ type: "sync", force: true }, POPUP), { ok: true });
+    // What follows a sync (the languages sent to the server, the lookup status) is done.
+    await requested(fake, server.profile, 1);
+    squatter = true;
+    await send({ type: "sync", force: true }, POPUP);
+    await fake.idle();
+    assert.deepEqual([store.syncError?.code, store.syncError?.details?.reason], ["not_kotiko_server", "unsigned"]);
+    assert.deepEqual(store.words, WORDS, "its answer wasn't used");
+    const saving = await save(send);
+    assert.equal(saving.code, "server_key_rejected");
+    assert.equal(saving.details?.reason, "wrong_proof");
+    assert.deepEqual(heard.filter((r) => JSON.stringify(r).includes("good-token")), [], "no request carried the token");
+    assert.deepEqual(heard.filter((r) => r.body && /кот|cat/.test(r.body)), [], "the word never went out");
+    assert.deepEqual(heard.map((r) => `${r.method} ${new URL(r.url).pathname}`), ["GET /api/words", "POST /api/v1/proof"], "only the signed sync, then a proof it couldn't give");
+  });
+
+  test("a request that carries the learner's data waits for a proof under 30 s old", async () => {
+    const order = [];
+    const server = serverFor();
+    const fetch = (url, init = {}) => {
+      order.push(`${init.method ?? "GET"} ${new URL(url).pathname}`);
+      return server.fetch(url, init);
+    };
+    const { send, fake } = loadBackground({ fetch });
+    await send({ type: "sync", force: true }, POPUP);
+    await fake.idle();
+    await save(send);
+    assert.equal(server.proofs.length, 1, "a proof just made is fresh enough");
+    fake.clock.advance(31_000);
+    order.length = 0;
+    await send({ type: "sync", force: true }, POPUP);
+    assert.equal(server.proofs.length, 1, "a read doesn't need a fresh proof");
+    await save(send);
+    assert.equal(server.proofs.length, 2);
+    const proof = order.indexOf("POST /api/v1/proof");
+    assert.ok(proof >= 0 && proof < order.indexOf("POST /api/v1/words"), order.join(", "));
+  });
+
+  test("server.connect, and a changed token or address, forget the proof", async () => {
+    const { fetch, proofs } = serverFor();
+    const { send } = loadBackground({ fetch });
+    await send({ type: "sync", force: true }, POPUP);
+    assert.equal(proofs.length, 1);
+    await send({ type: "server.connect", url: "http://127.0.0.1:4999", token: "good-token" }, POPUP);
+    await send({ type: "sync", force: true }, POPUP);
+    assert.ok(proofs.length >= 2, "connecting again proves again");
+  });
+
+  const unsigned = [
+    ["a server from before signed requests (401, Bearer challenge)", () => new Response("unauthorized", { status: 401, headers: { "www-authenticate": "Bearer" } }), "not_kotiko_server", "no_proof"],
+    ["today's server refusing a stale signature", () => new Response("{}", { status: 401, headers: { "www-authenticate": 'Bearer, Kotiko-HMAC error="stale"' } }), "server_key_rejected", "stale"],
+    ["a 200 signed with another token", (_url, init) => {
+      const r = json(200, { words: [] });
+      r.headers.set("x-kotiko-server", serverSignature("another-token", /nonce=([\w-]+)/.exec(init.headers.Authorization)[1], 200));
+      return r;
+    }, "not_kotiko_server", "unsigned"],
+    ["a 500 with no signature", () => json(500, { error: "x" }), "not_kotiko_server", "unsigned"],
+    ["a captive portal's page", () => new Response("<!doctype html><title>Wi-Fi</title>", { status: 200, headers: { "content-type": "text/html" } }), "not_kotiko_server", "unsigned"],
+  ];
+  for (const [name, answer, code, reason] of unsigned) {
+    test(`an answer it can't trust is never used: ${name}`, async () => {
+      const proofs = [];
+      const fetch = async (url, init = {}) => {
+        if (String(url).endsWith("/api/v1/proof")) {
+          proofs.push(url);
+          return json(200, { proof: proofFor("good-token", JSON.parse(init.body).nonce) });
+        }
+        return answer(url, init);
+      };
+      const { send, store } = loadBackground({ fetch, local: { words: WORDS } });
+      await send({ type: "sync", force: true }, POPUP);
+      assert.deepEqual([store.syncError?.code, store.syncError?.details?.reason], [code, reason]);
+      assert.deepEqual(store.words, WORDS);
+      await send({ type: "sync", force: true }, POPUP);
+      assert.equal(proofs.length, 2, "the proof was forgotten: proved again before the next request");
+    });
+  }
 });

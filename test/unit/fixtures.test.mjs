@@ -144,6 +144,6 @@ describe("fixture server", () => {
     await control({ reset: true });
     await fetch(`${srv.kotikoUrl}/health`);
     const state = await (await fetch(`${srv.url}/__control`)).json();
-    assert.deepEqual(state.log, [{ method: "GET", path: "/kotiko/health", auth: null, host: new URL(srv.url).host }]);
+    assert.deepEqual(state.log, [{ method: "GET", path: "/kotiko/health", auth: null, host: new URL(srv.url).host, signed: false }]);
   });
 });
