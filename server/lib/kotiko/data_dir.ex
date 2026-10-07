@@ -100,9 +100,12 @@ defmodule Kotiko.DataDir do
     with {:error, message} <- check_safe(target, Private.uid()),
          do: Kotiko.Config.halt!(message, 78)
 
-    case migrate(target, legacy_dirs(target, source, System.user_home())) do
+    legacy_dirs = legacy_dirs(target, source, System.user_home())
+
+    case migrate(target, legacy_dirs) do
       {:ok, _result} ->
         make_private(target)
+        make_legacy_private(legacy_dirs -- [target])
         target
 
       {:error, message} ->
@@ -349,6 +352,33 @@ defmodule Kotiko.DataDir do
   end
 
   @doc """
+  Makes the old name's files private in each folder of `dirs` the words were copied from
+  (it has `MOVED-TO-KOTIKO.txt`): `slovo.db` and the files next to it, and the old
+  `api-token`, which is the live token too (slice 54, B-03). A 0.2 install made them with
+  umask 022, so others could read every word in the old copy. Runs after the copy and at
+  every start, for installs copied before this check. Logs one warning per folder it
+  changed. Returns `:ok`.
+  """
+  def make_legacy_private(dirs) do
+    for dir <- dirs, File.regular?(Path.join(dir, @note)) do
+      changed =
+        for name <- @legacy_files ++ ["api-token"],
+            Private.restrict(Path.join(dir, name)) == :changed,
+            do: name
+
+      if changed != [] do
+        Logger.warning(
+          "Made the old files in #{dir} private (#{Enum.join(changed, ", ")}): other users " <>
+            "of this computer could read them. Kotiko copied your words from there; you can " <>
+            "delete that folder once you've checked your words."
+        )
+      end
+    end
+
+    :ok
+  end
+
+  @doc """
   Folders to look in for an old `slovo.db`, in order: the data folder itself, then the
   old default folder, but only when nobody chose the data folder (`source` `:default`).
   """
@@ -443,6 +473,7 @@ defmodule Kotiko.DataDir do
     case result do
       {:ok, words} ->
         write_note(legacy, database)
+        if Path.dirname(legacy) != target, do: make_legacy_private([Path.dirname(legacy)])
 
         Logger.info(
           "Moved your words from #{legacy} to #{database} (#{plural(words, "word")}). " <>

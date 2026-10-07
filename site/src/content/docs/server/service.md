@@ -40,8 +40,10 @@ server/install-service.sh --uninstall --delete-data
 ```
 
 This deletes the files Kotiko keeps in its data folder: the database with your words, the
-saved access key, the cached model list and the backups. Other files in that folder are left
-alone, and the folder goes only if it's then empty. If you might want your words back,
+saved access key, the cached model list and the backups. If your words were moved from the
+folder Kotiko used before its rename (with a `MOVED-TO-KOTIKO.txt` note naming this data
+folder), that old copy and its access key go too. Other files are left alone, and a folder
+goes only if it's then empty. If you might want your words back,
 [export them](/server/updates/#backups) first (`mix kotiko.export`). The `server` folder
 itself (the code and `.env`) is yours to delete when you're done.
 

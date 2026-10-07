@@ -296,6 +296,9 @@ defmodule Kotiko.BootTest do
     old_dir = Path.join(ctx.home, ".local/share/slovo")
     legacy = old_database(ctx, Path.join(old_dir, "slovo.db"))
     File.write!(Path.join(old_dir, "api-token"), "token-the-old-server-made-0123456789\n")
+    # A 0.2 install made its files with umask 022 (B-03).
+    File.chmod!(legacy, 0o644)
+    File.chmod!(Path.join(old_dir, "api-token"), 0o644)
     new_dir = Path.join(ctx.home, ".local/share/kotiko")
     database = Path.join(new_dir, "kotiko.db")
     vars = %{"PORT" => to_string(free_port())}
@@ -315,6 +318,9 @@ defmodule Kotiko.BootTest do
     assert [_backup] = Path.wildcard(Path.join(new_dir, "backups/kotiko-pre-*.db"))
     assert File.exists?(Path.join(old_dir, "MOVED-TO-KOTIKO.txt"))
     assert File.read!(Path.join(new_dir, "api-token")) =~ "token-the-old-server-made"
+    # The old copy and the old token (the live one too) are private now.
+    assert Bitwise.band(File.stat!(legacy).mode, 0o777) == 0o600
+    assert Bitwise.band(File.stat!(Path.join(old_dir, "api-token")).mode, 0o777) == 0o600
 
     # The second start: nothing to move, migrate or back up.
     {output, 0} = boot(vars, @start_and_stop, ctx)

@@ -174,6 +174,37 @@ defmodule Kotiko.DataDirTest do
     assert dump(database) == before
   end
 
+  # B-03 (slice 54): a 0.2 install made slovo.db with umask 022, and the copy left it, and
+  # the old token (now the live one), as they were.
+  test "after the copy, the old database and token are private", ctx do
+    legacy = legacy_db(ctx.legacy_dir, 3)
+    File.chmod!(legacy, 0o644)
+    token = Path.join(ctx.legacy_dir, "api-token")
+    File.write!(token, "token-the-old-server-made-0123456789\n")
+    File.chmod!(token, 0o644)
+
+    log = capture_log(fn -> assert {:ok, {:migrated, 3}} = migrate(ctx) end)
+
+    assert mode(legacy) == 0o600
+    assert mode(token) == 0o600
+    assert log =~ "Made the old files in #{ctx.legacy_dir} private"
+  end
+
+  test "an install moved before this check gets its old files made private at start", ctx do
+    legacy = legacy_db(ctx.legacy_dir, 1)
+    File.write!(Path.join(ctx.legacy_dir, "MOVED-TO-KOTIKO.txt"), "moved")
+    File.chmod!(legacy, 0o644)
+    # Not moved yet: an old folder without the note is left alone.
+    other = Path.join(ctx.root, "other")
+    other_db = legacy_db(other, 1)
+    File.chmod!(other_db, 0o644)
+
+    capture_log(fn -> DataDir.make_legacy_private([ctx.legacy_dir, other]) end)
+
+    assert mode(legacy) == 0o600
+    assert mode(other_db) == 0o644
+  end
+
   test "words that are only in the WAL (a server that was killed) are copied", ctx do
     # A writer that never checkpoints, like a server that is killed: its last writes are
     # only in slovo.db-wal. The three files are copied while it still has them open.

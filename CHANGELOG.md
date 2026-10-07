@@ -5,6 +5,12 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Self-hosted server: after moving your words from the folder used before the rename to
+  Kotiko, the old copy (`~/.local/share/slovo/slovo.db`) and the old access key could stay
+  readable by other accounts. The server now makes them private after the move, and at
+  every start for installs moved earlier. `install-service.sh --uninstall --delete-data`
+  now deletes that old copy too.
+
 - Self-hosted server: someone who could write in your data folder could choose your access
   key (by leaving an `api-token` there) or send your words to a file of theirs (by putting
   a link where `kotiko.db` goes). The server now refuses to start, saying what it found
