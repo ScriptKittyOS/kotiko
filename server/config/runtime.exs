@@ -10,8 +10,8 @@ if config_env() != :test do
   # A secret's NAME_FILE (the path of a file that holds it) comes along with it; the
   # LLM_ and TRANSCRIBE_ ones come with their prefix.
   names =
-    ~w(PORT BIND API_TOKEN API_TOKEN_FILE ALLOWED_HOSTS PUBLIC_URL ALLOWED_TELEGRAM_IDS
-       TELEGRAM_BOT_TOKEN TELEGRAM_BOT_TOKEN_FILE LOG_LEVEL LOG_LOOKUPS)
+    ~w(PORT BIND API_TOKEN API_TOKEN_FILE ALLOWED_HOSTS PUBLIC_URL TRUSTED_PROXY_HEADER
+       ALLOWED_TELEGRAM_IDS TELEGRAM_BOT_TOKEN TELEGRAM_BOT_TOKEN_FILE LOG_LEVEL LOG_LOOKUPS)
 
   # SLOVO_ is the old prefix: its variables still work, with a warning. legacy-name-ok
   prefixes = ~w(KOTIKO_ SLOVO_ LLM_ TRANSCRIBE_)

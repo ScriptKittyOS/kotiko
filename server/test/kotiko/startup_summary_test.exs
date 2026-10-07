@@ -6,8 +6,12 @@ defmodule Kotiko.StartupSummaryTest do
   # owner reads to see the server is set up as they meant. The boot itself runs in
   # boot_test.exs, in a separate VM.
   use ExUnit.Case, async: false
+  import ExUnit.CaptureLog
   import Kotiko.DataCase, only: [put_app_env: 2]
+  require Logger
   alias Kotiko.Application, as: App
+  alias Kotiko.LLM.Client
+  alias Kotiko.Log.Redact
 
   defp line(lines, prefix), do: Enum.find(lines, &String.starts_with?(&1, prefix))
 
@@ -85,5 +89,69 @@ defmodule Kotiko.StartupSummaryTest do
 
     model = line(App.summary_lines(:env, 0, ""), "Model:")
     assert model == "Model:     http://127.0.0.1:42100/llm/v1, 1 model from LLM_MODEL"
+  end
+
+  # Security review E-03: a provider that takes its key in the query (`?key=...`) had it
+  # logged at info, in the model line. LLM_URL keeps its query (some providers need
+  # `?api-version=`), but the query is never logged.
+  describe "a key in LLM_URL's or TRANSCRIBE_URL's query (E-03)" do
+    @key "AIzaQuerySecret-0123456789abcdef"
+    @stt_key "stt-query-secret-0123456789"
+
+    setup do
+      put_app_env(
+        :llm_url,
+        "https://llm.example/v1beta/openai?key=#{@key}&api-version=2026-01-01"
+      )
+
+      put_app_env(
+        :transcribe_url,
+        "https://stt.example/v1/audio/transcriptions?token=#{@stt_key}"
+      )
+
+      put_app_env(:llm_model_source, :env)
+      put_app_env(:llm_models, ["m"])
+      on_exit(fn -> Redact.put_secrets(Redact.configured_secrets()) end)
+    end
+
+    test "the startup summary shows the address without its query" do
+      lines = App.summary_lines(:env, 0, "")
+
+      assert line(lines, "Model:") ==
+               "Model:     https://llm.example/v1beta/openai?…, 1 model from LLM_MODEL"
+
+      refute Enum.join(lines, "\n") =~ @key
+      refute Enum.join(lines, "\n") =~ "api-version"
+    end
+
+    test "the query's values are redacted from every log line, as written and decoded" do
+      put_app_env(:llm_url, "https://llm.example/v1?key=#{@key}&sig=a%2Fb%2Bc%3Dlong")
+      Redact.put_secrets(Redact.configured_secrets())
+
+      log =
+        capture_log(fn ->
+          Logger.info("Model: https://llm.example/v1?key=#{@key}")
+          Logger.error("failed: key #{@key}, voice #{@stt_key}, sig a/b+c=long a%2Fb%2Bc%3Dlong")
+        end)
+
+      refute log =~ @key
+      refute log =~ @stt_key
+      refute log =~ "a/b+c=long"
+      refute log =~ "a%2Fb%2Bc%3Dlong"
+      assert log =~ "[redacted]"
+    end
+
+    test "requests keep the query, after the path" do
+      test = self()
+
+      Req.Test.stub(Kotiko.LLM, fn conn ->
+        send(test, {:asked, conn.request_path, conn.query_string})
+        Req.Test.json(conn, %{data: []})
+      end)
+
+      assert {:ok, _} = Client.get("/models", 1_000)
+      assert_received {:asked, "/v1beta/openai/models", "key=" <> _ = query}
+      assert query =~ "api-version=2026-01-01"
+    end
   end
 end

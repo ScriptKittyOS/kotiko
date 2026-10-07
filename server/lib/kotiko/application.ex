@@ -138,16 +138,15 @@ defmodule Kotiko.Application do
   defp model_line do
     url = Application.fetch_env!(:kotiko, :llm_url)
     models = Application.fetch_env!(:kotiko, :llm_models)
-    # Config refuses a user name or password in LLM_URL; never log one anyway (B-05).
-    provider = if Config.openrouter?(url), do: "OpenRouter", else: without_userinfo(url)
+    # Config refuses a user name or password in LLM_URL; never log one anyway (B-05), nor
+    # the query, which may hold a key (`?key=...`, E-03).
+    provider = if Config.openrouter?(url), do: "OpenRouter", else: Config.loggable_url(url)
 
     case Application.get_env(:kotiko, :llm_model_source, :env) do
       :default -> "#{provider}, its current free models (checked 10 s after start)"
       :env -> "#{provider}, #{plural(length(models), "model")} from LLM_MODEL"
     end
   end
-
-  defp without_userinfo(url), do: URI.to_string(%{URI.parse(url) | userinfo: nil})
 
   defp telegram_line do
     cond do

@@ -129,3 +129,70 @@ test("the command line: --version, and the exit code", (t) => {
   assert.match(r.stdout, /Security review closed: review-v1\.0\.0-rc\.1\.md/);
   assert.equal(gate("--version", "v1.0.0").status, 2, "a version, not a tag");
 });
+
+// Security review E-06: reviewer E's disguises (test/security/poc/e-gate-variants.mjs at
+// v1.0.0-rc.3). Each put an "open" line a reader sees beside the exact closed line, or hid
+// the closed line or the appendix heading from the reader, and the gate read closed.
+test("E-06: open lines in list, table, code, markup, entity or prose form keep the gate open", (t) => {
+  const W = ["G", "a", "t", "e"].join("");
+  const C = `${W}: closed 2026-10-08 by Lead, fixes confirmed on v1.0.0-rc.3`;
+  const A = "## Appendix";
+  const read = (body) => closedReviews(gateDir(t, { "review-v1.0.0-rc.3.md": body }), { version: "1.0.0" });
+  assert.deepEqual(read(`# Review\n${C}\n\n${A}\n`), ["review-v1.0.0-rc.3.md"], "the exact closed line alone closes it");
+  const open = {
+    "ordered list '1. <W>: open'": `1. ${W}: open\n${C}\n${A}\n`,
+    "table row '| <W> | open |'": `| ${W} | open |\n|---|---|\n${C}\n${A}\n`,
+    "inline code '`<W>: open`'": `\`${W}: open\`\n${C}\n${A}\n`,
+    "strikethrough-tilde '~<W>: open~'": `~${W}: open~\n${C}\n${A}\n`,
+    "emoji prefix '🚧 <W>: open'": `🚧 ${W}: open\n${C}\n${A}\n`,
+    "arrow prefix '→ <W>: open'": `→ ${W}: open\n${C}\n${A}\n`,
+    "HTML tag '<b><W></b>: open'": `<b>${W}</b>: open\n${C}\n${A}\n`,
+    "entity 'G&#97;te: open'": `G&#97;te: open\n${C}\n${A}\n`,
+    "dollar math '$<W>$: open'": `$${W}$: open\n${C}\n${A}\n`,
+    "fake appendix inside an HTML comment, open below it": `${C}\n<!--\n${A}\n-->\n${W}: open\n${A}\n`,
+    "fake appendix inside a code fence, open below it": `${C}\n\`\`\`\n${A}\n\`\`\`\n${W}: open\n${A}\n`,
+    "'## Appendix' + zero-width as the only heading": `${C}\n${A}\u200B\n${W}: open\n`,
+    "closed line inside an HTML comment only": `<!--\n${C}\n-->\n${A}\n`,
+    "closed line, then 'Status: still OPEN' prose": `${C}\nStatus: the review is still OPEN; two findings unfixed.\n${A}\n`,
+    "open as setext heading text": `${W}\n: open\n${C}\n${A}\n`,
+    // More of the same kind.
+    "a table with the gate as a column": `| ${W} | Date |\n|---|---|\n| open | today |\n\n${C}\n\n${A}\n`,
+    "a named entity for the colon": `${W}&colon; open\n\n${C}\n\n${A}\n`,
+    "a word split by an inline comment": `G<!-- -->ate: open\n\n${C}\n\n${A}\n`,
+    "a word split by a comment over two lines": `G<!--\n-->ate: open\n\n${C}\n\n${A}\n`,
+    "the closed line inside a code fence": `\`\`\`\n${C}\n\`\`\`\n\n${A}\n`,
+    "the closed line inside an HTML block": `<div hidden>\n${C}\n</div>\n\n${A}\n`,
+    "the closed line struck through by the lines around it": `~~\n${C}\n~~\n\n${A}\n`,
+    "'Gate open' prose beside the review": `${C}\n\nThe review stays open until E-01 is fixed.\n\n${A}\n`,
+    "a blockquote": `> ${W}: open\n\n${C}\n\n${A}\n`,
+    "a heading": `### ${W}: open\n\n${C}\n\n${A}\n`,
+  };
+  for (const [label, body] of Object.entries(open)) assert.deepEqual(read(body), [], label);
+});
+
+test("E-06: ordinary prose about the gate, and the real report's shape, don't count", () => {
+  const text = [
+    "# Security review: v1.0.0-rc.3",
+    "",
+    "The gate closes when a fifth reviewer confirms every fix; the store gate reads lines above the appendix.",
+    "",
+    "| ID | Severity | Status | Fix |",
+    "|---|---|---|---|",
+    "| E-07 | Info | Open routes answer other spellings | fixed in #40 |",
+    "| E-06 | Info | The store gate still reads disguised lines as closed | fixed in #40 |",
+    "",
+    "<!-- the lead writes the closing line below -->",
+    "",
+    "```",
+    "an example: ## Appendix",
+    "```",
+    "",
+    CLOSED,
+    "",
+    "## Appendix: the reviewers' reports, unchanged",
+    "",
+    "Gate: open, says reviewer A's report, quoted.",
+  ].join("\n");
+  assert.equal(gateProblem(text), null);
+  assert.deepEqual(gateLine(text), { date: "2026-11-02", by: "Ayla Croft", candidate: "v1.0.0-rc.2" });
+});

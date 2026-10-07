@@ -95,6 +95,30 @@ behind a reverse proxy). Used only in the pairing string from
 - Wrong: anything else stops the server ("isn't a web address"), and so does a user name
   or password in the address (`https://user:password@...`).
 
+### `TRUSTED_PROXY_HEADER`
+
+Behind a reverse proxy on this computer (Caddy, nginx, `tailscale serve`, a Cloudflare
+tunnel): the header that proxy sets to the address of the client it forwards. The
+wrong-token lockout and the proof limit then count each client on its own, so a stranger
+who sends wrong tokens locks out only themselves, not your other devices.
+
+- Default: none. Every request a proxy on this computer forwards is then counted together
+  under the proxy's address (see [`API_TOKEN`](#api_token)): ten wrong tokens a minute
+  from anyone keep everyone who comes through the proxy out, your other devices included.
+- Allowed: `x-forwarded-for` (the rightmost address in the header, the one the proxy
+  added), `x-real-ip`, `cf-connecting-ip` (its one address), or `forwarded` (the last
+  element's `for=`), in any case. Wrong: anything else stops the server.
+- It is read only for requests from this computer that carry a forwarding header. The
+  address is counted like any other: an IPv6 address by its /64, an IPv4-mapped one as
+  IPv4. A request without a usable address in that header (none, two `X-Real-IP` lines,
+  `unknown`, an obfuscated name) is counted with the proxy's shared count.
+- Set it only when the proxy sets or overwrites that header on every request. Otherwise a
+  client can write any address there and gets a new count with each one. Caddy sets
+  `X-Forwarded-For`, and nginx appends to it with
+  `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`: either way its rightmost
+  address is the client the proxy saw. Behind Cloudflare, use `cf-connecting-ip`, since
+  the rightmost `X-Forwarded-For` address is then Cloudflare's.
+
 ### `API_TOKEN`
 
 The token that opens the server. A secret. The extension never sends it: it signs each
@@ -118,9 +142,14 @@ send it as `Authorization: Bearer <token>` (see the [HTTP API](http-api.md#reque
   page shares, so none of them can lock the extension out;
   [`POST /api/v1/proof`](http-api.md#post-apiv1proof) isn't limited for them either.
   Requests a reverse proxy on this computer forwards (they carry a header such as
-  `X-Forwarded-For` or `Forwarded`) are limited, all together: a stranger's lockout
-  refuses everyone coming through the proxy for the rest of that minute, never the
-  extension. A token the server made (256 random bits) can't be guessed, so this costs
+  `X-Forwarded-For`, `Forwarded` or `Via`; the [HTTP API](http-api.md#requests) lists them)
+  are limited, all together: a stranger's lockout refuses everyone coming through the
+  proxy for the rest of that minute, including the extension on your other devices that
+  reach the server through it. Only the extension on this computer, which sends no
+  forwarding header, is never locked out. Set
+  [`TRUSTED_PROXY_HEADER`](#trusted_proxy_header) to count each client behind the proxy
+  on its own. A proxy that adds none of the listed headers makes its clients look like
+  this computer's own: they are never limited. A token the server made (256 random bits) can't be guessed, so this costs
   nothing; a weak token you chose can be guessed by any program on this computer without
   limit, and the proof lets anyone who can reach the server test guesses offline. Keep
   the generated token.
@@ -152,6 +181,11 @@ The model API: any OpenAI-compatible API's base URL.
 - A user name or password in the address (`https://user:password@host/v1`) stops the
   server too, without showing it: the address is written to the log at start. Put the key
   in [`LLM_API_KEY`](#llm_api_key) (or [`LLM_API_KEY_FILE`](#llm_api_key_file)) instead.
+- A query (`?api-version=2024-10-21`, or `?key=...` for a provider that takes its key
+  there) is kept on every request, after the path (`/chat/completions?api-version=...`).
+  It is never logged: the start-up summary shows the address as `https://host/v1?…`, and
+  the query's values are taken out of every log line like the other secrets. A key that
+  the provider accepts in a header still belongs in `LLM_API_KEY`.
 - Your typed text goes to this address (README, "A different model").
 
 ### `LLM_MODEL`
@@ -196,6 +230,7 @@ upload.
 - Allowed: an `http://` or `https://` address. Wrong: anything else stops the server, and
   so does a user name or password in the address: put the key in
   [`TRANSCRIBE_API_KEY`](#transcribe_api_key) instead.
+- A query is kept on the request and never logged, as for [`LLM_URL`](#llm_url).
 
 ### `TRANSCRIBE_MODEL`
 

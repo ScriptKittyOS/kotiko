@@ -9,6 +9,11 @@ defmodule Kotiko.RouterProofTest do
 
   @nonce "n0nce_from-the-extension_0123456789abcdef"
 
+  setup do
+    Kotiko.RateLimit.reset()
+    on_exit(&Kotiko.RateLimit.reset/0)
+  end
+
   defp expected(token, nonce) do
     :crypto.mac(:hmac, :sha256, token, "kotiko-proof-v1:" <> nonce)
     |> Base.url_encode64(padding: false)
@@ -31,9 +36,26 @@ defmodule Kotiko.RouterProofTest do
     conn = prove(%{nonce: @nonce})
 
     assert conn.status == 200
-    assert json_body(conn) == %{"proof" => expected(token(), @nonce)}
+    assert %{"proof" => proof} = json_body(conn)
+    assert proof == expected(token(), @nonce)
     refute conn.resp_body =~ token()
     assert get_resp_header(conn, "cache-control") == ["no-store"]
+  end
+
+  # Security review E-01: the boot id every signed request carries, which a restart changes,
+  # comes with the proof, signed with the token for this nonce.
+  test "carries this boot's id, with its MAC for the nonce" do
+    boot = Kotiko.RequestAuth.boot()
+    body = json_body(prove(%{nonce: @nonce}))
+    assert Map.keys(body) |> Enum.sort() == ~w(boot boot_mac proof)
+    assert body["boot"] == boot
+
+    assert body["boot_mac"] ==
+             :crypto.mac(:hmac, :sha256, token(), "kotiko-boot-v1\n#{@nonce}\n#{boot}")
+             |> Base.url_encode64(padding: false)
+
+    Kotiko.RequestAuth.reset()
+    refute json_body(prove(%{nonce: @nonce}))["boot"] == boot
   end
 
   test "matches the example in docs/reference/http-api.md" do
@@ -159,6 +181,21 @@ defmodule Kotiko.RouterProofTest do
     assert via_proxy.("203.0.113.99").status == 429
     # The extension, on the same address without a forwarding header, isn't limited.
     for _ <- 1..10, do: assert(prove(%{nonce: @nonce}, ip: {127, 0, 0, 1}).status == 200)
+  end
+
+  test "with TRUSTED_PROXY_HEADER, proofs through the proxy are limited per client (E-02)" do
+    put_app_env(:proof_requests_per_minute, 3)
+    put_app_env(:trusted_proxy_header, "x-real-ip")
+
+    via_proxy = fn client ->
+      build_conn(%{nonce: @nonce}, ip: {127, 0, 0, 1})
+      |> Plug.Conn.put_req_header("x-real-ip", client)
+      |> Kotiko.Router.call(Kotiko.Router.init([]))
+    end
+
+    for _ <- 1..3, do: assert(via_proxy.("203.0.113.9").status == 200)
+    assert via_proxy.("203.0.113.9").status == 429
+    assert via_proxy.("198.51.100.7").status == 200
   end
 
   test "an unknown Host is refused before the proof" do

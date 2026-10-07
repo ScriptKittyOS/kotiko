@@ -9,12 +9,14 @@
 // (no HTTP listener, stubbed HTTP clients, environment ignored), so it can't serve a
 // browser. Set FULLSTACK_MIX_ENV to override. Skipped when `mix` isn't installed.
 import { spawn, spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test, expect } from "./fixtures.mjs";
+import { requireExt } from "../helpers/load-script.mjs";
 
 const SERVER_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../server");
 const TOKEN = "fullstack-token-0123456789abcdefghijklmnopq"; // 43 characters
@@ -50,6 +52,55 @@ async function waitForHealth(url, child, log) {
   throw new Error(`The server didn't answer /health within ${BOOT_TIMEOUT_MS / 1000} s:\n${log.join("")}`);
 }
 
+// Starts the real server on `port` with `dataDir`, and waits until it answers /health.
+async function startServer(port, dataDir, fixtureUrl, log) {
+  const child = spawn("mix", ["run", "--no-halt"], {
+    cwd: SERVER_DIR,
+    detached: true, // own process group, so teardown stops the BEAM as well as mix
+    stdio: ["ignore", "pipe", "pipe"],
+    env: {
+      ...process.env,
+      MIX_ENV,
+      PORT: String(port),
+      BIND: "127.0.0.1",
+      API_TOKEN: TOKEN,
+      KOTIKO_DATA_DIR: dataDir,
+      LLM_URL: `${fixtureUrl}/llm/v1`,
+      LLM_MODEL: "fake/model-a:free,fake/model-b:free",
+      LLM_API_KEY: "fake-llm-key",
+      TELEGRAM_BOT_TOKEN: "",
+      ALLOWED_TELEGRAM_IDS: "",
+      TRANSCRIBE_URL: "",
+      // Self-contained: the real server never asks Wiktionary (slice 49 §4b) in tests.
+      KOTIKO_WIKTIONARY: "false",
+    },
+  });
+  child.stdout.on("data", (d) => log.push(String(d)));
+  child.stderr.on("data", (d) => log.push(String(d)));
+  await waitForHealth(`http://127.0.0.1:${port}`, child, log);
+  return child;
+}
+
+// Stops a server startServer started (its whole process group), and waits until it has.
+async function stopServer(child) {
+  if (!child || child.exitCode !== null) return;
+  const exited = new Promise((r) => child.once("exit", r));
+  try {
+    process.kill(-child.pid, "SIGTERM");
+  } catch {
+    // already gone
+  }
+  const timer = setTimeout(() => {
+    try {
+      process.kill(-child.pid, "SIGKILL");
+    } catch {
+      // already gone
+    }
+  }, 5000);
+  await exited;
+  clearTimeout(timer);
+}
+
 test.describe("full stack", () => {
   test.skip(!hasMix, "`mix` isn't on PATH: install Elixir to run the full-stack smoke (CI runs it).");
   test.describe.configure({ timeout: BOOT_TIMEOUT_MS + 60_000 });
@@ -66,50 +117,11 @@ test.describe("full stack", () => {
     const port = await freePort();
     serverUrl = `http://127.0.0.1:${port}`;
 
-    child = spawn("mix", ["run", "--no-halt"], {
-      cwd: SERVER_DIR,
-      detached: true, // own process group, so teardown stops the BEAM as well as mix
-      stdio: ["ignore", "pipe", "pipe"],
-      env: {
-        ...process.env,
-        MIX_ENV,
-        PORT: String(port),
-        BIND: "127.0.0.1",
-        API_TOKEN: TOKEN,
-        KOTIKO_DATA_DIR: dataDir,
-        LLM_URL: `${fixtureUrl}/llm/v1`,
-        LLM_MODEL: "fake/model-a:free,fake/model-b:free",
-        LLM_API_KEY: "fake-llm-key",
-        TELEGRAM_BOT_TOKEN: "",
-        ALLOWED_TELEGRAM_IDS: "",
-        TRANSCRIBE_URL: "",
-        // Self-contained: the real server never asks Wiktionary (slice 49 §4b) in tests.
-        KOTIKO_WIKTIONARY: "false",
-      },
-    });
-    child.stdout.on("data", (d) => log.push(String(d)));
-    child.stderr.on("data", (d) => log.push(String(d)));
-    await waitForHealth(serverUrl, child, log);
+    child = await startServer(port, dataDir, fixtureUrl, log);
   });
 
   test.afterAll(async () => {
-    if (child && child.exitCode === null) {
-      const exited = new Promise((r) => child.once("exit", r));
-      try {
-        process.kill(-child.pid, "SIGTERM");
-      } catch {
-        // already gone
-      }
-      const timer = setTimeout(() => {
-        try {
-          process.kill(-child.pid, "SIGKILL");
-        } catch {
-          // already gone
-        }
-      }, 5000);
-      await exited;
-      clearTimeout(timer);
-    }
+    await stopServer(child);
     if (dataDir) await fs.rm(dataDir, { recursive: true, force: true });
   });
 
@@ -226,5 +238,86 @@ test.describe("full stack", () => {
     expect(await modelCalls()).toBe(before + 3);
     await expect(p.locator("#lookupsLeft")).toBeHidden();
     await server.control({ llm: null });
+  });
+});
+
+// Security review E-01, reviewer E's e-replay-skew scenario on the real server. A program
+// that took the port while the server was stopped catches the extension's signed requests;
+// the server keeps its nonces only in memory, so after a restart it had forgotten them, and
+// a request stamped ahead of the server's clock (a client clock up to 120 s fast) was
+// answered with the learner's words. Every request now signs the boot id the server's proof
+// gave, and a restart makes a new one, so those requests are refused (`stale_boot`).
+test.describe("full stack: a request caught while the server was stopped", () => {
+  test.skip(!hasMix, "`mix` isn't on PATH: install Elixir to run the full-stack smoke (CI runs it).");
+  test.describe.configure({ timeout: 2 * BOOT_TIMEOUT_MS + 60_000 });
+
+  const Auth = requireExt("lib/server-auth.js");
+  const PATH = "/api/v1/words?status=active,paused";
+  let child;
+  let dataDir;
+  const log = [];
+
+  test.afterAll(async () => {
+    await stopServer(child);
+    if (dataDir) await fs.rm(dataDir, { recursive: true, force: true });
+  });
+
+  test.afterEach(async ({}, testInfo) => {
+    if (testInfo.status !== testInfo.expectedStatus) {
+      await testInfo.attach("server log", { body: log.join(""), contentType: "text/plain" });
+    }
+  });
+
+  const proof = async (url) => {
+    const nonce = randomBytes(32).toString("base64url");
+    const res = await fetch(`${url}/api/v1/proof`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nonce }) });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(await Auth.verifyBoot(TOKEN, nonce, body.boot, body.boot_mac)).toBe(true);
+    return body.boot;
+  };
+  const play = (url, header) => fetch(`${url}${PATH}`, { headers: { Authorization: header } });
+
+  test("is refused after the restart, however far ahead its clock was", async () => {
+    const fixtureUrl = process.env.FIXTURE_URL;
+    if (!fixtureUrl) throw new Error("FIXTURE_URL isn't set; run the tests through `npm run e2e`.");
+    dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "kotiko-replay-"));
+    const port = await freePort();
+    const url = `http://127.0.0.1:${port}`;
+
+    child = await startServer(port, dataDir, fixtureUrl, log);
+    const before = await proof(url);
+    const added = await fetch(`${url}/api/v1/words`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ word: { lang: "ru", native: "кот", base_lang: "en", gloss: "cat" } }),
+    });
+    expect(added.status).toBe(200);
+    await stopServer(child);
+
+    // What the squatter receives while the server is stopped: the extension's requests,
+    // signed for the boot it last proved, stamped with a clock up to 119 s ahead.
+    const now = Math.floor(Date.now() / 1000);
+    const caught = [];
+    for (const ahead of [0, 30, 90, 119]) caught.push((await Auth.sign(TOKEN, { method: "GET", path: PATH, ts: now + ahead, boot: before })).header);
+
+    child = await startServer(port, dataDir, fixtureUrl, log);
+    for (const header of caught) {
+      const res = await play(url, header);
+      const body = await res.text();
+      expect(res.status, header).toBe(401);
+      expect(res.headers.get("www-authenticate")).toBe('Bearer, Kotiko-HMAC error="stale_boot"');
+      expect(res.headers.get("x-kotiko-server")).toBeNull();
+      expect(body).not.toContain("кот");
+    }
+
+    // The extension proves again and gets the new boot id; its requests are answered.
+    const after = await proof(url);
+    expect(after).not.toBe(before);
+    const { header, nonce } = await Auth.sign(TOKEN, { method: "GET", path: PATH, boot: after });
+    const res = await play(url, header);
+    expect(res.status).toBe(200);
+    expect(await Auth.verifyResponse(TOKEN, nonce, 200, res.headers.get("x-kotiko-server"))).toBe(true);
+    expect((await res.json()).words.map((w) => w.native)).toEqual(["кот"]);
   });
 });

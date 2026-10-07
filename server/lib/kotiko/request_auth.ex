@@ -9,23 +9,25 @@ defmodule Kotiko.RequestAuth do
 
   A signed request carries one header:
 
-      Authorization: Kotiko-HMAC v1 ts=<unix seconds>, nonce=<base64url>, body=<hex>, mac=<base64url>
+      Authorization: Kotiko-HMAC v2 ts=<unix seconds>, nonce=<base64url>, boot=<base64url>, body=<hex>, mac=<base64url>
 
     * `ts`: the client's time, in whole seconds since 1970 (1 to 12 digits).
     * `nonce`: 22 to 128 base64url characters (16 or more random bytes), new for every request.
+    * `boot`: this server's boot id (`boot/0`), 22 to 64 base64url characters, as the
+      proof (`POST /api/v1/proof`) gave it.
     * `body`: the SHA-256 of the request body's bytes, 64 lowercase hex digits (of the empty
       string when there is no body).
     * `mac`: base64url, without padding, of HMAC-SHA256 with the token's UTF-8 bytes as the
       key over the canonical request:
 
-          "kotiko-req-v1\\n" <> METHOD <> "\\n" <> path <> "\\n" <> ts <> "\\n" <> nonce <> "\\n" <> body
+          "kotiko-req-v2\\n" <> METHOD <> "\\n" <> path <> "\\n" <> ts <> "\\n" <> nonce <> "\\n" <> boot <> "\\n" <> body
 
       METHOD is the method in capitals; `path` is the request target as the server receives
       it, raw (not percent-decoded), with `?` and the query string when there is one; `ts`,
-      `nonce` and `body` are the header's values exactly as sent.
+      `nonce`, `boot` and `body` are the header's values exactly as sent.
 
-  It is accepted when the MAC matches (compared in constant time), `ts` is within
-  120 seconds of the server's clock and not before the server started, the nonce wasn't
+  It is accepted when the MAC matches (compared in constant time), `boot` is this server's
+  boot id, `ts` is within 120 seconds of the server's clock either way, the nonce wasn't
   seen before, and the body's hash is the one signed. Every answer to an accepted request
   carries
 
@@ -39,9 +41,15 @@ defmodule Kotiko.RequestAuth do
   nonce, which would let that request be replayed. Only a token holder can fill it, and
   only by sending that many requests within four minutes.
 
-  A server restarted between a request and its replay has forgotten the nonce; refusing a
-  `ts` from before the server started closes that gap: a request a squatter caught while
-  the server was stopped can't be played to the server once it is back.
+  **The boot id** (security review E-01). The nonces live in memory, so a restarted server
+  has forgotten them. Each start makes a new random boot id (128 bits), which the proof
+  answer carries, authenticated with the token (`boot_mac/3`), and every signed request
+  signs. A request signed before a restart carries the old id and is refused
+  (`:stale_boot`, 401 `error="stale_boot"`); the extension then asks for a new proof and
+  sends the request again, once. So a request a squatter caught while the server was
+  stopped can't be played to the server once it is back, however far ahead the client's
+  clock was. (Before, only a `ts` from before the start was refused, which let a request
+  stamped up to 120 s ahead through after a restart.)
   """
   import Plug.Conn
 
@@ -49,31 +57,44 @@ defmodule Kotiko.RequestAuth do
   @max_nonces 50_000
   @purge_every 1_000
   @table Kotiko.RequestAuth.Nonces
-  @started {__MODULE__, :started}
-  @request_label "kotiko-req-v1"
+  @boot {__MODULE__, :boot}
+  @request_label "kotiko-req-v2"
   @response_label "kotiko-resp-v1"
+  @boot_label "kotiko-boot-v1"
   @scheme "Kotiko-HMAC "
-  @params ~r/\Av1 ts=(\d{1,12}), nonce=([A-Za-z0-9_-]{22,128}), body=([0-9a-f]{64}), mac=([A-Za-z0-9_-]{43})\z/
+  @params ~r/\Av2 ts=(\d{1,12}), nonce=([A-Za-z0-9_-]{22,128}), boot=([A-Za-z0-9_-]{22,64}), body=([0-9a-f]{64}), mac=([A-Za-z0-9_-]{43})\z/
 
   @doc "The window, in seconds, either side of the server's clock."
   def window, do: @window
 
-  @doc "Creates the nonce table and notes when the server started (at boot)."
+  @doc "Creates the nonce table and this boot's id (at boot)."
   def init do
     if :ets.whereis(@table) == :undefined do
       :ets.new(@table, [:named_table, :public, :set, write_concurrency: true])
     end
 
-    :persistent_term.put(@started, System.system_time(:second))
+    :persistent_term.put(@boot, new_boot())
     :ok
   end
 
-  @doc "Forgets every nonce (for tests); `started` sets the start time."
-  def reset(started \\ 0) do
+  @doc "Forgets every nonce (for tests); `boot` sets the boot id (a new one by default)."
+  def reset(boot \\ nil) do
     if :ets.whereis(@table) != :undefined, do: :ets.delete_all_objects(@table)
-    :persistent_term.put(@started, started)
+    :persistent_term.put(@boot, boot || new_boot())
     :ok
   end
+
+  @doc "This boot's id: 16 random bytes made at start, as 22 base64url characters."
+  def boot, do: :persistent_term.get(@boot)
+
+  defp new_boot, do: :crypto.strong_rand_bytes(16) |> Base.url_encode64(padding: false)
+
+  @doc """
+  The proof answer's `boot_mac`: base64url(HMAC-SHA256(token, "kotiko-boot-v1\\n" <> nonce <>
+  "\\n" <> boot)), for the proof's `nonce`, so the client knows the boot id is this
+  server's, for its own request.
+  """
+  def boot_mac(token, nonce, boot), do: mac(token, Enum.join([@boot_label, nonce, boot], "\n"))
 
   @doc "Whether an `Authorization` value uses this scheme."
   def signed?(value), do: String.starts_with?(value, @scheme)
@@ -84,8 +105,9 @@ defmodule Kotiko.RequestAuth do
   """
   def parse(@scheme <> params) do
     case Regex.run(@params, params) do
-      [_, ts, nonce, body, mac] ->
-        {:ok, %{ts: String.to_integer(ts), ts_text: ts, nonce: nonce, body: body, mac: mac}}
+      [_, ts, nonce, boot, body, mac] ->
+        {:ok,
+         %{ts: String.to_integer(ts), ts_text: ts, nonce: nonce, boot: boot, body: body, mac: mac}}
 
       nil ->
         :error
@@ -95,8 +117,8 @@ defmodule Kotiko.RequestAuth do
   def parse(_), do: :error
 
   @doc "The canonical request the MAC is made over."
-  def canonical(method, path, ts_text, nonce, body_hash),
-    do: Enum.join([@request_label, method, path, ts_text, nonce, body_hash], "\n")
+  def canonical(method, path, ts_text, nonce, boot, body_hash),
+    do: Enum.join([@request_label, method, path, ts_text, nonce, boot, body_hash], "\n")
 
   @doc "The request target as the server got it: the raw path, then `?query` if any."
   def target(%Plug.Conn{request_path: path, query_string: ""}), do: path
@@ -115,21 +137,23 @@ defmodule Kotiko.RequestAuth do
 
   @doc """
   Checks a parsed header against `conn` and `token`. `:ok`, or `{:error, reason}`:
-  `:bad_mac`, `:stale` (outside the window, or from before the server started),
-  `:replayed`, or `:full` (the nonce table is full; the request was genuine).
+  `:bad_mac`, `:stale_boot` (signed for another boot of the server: before a restart),
+  `:stale` (more than 120 s before or after the server's clock), `:replayed`, or `:full`
+  (the nonce table is full; the request was genuine).
   """
   def verify(conn, token, %{} = h) do
-    expected = mac(token, canonical(conn.method, target(conn), h.ts_text, h.nonce, h.body))
+    expected =
+      mac(token, canonical(conn.method, target(conn), h.ts_text, h.nonce, h.boot, h.body))
+
     now = System.system_time(:second)
 
     cond do
       not Plug.Crypto.secure_compare(expected, h.mac) -> {:error, :bad_mac}
-      abs(now - h.ts) > @window or h.ts < started() -> {:error, :stale}
+      not Plug.Crypto.secure_compare(h.boot, boot()) -> {:error, :stale_boot}
+      h.ts > now + @window or h.ts < now - @window -> {:error, :stale}
       true -> remember(h.nonce, h.ts + @window + 1, now)
     end
   end
-
-  defp started, do: :persistent_term.get(@started, 0)
 
   # insert_new is atomic: of two requests with one nonce, exactly one gets in.
   defp remember(nonce, expires, now) do

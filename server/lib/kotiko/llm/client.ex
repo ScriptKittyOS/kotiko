@@ -152,7 +152,12 @@ defmodule Kotiko.LLM.Client do
       if(key, do: [{"authorization", "Bearer " <> key}], else: [])
   end
 
-  defp url(path), do: Application.fetch_env!(:kotiko, :llm_url) <> path
+  # The path goes before LLM_URL's query, if it has one (`?api-version=...`): the query
+  # stays on every request.
+  defp url(path) do
+    uri = URI.parse(Application.fetch_env!(:kotiko, :llm_url))
+    URI.to_string(%{uri | path: String.trim_trailing(uri.path || "", "/") <> path})
+  end
 
   defp put_if(map, true, key, value), do: Map.put(map, key, value)
   defp put_if(map, _false, _key, _value), do: map

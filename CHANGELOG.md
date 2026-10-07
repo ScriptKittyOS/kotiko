@@ -28,6 +28,40 @@ Conventional Commits by release-please.
   now warns however the address is written. An OpenRouter address in capitals is also
   recognised as OpenRouter.
 
+- Security: a program that took your server's place while it was stopped could keep a
+  request Kotiko sent it and play it to your server once it was back, and get your word
+  list, when the clock of the computer Kotiko runs on was ahead of the server's. Your
+  server now makes a new random id each time it starts, gives it with its proof, and
+  accepts only requests signed with the current one; after a restart Kotiko asks for a
+  new proof and sends the request again by itself. Update the server and the extension
+  together: each turns the other's older version away and says so.
+
+- Release process: the check that holds store uploads until the security review is closed
+  still missed "Gate: open" written as a list item, a table row, code, HTML, an entity or
+  math, a fake "Appendix" heading inside a comment or code block, a closing line hidden in
+  a comment, and "the review is still open" written as prose. It now reads all of these as
+  open, counts the closing line and the heading only where a reader sees them, and says
+  which line keeps the gate open.
+
+- Self-hosted server: the two addresses that answer without your access key, `/health` and
+  `/api/v1/proof`, also answered when written another way, such as `/health/` or
+  `//api/v1/proof`. Now only the exact addresses do; any other spelling needs the key.
+
+- Self-hosted server: a key written in the query of `LLM_URL` or `TRANSCRIBE_URL` (some
+  providers take `?key=...`) was written to the log at start. The log now shows the address
+  without its query (`https://host/v1?…`), and the query's values are taken out of every
+  log line. A query such as `?api-version=...` now also reaches the provider on every
+  request, after the path.
+
+- Self-hosted server behind a reverse proxy: everyone the proxy passes on was counted as
+  one, so a stranger sending ten wrong keys a minute could keep your other devices out
+  for as long as they kept at it. Set the new `TRUSTED_PROXY_HEADER` to the header your
+  proxy puts each visitor's address in (`x-forwarded-for`, `x-real-ip`,
+  `cf-connecting-ip` or `forwarded`), and each visitor is counted on their own. The server
+  also recognises more of the headers proxies add (`Via`, `X-Client-IP`,
+  `Fastly-Client-IP` and others), so visitors through such a proxy are no longer taken for
+  your own computer, which is never limited.
+
 - Security: a Kotiko server set to a model of its own (`LLM_MODEL`), for example on a paid
   provider, sent no limit on how long an answer may be, so a model that kept writing could
   cost you up to the provider's own limit for one word. Every lookup now asks for at most
