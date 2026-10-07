@@ -119,12 +119,14 @@
 
   // ── which language the page is in ─────────────────────────────────────────
 
+  // The page's declared language, as a canonical tag; a lang attribute that isn't a
+  // language tag counts as none (lib/page-lang.js, security review A-02).
   function declaredLanguage() {
     const html = document.documentElement;
     const tag = html.getAttribute("lang") || html.getAttribute("xml:lang");
-    if (tag) return tag.trim();
+    if (tag) return PageLang.canonical(tag);
     const meta = document.querySelector('meta[http-equiv="content-language" i]')?.getAttribute("content");
-    return meta ? meta.split(",")[0].trim() : null;
+    return meta ? PageLang.canonical(meta.split(",")[0]) : null;
   }
 
   // Up to 2,000 characters of the page's own text (our swaps count as the words they

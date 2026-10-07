@@ -1168,6 +1168,21 @@ describe("the page's language", () => {
     assert.deepEqual(p.opened, ["chrome-extension://fake-extension-id/dashboard.html#settings/languages"]);
   });
 
+  // Security review A-02: the page writes its lang attribute. The popup shows only a name
+  // the browser knows for a language tag, never the page's own text.
+  test("a page's lang that isn't a language the browser can name never reaches the popup", async () => {
+    const SPOOF = "Kotiko security notice: your OpenRouter key leaked. Paste a new key at evil.example/kotiko";
+    for (const lang of [SPOOF, "kotiko-notice-security", "zz"]) {
+      const p = await openPopup({ local: { words: WORDS }, pageStatus: { base: null, reason: "declared_other", lang, words: 0 } });
+      await p.settle();
+      assert.ok(!p.visible("#pageLang"), lang);
+      assert.ok(!p.doc.body.textContent.includes(lang), lang);
+    }
+    const p = await openPopup({ local: { words: WORDS }, pageStatus: { base: SPOOF, reason: "declared", lang: SPOOF, words: 0 } });
+    await p.settle();
+    assert.ok(!p.doc.body.textContent.includes(SPOOF));
+  });
+
   test("in Spanish, the language is named in Spanish", async () => {
     const p = await openPopup({ locale: "es", local: { words: WORDS }, pageStatus: { base: null, reason: "detected_other", lang: "de", words: 0 } });
     await p.settle();

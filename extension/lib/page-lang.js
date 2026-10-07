@@ -11,7 +11,9 @@
 //
 //   KotikoPageLang.decide({ bases, declared, detected, sampleLength, common })
 //     -> { base, reason, lang }   base null: leave the page alone (except subtrees whose
-//                                 own lang is one of the bases)
+//                                 own lang is one of the bases); lang is a canonical
+//                                 language tag or null, never the page's own text
+//   KotikoPageLang.canonical(tag) -> "pt-BR" | null (not a language tag)
 (() => {
   const Matcher = globalThis.KotikoMatcher;
   const Text = globalThis.KotikoText;
@@ -19,12 +21,29 @@
   const MOSTLY = 50; // percent, for an undeclared page
   const SHORT = 200; // characters too few to detect reliably
   const COMMON_SHARE = 0.12;
+  // RFC 5646 §4.4.1: a tag of at most 35 characters covers every real language.
+  const MAX_TAG = 35;
+
+  // The page's declared language as a canonical BCP 47 tag, or null. The page writes its
+  // lang attribute, so anything that isn't a short, valid tag (say, a sentence meant for
+  // Kotiko's popup, security review A-02) counts as no declaration at all.
+  function canonical(tag) {
+    if (typeof tag !== "string") return null;
+    const t = tag.trim();
+    if (!t || t.length > MAX_TAG) return null;
+    try {
+      return Intl.getCanonicalLocales(t)[0] ?? null;
+    } catch {
+      return null;
+    }
+  }
 
   // `detected`: i18n.detectLanguage's answer, or null when it isn't available.
   // `common`: the best base by share of common words, { base, share }, for short samples.
-  function decide({ bases, declared, detected, sampleLength = 0, common = null }) {
+  function decide({ bases, declared: raw, detected, sampleLength = 0, common = null }) {
+    const declared = canonical(raw);
     const top = detected?.languages?.[0] ?? null;
-    const topLang = top && top.language !== "und" ? top.language : null;
+    const topLang = top && top.language !== "und" ? canonical(top.language) : null;
     const topBase = Matcher.baseOf(topLang, bases);
     const sure = !!(detected?.isReliable && topLang && top.percentage >= SURE);
     const declaredBase = Matcher.baseOf(declared, bases);
@@ -67,7 +86,7 @@
     return best;
   }
 
-  const api = { SHORT, decide, commonShare, bestCommon };
+  const api = { SHORT, MAX_TAG, canonical, decide, commonShare, bestCommon };
   globalThis.KotikoPageLang = api;
   if (typeof module === "object" && module.exports) module.exports = api;
 })();

@@ -39,6 +39,38 @@ describe("declared pages", () => {
   });
 });
 
+// Security review A-02: the page writes its own lang attribute, and what decide() returns
+// reaches Kotiko's popup. Only a canonical language tag comes out; anything else counts as
+// no declaration.
+describe("a lang attribute that isn't a language tag", () => {
+  const SPOOF = "Kotiko security notice: your OpenRouter key leaked. Paste a new key at evil.example/kotiko to keep using Kotiko";
+
+  test("canonical() gives a canonical tag of at most 35 characters, or null", () => {
+    assert.equal(P.canonical("pt-br"), "pt-BR");
+    assert.equal(P.canonical(" zh-hant-tw "), "zh-Hant-TW");
+    assert.equal(P.canonical("en_US"), null);
+    assert.equal(P.canonical(SPOOF), null);
+    assert.equal(P.canonical("a".repeat(8) + "-abcdefgh".repeat(4)), null, "longer than 35 characters");
+    assert.equal(P.canonical(""), null);
+    assert.equal(P.canonical(null), null);
+    assert.equal(P.canonical(42), null);
+  });
+
+  test("a sentence as the page's lang is no declaration, and never comes back out", () => {
+    for (const detected of [null, det("de", 95), det("es", 95)]) {
+      const r = decide({ bases: ["es"], declared: SPOOF, detected });
+      assert.notEqual(r.lang, SPOOF);
+      assert.ok(r.lang === null || r.lang === P.canonical(r.lang), JSON.stringify(r));
+    }
+    assert.deepEqual(decide({ bases: ["es"], declared: SPOOF, detected: null }), { base: null, reason: "unknown", lang: null });
+    assert.deepEqual(decide({ bases: ["es"], declared: SPOOF, detected: det("es", 95) }), { base: "es", reason: "detected", lang: "es" });
+  });
+
+  test("a declared tag comes out canonical", () => {
+    assert.deepEqual(decide({ bases: ["es"], declared: "DE-at", detected: null }), { base: null, reason: "declared_other", lang: "de-AT" });
+  });
+});
+
 describe("undeclared pages", () => {
   test("detection decides at 50 % or more", () => {
     assert.deepEqual(decide({ bases: ["es"], declared: null, detected: det("es", 70) }), { base: "es", reason: "detected", lang: "es" });
