@@ -92,7 +92,8 @@ async function settled(fake, store, id, states = ["done", "failed", "waiting", "
 // Waits until `n` requests were made (the worker's start-up binds routes first, so a fixed
 // sleep isn't enough under load), then a little longer, so an extra request would show.
 async function requested(fake, requests, n) {
-  for (let i = 0; i < 200 && requests.length < n; i++) {
+  // Up to 10 s: the full suite on a busy machine can take more than a second to get there.
+  for (const end = Date.now() + 10_000; requests.length < n && Date.now() < end;) {
     await fake.idle();
     await sleep(5);
   }
@@ -109,7 +110,7 @@ describe("sync", () => {
   test("writes the server's words, the sync time and clears the error", async () => {
     const { fetch, requests } = serverWith(WORDS);
     const { send, store, fake } = loadBackground({ fetch, local: { syncError: "old error" } });
-    assert.deepEqual(await send({ type: "sync", force: true }), { ok: true });
+    assert.deepEqual(await send({ type: "sync", force: true }, POPUP), { ok: true });
     assert.deepEqual(store.words, WORDS);
     assert.equal(store.lastSync, fake.clock.now());
     assert.equal(store.syncError, null);
@@ -121,7 +122,7 @@ describe("sync", () => {
   test("trims the token and trailing slashes on the address", async () => {
     const { fetch, requests } = serverWith(WORDS);
     const { send } = loadBackground({ fetch, local: { serverUrl: " http://127.0.0.1:4999// ", token: "  tok \n" } });
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     assert.equal(requests[0].url, "http://127.0.0.1:4999/api/words");
     assert.equal(requests[0].headers.Authorization, "Bearer tok");
   });
@@ -133,7 +134,7 @@ describe("sync", () => {
     await k.ready();
     await fake.idle();
     const start = fake.calls.set.length;
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     const since = fake.calls.set.slice(start);
     const writes = since.filter((c) => c.area === "local" && "lastSync" in c.items);
     assert.equal(writes.length, 1);
@@ -148,11 +149,25 @@ describe("sync", () => {
     fake.clock.advance(4000);
     await send({ type: "sync" });
     assert.equal(requests.length, 1, "too soon");
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     assert.equal(requests.length, 2, "forced");
     fake.clock.advance(5001);
     await send({ type: "sync" });
     assert.equal(requests.length, 3, "after 5 s");
+  });
+
+  // Slice 54, A-08: code in a content script's world could ask with force and make the
+  // server send the whole list in a tight loop. Only Kotiko's own pages may skip the wait.
+  test("a content script's force is ignored: its syncs keep the 5 s wait", async () => {
+    const { fetch, requests } = serverWith(WORDS);
+    const { send } = loadBackground({ fetch });
+    await send({ type: "sync" });
+    assert.equal(requests.length, 1);
+    for (let i = 0; i < 20; i++) assert.deepEqual(await send({ type: "sync", force: true }, SENDERS.content), { ok: true });
+    assert.equal(requests.length, 1, "twenty forced syncs from a content script, none sent");
+    await send({ type: "sync", force: true }, SENDERS.pageInTab);
+    await send({ type: "sync", force: true }, POPUP);
+    assert.equal(requests.length, 3, "Kotiko's pages still sync at once");
   });
 
   test("a sync requested during another waits for a fresh run, not the old answer", async () => {
@@ -163,7 +178,7 @@ describe("sync", () => {
       return json(200, { words: WORDS });
     });
     const { send } = loadBackground({ fetch });
-    await Promise.all([send({ type: "sync", force: true }), send({ type: "sync", force: true })]);
+    await Promise.all([send({ type: "sync", force: true }, POPUP), send({ type: "sync", force: true }, POPUP)]);
     assert.equal(calls, 2);
   });
 
@@ -175,7 +190,7 @@ describe("sync", () => {
       return json(200, { words: WORDS });
     });
     const { send } = loadBackground({ fetch });
-    const first = send({ type: "sync", force: true });
+    const first = send({ type: "sync", force: true }, POPUP);
     await sleep(10);
     await Promise.all([first, ...Array.from({ length: 5 }, () => send({ type: "sync", force: true }, POPUP))]);
     assert.equal(calls, 2);
@@ -195,7 +210,7 @@ describe("sync", () => {
     test(`reports ${name} as a sync error and keeps the cached words`, async () => {
       const { fetch, requests } = stubFetch(handler ?? (() => json(200, { words: [] })));
       const { send, store, fake } = loadBackground({ fetch, local: { words: WORDS, ...local } });
-      await send({ type: "sync", force: true });
+      await send({ type: "sync", force: true }, POPUP);
       assert.equal(store.syncError.code, expected.code);
       assert.deepEqual(store.syncError.details, expected.details);
       assert.equal(typeof store.syncError.message, "string");
@@ -211,7 +226,7 @@ describe("a profile with no token (slice 11: words in this browser)", () => {
   test("syncing asks no server, reports no error, and pages keep the cached words", async () => {
     const { fetch, requests } = serverWith([]);
     const { send, store, fake } = loadBackground({ fetch, local: { words: WORDS, token: "" } });
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     await sleep(150);
     await fake.idle();
     assert.equal(requests.length, 0);
@@ -238,14 +253,14 @@ describe("the learner's languages on the server (slice 41 §9)", () => {
     const { fetch, profile } = serverWith(WORDS);
     const { send, fake } = loadBackground({ fetch });
     assert.deepEqual(await send({ type: "settings.set", merge: { ui: { uiLang: "auto", baseLangs: ["es", "en"] } } }, PAGE), { ok: true });
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     await settle(fake);
     assert.deepEqual(sentProfiles(profile), [["PUT", "http://127.0.0.1:4999/api/v1/profile", { base_langs: ["es", "en"], ui_lang: null }]]);
     assert.equal(profile[0].headers.Authorization, "Bearer good-token");
 
     // Nothing changed: the next sync sends nothing.
     fake.clock.advance(60_000);
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     await settle(fake);
     assert.equal(profile.length, 1);
 
@@ -270,7 +285,7 @@ describe("the learner's languages on the server (slice 41 §9)", () => {
     const { send, fake } = loadBackground({ fetch });
     assert.deepEqual(await send({ type: "profile.sync" }, PAGE), { ok: false, code: "internal" });
     answer = () => json(200, {});
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     await settle(fake);
     assert.equal(profile.length, 2, "tried again after the sync");
 
@@ -278,7 +293,7 @@ describe("the learner's languages on the server (slice 41 §9)", () => {
     const old = stubFetch(() => json(200, { words: WORDS }), { onProfile: () => json(404, { error: "No such route." }) });
     const bg = loadBackground({ fetch: old.fetch });
     assert.deepEqual(await bg.send({ type: "profile.sync" }, PAGE), { ok: true });
-    await bg.send({ type: "sync", force: true });
+    await bg.send({ type: "sync", force: true }, POPUP);
     await settle(bg.fake);
     assert.equal(old.profile.length, 1);
   });
@@ -523,7 +538,7 @@ describe("against the fixture server", () => {
   test("sync, add and Undo round-trip through the fake Kotiko API", async () => {
     srv.reset();
     const { send, store, fake } = loadBackground({ fetch, local: { serverUrl: srv.kotikoUrl, token: srv.token } });
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     assert.equal(store.syncError, null);
     assert.deepEqual(store.words, srv.state.words);
 
@@ -545,15 +560,15 @@ describe("against the fixture server", () => {
       ["html", "not_kotiko_server"],
     ]) {
       srv.state.kotiko = mode;
-      await send({ type: "sync", force: true });
+      await send({ type: "sync", force: true }, POPUP);
       assert.equal(store.syncError?.code, code, mode);
     }
     assert.equal(store.syncError.details.error, undefined);
     srv.state.kotiko = "500";
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     assert.equal(store.syncError.details.error, "Something broke on the fake server.");
     srv.state.kotiko = null;
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     assert.equal(store.syncError, null);
   });
 });
@@ -571,7 +586,7 @@ describe("sync correctness (slice 26)", () => {
       serverWords = [{ ...WORDS[0], id: 2, native: "new" }, ...serverWords];
     });
     const { send, store, fake } = loadBackground({ fetch });
-    const syncing = send({ type: "sync", force: true });
+    const syncing = send({ type: "sync", force: true }, POPUP);
     await sleep(5);
     await send({ type: "add", id: JOB, text: "new" }, POPUP);
     await settled(fake, store, JOB);
@@ -588,7 +603,7 @@ describe("sync correctness (slice 26)", () => {
       return bad ? new Response("unauthorized", { status: 401 }) : json(200, { words: WORDS });
     });
     const { send, store, fake } = loadBackground({ fetch, local: { token: "bad" } });
-    send({ type: "sync", force: true });
+    send({ type: "sync", force: true }, POPUP);
     await sleep(10);
     send({ type: "server.connect", token: "good" }, POPUP);
     await fake.idle();
@@ -600,7 +615,7 @@ describe("sync correctness (slice 26)", () => {
   test("F31: a 200 that isn't a Kotiko answer is an error, not an empty sync", async () => {
     const { fetch } = stubFetch(() => new Response("<!doctype html><p>Captive portal</p>", { status: 200, headers: { "content-type": "text/html" } }));
     const { send, store } = loadBackground({ fetch, local: { words: WORDS } });
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     assert.ok(store.syncError, "reports an error");
     assert.equal(store.lastSync, undefined, "doesn't claim a sync");
     assert.deepEqual(store.words, WORDS, "keeps the cached words");
@@ -610,7 +625,7 @@ describe("sync correctness (slice 26)", () => {
     test(`F32: a server address without a scheme gets http:// (${address})`, async () => {
       const { fetch, requests } = serverWith(WORDS);
       const { send } = loadBackground({ fetch, local: { serverUrl: address } });
-      await send({ type: "sync", force: true });
+      await send({ type: "sync", force: true }, POPUP);
       assert.equal(requests[0]?.url, `http://${address}/api/words`);
     });
   }
@@ -634,7 +649,7 @@ describe("sync correctness (slice 26)", () => {
       return json(200, { words: snapshot });
     });
     const { send, store } = loadBackground({ fetch, local: { words: WORDS } });
-    const syncing = send({ type: "sync", force: true });
+    const syncing = send({ type: "sync", force: true }, POPUP);
     await sleep(5);
     await send({ type: "remove", id: 2 }, POPUP);
     await syncing;
@@ -704,7 +719,7 @@ describe("sync correctness (slice 26)", () => {
       return json(200, { words: url.includes(":4999") ? [] : WORDS });
     });
     const { send, store, fake } = loadBackground({ fetch });
-    send({ type: "sync", force: true });
+    send({ type: "sync", force: true }, POPUP);
     for (let i = 0; i < 200 && requests.length === 0; i++) await sleep(5);
     assert.equal(requests.length, 1, "the first sync started");
     // A Kotiko page names the new address (slice 28 §7: only a page can move the token).
@@ -719,12 +734,12 @@ describe("sync correctness (slice 26)", () => {
   test("slice 28 §7: an address or token written straight to storage.local (as a content script can) is never used", async () => {
     const { fetch, requests } = stubFetch(async () => json(200, { words: WORDS }));
     const { send, store, fake } = loadBackground({ fetch });
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     assert.equal(requests.length, 1);
     for (const patch of [{ serverUrl: "http://127.0.0.1:6666" }, { server: { url: "http://127.0.0.1:6666" } }, { token: "planted", serverUrl: "http://127.0.0.1:6666" }]) {
       await fake.chrome.storage.local.set(patch);
       await fake.idle();
-      await send({ type: "sync", force: true });
+      await send({ type: "sync", force: true }, POPUP);
       await fake.idle();
       assert.ok(requests.every((r) => !r.url.includes(":6666")), JSON.stringify(patch));
       assert.ok(requests.every((r) => r.headers.Authorization === "Bearer good-token"), JSON.stringify(patch));
@@ -735,7 +750,7 @@ describe("sync correctness (slice 26)", () => {
     }
     // A Kotiko page that names the address moves the token there.
     await send({ type: "server.connect", url: "http://127.0.0.1:6666" }, POPUP);
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     await fake.idle();
     assert.equal(requests.at(-1).url, "http://127.0.0.1:6666/api/words");
     assert.equal(requests.at(-1).headers.Authorization, "Bearer good-token");
@@ -746,7 +761,7 @@ describe("sync correctness (slice 26)", () => {
     try {
       srv.state.kotiko = "html";
       const { send, store } = loadBackground({ fetch, local: { serverUrl: srv.kotikoUrl, token: srv.token, words: WORDS } });
-      await send({ type: "sync", force: true });
+      await send({ type: "sync", force: true }, POPUP);
       assert.equal(store.syncError.code, "not_kotiko_server");
       assert.equal(store.lastSync, undefined);
       assert.deepEqual(store.words, WORDS);
@@ -764,7 +779,7 @@ describe("sync correctness (slice 26)", () => {
     test(`F31: JSON with ${name} is not a word list`, async () => {
       const { fetch } = stubFetch(() => json(200, body));
       const { send, store } = loadBackground({ fetch, local: { words: WORDS } });
-      await send({ type: "sync", force: true });
+      await send({ type: "sync", force: true }, POPUP);
       assert.equal(store.syncError.code, "not_kotiko_server");
       assert.deepEqual(store.words, WORDS);
     });
@@ -779,7 +794,7 @@ describe("sync correctness (slice 26)", () => {
     const { fetch } = serverWith([...WORDS, ...bad]);
     const warnings = [];
     const { send, store } = loadBackground({ fetch, globals: { console: { ...console, warn: (...a) => warnings.push(a) } } });
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     assert.deepEqual(store.words, WORDS);
     assert.equal(store.syncError, null);
     assert.equal(store.syncWarnings.dropped, 3);
@@ -790,7 +805,7 @@ describe("sync correctness (slice 26)", () => {
   test("E2: a clean sync clears earlier warnings", async () => {
     const { fetch } = serverWith(WORDS);
     const { send, store } = loadBackground({ fetch, local: { syncWarnings: { dropped: 1, reasons: { bad_forms: 1 } } } });
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     assert.equal(store.syncWarnings, null);
   });
 
@@ -820,7 +835,7 @@ describe("sync correctness (slice 26)", () => {
     test(`F32: the address ${address} is normalised before the request`, async () => {
       const { fetch, requests } = serverWith(WORDS);
       const { send } = loadBackground({ fetch, local: { serverUrl: address } });
-      await send({ type: "sync", force: true });
+      await send({ type: "sync", force: true }, POPUP);
       assert.equal(requests[0]?.url, url);
     });
   }
@@ -829,7 +844,7 @@ describe("sync correctness (slice 26)", () => {
     test(`F32: ${address} is reported as an invalid address, without a request`, async () => {
       const { fetch, requests } = serverWith(WORDS);
       const { send, store } = loadBackground({ fetch, local: { serverUrl: address, words: WORDS } });
-      await send({ type: "sync", force: true });
+      await send({ type: "sync", force: true }, POPUP);
       assert.equal(requests.length, 0);
       assert.equal(store.syncError.code, "server_address_invalid");
       assert.ok(store.syncError.details.hint);
@@ -846,7 +861,7 @@ describe("sync correctness (slice 26)", () => {
     };
     const { fetch } = stubFetch(() => new Promise(() => {}));
     const { send, store } = loadBackground({ fetch, local: { words: WORDS }, globals: { setTimeout: fastTimeout } });
-    await send({ type: "sync", force: true });
+    await send({ type: "sync", force: true }, POPUP);
     assert.ok(timers.includes(20_000));
     assert.equal(store.syncError.code, "server_unreachable");
     assert.deepEqual(store.syncError.details, { reason: "timeout" });

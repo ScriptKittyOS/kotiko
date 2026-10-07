@@ -1469,10 +1469,13 @@ ext.runtime.onMessage.addListener(
     docsOrigin: globalThis.KotikoPKCE.DOCS_ORIGIN,
     handlers: {
       ...wordRoutes,
+      // Only Kotiko's own pages skip the 5 s wait (`force`): a content script's sync waits
+      // like a page load's, whatever it asks (slice 54, A-08).
       sync: {
         from: ["page", "content"],
-        async run(msg) {
-          await requestSync(msg.force ? { reason: "manual", force: true } : { reason: "page" });
+        async run(msg, sender) {
+          const fromPage = globalThis.MessageRouter.senderKinds(sender, ext.runtime).has("page");
+          await requestSync(msg.force === true && fromPage ? { reason: "manual", force: true } : { reason: "page" });
           return { ok: true };
         },
       },
