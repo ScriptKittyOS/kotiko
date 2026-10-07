@@ -625,6 +625,14 @@ captioned screenshots from the real extension on `test/fixtures/pages/store-arti
   `BACKGROUND_SERVICE_WORKER_IGNORED`, which slice 30's Firefox build can clear.
 - Artwork (05) and uploads (30).
 
+### 2026-10-06: Firefox data collection (slice 54, finding C-11)
+
+The manifest now declares `data_collection_permissions: {required: ["authenticationInfo"]}`:
+Mozilla's policy counts the learner's own key, sent to the service they chose, as
+authentication information leaving the browser, and the Chrome form already said so. The
+`required: ["none"]` above is the original decision. Making it optional (asked for when a
+key is first saved) is a follow-up.
+
 ## Acceptance criteria
 
 - [ ] The privacy policy exists at both locations, matches `inventory.md` row by row, and

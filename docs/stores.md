@@ -57,8 +57,10 @@ release); from then on release-please picks the version from the commits: `fix` 
 5. **Approve the store uploads.** The two store jobs wait for approval in the `release`
    environment (Actions, the run, "Review deployments"). Before asking, the workflow checks
    that slice 54's security review is closed; until it is, the store jobs fail and nobody is
-   asked to approve. After approval, Chrome gets the zip and submits it for review; Firefox
-   gets the unpacked zip through `web-ext sign --channel listed` and doesn't wait for review.
+   asked to approve. After approval, each store gets the zip from the GitHub release itself,
+   checked against `SHA256SUMS` first: Chrome submits it for review; Firefox gets it as a new
+   listed version through AMO's API (`scripts/amo-submit.mjs`, which uses web-ext's AMO
+   client but not `web-ext sign`, because that builds a new zip) and doesn't wait for review.
    Both jobs succeed on "submitted"; review takes hours to days.
 6. **Afterwards.** A daily job (`.github/workflows/store-status.yml`) writes the Chrome Web
    Store's review status into the release notes until the version is live. Once AMO
@@ -75,6 +77,20 @@ git fetch origin release-please--branches--main
 git switch --detach origin/release-please--branches--main
 scripts/tag-release.sh --rc 1 --ssh-key ~/.ssh/kotiko_release.pub
 ```
+
+**When a tag's run fails** (a test that failed by chance, a runner problem), run the failed
+jobs again for the same tag; there is no need for a new tag or candidate number:
+
+```sh
+gh run list --workflow release.yml --branch v1.0.0-rc.1 --limit 1   # the run's id
+gh run rerun <run-id> --failed
+```
+
+`--failed` reruns the failed jobs and the jobs after them, on the same commit; verify-tag's
+result and the files of jobs that passed are kept. The release build's property tests use
+fixed seeds (`FC_SEED`, and `mix test --seed`), so a rerun runs the same inputs; CI keeps a
+new seed on every pull request. A failure that comes back on the rerun is a real one: fix it
+on `main` and tag the next candidate.
 
 ### Trying the pipeline without releasing
 
@@ -95,24 +111,38 @@ All of these are the maintainer's to do; nothing in the repository can do them.
 
 - **Settings, Actions, General**: "Allow GitHub Actions to create and approve pull requests"
   (release-please opens the release PR with the workflow's token).
-- **Settings, Environments, `release`**:
-  - Required reviewers: the maintainers (MAINTAINERS.md), at least one. Leave "Prevent
-    self-review" off, so the release manager can approve their own release.
+- **Settings, Environments, `release`** (created 2026-10-06; until it existed, GitHub would
+  have created it on first use with no protection):
+  - Required reviewers: the maintainers (MAINTAINERS.md), at least one; today the
+    maintainer. Leave "Prevent self-review" off, so the release manager can approve their
+    own release. Every store upload waits for this approval.
   - Deployment branches and tags: "Selected branches and tags", add the **tag** rule `v*` and
     no branches. Store jobs run on the release tag, never on a branch, a pull request or a
     fork.
   - Secrets: the six store secrets below. Nothing else in the repository can read them.
 - **Settings, Environments, `store-status`**: no reviewers; deployment branches: `main`
   only. Secrets: the read-only Chrome Web Store credentials below.
-- **Settings, Rules, Rulesets**: "tags are permanent" (since 2026-10-06, as in the
-  maintainer's other projects) covers every tag: no updates, deletions or force pushes, and
-  no bypass. Only collaborators with write access (the maintainers) can push a tag at all,
-  and the release workflow builds only a tag signed by a key in `.github/allowed_signers`,
-  so a tag can't be moved after a release and an unsigned one releases nothing. Two more rulesets: `main` takes changes only through pull requests whose CI checks
-  pass (no force pushes or deletion, no bypass). GitHub allows push rulesets only on
-  private repositories, so the old push ruleset is disabled; CI's required `secrets` job
-  rejects `.env`, database, private-key and token files and files over 10 MB instead
-  (`scripts/check-forbidden-files.mjs`), along with unsigned commits (the DCO).
+- **Settings, Rules, Rulesets**:
+  - "tags are permanent" (since 2026-10-06, as in the maintainer's other projects) covers
+    every tag: no updates, deletions or force pushes. The one exception is the release
+    manager (the repository admin), who can delete a wrong release tag (below).
+  - Release tags (`v*`): only the release manager (the repository admin) can create or
+    delete them; other maintainers can't, so nobody else can take a version's name first.
+    The release workflow builds only a tag signed by a key in `.github/allowed_signers`,
+    under the name it was signed with, so a tag can't be moved after a release and an
+    unsigned or renamed one releases nothing.
+  - `main` takes changes only through pull requests whose required CI checks pass (no force
+    pushes or deletion, no bypass). It doesn't require an approving review: a maintainer
+    can merge their own pull request once the checks pass. That is an accepted risk while
+    one maintainer does nearly all the work ([CODE_REVIEW.md](CODE_REVIEW.md), step 2);
+    review by a second maintainer is the aim, not yet enforced.
+  - GitHub allows push rulesets only on private repositories, so the old push ruleset is
+    disabled; CI's required `secrets` job rejects `.env`, database, private-key and token
+    files and files over 10 MB instead (`scripts/check-forbidden-files.mjs`), along with
+    unsigned commits (the DCO). On a pull request, that job and the dependency scan take
+    their settings (`.gitleaks.toml`, `.gitleaksignore`, `osv-scanner.toml`) and these
+    check scripts from the base commit (`scripts/base-file.sh`), so a pull request can't
+    switch off its own checks; its edits to them apply once it is merged.
 - **Settings, Secrets and variables, Actions, Variables** (optional):
   `CHROME_STORE_URL` and `FIREFOX_STORE_URL` (the listing pages, used in release notes once
   the items exist), `CWS_DEPLOY_PERCENTAGE` (a staged rollout, 1 to 100; leave unset to
@@ -221,12 +251,22 @@ prompt (07, 09):
 
 ### The security gate in the workflow
 
-The `store-gate` job passes only when the tagged tree has a
-`docs/security/review-vX.Y.Z[-rc.N].md` with a line starting `Gate: closed` (for example
-`Gate: closed 2026-11-02 by <lead>, fixes confirmed on v1.0.0-rc.2`), which slice 54's lead
-writes when the review ends. That blocks every store upload until the first review is done.
-Later reviews (for releases that touch the areas above) are enforced by the checklist box,
-not by the workflow, because no script can tell which releases need one.
+The `store-gate` job (`scripts/check-security-gate.mjs`) passes only when the tagged tree has
+a `docs/security/review-vX.Y.Z-rc.N.md` that slice 54's lead closed when the review ended,
+with exactly one line of this form, on its own, above the report's `## Appendix` heading
+(under which the reviewers' reports are appended):
+
+```text
+Gate: closed 2026-11-02 by <lead>, fixes confirmed on v1.0.0-rc.2
+```
+
+The candidate it names is one of the reviewed version's. A second `Gate:` line (for example
+`Gate: open`) above the appendix keeps the gate open, and lines under the appendix count for
+nothing. That blocks every store upload until the first review is done. When a review is
+opened for the version being released (a `review-vX.Y.Z-rc.N.md` for that version), that
+review must be the closed one. Whether a later release needs a review at all (it touches
+the areas above) is enforced by the checklist box, not by the workflow, because no script
+can tell which releases need one.
 
 ## Rollback
 
@@ -238,11 +278,15 @@ until the fix is approved. On the Chrome Web Store, a staged rollout
 
 ## When something goes wrong
 
-- **"isn't signed" or "not in the allowed signers file"**: the tag was made without `-s`, or
-  with a key not in `.github/allowed_signers` (or `.github/release-keys.asc`) on `main`.
-  Delete the tag (`git push origin :refs/tags/vX.Y.Z` and `git tag -d vX.Y.Z`; the ruleset
-  lets maintainers do this), fix the key, run `scripts/tag-release.sh` again. Nothing was
-  built or published.
+- **"isn't signed", "not in the allowed signers file" or "signed as … not …"**: the tag was
+  made without `-s`, with a key not in `.github/allowed_signers` (or
+  `.github/release-keys.asc`) on `main`, or it holds another tag's signed object. Nothing
+  was built or published. Only the release manager (the repository admin) can delete a
+  wrong release tag; other maintainers can't. The release manager deletes it
+  (`git push origin :refs/tags/vX.Y.Z` and `git tag -d vX.Y.Z`), fixes the key, and runs
+  `scripts/tag-release.sh` again.
+- **A test failed in the release build**: rerun the failed jobs for the same tag
+  (`gh run rerun <run-id> --failed`, [above](#release-candidates)).
 - **release-please doesn't open the next PR**: the last release PR still has the label
   `autorelease: pending`. The workflow moves it to `autorelease: tagged`; if it warned that
   it couldn't find the PR, change the label by hand.

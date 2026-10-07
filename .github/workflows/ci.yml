@@ -20,6 +20,10 @@ jobs:
   # .env, database, key or oversized file in the tree or a pull request's commits (GitHub's
   # push rulesets work only on private repositories), and every commit a pull request adds
   # is signed off (the Developer Certificate of Origin, CONTRIBUTING.md).
+  #
+  # On a pull request, gitleaks' settings and the check scripts come from the base commit,
+  # so a pull request can't switch off its own checks (security review C-01): its edits to
+  # them take effect once it is merged. On main they come from the tree.
   secrets:
     runs-on: ubuntu-24.04
     env:
@@ -36,21 +40,50 @@ jobs:
             "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
           echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+      # Security review C-01's regression test, with this gitleaks: a pull request that adds a
+      # token and allows it in its own .gitleaks.toml and .gitleaksignore still fails.
+      - name: A pull request can't switch off its own scan (test)
+        env:
+          GITLEAKS: ${{ runner.temp }}/gitleaks
+        run: node --test test/unit/pr-checks-base.test.mjs
+      - name: The checks' settings and scripts, from the base commit on a pull request
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          ref="${BASE:-HEAD}"
+          git cat-file -e "$ref^{commit}"
+          # The base's own copy of the helper. Only the pull request that adds it has none.
+          if git cat-file -e "$ref:scripts/base-file.sh" 2>/dev/null; then
+            git show "$ref:scripts/base-file.sh" > "$RUNNER_TEMP/base-file.sh"
+          else
+            echo "::warning title=No base-file.sh on the base::Using this tree's copy; only the pull request that adds it should see this."
+            cp scripts/base-file.sh "$RUNNER_TEMP/base-file.sh"
+          fi
+          bash "$RUNNER_TEMP/base-file.sh" "$ref" "$RUNNER_TEMP/trusted" \
+            .gitleaks.toml .gitleaksignore scripts/check-forbidden-files.mjs scripts/check-dco.mjs
+          # gitleaks also reads the .gitleaksignore of the folder it scans, whatever
+          # --gitleaks-ignore-path says, so the tree's copies go.
+          rm -f .gitleaks.toml .gitleaksignore
       - name: Scan the full history
         # HEAD's full history (all of main plus this pull request's commits). Not --all: the
         # checkout fetches every branch, and another branch's finding would fail this one.
-        run: '"$RUNNER_TEMP/gitleaks" git --log-opts="HEAD" --redact --config .gitleaks.toml --exit-code 1 .'
+        # Inline "gitleaks:allow" comments don't count: a pull request could add one.
+        run: >-
+          "$RUNNER_TEMP/gitleaks" git --log-opts="HEAD" --redact --exit-code 1
+          --config "$RUNNER_TEMP/trusted/.gitleaks.toml" --gitleaks-ignore-path "$RUNNER_TEMP/trusted/.gitleaksignore" --ignore-gitleaks-allow
+          .
       - name: No secret, database or oversized files
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
-        run: node scripts/check-forbidden-files.mjs $BASE $HEAD
+        # Without a pull request (a push to main), the tree only.
+        run: node "$RUNNER_TEMP/trusted/scripts/check-forbidden-files.mjs" ${BASE:+"$BASE" "$HEAD"}
       - name: Every commit is signed off (DCO)
         if: github.event_name == 'pull_request'
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
-        run: node scripts/check-dco.mjs "$BASE" "$HEAD"
+        run: node "$RUNNER_TEMP/trusted/scripts/check-dco.mjs" "$BASE" "$HEAD"
 
   server:
     name: server (${{ matrix.elixir }})

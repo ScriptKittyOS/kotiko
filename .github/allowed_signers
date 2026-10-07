@@ -5,11 +5,11 @@
 # v* tag against the copy of this file on main; a tag signed by any other key, or not signed,
 # stops the release before anything is built. GPG keys go in .github/release-keys.asc instead.
 #
-# One line per key, the same keys as in MAINTAINERS.md. Adding or removing a key is a reviewed
-# pull request. Format (see "ALLOWED SIGNERS" in `man ssh-keygen`):
+# One line per key, the same keys as in MAINTAINERS.md. A key is added or removed by pull
+# request; a second maintainer's review isn't enforced yet (docs/security/assurance-case.md,
+# residual risks). Format (see "ALLOWED SIGNERS" in `man ssh-keygen`):
 #
 #   you@example.com namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA...
 #
-
 # Ayla Croft (@HackTuah), release manager: SHA256:HqIaFq/thUm844NjYC3a+4Br40cqD2yJHEq1L2iiw4E
 dev@scriptkittyos.com namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAiWNJRQYwtCxb7uEMB5i1XdR6k9Xd+hF6+kMQa4nQ3j dev@scriptkittyos.com
