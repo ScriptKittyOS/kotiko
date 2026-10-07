@@ -531,8 +531,9 @@ describe("Connect OpenRouter (11 §4, 22 §4)", () => {
     assert.match(pending.verifier, /^[A-Za-z0-9_-]{43}$/);
     assert.deepEqual(p.requests, [], "starting the sign-in sends nothing; the tab goes to OpenRouter");
 
-    // OpenRouter sends the browser back to kotiko.org/connect/ with a code.
-    const res = await p.fake.deliver({ type: "oauth.code", code: CODE }, RETURN_PAGE);
+    // OpenRouter sends the browser back to kotiko.org/connect/ with a code and the state.
+    assert.match(pending.state, /^[A-Za-z0-9_-]{22}$/);
+    const res = await p.fake.deliver({ type: "oauth.code", code: CODE, state: pending.state }, RETURN_PAGE);
     assert.deepEqual(plain(res), { ok: true });
     assert.deepEqual(exchanged, [{ code: CODE, code_verifier: pending.verifier, code_challenge_method: "S256" }]);
     await p.until(() => p.visible("#aiConnected"));
@@ -546,14 +547,16 @@ describe("Connect OpenRouter (11 §4, 22 §4)", () => {
     const p = await openWelcome({ exchange: () => new Response("{}", { status: 400 }) });
     p.click("#aiConnect");
     await p.until(() => p.$("#connectStatus.status-busy"));
-    const res = await p.fake.deliver({ type: "oauth.code", code: CODE }, RETURN_PAGE);
+    const pending = async () => JSON.parse((await (await p.bg.__kotiko.getStore()).secrets.get("pkce:pending")) ?? "null");
+    const first = await pending();
+    const res = await p.fake.deliver({ type: "oauth.code", code: CODE, state: first.state }, RETURN_PAGE);
     assert.equal(res.code, "key_rejected");
     await p.fake.idle();
     assert.ok(p.visible("#aiSetup"));
     assert.ok(!p.visible("#aiConnected"));
     // Selecting it again starts a new sign-in.
     p.click("#aiConnect");
-    await p.until(async () => (await (await p.bg.__kotiko.getStore()).secrets.get("pkce:pending")) !== null);
+    await p.until(async () => (await pending())?.state !== first.state);
   });
 
   test("Change goes back to the step with Connect OpenRouter focused", async () => {

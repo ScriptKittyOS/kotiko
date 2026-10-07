@@ -229,20 +229,72 @@ describe("the lookup settings", () => {
 });
 
 describe("Connect OpenRouter (slice 11 §4)", () => {
+  const DOCS = { id: EXT_ID, url: "https://kotiko.org/connect/?code=c0de", tab: { id: 4, url: "https://kotiko.org/connect/?code=c0de" } };
+  // OpenRouter's key exchange: only `real` is a code it issued.
+  const exchange = (real = "c0de") => recorder(async (url, init) => {
+    if (String(url) !== "https://openrouter.ai/api/v1/auth/keys") return Promise.reject(new TypeError("offline"));
+    return JSON.parse(init.body).code === real ? new Response(JSON.stringify({ key: KEY }), { status: 200, headers: { "content-type": "application/json" } }) : new Response("{}", { status: 400 });
+  });
+  // The sign-in's `state`, from the OpenRouter address the start opened.
+  const start = async (bg) => new URL((await bg.send({ type: "oauth.start" })).url).searchParams.get("state");
+
   test("the key's arrival chooses OpenRouter in the trusted copy, so pages see it and a rewrite is put back", async () => {
-    const DOCS = { id: EXT_ID, url: "https://kotiko.org/connect/?code=c0de", tab: { id: 4, url: "https://kotiko.org/connect/?code=c0de" } };
-    const rec = recorder(async (url) => (String(url) === "https://openrouter.ai/api/v1/auth/keys" ? new Response(JSON.stringify({ key: KEY }), { status: 200, headers: { "content-type": "application/json" } }) : Promise.reject(new TypeError("offline"))));
+    const rec = exchange();
     const bg = loadBackground({ fetch: rec.fetch });
     bg.fake.chrome.tabs.create = async () => {};
     await bg.k.ready();
-    assert.equal((await bg.send({ type: "oauth.start" })).ok, true);
-    assert.deepEqual(await bg.send({ type: "oauth.code", code: "c0de" }, DOCS), { ok: true });
+    const state = await start(bg);
+    assert.match(state, /^[A-Za-z0-9_-]{22,}$/);
+    assert.deepEqual(await bg.send({ type: "oauth.code", code: "c0de", state }, DOCS), { ok: true });
     await bg.fake.idle();
     const chosen = { kind: "provider", provider: "openrouter", baseUrl: null };
     assert.deepEqual(plain((await bg.k.area.get("lookup")).lookup), { ...plain(bg.store.lookup), ...chosen });
     assert.equal(bg.store.keys.providers.openrouter, true, "the pages' copy says a key is saved");
     await bg.plant({ lookup: { ...plain(bg.store.lookup), provider: "custom", baseUrl: "https://evil.example/v1" }, keys: { server: false, providers: {} } });
     await bg.until(() => bg.store.lookup.provider === "openrouter" && bg.store.keys.providers.openrouter === true);
+  });
+});
+
+describe("a page can't spoil a sign-in in progress (slice 54, A-05)", () => {
+  const DOCS = { id: EXT_ID, url: "https://kotiko.org/connect/?code=x", tab: { id: 4, url: "https://kotiko.org/connect/?code=x" } };
+  const exchange = (real) => recorder(async (url, init) => {
+    if (String(url) !== "https://openrouter.ai/api/v1/auth/keys") return Promise.reject(new TypeError("offline"));
+    return JSON.parse(init.body).code === real ? new Response(JSON.stringify({ key: KEY }), { status: 200, headers: { "content-type": "application/json" } }) : new Response("{}", { status: 400 });
+  });
+
+  // Any page can send the browser to kotiko.org/connect/?code=<junk>, where Kotiko's content
+  // script hands the code on. That used to use up the waiting sign-in: the learner's real code
+  // then got "This sign-in has expired".
+  test("a junk code, with no state or the wrong one, is refused unused, and the real one still works", async () => {
+    const rec = exchange("real-code-0123456789");
+    const bg = loadBackground({ fetch: rec.fetch });
+    bg.fake.chrome.tabs.create = async () => {};
+    await bg.k.ready();
+    const state = new URL((await bg.send({ type: "oauth.start" })).url).searchParams.get("state");
+    for (const junk of [{ code: "junk-from-a-page" }, { code: "junk-from-a-page", state: "guessed" }]) {
+      const r = await bg.send({ type: "oauth.code", ...junk }, DOCS);
+      assert.equal(r.code, "key_rejected", JSON.stringify(junk));
+      assert.equal(r.details.reason, "not_this_sign_in");
+    }
+    assert.deepEqual(rec.requests, [], "a code without this sign-in's state never reaches OpenRouter");
+    assert.deepEqual(await bg.send({ type: "oauth.code", code: "real-code-0123456789", state }, DOCS), { ok: true });
+    assert.deepEqual(rec.requests.map((r) => r.body.code), ["real-code-0123456789"]);
+    assert.deepEqual(Object.keys((await bg.send({ type: "secrets.describe" })).secrets), ["provider:openrouter"]);
+  });
+
+  test("a code OpenRouter refuses leaves the sign-in waiting; a used one is gone", async () => {
+    const rec = exchange("real-code-0123456789");
+    const bg = loadBackground({ fetch: rec.fetch });
+    bg.fake.chrome.tabs.create = async () => {};
+    await bg.k.ready();
+    const state = new URL((await bg.send({ type: "oauth.start" })).url).searchParams.get("state");
+    const refused = await bg.send({ type: "oauth.code", code: "stale-code", state }, DOCS);
+    assert.equal(refused.code, "key_rejected");
+    assert.notEqual(refused.details.reason, "expired");
+    assert.deepEqual(await bg.send({ type: "oauth.code", code: "real-code-0123456789", state }, DOCS), { ok: true });
+    // Done: the verifier is gone, so the same address again says the sign-in expired.
+    const again = await bg.send({ type: "oauth.code", code: "real-code-0123456789", state }, DOCS);
+    assert.deepEqual([again.code, again.details.reason], ["key_rejected", "expired"]);
   });
 });
 

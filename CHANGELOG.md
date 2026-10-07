@@ -5,6 +5,12 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Connect OpenRouter: a web page you have open can no longer spoil a sign-in in progress.
+  Before, any page could open Kotiko's return page with a made-up code while you were
+  signing in, and your real sign-in then said "This sign-in has expired". Kotiko now
+  takes a code only from the sign-in it started, and a code that doesn't work no longer
+  ends the sign-in.
+
 - Security: a web page that managed to run code inside Kotiko's page script could change
   Kotiko's settings, because browsers let that script write Kotiko's storage. It could turn
   Kotiko off, pause sites, hide languages, change the words pages show, queue a word to be

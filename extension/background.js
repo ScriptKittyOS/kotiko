@@ -1730,24 +1730,32 @@ ext.runtime.onMessage.addListener(
         from: ["page"],
         async run() {
           await ready();
-          const { verifier, challenge } = await globalThis.KotikoPKCE.pair();
-          await (await getStore()).secrets.set("pkce:pending", JSON.stringify({ verifier, expires: now() + globalThis.KotikoPKCE.PENDING_MS }));
-          const url = globalThis.KotikoPKCE.authUrl({ challenge });
+          const { verifier, challenge, state } = await globalThis.KotikoPKCE.pair();
+          await (await getStore()).secrets.set("pkce:pending", JSON.stringify({ verifier, state, expires: now() + globalThis.KotikoPKCE.PENDING_MS }));
+          const url = globalThis.KotikoPKCE.authUrl({ challenge, state });
           await Promise.resolve(ext.tabs?.create?.({ url })).catch(() => {});
           return { ok: true, url };
         },
       },
+      // A code counts only with the state of the sign-in waiting here: any page can open
+      // the callback with a code of its own, and that must neither reach OpenRouter nor use
+      // up the learner's sign-in. The verifier is kept until a code works or it expires
+      // (slice 54, A-05).
       "oauth.code": {
         from: ["docs"],
-        check: (m) => (typeof m.code === "string" && m.code.length > 0 && m.code.length <= 512 ? null : "code must be a string"),
+        check: (m) => (typeof m.code !== "string" || m.code.length === 0 || m.code.length > 512 ? "code must be a string" : m.state !== undefined && (typeof m.state !== "string" || m.state.length > 128) ? "state must be a string" : null),
         async run(m, sender) {
           if (!globalThis.KotikoPKCE.isCallback(sender?.url)) throw codedError("forbidden", "Not the callback page.");
           const store = await getStore();
           const raw = await store.secrets.get("pkce:pending");
-          await store.secrets.remove("pkce:pending");
           const pending = raw ? JSON.parse(raw) : null;
-          if (!pending || pending.expires < now()) throw codedError("key_rejected", "That sign-in has expired.", { reason: "expired", provider: "openrouter" });
+          if (!pending || pending.expires < now()) {
+            if (raw) await store.secrets.remove("pkce:pending");
+            throw codedError("key_rejected", "That sign-in has expired.", { reason: "expired", provider: "openrouter" });
+          }
+          if (!globalThis.KotikoPKCE.sameState(m.state, pending.state)) throw codedError("key_rejected", "That code isn't from the sign-in Kotiko started.", { reason: "not_this_sign_in", provider: "openrouter" });
           const key = await globalThis.KotikoPKCE.exchange({ fetch: (...a) => fetch(...a), code: m.code, verifier: pending.verifier });
+          await store.secrets.remove("pkce:pending");
           await setSecret("provider:openrouter", key);
           await underRoutes(async () => {
             await bindRoute("lookup:openrouter", globalThis.KotikoLLMClient.endpoint({ provider: "openrouter" }).baseUrl);

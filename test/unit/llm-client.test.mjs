@@ -305,14 +305,20 @@ describe("quota, cache and the Test button", () => {
 
 describe("PKCE (Connect OpenRouter's hook)", () => {
   test("an S256 pair, the auth URL, and the callback check", async () => {
-    const { verifier, challenge } = await L.PKCE.pair();
+    const { verifier, challenge, state } = await L.PKCE.pair();
     assert.match(verifier, /^[A-Za-z0-9_-]{43}$/);
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
     assert.equal(challenge, Buffer.from(digest).toString("base64url"));
-    const u = new URL(L.PKCE.authUrl({ challenge }));
+    // 128 random bits, new for each sign-in, sent as OpenRouter's `state` (slice 54, A-05).
+    assert.match(state, /^[A-Za-z0-9_-]{22}$/);
+    assert.notEqual((await L.PKCE.pair()).state, state);
+    const u = new URL(L.PKCE.authUrl({ challenge, state }));
     assert.equal(u.origin + u.pathname, "https://openrouter.ai/auth");
     assert.equal(u.searchParams.get("callback_url"), "https://kotiko.org/connect/");
     assert.equal(u.searchParams.get("code_challenge_method"), "S256");
+    assert.equal(u.searchParams.get("state"), state);
+    assert.ok(L.PKCE.sameState(state, `${state}`));
+    for (const other of [null, undefined, "", state.slice(1), `${state.slice(0, -1)}${state.endsWith("A") ? "B" : "A"}`, 42]) assert.equal(L.PKCE.sameState(other, state), false, String(other));
     assert.ok(L.PKCE.isCallback("https://kotiko.org/connect/?code=abc"));
     assert.ok(!L.PKCE.isCallback("https://evil.example/connect/?code=abc"));
     assert.ok(!L.PKCE.isCallback("https://kotiko.org/other/?code=abc"));
