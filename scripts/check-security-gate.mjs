@@ -86,11 +86,12 @@ const decode = (text) =>
   });
 // Tags come out until none is left, so one hidden inside another ("<<b>b>") goes too.
 const stripTags = (line) => {
+  let prev;
   let out = line;
-  for (let prev = null; prev !== out; ) {
+  do {
     prev = out;
     out = out.replace(/<\/?[A-Za-z][^>]*>/g, "");
-  }
+  } while (out !== prev);
   return out;
 };
 const render = (line) => visible(decode(stripTags(line)));
