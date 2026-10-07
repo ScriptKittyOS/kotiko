@@ -78,6 +78,20 @@ git switch --detach origin/release-please--branches--main
 scripts/tag-release.sh --rc 1 --ssh-key ~/.ssh/kotiko_release.pub
 ```
 
+**When a tag's run fails** (a test that failed by chance, a runner problem), run the failed
+jobs again for the same tag; there is no need for a new tag or candidate number:
+
+```sh
+gh run list --workflow release.yml --branch v1.0.0-rc.1 --limit 1   # the run's id
+gh run rerun <run-id> --failed
+```
+
+`--failed` reruns the failed jobs and the jobs after them, on the same commit; verify-tag's
+result and the files of jobs that passed are kept. The release build's property tests use
+fixed seeds (`FC_SEED`, and `mix test --seed`), so a rerun runs the same inputs; CI keeps a
+new seed on every pull request. A failure that comes back on the rerun is a real one: fix it
+on `main` and tag the next candidate.
+
 ### Trying the pipeline without releasing
 
 Actions, "Release", "Run workflow", pick a branch. A manual run is always a dry run: it runs

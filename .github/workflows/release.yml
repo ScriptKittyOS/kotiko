@@ -94,6 +94,12 @@ jobs:
       contents: read
     outputs:
       version: ${{ steps.version.outputs.version }}
+    env:
+      # Fixed seeds for the property tests, so a release's tests are the same on every run and
+      # on a rerun (security review C-08). CI keeps a new seed on every pull request and push
+      # to main, so it keeps exploring; what fails there is fixed before it reaches a release.
+      FC_SEED: "20261006"
+      MIX_TEST_SEED: "20261006"
     steps:
       # The tag on a tag push; the chosen branch on a manual run. No caches in this workflow,
       # so nothing a pull request wrote can reach a release.
@@ -131,7 +137,8 @@ jobs:
       - run: npm ci
       # The same checks as CI, on the tree being released: the extension's and the server's
       # tests with their coverage gates. The property tests run in both, so the dynamic
-      # analysis runs before every release.
+      # analysis runs before every release, with the fixed seeds above (StreamData takes
+      # ExUnit's --seed).
       - run: npm run lint
       - run: npm run coverage
       - name: Server tests
@@ -140,7 +147,7 @@ jobs:
           MIX_ENV: test
         run: |
           mix deps.get
-          mix test --cover
+          mix test --cover --seed "$MIX_TEST_SEED"
       - name: Build the zips twice and compare
         env:
           VERSION: ${{ steps.version.outputs.version }}
