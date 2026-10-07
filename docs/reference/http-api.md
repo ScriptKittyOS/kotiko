@@ -252,8 +252,9 @@ The [0.2 routes](#get-apiwords) answer errors as `{"error": "<message>"}` instea
 
 ### GET /health
 
-Which server this is and whether its database works. No token needed. Answers nothing else
-(no word counts, no settings).
+Which server this is and whether its database works. No token needed, for this exact path
+only: any other spelling (`/health/`, `//health`, `/%68ealth`) needs the token. Answers
+nothing else (no word counts, no settings).
 
 ```bash
 curl -s http://127.0.0.1:4747/health
@@ -323,7 +324,7 @@ requests only if they match. Use a new nonce each time.
 - The answer never contains the token and is sent with `cache-control: no-store`. Like
   `/health`, it is checked against the `Host` names the server answers to.
 - Only this exact path and `POST` are open: any other method or spelling
-  (`/%61pi/v1/proof`) needs the token.
+  (`/%61pi/v1/proof`, `//api/v1/proof`, `/api/v1/proof/`) needs the token.
 - Someone who gets a proof can test guesses at the token offline. A token the server made
   (256 random bits) can't be guessed; a weak one you chose can, and the server warns about
   those at start ([`API_TOKEN`](configuration.md#api_token)).

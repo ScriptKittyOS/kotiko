@@ -28,6 +28,10 @@ Conventional Commits by release-please.
   now warns however the address is written. An OpenRouter address in capitals is also
   recognised as OpenRouter.
 
+- Self-hosted server: the two addresses that answer without your access key, `/health` and
+  `/api/v1/proof`, also answered when written another way, such as `/health/` or
+  `//api/v1/proof`. Now only the exact addresses do; any other spelling needs the key.
+
 - Security: a Kotiko server set to a model of its own (`LLM_MODEL`), for example on a paid
   provider, sent no limit on how long an answer may be, so a model that kept writing could
   cost you up to the provider's own limit for one word. Every lookup now asks for at most

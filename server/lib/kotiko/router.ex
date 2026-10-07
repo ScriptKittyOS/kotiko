@@ -280,13 +280,15 @@ defmodule Kotiko.Router do
       else: json(conn, status, %{error: message})
   end
 
-  # Deny by default: only the exact GET or HEAD /health and POST /api/v1/proof are open.
-  # path_info is not yet percent-decoded here, but routing decodes it, so matching on
-  # ["api" | _] let "/%61pi/words" through without a token.
-  defp authorize(%{path_info: ["health"], method: m} = conn, _opts) when m in ~w(GET HEAD),
+  # Deny by default: only the exact GET or HEAD /health and POST /api/v1/proof are open,
+  # matched on the raw request path as sent. path_info is not yet percent-decoded here, but
+  # routing decodes it, so matching on ["api" | _] let "/%61pi/words" through without a
+  # token; and path_info drops empty segments, so matching on it let "//api/v1/proof",
+  # "/api/v1/proof/" and "/health/" through too (security review E-07).
+  defp authorize(%{request_path: "/health", method: m} = conn, _opts) when m in ~w(GET HEAD),
     do: conn
 
-  defp authorize(%{path_info: ["api", "v1", "proof"], method: "POST"} = conn, _opts), do: conn
+  defp authorize(%{request_path: "/api/v1/proof", method: "POST"} = conn, _opts), do: conn
 
   # An address that sent too many wrong tokens gets 429 whatever it sends now
   # (Kotiko.AuthThrottle).

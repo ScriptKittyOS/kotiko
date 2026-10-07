@@ -72,6 +72,25 @@ defmodule Kotiko.RouterAuthTest do
       end
     end
 
+    # Security review E-07: the open routes were matched on path_info, so `//api/v1/proof`,
+    # `/api/v1/proof/` and `GET /health/` were open too. Only the exact spelling is.
+    test "only the exact spelling of an open route is open (E-07)" do
+      nonce = %{nonce: "q1aP3n0ZKcB1x5mW0u7S9bJ2rV4yT6dE8gH0iL2nO4p"}
+
+      for path <- ~w(//api/v1/proof /api/v1/proof/ /api/v1//proof /api//v1/proof //api/v1/proof/) do
+        conn = request("POST", path, [], body: nonce)
+        assert conn.status == 401, "POST #{path} answered #{conn.status} without a token"
+        assert get_resp_header(conn, "www-authenticate") == ["Bearer, Kotiko-HMAC"]
+      end
+
+      for method <- ~w(GET HEAD), path <- ~w(/health/ //health /health// //health/) do
+        assert request(method, path).status == 401, "#{method} #{path} answered without a token"
+      end
+
+      assert request("POST", "/api/v1/proof", [], body: nonce).status == 200
+      assert request("GET", "/health").status == 200
+    end
+
     test "a CORS preflight gets no CORS headers" do
       conn =
         request("OPTIONS", "/api/words", [
