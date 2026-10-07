@@ -12,7 +12,7 @@ defmodule Kotiko.Spec do
 
   @root Path.expand("../../../spec", __DIR__)
 
-  @json_files ~w(languages lang-aliases rules pronunciation models wiktionary)
+  @json_files ~w(languages lang-aliases rules pronunciation models wiktionary providers)
   for name <- @json_files, do: @external_resource(Path.join(@root, name <> ".json"))
   @external_resource Path.join(@root, "prompt.md")
   @external_resource Path.join(@root, "VERSION")
@@ -73,6 +73,7 @@ defmodule Kotiko.Spec do
   @pronunciation read_json.(Path.join(@root, "pronunciation.json"))
   @models read_json.(Path.join(@root, "models.json"))
   @wiktionary read_json.(Path.join(@root, "wiktionary.json"))
+  @providers read_json.(Path.join(@root, "providers.json"))
   @prompt_text File.read!(Path.join(@root, "prompt.md"))
   @version @root |> Path.join("VERSION") |> File.read!() |> String.trim()
   @lang_data lang_data
@@ -106,6 +107,13 @@ defmodule Kotiko.Spec do
 
   @doc "spec/wiktionary.json: where pronunciations come from (slice 49 section 4a)."
   def wiktionary, do: Map.delete(@wiktionary, "_comment")
+
+  @doc """
+  spec/providers.json (slice 11 section 4): the lookup presets. The server has no preset
+  setting, only LLM_URL; it uses a preset's request details (such as `maxTokensField`)
+  when LLM_URL is on that preset's host.
+  """
+  def providers, do: @providers["providers"]
 
   @doc "spec/prompt.md, unparsed."
   def prompt_text, do: @prompt_text

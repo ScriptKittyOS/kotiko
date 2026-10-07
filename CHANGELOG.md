@@ -5,6 +5,12 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Security: a Kotiko server set to a model of its own (`LLM_MODEL`), for example on a paid
+  provider, sent no limit on how long an answer may be, so a model that kept writing could
+  cost you up to the provider's own limit for one word. Every lookup now asks for at most
+  1,200 tokens of answer (4,000 for refreshing pronunciations), like the extension does,
+  in the field OpenAI expects when `LLM_URL` is OpenAI's.
+
 - Security: a web page could read your word list. It could hide a long list of words on
   the page, where you'd never see them, and read back which ones Kotiko swapped. Kotiko
   now swaps only words you can see: text a page hides isn't touched, and text below the
