@@ -159,15 +159,21 @@ are summarised without exploit steps (SECURITY.md's disclosure rules, 03).
 - Low and informational findings are fixed or recorded in the report as accepted risks
   with a reason, and as issues.
 - A fourth reviewer, fresh and independent like the first three, reruns every confirmed
-  finding's proof against `-rc.2` and confirms it no longer works, then the lead closes the
-  gate with a line in the report and a box on 30's release checklist. The line has exactly
+  finding's proof against `-rc.2` and confirms it no longer works. If that reviewer finds
+  something new, it is fixed and a fresh reviewer confirms the fixes on the next candidate,
+  and so on. To end the loop, the last reviewer confirms only the previous round's fixes,
+  and anything new below medium it finds is recorded as an accepted risk with an issue.
+  (For v1.0.0: D on rc.2, E on rc.3, F on rc.4.) Then the lead closes the gate with a line
+  in the report and a box on 30's release checklist. The line has exactly
   this form, on a line of its own, above the `## Appendix` heading:
   `Gate: closed YYYY-MM-DD by <lead>, fixes confirmed on vX.Y.Z-rc.N` (for example
   `Gate: closed 2026-11-02 by Ayla Croft, fixes confirmed on v1.0.0-rc.2`), naming a
   candidate of the reviewed version. Until then the report says `Gate: open`; the part
   above the appendix has only one line starting `Gate:`, read as a reader sees it (after
   NFKC, without invisible characters, with any non-ASCII character standing in for a letter
-  of "Gate"; security review D-05), and the closed line is plain ASCII. 30's release workflow checks for
+  of "Gate"; security review D-05; with HTML comments, tags, entities and code fences seen
+  as a reader sees them, E-06), the closed line is plain ASCII, and no prose above the
+  appendix pairs "open" with the gate, the review or the status. 30's release workflow checks for
   the closed line before any store upload (`scripts/check-security-gate.mjs`): anything
   else, including the phrase inside an appended report, keeps the gate open (security
   review C-05).

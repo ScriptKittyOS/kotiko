@@ -5,6 +5,10 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Privacy policy version 6: "What websites can see" now names every way a page can hide
+  text that Kotiko still swaps (a transparent text colour, text turned away), and says a
+  disguised word's card can open on a click as well as a resting pointer.
+
 - Security: a web page could restyle a swapped word (it sits in the page) so that it
   covered the page invisibly; then your pointer resting anywhere, or your click on one of
   the page's own buttons, opened the word's card, and the page could search the card's
