@@ -5,6 +5,10 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Self-hosted server: with `LOG_LEVEL=debug`, words the model suggested and the server
+  refused were written to the log even with `LOG_LOOKUPS=false`. Now only the reasons are,
+  unless you turn `LOG_LOOKUPS` on.
+
 - Self-hosted server: when your model or transcription key would go over plain `http://`
   to another machine (not this computer, not Tailscale), the server now warns at start,
   because anyone on the network in between could read it.

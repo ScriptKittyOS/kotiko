@@ -131,8 +131,8 @@ defmodule Kotiko.Router do
         {200, Jason.encode!(%{words: [], reply: reply || "I couldn't find a word in that."})}
 
       {:ok, %{words: [], rejected: rejected}} ->
-        # The rejected words are the learner's: only at debug.
-        Logger.debug("Couldn't save #{inspect(rejected)}")
+        # The rejected words are the learner's: only at debug, with LOG_LOOKUPS (B-07).
+        if Kotiko.LLM.log_lookups?(), do: Logger.debug("Couldn't save #{inspect(rejected)}")
         reasons = rejected |> Enum.map(& &1.reason) |> Enum.uniq()
         Logger.warning("Couldn't save a word: #{Enum.join(reasons, ", ")}")
         {422, Jason.encode!(%{error: "Couldn't save that word: #{Enum.join(reasons, ", ")}"})}

@@ -500,8 +500,11 @@ defmodule Kotiko.LLM do
   defp put_last_result(code), do: :persistent_term.put({__MODULE__, :last_result}, code)
   defp last_result, do: :persistent_term.get({__MODULE__, :last_result}, nil)
 
-  # User text only with LOG_LOOKUPS=true, and then only at debug.
-  defp log_lookups?, do: Application.get_env(:kotiko, :log_lookups, false)
+  @doc """
+  Whether the learner's words may be logged: only with LOG_LOOKUPS=true, and then only at
+  debug level. Every debug line that carries a word, a gloss or typed text checks this.
+  """
+  def log_lookups?, do: Application.get_env(:kotiko, :log_lookups, false)
 
   defp log_answer(content) do
     if log_lookups?(), do: Logger.debug("llm answer: #{String.slice(content, 0, 2000)}")

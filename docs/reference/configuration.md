@@ -229,7 +229,9 @@ How much the server logs: `debug`, `info`, `warning` or `error` (`warn` works to
 ### `LOG_LOOKUPS`
 
 `true` to log what you look up and the model's answer, at debug level (so also set
-`LOG_LEVEL=debug`). For troubleshooting a model.
+`LOG_LEVEL=debug`). For troubleshooting a model. Without it, even `LOG_LEVEL=debug` logs
+no words: not what you typed, not the words the model answered or the server refused
+(only the reasons), not the words a database upgrade flags.
 
 - Default: `false`. Allowed: `true`, `yes`, `on`, `1`, `false`, `no`, `off`, `0`.
 - Wrong: anything else stops the server.
