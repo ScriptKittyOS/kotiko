@@ -85,4 +85,14 @@ defmodule Kotiko.RouterThrottleTest do
     for _ <- 1..30, do: from({203, 0, 113, 12}, @wrong)
     assert from({203, 0, 113, 12}, auth()).status == 200
   end
+
+  test "lockout lines: at most 100 addresses an hour, then one line saying so" do
+    log =
+      capture_log(fn ->
+        for i <- 1..101, _ <- 1..10, do: Kotiko.AuthThrottle.failed({198, 18, 0, i})
+      end)
+
+    assert length(String.split(log, "wrong API tokens from 198.18.0.")) == 101
+    assert log =~ "100 addresses sent too many wrong API tokens this hour; not logging new ones"
+  end
 end
