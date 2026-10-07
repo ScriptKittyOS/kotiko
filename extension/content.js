@@ -505,7 +505,7 @@
   // finds the live one here and tears it down. One left from before an update or a reload
   // has lost its extension context: it tears down at its next DOM change (the engine checks
   // contextValid()), which waitForOrphans() makes happen before this one swaps.
-  const LIVE = "__kotikoContent";
+  const LIVE = "kotikoLiveContent";
   function claimDocument() {
     const prev = globalThis[LIVE];
     globalThis[LIVE] = { teardown };
