@@ -5,6 +5,11 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Security: the server warns when it would send an API key over plain HTTP to another
+  machine, but missed an address written in capitals, such as `HTTP://203.0.113.7/v1`. It
+  now warns however the address is written. An OpenRouter address in capitals is also
+  recognised as OpenRouter.
+
 - Security: a Kotiko server set to a model of its own (`LLM_MODEL`), for example on a paid
   provider, sent no limit on how long an answer may be, so a model that kept writing could
   cost you up to the provider's own limit for one word. Every lookup now asks for at most
