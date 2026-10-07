@@ -53,8 +53,18 @@ The TCP port the server listens on.
 The address the server listens on.
 
 - Default: `127.0.0.1`, this computer only.
-- Allowed: an IPv4 or IPv6 address (`100.101.102.103`, `0.0.0.0`, `::1`) or a host name
-  that resolves to one (`localhost`).
+- Allowed: an IPv4 or IPv6 address (`100.101.102.103`, `0.0.0.0`, `::`, `::1`) or a host
+  name that resolves to one. `localhost` is always `127.0.0.1`, whatever the hosts file says.
+- Browsers look up `localhost` themselves and try the IPv6 address `::1` first. So that no
+  other program or account on this computer can listen on the address the browser tries
+  and receive the token, the server listens on both loopback addresses: with `127.0.0.1`
+  (the default) or `localhost` it also listens on `::1`, with `::1` also on `127.0.0.1`,
+  and with `0.0.0.0` also on `::1`. `::` covers IPv4 too (dual-stack). On a computer
+  without IPv6 the server starts on `127.0.0.1` alone and logs a line saying so. If another
+  program already listens on one of these addresses at `PORT`, the server doesn't start
+  (status 1) and says which address; stop that program or choose another `PORT`.
+- In the extension, use `http://127.0.0.1:4747` (not `localhost`) for a server on the same
+  computer.
 - Example: your Tailscale address, to use the extension on another computer.
 - At start, the server logs who can reach it. For a local network address, `0.0.0.0` or a
   public address, that line is a warning: the server speaks plain HTTP, so anyone on the way

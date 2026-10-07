@@ -2,8 +2,8 @@
 
 Last reviewed: 2026-10-05.
 
-The Kotiko server answers HTTP on `http://127.0.0.1:4747` by default (`BIND` and `PORT` in
-[configuration.md](configuration.md)). The browser extension and `curl` use this API. This
+The Kotiko server answers HTTP on `http://127.0.0.1:4747` by default, and on
+`http://[::1]:4747` too (`BIND` and `PORT` in [configuration.md](configuration.md#bind)). The browser extension and `curl` use this API. This
 page lists every route the server has. A test (`server/test/kotiko/docs_test.exs`) fails when
 a route is added or removed without updating this page.
 
@@ -117,7 +117,7 @@ Which server this is and whether its database works. No token needed. Answers no
 (no word counts, no settings).
 
 ```bash
-curl -s http://localhost:4747/health
+curl -s http://127.0.0.1:4747/health
 ```
 
 `200` when the database works, `503` when it doesn't (the file is missing or not writable,
@@ -154,7 +154,7 @@ lookups you haven't added) are left out.
 | `limit` | 1 to 20,000; default 20,000 |
 
 ```bash
-curl -s -H "Authorization: Bearer $TOKEN" "http://localhost:4747/api/v1/words?lang=ru&limit=10"
+curl -s -H "Authorization: Bearer $TOKEN" "http://127.0.0.1:4747/api/v1/words?lang=ru&limit=10"
 ```
 
 `200`:
@@ -201,7 +201,7 @@ words you mean, checks the answer, and saves the words, merging into words you h
 
 ```bash
 curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"text": "shukran", "base_langs": ["en"]}' http://localhost:4747/api/v1/words
+  -d '{"text": "shukran", "base_langs": ["en"]}' http://127.0.0.1:4747/api/v1/words
 ```
 
 `200`:

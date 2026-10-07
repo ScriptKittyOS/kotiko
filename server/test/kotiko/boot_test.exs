@@ -66,6 +66,12 @@ defmodule Kotiko.BootTest do
     {elixir, Enum.join([erts, bin, System.get_env("PATH")], ":")}
   end
 
+  @start_and_stop """
+  {:ok, _} = Application.ensure_all_started(:kotiko, :permanent)
+  IO.puts("STARTED")
+  :ok = Application.stop(:kotiko)
+  """
+
   defp free_port do
     {:ok, socket} = :gen_tcp.listen(0, ip: {127, 0, 0, 1})
     {:ok, port} = :inet.port(socket)
@@ -169,6 +175,46 @@ defmodule Kotiko.BootTest do
     refute output =~ "sk-or-v1-0123456789abcdef"
   end
 
+  # B-01 (slice 54): browsers try ::1 first for `localhost`. With only 127.0.0.1 taken,
+  # another account could listen on [::1] at the same port and receive the token the
+  # extension sends to http://localhost:4747.
+  @tag :ipv6
+  test "by default it holds the port on both loopback addresses", ctx do
+    port = free_port()
+    vars = %{"PORT" => to_string(port), "KOTIKO_DATA_DIR" => Path.join(ctx.tmp, "data")}
+
+    script = """
+    {:ok, _} = Application.ensure_all_started(:kotiko, :permanent)
+    squat = :gen_tcp.listen(#{port}, [ip: {0, 0, 0, 0, 0, 0, 0, 1}])
+    IO.puts("SQUAT " <> inspect(squat))
+    {:ok, socket} = :gen_tcp.connect({0, 0, 0, 0, 0, 0, 0, 1}, #{port}, [:binary, active: false])
+    :ok = :gen_tcp.send(socket, "GET /health HTTP/1.1\\r\\nhost: localhost\\r\\nconnection: close\\r\\n\\r\\n")
+    {:ok, response} = :gen_tcp.recv(socket, 0, 5_000)
+    IO.puts("V6 " <> response)
+    :ok = Application.stop(:kotiko)
+    """
+
+    {output, status} = boot(vars, script, ctx)
+
+    assert status == 0, output
+    assert output =~ "SQUAT {:error, :eaddrinuse}"
+    assert output =~ "V6 HTTP/1.1 200"
+  end
+
+  @tag :ipv6
+  test "someone already listening on [::1] at the port stops the start", ctx do
+    port = free_port()
+    {:ok, squatter} = :gen_tcp.listen(port, ip: {0, 0, 0, 0, 0, 0, 0, 1})
+    on_exit(fn -> :gen_tcp.close(squatter) end)
+    vars = %{"PORT" => to_string(port), "KOTIKO_DATA_DIR" => Path.join(ctx.tmp, "data")}
+
+    {output, status} = boot(vars, @start_and_stop, ctx)
+
+    assert status == 1, output
+    assert output =~ "another program is already listening on [::1]:#{port}."
+    refute output =~ "STARTED"
+  end
+
   test "the VM exits non-zero when the supervision tree dies", ctx do
     vars = %{"KOTIKO_DATA_DIR" => Path.join(ctx.tmp, "data"), "PORT" => to_string(free_port())}
 
@@ -203,12 +249,6 @@ defmodule Kotiko.BootTest do
              ('ru', 'дом', 'house', 'active', datetime(), datetime())
     """)
   end
-
-  @start_and_stop """
-  {:ok, _} = Application.ensure_all_started(:kotiko, :permanent)
-  IO.puts("STARTED")
-  :ok = Application.stop(:kotiko)
-  """
 
   test "first start after the rename moves the words from the old default folder", ctx do
     old_dir = Path.join(ctx.home, ".local/share/slovo")

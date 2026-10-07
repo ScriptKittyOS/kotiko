@@ -365,11 +365,21 @@ defmodule Kotiko.Config do
     end
   end
 
-  @doc "An IP literal, or a name resolved to IPv4, then IPv6 (so `localhost` works)."
+  @doc """
+  An IP literal, or a name resolved to IPv4, then IPv6. `localhost` is always 127.0.0.1,
+  whatever the hosts file says: `Kotiko.Listener` then listens on `::1` too, as browsers
+  try both for `localhost`.
+  """
   def parse_bind(raw, resolver \\ &resolve_host/1) do
-    case :inet.parse_strict_address(to_charlist(raw)) do
-      {:ok, ip} -> {:ok, ip}
-      {:error, _} -> resolver.(raw)
+    cond do
+      raw |> String.downcase() |> String.trim_trailing(".") == "localhost" ->
+        {:ok, {127, 0, 0, 1}}
+
+      match?({:ok, _}, :inet.parse_strict_address(to_charlist(raw))) ->
+        :inet.parse_strict_address(to_charlist(raw))
+
+      true ->
+        resolver.(raw)
     end
   end
 

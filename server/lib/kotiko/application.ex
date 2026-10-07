@@ -158,8 +158,9 @@ defmodule Kotiko.Application do
 
   defp http_children(nil), do: []
 
+  # BIND's address, and the other loopback address too (Kotiko.Listener).
   defp http_children(%{ip: ip, port: port, exposure: {_level, class, message}}) do
-    [{Bandit, plug: Kotiko.Router, ip: ip, port: port}] ++ repeat_public_warning(class, message)
+    Kotiko.Listener.child_specs(ip, port) ++ repeat_public_warning(class, message)
   end
 
   # Reachable from the internet: say so again every day, not just once at boot.

@@ -27,8 +27,10 @@ Kotiko has two parts: the browser extension, and an optional server you run your
   (0600), and a data folder the server makes only by you (0700). At every start it makes
   them private again if they aren't, and warns, with the command to run, about anything it
   can't or won't change (a data folder that also holds other files).
-- **It listens only on your computer** unless you change `BIND`. When you do, it says at
-  startup who can now reach it, and warns when your token would cross a network in plain
+- **It listens only on your computer** unless you change `BIND`, on both loopback
+  addresses (`127.0.0.1` and `::1`), so no other account on the computer can listen on the
+  one a browser tries for `localhost` and receive your token. When you change `BIND`, it
+  says at startup who can now reach it, and warns when your token would cross a network in plain
   HTTP (repeating that warning daily when the address is reachable from the internet).
 - **It answers only to names it knows**, so a web page can't reach it by pointing its own
   domain at your computer (DNS rebinding). Unknown names get `421`. You add names with

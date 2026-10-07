@@ -12,8 +12,15 @@ Req.default_options(
 )
 
 # @tag :pending marks known bugs whose fix belongs to a later slice. Run them with
-# `mix test --include pending`.
-ExUnit.start(exclude: [:pending])
+# `mix test --include pending`. @tag :ipv6 tests need the IPv6 loopback address (::1);
+# they are skipped on a machine without it (IPv6 turned off).
+ipv6_loopback? =
+  case :gen_tcp.listen(0, ip: {0, 0, 0, 0, 0, 0, 0, 1}) do
+    {:ok, socket} -> :gen_tcp.close(socket) == :ok
+    {:error, _} -> false
+  end
+
+ExUnit.start(exclude: [:pending] ++ if(ipv6_loopback?, do: [], else: [:ipv6]))
 
 # The migration tests run the migrations again on their own databases; Ecto compiles the
 # migration files each time, which would warn about redefining their modules.

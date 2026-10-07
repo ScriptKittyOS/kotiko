@@ -5,6 +5,13 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Self-hosted server: another account on the same computer could receive your access key
+  by listening on `[::1]:4747`, the address browsers try first for `localhost`. The server
+  now listens on both `127.0.0.1` and `::1` by default (and with `BIND=localhost`), so
+  nobody else can take either; it refuses to start, saying which address, if another
+  program already holds one. In Kotiko, enter `http://127.0.0.1:4747` as your server's
+  address.
+
 - Self-hosted server: requests for many different host names can no longer fill the log.
   The server logs each refused name at most once an hour, and at most 1,000 names an hour;
   past that it logs one line saying so, and how many it left out.
