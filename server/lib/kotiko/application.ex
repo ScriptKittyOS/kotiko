@@ -34,6 +34,7 @@ defmodule Kotiko.Application do
     Redact.put_secrets(Redact.configured_secrets())
     HostCheck.init_table()
     Kotiko.AuthThrottle.init()
+    Kotiko.RequestAuth.init()
     words = Kotiko.Migrations.run!()
     http = http_settings()
     log_summary(token_source, words, http)

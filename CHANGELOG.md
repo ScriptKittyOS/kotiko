@@ -5,6 +5,19 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Security: Kotiko no longer sends your server's access key; it signs each request. Your
+  server signs each answer too, and Kotiko uses an answer only when it carries that
+  signature, so if another program takes your server's place (say, while the server
+  restarts) it gets neither your key nor your words. Update the server and extension
+  together: an older server turns signed requests away, and Kotiko asks you to update it.
+  Tools such as `curl` can still send the key as before. The privacy policy (version 4)
+  says so.
+
+- Security: a web page, or any program on your computer, could lock Kotiko out of your
+  server for a minute by sending it a burst of wrong keys or malformed checks. Requests
+  from your own computer are no longer locked out; requests from other computers still
+  are, including those a reverse proxy on your computer passes on.
+
 - Release process: the check that holds store uploads until the security review is closed
   could miss a "Gate: open" line written with a lookalike letter from another alphabet, an
   invisible character or a fullwidth colon, and read the review as closed. It now reads

@@ -122,7 +122,7 @@
       case "server_key_rejected":
         // No access key saved yet: not an error on a banner; an add says to connect.
         if (d.reason === "no_token") return ctx.surface === "banner" ? null : { key: "error_add_not_connected" };
-        return { key: "error_server_key_rejected" };
+        return { key: d.reason === "stale" ? "error_server_key_rejected_stale" : "error_server_key_rejected" };
       case "server_address_invalid":
         return { key: d.reason === "host_not_allowed" ? "error_server_address_invalid_host_not_allowed" : "error_server_address_invalid" };
       case "not_kotiko_server":

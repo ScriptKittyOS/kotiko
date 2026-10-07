@@ -382,7 +382,7 @@ describe("upgrading an existing install (slice 11 §8)", () => {
     const res = await bg.send({ type: "add", text: "sobaka" }, POPUP);
     const job = await bg.until(() => bg.store.addJobs?.find((j) => j.id === res.job.id && j.state === "done"));
     assert.equal(job.results[0].word.native, "собака");
-    assert.ok(srv.state.log.some((r) => r.method === "POST" && r.path === "/kotiko/api/v1/words" && r.auth === `Bearer ${srv.token}`));
+    assert.ok(srv.state.log.some((r) => r.method === "POST" && r.path === "/kotiko/api/v1/words" && r.signed));
     assert.ok(srv.state.log.some((r) => r.method === "POST" && r.path === "/kotiko/api/v1/words/batch"));
     assert.equal(srv.state.log.filter((r) => r.path.startsWith("/llm/")).length, 0, "no model asked from this browser");
     await bg.until(() => bg.store.words.some((w) => w.native === "собака"));

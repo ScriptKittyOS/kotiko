@@ -52,6 +52,18 @@ function pinDay(win) {
   win.Date = TestDate;
 }
 
+// The engine swaps in 8 ms slices, so on a busy machine the last block can swap a few
+// slices after the first sync request. Waits until the page has had no change for 50 ms
+// (at most 3 s), instead of assuming one task is enough.
+async function quiet(win, { ms = 50, max = 3000 } = {}) {
+  let last = Date.now();
+  const mo = new win.MutationObserver(() => (last = Date.now()));
+  mo.observe(win.document, { subtree: true, childList: true, characterData: true, attributes: true });
+  const end = Date.now() + max;
+  while (Date.now() - last < ms && Date.now() < end) await sleep(10);
+  mo.disconnect();
+}
+
 async function load(html, { words = WORDS, url = "https://example.com/", beforeInject, lang = "en", detect = null, ...local } = {}) {
   // As the background writes it: rules for the learner's bases (theirs, else their words').
   if (!("baseRules" in local)) local.baseRules = baseRulesFor(local.baseLangs ?? basesOf(words));
@@ -73,7 +85,7 @@ async function load(html, { words = WORDS, url = "https://example.com/", beforeI
   // content.js starts swapping a task after it loads (the segmenter's warm-up, slice 15);
   // asking the background for a sync is the last thing it does.
   for (let i = 0; i < 400 && !fake.calls.sendMessage.some((m) => m.type === "sync"); i++) await sleep(5);
-  await sleep(0);
+  await quiet(dom.window);
   const doc = dom.window.document;
   return {
     dom,

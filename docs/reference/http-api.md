@@ -1,6 +1,6 @@
 # HTTP API reference
 
-Last reviewed: 2026-10-06.
+Last reviewed: 2026-10-07.
 
 The Kotiko server answers HTTP on `http://127.0.0.1:4747` by default, and on
 `http://[::1]:4747` too (`BIND` and `PORT` in [configuration.md](configuration.md#bind)). The browser extension and `curl` use this API. This
@@ -8,6 +8,7 @@ page lists every route the server has. A test (`server/test/kotiko/docs_test.exs
 a route is added or removed without updating this page.
 
 - [Requests](#requests)
+- [Signed requests](#signed-requests)
 - [Errors](#errors)
 - [Versions](#versions)
 - [Routes](#routes): [health](#get-health), [words](#get-apiv1words), [the lookup
@@ -18,7 +19,12 @@ a route is added or removed without updating this page.
 ## Requests
 
 **Authentication.** Every route except `GET /health`, `HEAD /health` and
-[`POST /api/v1/proof`](#post-apiv1proof) needs the API token:
+[`POST /api/v1/proof`](#post-apiv1proof) needs the API token, in one of two ways:
+
+- `Authorization: Bearer <API token>`, for `curl` and other tools you run yourself;
+- a [signed request](#signed-requests), `Authorization: Kotiko-HMAC v1 ...`, which proves
+  the sender holds the token without sending it. The browser extension uses only this, so
+  the token never leaves the browser.
 
 ```
 Authorization: Bearer <API token>
@@ -26,18 +32,33 @@ Authorization: Bearer <API token>
 
 The scheme is case-sensitive (`Bearer`, not `bearer`) and only one `Authorization` header
 is accepted. The token is compared in constant time. Without the right token, every method
-and path answers `401` with `www-authenticate: Bearer` and the error `server_key_rejected`,
-before the server reads the body or looks at the route. `mix kotiko.token` (in `server/`)
-prints the token; [configuration.md](configuration.md#api_token) says where it comes from.
+and path answers `401` with `www-authenticate: Bearer, Kotiko-HMAC` and the error
+`server_key_rejected`, before the server reads the body or looks at the route. A signed
+request that fails says why: `www-authenticate: Bearer, Kotiko-HMAC error="<reason>"` and
+`details.reason` (see [Signed requests](#signed-requests)). `mix kotiko.token` (in
+`server/`) prints the token; [configuration.md](configuration.md#api_token) says where it
+comes from.
 
-**Wrong tokens are throttled.** After 10 wrong `Bearer` tokens from one address within a
-minute, every request from that address that needs the token gets `429` with `Retry-After`
-and the error `rate_limited` (`details.reason`: `auth_failures`) until the minute is over,
-even with the right token, so guessing learns nothing while it waits. Other addresses are
-not affected. A request with no token, or another scheme, doesn't count. An IPv6 address
-counts by its /64 network. The server logs the lockout once an hour per address. Behind a
-reverse proxy on the same machine, every request comes from the proxy's address, so a
-lockout there applies to everyone for the rest of that minute.
+**Wrong tokens are throttled.** After 10 wrong `Bearer` tokens or failed signatures from
+one address within a minute, every request from that address that needs the token gets
+`429` with `Retry-After` and the error `rate_limited` (`details.reason`: `auth_failures`)
+until the minute is over, even with the right token, so guessing learns nothing while it
+waits. Other addresses are not affected. A request with no token, another scheme or a
+malformed signature doesn't count. An IPv6 address counts by its /64 network. The server
+logs the lockout once an hour per address.
+
+A request from this computer (127.0.0.0/8, `::1` or IPv4-mapped 127.x) with no forwarding
+header is never locked out: every program on the computer, and any web page open in a
+browser there, reaches the server from those addresses, so any of them could otherwise
+lock the extension out. A request from this computer that carries a forwarding header
+(`Forwarded`, `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`, `CF-Connecting-IP` or `True-Client-IP`, any value) is what a reverse proxy on the same machine sends
+for each remote client: those are counted, all together under one key per proxy address,
+whatever client address the header claims (it can be forged). A stranger's lockout there
+refuses everyone who comes through the proxy for the rest of that minute, but never the
+extension, which sends no forwarding header; a local program that adds one locks out only
+the proxied requests. A token the server made (256 random bits) can't be guessed in any
+case; a weak token you chose can, and the server warns about it at start
+([`API_TOKEN`](configuration.md#api_token)).
 
 **Host names.** Before anything else, the server checks the `Host` header, to stop web pages
 reaching it through DNS rebinding. It answers to `localhost`, IP addresses, this machine's
@@ -62,6 +83,113 @@ answer to a request with that id is kept for 24 hours; sending the same id again
 the same answer without asking the model or saving again. An id that isn't a UUID is a
 `400` (`details.field`: `client_request_id`).
 
+## Signed requests
+
+Slice 54, D-01. A signed request proves that its sender holds the API token without
+sending it, and the answer proves that the server holds it too. Another program that
+listens at the server's address (say, one that took the port while the server was
+stopped) gets neither the token nor a request it could play to the server later, and the
+client can tell its answers aren't the server's. The extension signs every request; tools
+may keep using `Bearer`.
+
+```
+Authorization: Kotiko-HMAC v1 ts=<ts>, nonce=<nonce>, body=<body>, mac=<mac>
+```
+
+Exactly this form: one space after `Kotiko-HMAC`, `v1`, and after each comma; the four
+fields in this order.
+
+| Field | Value |
+|---|---|
+| `ts` | The client's time, whole seconds since 1970-01-01 UTC (1 to 12 digits) |
+| `nonce` | 22 to 128 base64url characters (`A-Z a-z 0-9 - _`), new for every request; the extension sends 16 random bytes (22 characters) |
+| `body` | SHA-256 of the request body's bytes, 64 lowercase hex digits; of the empty string when there is no body |
+| `mac` | base64url, without padding (43 characters), of HMAC-SHA256 with the token's UTF-8 bytes as the key, over the canonical request below |
+
+The canonical request is six lines joined by `\n` (LF), with no newline at the end:
+
+```
+kotiko-req-v1
+<METHOD>
+<path>
+<ts>
+<nonce>
+<body>
+```
+
+- `METHOD` in capitals (`GET`, `PUT`).
+- `path` is the request target as the server receives it: the path, raw (as sent, not
+  percent-decoded), then `?` and the query string if there is one (`/api/v1/words?status=active,paused`).
+  An address with a path prefix (a reverse proxy that mounts the server under `/kotiko`
+  and strips it) signs the path the server sees, without the prefix.
+- `ts`, `nonce` and `body` exactly as in the header.
+
+The server accepts the request when the MAC matches (compared in constant time), `ts` is
+within 120 seconds of its own clock and not earlier than the second it started, it hasn't
+seen the nonce before, and the body it reads has the signed hash. It remembers each nonce
+for the 120 seconds, once the MAC has matched (so only a token holder can fill that
+memory), for at most 50,000 requests at once; beyond that it refuses signed requests with
+`429 rate_limited` (`details.reason`: `too_many_requests`, with `Retry-After`) rather
+than forget a nonce that could then be replayed. Refusing a `ts` from before the server
+started covers the nonces a restart forgot: a request someone else received while the
+server was stopped can't be played to it once it is back.
+
+Every answer to an accepted request, errors included, carries the server's signature:
+
+```
+X-Kotiko-Server: v1 mac=<base64url(HMAC-SHA256(token, "kotiko-resp-v1\n" + nonce + "\n" + status))>
+```
+
+where `nonce` is the request's and `status` the answer's HTTP status in decimal (`200`).
+It covers the status, not the body. A client checks it before it reads anything else from
+the answer. The extension treats an answer without it, or with a wrong one, as not from
+its server (`not_kotiko_server`): it uses nothing from it, forgets the server's
+[proof](#post-apiv1proof), and sends nothing more until the server proves itself again.
+
+A signed request that is refused gets `401 server_key_rejected` without `X-Kotiko-Server`;
+`details.reason` and the challenge's `error` say why: `malformed` (not the form above;
+doesn't count towards the [lockout](#requests)), `bad_mac`, `stale` (outside the 120
+seconds: check both clocks), `replayed` or `body_mismatch`. A server from before signed
+requests answers them `401` with `www-authenticate: Bearer` alone; the extension then asks
+you to update the server.
+
+Before a request that carries your words or settings (anything but `GET`), the extension
+also asks for a [proof](#post-apiv1proof) when its last one is more than 30 seconds old.
+
+**Test vectors**, with the token `example-token-0123456789abcdef`:
+
+`PUT /api/v1/profile` with the body `{"base_langs":["es","en"],"ui_lang":null}` (those
+exact bytes), `ts` 1791331200, nonce `q1aP3n0ZKcB1x5mW0u7S9b`:
+
+```
+kotiko-req-v1
+PUT
+/api/v1/profile
+1791331200
+q1aP3n0ZKcB1x5mW0u7S9b
+40921055f301e073c3aa377b5ac7d8827ce72c5443e994014c2087b2895f51ff
+```
+
+```
+Authorization: Kotiko-HMAC v1 ts=1791331200, nonce=q1aP3n0ZKcB1x5mW0u7S9b, body=40921055f301e073c3aa377b5ac7d8827ce72c5443e994014c2087b2895f51ff, mac=osa_O2pBaygJz8c64WTOrTLSiY_6vV70NHtPyZ2CZpA
+```
+
+and the server's `200` answer to it:
+
+```
+X-Kotiko-Server: v1 mac=CAmhh5A5suXJTIJNSarztt97Q-RO5eA9K0baiuiw1u0
+```
+
+`GET /api/v1/words?status=active,paused`, no body, `ts` 1791331200, nonce
+`dE8gH0iL2nO4pQ6rS8tU0v`:
+
+```
+Authorization: Kotiko-HMAC v1 ts=1791331200, nonce=dE8gH0iL2nO4pQ6rS8tU0v, body=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855, mac=uHVRpP6SeDO3nxpRjs_zp8V9NYSCV2XP15w9BtwCdPg
+```
+
+(`ts` this old is refused by a live server; the vectors are for checking an
+implementation. Both the server's and the extension's tests check them.)
+
 ## Errors
 
 Routes under `/api/v1` answer errors in one shape:
@@ -85,7 +213,7 @@ Routes under `/api/v1` answer errors in one shape:
 | 400 | `invalid_request` | A parameter or body field is missing or wrong; `details.field` names it (and `details.max` for a limit) |
 | 400 | `invalid_word` | An edit doesn't make a valid word; `details.field` and `details.reason` |
 | 400 | `empty_input`, `input_too_long` | The add text is empty, or longer than 200 characters |
-| 401 | `server_key_rejected` | Missing or wrong token (every route but `/health`) |
+| 401 | `server_key_rejected` | Missing or wrong token, or a signed request that failed (`details.reason`); every route but `/health` and the proof |
 | 404 | `word_gone` | No word with that id, or it was deleted |
 | 404 | `not_found` | No such route under `/api/v1` |
 | 409 | `word_conflict` | `details.reason`: `stale` (changed since `if_updated_at`, with the current `details.word`) or `duplicate` (another word has the same language, text and meaning, `details.other_id`) |
@@ -94,7 +222,7 @@ Routes under `/api/v1` answer errors in one shape:
 | 415 | `invalid_request` | The body isn't JSON (`details.reason`: `content_type`) |
 | 421 | `server_address_invalid` | The `Host` header names a host the server doesn't answer to |
 | 429 | `rate_limited`, `quota_exhausted` | The model provider is busy, or today's free lookups are used up; `Retry-After` (seconds) and `details.retry_at` when known; `details.reason` is `payment_required` when the provider wants credit |
-| 429 | `rate_limited` | Too many wrong tokens from this address (`details.reason`: `auth_failures`), or too many proofs (`too_many_proofs`); `Retry-After` (seconds) |
+| 429 | `rate_limited` | Too many wrong tokens from this address (`details.reason`: `auth_failures`), too many proofs (`too_many_proofs`), or too many signed requests at once (`too_many_requests`); `Retry-After` (seconds) |
 | 502 | `key_rejected`, `model_unavailable`, `bad_lookup_result` | The provider refused the server's key, no model could answer, or the answer wasn't usable |
 | 503 | `lookup_timeout`, `lookup_not_set_up` | No answer within the add's deadline, or no model key is set |
 | 500 | `internal` | A bug; `details.ref` is a reference to find in the server log. No stack trace is sent |
@@ -155,9 +283,10 @@ The same check as `GET /health`, with the same status (`200` or `503`) and no bo
 ### POST /api/v1/proof
 
 Proves that this server holds your API token, without sending it. No token needed. The
-extension can call it before it sends the token to an address, so another program
-listening at that address (say, on `[::1]` while the server listens on `127.0.0.1`) gets
-nothing it can use.
+extension calls it before its first request to an address, and again before a request
+that carries your words or settings when its last proof is more than 30 seconds old, so
+another program listening at that address (say, one that took the port while the server
+was stopped) gets nothing it can use.
 
 Send a fresh random nonce: 32 to 128 base64url characters (`A-Z`, `a-z`, `0-9`, `-`, `_`,
 no `=` padding), for example 32 random bytes encoded as base64url.
@@ -177,13 +306,20 @@ check your own implementation.
 `proof` is `base64url(HMAC-SHA256(key = the API token, message = "kotiko-proof-v1:" + nonce))`,
 without padding (43 characters). The key is the token's UTF-8 bytes as you'd send them
 in `Authorization`; the message is the ASCII prefix followed by the nonce exactly as sent.
-Compute the same value with the token you have and compare in constant time; send the
-token only if they match. Use a new nonce each time.
+Compute the same value with the token you have and compare in constant time; send
+requests only if they match. Use a new nonce each time.
 
+- `415 invalid_request` (`details.reason`: `content_type`): the request has no
+  `Content-Type: application/json`. A web page can't send that type to another site
+  without the server's consent (CORS), so it can't use up the limit below.
 - `400 invalid_request` (`details.field`: `nonce`): the nonce is missing or not 32 to 128
   base64url characters. The body may be at most 1,000 bytes (`413`).
-- `429 rate_limited` (`details.reason`: `too_many_proofs`): more than 30 proofs from one
-  address within a minute; `Retry-After` says when to try again.
+- `429 rate_limited` (`details.reason`: `too_many_proofs`): more than 30 proofs with a
+  well-formed nonce from one address within a minute; `Retry-After` says when to try
+  again. Refused requests (`415`, `400`) don't count, and neither do requests from this
+  computer (127.0.0.0/8, `::1`, IPv4-mapped 127.x) without a forwarding header, which every
+  local program and web page shares. Requests from this computer with a forwarding header
+  (a reverse proxy's) are limited all together, as for wrong tokens ([Requests](#requests)).
 - The answer never contains the token and is sent with `cache-control: no-store`. Like
   `/health`, it is checked against the `Host` names the server answers to.
 - Only this exact path and `POST` are open: any other method or spelling

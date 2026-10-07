@@ -51,10 +51,12 @@ test("fixing the token during a slow sync shows the new result, never the old 40
   const shown = await p.evaluate(() => window.__statuses);
   expect(shown.filter((t) => /didn't accept/i.test(t))).toEqual([]);
 
-  // The server never saw the wrong token: it couldn't prove it holds that one, so it was
-  // never sent (slice 54, B-01). The refusal of that superseded sync was dropped too.
+  // The server never got a request signed with the wrong token: it couldn't prove it holds
+  // that one (slice 54, B-01); no token is ever sent (D-01). The refusal of that superseded
+  // sync was dropped too.
   const log = (await server.state()).log;
-  expect(log.some((r) => r.auth === "Bearer wrong-token")).toBe(false);
+  expect(log.some((r) => r.auth && !r.signed)).toBe(false);
+  expect(log.some((r) => r.auth?.includes("wrong-token") || r.auth?.includes(server.token))).toBe(false);
   expect(log.some((r) => r.path === "/kotiko/api/v1/proof")).toBe(true);
 });
 

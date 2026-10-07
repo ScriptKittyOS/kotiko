@@ -97,8 +97,9 @@ behind a reverse proxy). Used only in the pairing string from
 
 ### `API_TOKEN`
 
-The token the extension sends as `Authorization: Bearer <token>` (see the
-[HTTP API](http-api.md#requests)). A secret.
+The token that opens the server. A secret. The extension never sends it: it signs each
+request with it ([signed requests](http-api.md#signed-requests)); `curl` and other tools
+send it as `Authorization: Bearer <token>` (see the [HTTP API](http-api.md#requests)).
 
 - Default: none. Then the server uses the token saved in `<data folder>/api-token`, and on
   the first start makes one there: 32 random bytes from the operating system's secure
@@ -110,11 +111,19 @@ The token the extension sends as `Authorization: Bearer <token>` (see the
   (`passwordpasswordpassword`), or one with under 64 bits by its characters' frequencies
   (its length times the Shannon entropy of the character counts, low when most characters
   are the same). This is a simple check that catches typed tokens, not a guarantee. The
-  same check runs on a token you put in `api-token` yourself. Ten wrong tokens from one
-  address within a minute lock that address out for the rest of the minute
-  ([HTTP API](http-api.md#requests)), but [`POST /api/v1/proof`](http-api.md#post-apiv1proof)
-  lets anyone who can reach the server test guesses offline, so only a random token is
-  safe on a network.
+  same check runs on a token you put in `api-token` yourself. Ten wrong tokens or failed
+  signatures from one address within a minute lock that address out for the rest of the
+  minute ([HTTP API](http-api.md#requests)), except requests from this computer
+  (127.0.0.0/8 and `::1`) without a forwarding header, which every local program and web
+  page shares, so none of them can lock the extension out;
+  [`POST /api/v1/proof`](http-api.md#post-apiv1proof) isn't limited for them either.
+  Requests a reverse proxy on this computer forwards (they carry a header such as
+  `X-Forwarded-For` or `Forwarded`) are limited, all together: a stranger's lockout
+  refuses everyone coming through the proxy for the rest of that minute, never the
+  extension. A token the server made (256 random bits) can't be guessed, so this costs
+  nothing; a weak token you chose can be guessed by any program on this computer without
+  limit, and the proof lets anyone who can reach the server test guesses offline. Keep
+  the generated token.
 - To replace the saved token: `mix kotiko.token --rotate`, then restart. With
   `API_TOKEN` set, edit `.env` instead; with [`API_TOKEN_FILE`](#api_token_file), replace
   the file's contents.
