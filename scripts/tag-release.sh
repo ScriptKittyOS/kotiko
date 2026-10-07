@@ -17,8 +17,8 @@
 # commit that changed .release-please-manifest.json; the three version files agree;
 # CHANGELOG.md is ready (scripts/release-notes.mjs --check). Then `git tag -s` with your own
 # SSH or GPG signing key (git config user.signingkey, gpg.format), checks the signature
-# against .github/allowed_signers exactly as the workflow will, and pushes the tag. The push
-# starts the release workflow.
+# (against .github/allowed_signers) and the name inside the signed tag exactly as the
+# workflow will, and pushes the tag. The push starts the release workflow.
 
 set -euo pipefail
 
@@ -94,6 +94,12 @@ else
 fi
 
 "${sign[@]}" tag -s "$tag" -m "Kotiko $version"
+# The name inside the signed object must be the tag's own (verify-tag.sh checks it too): the
+# workflow refuses a release whose signed object carries another name (security review C-02).
+if [ "$(git cat-file tag "refs/tags/$tag" | sed -n '/^$/q; s/^tag //p')" != "$tag" ]; then
+  git tag -d "$tag" >/dev/null
+  die "the new tag's signed object isn't named $tag; it was deleted, nothing was pushed"
+fi
 if ! bash scripts/verify-tag.sh "$tag" --main "$remote/main" --rc-branch "$remote/$rc_branch"; then
   git tag -d "$tag" >/dev/null
   die "the new tag didn't verify (is your key in .github/allowed_signers?); it was deleted, nothing was pushed"

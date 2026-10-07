@@ -23,6 +23,18 @@ The output starts with `Good "git" signature for <maintainer>`. For a GPG-signed
 the release keys first: `gpg --import .github/release-keys.asc`, then `git verify-tag v1.0.0`
 shows "Good signature".
 
+Then check that the signed tag carries this tag's name. The signature covers the tag object,
+not the name you fetched it under, so a release candidate's signed object could be pushed
+again as `v1.0.0`:
+
+```sh
+git cat-file tag v1.0.0 | sed -n '/^$/q; s/^tag //p'
+```
+
+This prints `v1.0.0`, the name you asked for. Anything else (for example `v1.0.0-rc.2`)
+means the tag isn't the release the maintainer signed. The release workflow refuses such a
+tag (`scripts/verify-tag.sh`).
+
 Cross-check the key: its fingerprint should match MAINTAINERS.md and the signing keys on the
 maintainer's GitHub profile (`https://github.com/<user>.keys` for SSH,
 `https://github.com/<user>.gpg` for GPG). A key that appears only in the repository proves
