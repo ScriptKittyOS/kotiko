@@ -20,6 +20,9 @@ const MARKER = "legacy-name-ok";
 // Paths ending in "/" are folders.
 const ALLOWED_PATHS = [
   "CHANGELOG.md", // release notes name the old name for good
+  // Security reviews append the reviewers' reports unchanged (slice 54), and those name the
+  // old data folder (finding B-03).
+  "docs/security/review-v1.0.0.md",
   "docs/research/",
   "slices/",
   "brand/", // Mira is the mascot
