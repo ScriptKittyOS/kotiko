@@ -24,3 +24,12 @@ visit a page in a language that isn't yours, the toolbar popup offers **I read â
 
 Kotiko's buttons and messages follow your browser's language where Kotiko has a translation.
 **Settings**, **Kotiko's language** changes it; your words don't change.
+
+## How a word is said
+
+A word's card shows how it's said, written the way a reader of your language would spell
+the sounds. For readers of English this is complete. **For readers of Spanish it's in
+beta:** the spelling rules haven't been checked yet by native readers from Spain, Mexico,
+the Caribbean and the Southern Cone, so a respelling may look odd where you live. If one
+does, [tell us](https://github.com/ScriptKittyOS/kotiko/issues/new/choose) with the word
+and how you'd write it.

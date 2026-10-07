@@ -4,6 +4,28 @@ Decisions already made, so slices don't reopen them. Newest first. Each says who
 and why. Open questions live in each slice's own "Open questions" section and in the
 [index](README.md#open-questions-for-the-maintainers).
 
+## 2026-10-07
+
+**v1.0.0 ships without the screen-reader pass and the voice check; the Spanish respelling
+key ships as beta.** *Maintainer.* Asked how to handle the release checklist's manual checks
+before tagging, the maintainer chose "automate and ship". Every check automation can do
+honestly runs on the release candidate before the tag: the Firefox run-through, a server
+over `http://` from Firefox, the CSV and Anki exports, keyboard-only use, zoom and forced
+colours, and AMO's linter (SCR-428). What needs people moves to 1.0.x, each with its own
+issue: the screen-reader pass of `docs/accessibility.md` (NVDA, VoiceOver, Orca and voice
+control) and a screen-reader user and a keyboard-only user trying a day's use (SCR-842);
+and the voice check of `docs/release/voice-check.md` on Windows, macOS and Linux (SCR-843). The Spanish respelling
+key (`spec/lang/es/respelling.json`) is marked beta on the docs site until readers from
+Spain, Mexico, the Caribbean and the Southern Cone sign it off (SCR-429), as the release
+checklist allows.
+
+**The security review closes with a stop rule.** *Lead agent, delegated.* Fixes went
+through rc.2, rc.3 and rc.4, each confirmed by a fresh reviewer who also found new, smaller
+issues. To end the loop, the last reviewer (F, on rc.4) confirmed only the previous round's
+fixes, and what it found below medium (two informational findings) is recorded in
+`docs/security/review-v1.0.0.md` as accepted risks with issues (SCR-836, SCR-837). Slice
+54's spec describes the rule.
+
 ## 2026-10-06
 
 **Dependency licenses follow the Apache Software Foundation's categories.** *Lead agent,
