@@ -2901,6 +2901,7 @@
       baseUrl.value = s.lookup.baseUrl ?? p.baseUrl ?? "";
       baseUrl.placeholder = p.baseUrl ?? "https://…/v1";
     }
+    warnLookupHttp();
     $("modelField").hidden = !p;
     const model = $("lookupModel");
     if (p && document.activeElement !== model && !dirty.has("lookupModel")) model.value = s.lookup.model ?? "";
@@ -3016,6 +3017,12 @@
     state.lookupTest = res ?? { code: "internal" };
     if (res?.quota) state.lookupStatus = { ...(state.lookupStatus ?? {}), quota: res.quota };
     renderLookupState();
+  }
+
+  // Slice 54, B-06: the key and every word looked up go to this address, as the token goes
+  // to the server's (slice 28 §5's warning, in the lookup's words).
+  function warnLookupHttp() {
+    $("lookupBaseUrlWarn").hidden = $("baseUrlField").hidden || !globalThis.ServerUrl?.sendsInClear($("lookupBaseUrl").value);
   }
 
   function saveLookupField(id) {
@@ -3403,6 +3410,7 @@
     $("keyboardSwaps").addEventListener("click", () => setPref("keyboardSwaps", state.s.prefs?.keyboardSwaps !== true));
     $("showWelcome").addEventListener("click", () => send({ type: "welcome.open" }).catch(() => {}));
     $("dataCollection").addEventListener("click", () => setLookup({ dataCollection: $("dataCollection").getAttribute("aria-checked") === "true" ? "allow" : "deny" }));
+    $("lookupBaseUrl").addEventListener("input", warnLookupHttp);
     for (const id of ["lookupBaseUrl", "lookupModel"]) {
       $(id).addEventListener("input", () => dirty.add(id));
       $(id).addEventListener("change", () => saveLookupField(id));

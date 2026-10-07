@@ -106,7 +106,8 @@
             <div class="other-fields" id="otherFields" hidden>
               <div class="set-field" id="otherUrlField" hidden>
                 <label class="field-label" for="otherUrl" data-i18n="dash_base_url"></label>
-                <input class="field" id="otherUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" />
+                <input class="field" id="otherUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" aria-describedby="otherUrlWarn" />
+                <p class="field-help" id="otherUrlWarn" data-i18n="lookup_url_unencrypted" hidden></p>
               </div>
               <div class="set-field" id="otherKeyField" hidden>
                 <label class="field-label" for="otherKey" id="otherKeyLabel"></label>

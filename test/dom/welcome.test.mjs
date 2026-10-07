@@ -24,7 +24,7 @@ const FRESH = { onboarding: { completedAt: null, skipped: false, version: 2 } };
 const SCRIPTS = [
   "spec/spec.js", "lib/lang.js", "lib/wordspec.js", "lib/word-merge.js", "lib/local-mode.js", "lib/text.js", "lib/matcher.js", "lib/casing.js",
   "lib/i18n.js", "ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/lookup-status.js", "lib/errors.js", "ui/popover-style.js",
-  "content/popover.js", "ui/confetti.js", "lib/welcome-model.js", "welcome.js",
+  "content/popover.js", "ui/confetti.js", "lib/welcome-model.js", "lib/url.js", "welcome.js",
 ];
 
 let srv;
@@ -504,6 +504,25 @@ describe("with the learner's own AI (22 §4, §5)", () => {
     p.click("#confirm");
     await p.until(() => p.visible("#done"));
     assert.equal((await p.words()).length, 1);
+  });
+});
+
+describe("another service's address (slice 54, B-06)", () => {
+  test("plain http to another machine says the key and words travel unencrypted", async () => {
+    const p = await openWelcome();
+    p.click("#aiOther");
+    await p.until(() => p.$('#providerOptions [data-value="custom"]'));
+    p.click('#providerOptions [data-value="custom"]');
+    await p.until(() => p.visible("#otherUrl"));
+    const warn = p.$("#otherUrlWarn");
+    assert.equal(warn.hidden, true);
+    assert.ok(p.$("#otherUrl").getAttribute("aria-describedby").split(" ").includes("otherUrlWarn"));
+    for (const [url, shown] of [["http://203.0.113.7/v1", true], ["http://127.0.0.1:1234/v1", false], ["https://llm.example.net/v1", false]]) {
+      p.type("#otherUrl", url);
+      assert.equal(warn.hidden, !shown, url);
+    }
+    p.type("#otherUrl", "http://203.0.113.7/v1");
+    assert.equal(p.text("#otherUrlWarn"), "This address starts with http://, so your key and the words you look up travel unencrypted. If anyone else shares this network, use an https:// address.");
   });
 });
 

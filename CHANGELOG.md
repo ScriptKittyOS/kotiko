@@ -5,6 +5,10 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Settings and the welcome page now warn when the address of your lookup service starts
+  with `http://` and isn't on your computer: your key and the words you look up would
+  travel unencrypted. The server address already warned.
+
 - Security: Kotiko's default server address is now `http://127.0.0.1:4747`, and an address
   you type as `http://localhost:…` is used as `127.0.0.1`, for your server and for Ollama
   and LM Studio. Browsers try `localhost` at the IPv6 address `[::1]` first, where another

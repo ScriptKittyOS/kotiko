@@ -172,8 +172,9 @@ These match "What you can't expect" in the [requirements](requirements.md).
   permissions alone and warns at every start; other accounts can then see the files' names
   and sizes, not their contents. On a disk that keeps no POSIX permissions (a Windows drive
   in WSL) nothing can be made private; the server warns.
-- **Plain HTTP beyond loopback** exposes the token and words to the network. The server
-  warns; it does not refuse.
+- **Plain HTTP beyond loopback** exposes the token and words to the network, and a lookup
+  service's key and the words looked up. The server warns, and so do the extension's
+  address fields for the server and for a lookup service; neither refuses.
 - **The model provider sees every lookup**, under its own terms.
 - **Pages can see swapped words** in their own DOM.
 - **A subverted content script** (code running in Kotiko's content-script world) can't

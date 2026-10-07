@@ -118,7 +118,7 @@ async function openDashboard({ local = CONNECTED, sync = {}, session = {}, local
   };
   runInWindow(dom, "lib/i18n.js");
   w.KotikoI18n._setLoader(async (l) => readMessages(l));
-  for (const rel of ["spec/spec.js", "lib/lang.js", "lib/welcome-model.js", "ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/word-search.js", "lib/dashboard-model.js", "lib/precedence.js", "lib/word-source.js", "lib/text.js", "bulk/parse.js", "bulk/sheet.js", "lib/lookup-status.js", "lib/errors.js", "lib/story.js", "dashboard.js"]) {
+  for (const rel of ["spec/spec.js", "lib/lang.js", "lib/welcome-model.js", "ui/icons.js", "lib/speak.js", "lib/word-card.js", "lib/word-search.js", "lib/dashboard-model.js", "lib/precedence.js", "lib/word-source.js", "lib/text.js", "bulk/parse.js", "bulk/sheet.js", "lib/lookup-status.js", "lib/errors.js", "lib/story.js", "lib/url.js", "dashboard.js"]) {
     runInWindow(dom, rel);
     if (rel === "lib/story.js") w.KotikoStory._setLoader(async (l) => readExt(`story/${l}.md`));
   }
@@ -1220,6 +1220,26 @@ describe("Word lookups and the words' home (slice 11)", () => {
     await d.settle();
     assert.equal(d.$("#oauthRow").hidden, true, "only OpenRouter has the sign-in");
     assert.doesNotMatch(d.text("#lookupState"), /Waiting for OpenRouter/);
+  });
+
+  // Slice 54, B-06: the server's address warned about plain http, the lookup service's didn't,
+  // though the key and every word looked up go there.
+  test("another service at plain http on another machine says the key and words travel unencrypted", async () => {
+    const backend = withSettings(fakeBackend(), { ...LOCAL, lookup: { ...LOCAL.lookup, kind: "provider", provider: "custom", baseUrl: "https://llm.example.net/v1" } });
+    const d = await openDashboard({ local: LOCAL, hash: "#settings/lookups", backend });
+    const warn = d.$("#lookupBaseUrlWarn");
+    assert.equal(warn.hidden, true, "https: no warning");
+    assert.ok(d.$("#lookupBaseUrl").getAttribute("aria-describedby").split(" ").includes("lookupBaseUrlWarn"));
+    for (const [url, shown] of [["http://203.0.113.7/v1", true], ["http://127.0.0.1:8080/v1", false], ["http://100.101.102.103:8080/v1", false], ["https://203.0.113.7/v1", false], ["192.168.1.9:8080/v1", true]]) {
+      d.$("#lookupBaseUrl").value = url;
+      d.$("#lookupBaseUrl").dispatchEvent(new d.w.Event("input"));
+      assert.equal(warn.hidden, !shown, url);
+    }
+    assert.equal(d.text("#lookupBaseUrlWarn"), "This address starts with http://, so your key and the words you look up travel unencrypted. If anyone else shares this network, use an https:// address.");
+    // A saved address warns when the page opens, too.
+    const saved = withSettings(fakeBackend(), { ...LOCAL, lookup: { ...LOCAL.lookup, kind: "provider", provider: "custom", baseUrl: "http://203.0.113.7/v1" } });
+    const again = await openDashboard({ local: LOCAL, hash: "#settings/lookups", backend: saved });
+    assert.equal(again.$("#lookupBaseUrlWarn").hidden, false);
   });
 
   test("Ollama needs no key, shows its one setting and an editable address; the model is optional", async () => {

@@ -4940,6 +4940,10 @@
     "message": "The privacy policy couldn't be shown here. Read it at kotiko.org/privacy.",
     "description": "Shown on the privacy policy page if its text can't be loaded. Keep the address kotiko.org/privacy as it is."
   },
+  "lookup_url_unencrypted": {
+    "message": "This address starts with http://, so your key and the words you look up travel unencrypted. If anyone else shares this network, use an https:// address.",
+    "description": "Warning under the address of a lookup service (\"Another service\", Ollama, LM Studio) in Settings and on the welcome page, when the address uses http:// and isn't on this computer or a Tailscale network. Lookups still work. Keep http:// and https:// as they are."
+  },
   "server_url_unencrypted": {
     "message": "This address starts with http://, so your access key travels unencrypted. If anyone else shares this network, use an https:// address (for example with tailscale serve).",
     "description": "Warning under the server address field when the address uses http:// and isn't on this computer or a Tailscale network. The connection still works. Keep http://, https:// and \"tailscale serve\" as they are."
