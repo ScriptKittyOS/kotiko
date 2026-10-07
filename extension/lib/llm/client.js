@@ -40,9 +40,10 @@
   }
 
   // Where lookups with these settings go: the preset and the address its key is sent to.
+  // Plain-http localhost is 127.0.0.1, as for the server (lib/url.js, slice 54 B-01).
   function endpoint(s) {
     const p = preset(s?.provider);
-    return { preset: p, baseUrl: String(s?.baseUrl || p.baseUrl || "").trim().replace(/\/+$/, "") };
+    return { preset: p, baseUrl: globalThis.ServerUrl.pinLoopback(String(s?.baseUrl || p.baseUrl || "").trim().replace(/\/+$/, "")) };
   }
 
   async function sha256(text) {

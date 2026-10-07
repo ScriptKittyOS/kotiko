@@ -1228,7 +1228,7 @@ describe("Word lookups and the words' home (slice 11)", () => {
     assert.equal(d.$("#lookupKeyField").hidden, true);
     assert.equal(d.$("#noKeyNeeded").hidden, false);
     assert.match(d.text("#providerNote"), /OLLAMA_ORIGINS=chrome-extension:\/\/\*,moz-extension:\/\/\*/);
-    assert.equal(d.$("#lookupBaseUrl").value, "http://localhost:11434/v1");
+    assert.equal(d.$("#lookupBaseUrl").value, "http://127.0.0.1:11434/v1");
     assert.equal(d.text("#lookupState"), "Ready to look words up.");
     d.$("#lookupBaseUrl").value = "http://192.168.1.9:11434/v1";
     d.$("#lookupBaseUrl").dispatchEvent(new d.w.Event("change"));

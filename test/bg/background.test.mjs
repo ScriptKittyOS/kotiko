@@ -621,12 +621,13 @@ describe("sync correctness (slice 26)", () => {
     assert.deepEqual(store.words, WORDS, "keeps the cached words");
   });
 
-  for (const address of ["localhost:4747", "192.168.1.5:4747"]) {
+  // localhost is asked at 127.0.0.1 (slice 54, B-01).
+  for (const [address, base] of [["localhost:4747", "http://127.0.0.1:4747"], ["192.168.1.5:4747", "http://192.168.1.5:4747"]]) {
     test(`F32: a server address without a scheme gets http:// (${address})`, async () => {
       const { fetch, requests } = serverWith(WORDS);
       const { send } = loadBackground({ fetch, local: { serverUrl: address } });
       await send({ type: "sync", force: true }, POPUP);
-      assert.equal(requests[0]?.url, `http://${address}/api/words`);
+      assert.equal(requests[0]?.url, `${base}/api/words`);
     });
   }
 
@@ -825,7 +826,7 @@ describe("sync correctness (slice 26)", () => {
   });
 
   const addresses = [
-    ["localhost:4747/", "http://localhost:4747/api/words"],
+    ["localhost:4747/", "http://127.0.0.1:4747/api/words"],
     ["[::1]:4747", "http://[::1]:4747/api/words"],
     ["100.101.102.103:4747", "http://100.101.102.103:4747/api/words"],
     ["kotiko.tail1234.ts.net", "https://kotiko.tail1234.ts.net/api/words"],

@@ -119,7 +119,8 @@ at run time.
 | `api.anthropic.com` | Yes, when Anthropic is your provider | Lookups |
 | `generativelanguage.googleapis.com` | Yes, when Google Gemini is your provider | Lookups |
 | `api.groq.com` | Yes, when Groq is your provider | Lookups |
-| `localhost` | Yes, when a local provider (Ollama, LM Studio) or a server on this computer is chosen | Default addresses and examples |
+| `127.0.0.1` | Yes, when a local provider (Ollama, LM Studio) or a server on this computer is chosen | Default addresses and examples. An `http://localhost` address you type is sent to 127.0.0.1 instead, because browsers try `[::1]` first for that name, where another account on the computer could listen |
+| `localhost` | No | Code comments and the check that turns `http://localhost` into 127.0.0.1 |
 | `en.wiktionary.org` | Yes, for words in languages with word stress | Pronunciations: the word only |
 | `*.wikipedia.org` | Only when you click "Try it on a page" | A link the welcome page opens |
 | `es.wikipedia.org` | No | An example in a code comment |

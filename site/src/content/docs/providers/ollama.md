@@ -20,7 +20,7 @@ models make more mistakes with rare words.
    instead ([Ollama's FAQ](https://docs.ollama.com/faq) explains
    how on each system), then restart it.
 3. In Kotiko's **Settings**, **Word lookups**, choose **Ollama** under **Look words up with**.
-   The address is `http://localhost:11434/v1`.
+   The address is `http://127.0.0.1:11434/v1`.
 4. Choose your model, then select **Test**.
 
 If **Test** can't reach Ollama, it is either not running or not started with

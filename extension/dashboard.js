@@ -41,7 +41,7 @@
   const MAX_ADD_JOBS = 6;
   const CONFIRM_AT = 4; // 24 §2: four or more words from one add are confirmed first
 
-  const DEFAULT_SERVER = "http://localhost:4747";
+  const DEFAULT_SERVER = "http://127.0.0.1:4747";
   const LOCAL_DEFAULTS = {
     // Kept here before slice 11; the background moves them into its store at once.
     serverUrl: null,

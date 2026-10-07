@@ -6,19 +6,29 @@
 // sender checks (lib/messages.js).
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { requireExt } from "../helpers/load-script.mjs";
+import { readExt, requireExt } from "../helpers/load-script.mjs";
+import { loadLocalLibs } from "../helpers/local-libs.mjs";
 
-const { normalizeServerUrl } = requireExt("lib/url.js");
+const { normalizeServerUrl, pinLoopback } = requireExt("lib/url.js");
 const { validateWordsResponse, checkWord, filterWords, LIMITS } = requireExt("lib/validate-words.js");
 const { senderKinds, createMessageRouter } = requireExt("lib/messages.js");
 
 describe("normalizeServerUrl", () => {
+  // Plain-http `localhost` becomes 127.0.0.1 (slice 54, B-01): browsers try [::1] first for
+  // the name, where another account on the computer can listen while Kotiko's server
+  // listens on 127.0.0.1 only, and the first request carries the token.
   const good = [
-    ["localhost:4747", "http://localhost:4747"],
+    ["localhost:4747", "http://127.0.0.1:4747"],
     ["192.168.1.5:4747", "http://192.168.1.5:4747"],
     ["kotiko.tail1234.ts.net", "https://kotiko.tail1234.ts.net"],
-    ["  http://localhost:4747//  ", "http://localhost:4747"],
-    ["HTTP://LocalHost:4747/", "http://localhost:4747"],
+    ["  http://localhost:4747//  ", "http://127.0.0.1:4747"],
+    ["HTTP://LocalHost:4747/", "http://127.0.0.1:4747"],
+    ["http://localhost./kotiko/", "http://127.0.0.1/kotiko"],
+    ["http://127.0.0.1:4747", "http://127.0.0.1:4747"],
+    // TLS names the host in its certificate, and *.localhost names a site behind a proxy.
+    ["https://localhost:4747", "https://localhost:4747"],
+    ["http://kotiko.localhost:4747", "http://kotiko.localhost:4747"],
+    ["http://localhost.example.com", "http://localhost.example.com"],
     ["100.64.0.1", "http://100.64.0.1"],
     ["100.127.255.254:4747", "http://100.127.255.254:4747"],
     ["[::1]:4747", "http://[::1]:4747"],
@@ -57,6 +67,34 @@ describe("normalizeServerUrl", () => {
       assert.ok(r.hint.length > 10);
     });
   }
+
+  test("pinLoopback: plain-http localhost in any address, the rest as given", () => {
+    const cases = [
+      ["http://localhost:11434/v1", "http://127.0.0.1:11434/v1"],
+      ["HTTP://LOCALHOST:1234/v1/", "http://127.0.0.1:1234/v1/"],
+      ["http://localhost", "http://127.0.0.1"],
+      ["https://localhost:8443/v1", "https://localhost:8443/v1"],
+      ["http://localhost.evil.example/v1", "http://localhost.evil.example/v1"],
+      ["http://my.localhost:1234/v1", "http://my.localhost:1234/v1"],
+      ["http://127.0.0.1:4747", "http://127.0.0.1:4747"],
+      ["not an address", "not an address"],
+      ["", ""],
+      [null, null],
+    ];
+    for (const [input, out] of cases) assert.equal(pinLoopback(input), out, String(input));
+  });
+
+  test("no default, example or preset address in the extension names localhost", () => {
+    const L = loadLocalLibs();
+    assert.equal(new URL(L.Local.DEFAULT_SERVER).hostname, "127.0.0.1");
+    for (const p of L.spec.providers.providers.filter((x) => x.local)) assert.equal(new URL(p.baseUrl).hostname, "127.0.0.1", p.id);
+    const files = ["popup.js", "popup.html", "dashboard.js", "dashboard.html", "welcome.js", "welcome.html", "lib/local-mode.js", "spec/providers.json", "_locales/en/messages.json", "_locales/es/messages.json"];
+    for (const f of files) assert.doesNotMatch(readExt(f), /https?:\/\/localhost\b/, f);
+  });
+
+  test("the hints show a loopback address, not localhost", () => {
+    for (const input of ["", "http://exa mple.com"]) assert.doesNotMatch(normalizeServerUrl(input).hint, /localhost/);
+  });
 
   test("the user-info hint points at the token field", () => {
     assert.match(normalizeServerUrl("http://user:pw@host").hint, /token/);

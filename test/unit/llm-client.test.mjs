@@ -59,8 +59,8 @@ describe("presets (spec/providers.json): URL, headers and JSON mode", () => {
     ["anthropic", null, "https://api.anthropic.com/v1", { "anthropic-dangerous-direct-browser-access": "true" }, false],
     ["gemini", null, "https://generativelanguage.googleapis.com/v1beta/openai", {}, true],
     ["groq", null, "https://api.groq.com/openai/v1", {}, true],
-    ["ollama", null, "http://localhost:11434/v1", {}, true],
-    ["lmstudio", null, "http://localhost:1234/v1", {}, false],
+    ["ollama", null, "http://127.0.0.1:11434/v1", {}, true],
+    ["lmstudio", null, "http://127.0.0.1:1234/v1", {}, false],
     ["custom", "https://llm.example.net/v1/", "https://llm.example.net/v1", {}, true],
   ];
   test("there are eight presets, OpenRouter first and the default", () => {

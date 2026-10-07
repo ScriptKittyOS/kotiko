@@ -283,7 +283,7 @@ describe("server problems (slice 25 codes)", () => {
   test("a rejected key, a bad address and a non-Kotiko answer are blocking, with a way to fix them", async () => {
     const cases = [
       [{ code: "server_key_rejected", details: { status: 401 } }, "Your Kotiko server didn't accept the access key. Paste it again in Connection settings."],
-      [{ code: "server_address_invalid", details: { hint: "Leave the user name out." } }, "That server address doesn't look right. Try one like http://localhost:4747."],
+      [{ code: "server_address_invalid", details: { hint: "Leave the user name out." } }, "That server address doesn't look right. Try one like http://127.0.0.1:4747."],
       [{ code: "not_kotiko_server", details: { status: 404 } }, "Something answered at that address, but it isn't a Kotiko server. Check the address."],
     ];
     for (const [err, expected] of cases) {
@@ -798,7 +798,7 @@ describe("settings (Connection, until the dashboard)", () => {
   test("shows the server's problem in plain words, without a link to itself", async () => {
     const p = await openPopup({ local: { ...CONNECTED, words: [], syncError: { code: "server_address_invalid", message: "Leave the user name and password out of the address.", details: {} } } });
     p.$("#openSettings").click();
-    assert.equal(p.text("#connStatus .banner-body"), "That server address doesn't look right. Try one like http://localhost:4747.");
+    assert.equal(p.text("#connStatus .banner-body"), "That server address doesn't look right. Try one like http://127.0.0.1:4747.");
     assert.equal(p.$('#connStatus [data-action="settings"]'), null);
     assert.match(p.text("#connStatus details pre"), /user name and password/);
   });

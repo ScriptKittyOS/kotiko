@@ -499,7 +499,7 @@
     if (!token) return $("serverKey").focus();
     state.check = { status: "busy", panel: "server", text: t("welcome_ai_checking") };
     renderAi();
-    const res = await call({ type: "server.connect", url: url || "http://localhost:4747", token });
+    const res = await call({ type: "server.connect", url: url || "http://127.0.0.1:4747", token });
     $("serverKey").value = "";
     await refreshBackend();
     const problem = failed(res) ? res : res.sync?.code ? res.sync : null;

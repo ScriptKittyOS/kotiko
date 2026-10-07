@@ -11,5 +11,5 @@ leaves it, and there is no key and no daily limit.
 1. Install LM Studio and download a model.
 2. Start the server in LM Studio's **Developer** tab, with the model loaded.
 3. In Kotiko's **Settings**, **Word lookups**, choose **LM Studio** under **Look words up
-   with**. The address is `http://localhost:1234/v1`.
+   with**. The address is `http://127.0.0.1:1234/v1`.
 4. Choose your model, then select **Test**.

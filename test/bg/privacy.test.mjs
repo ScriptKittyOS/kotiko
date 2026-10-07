@@ -23,7 +23,7 @@ const KEY = "sk-or-v1-0123456789abcdef0123456789abcdefa1b2";
 
 // Real requests reach the fixture servers; the built-in local services' addresses (Ollama,
 // LM Studio) are answered here, so a test never talks to one running on this computer.
-const LOCAL_SERVICES = /^http:\/\/localhost:(11434|1234)\//;
+const LOCAL_SERVICES = /^http:\/\/(localhost|127\.0\.0\.1):(11434|1234)\//;
 const offline = (url, init) => (LOCAL_SERVICES.test(String(url)) ? Promise.reject(new TypeError("Failed to fetch")) : fetch(url, init));
 
 function loadBackground({ local = {}, fetch: f = offline } = {}) {
@@ -265,7 +265,7 @@ describe("a new install keeps nothing a page planted before its first start (sli
     const planted = [{ id: 1, lang: "ru", language: "Russian", native: "дом", english: "house", forms: ["house"], note: null }];
     const bg = loadBackground({ local: { serverUrl: "http://127.0.0.1:6666", token: "planted-token", words: planted }, fetch });
     await bg.fake.fireInstalled({ reason: "install" });
-    await bg.until(() => bg.store.wordsHome === "local" && bg.store.server?.url === "http://localhost:4747");
+    await bg.until(() => bg.store.wordsHome === "local" && bg.store.server?.url === "http://127.0.0.1:4747");
     const store = await bg.k.getStore();
     assert.deepEqual(await store.secrets.ids(), []);
     assert.deepEqual(await store.list(), []);
@@ -275,5 +275,63 @@ describe("a new install keeps nothing a page planted before its first start (sli
     await bg.fake.idle();
     await sleep(50);
     assert.deepEqual(requests.slice(seen).filter((r) => r.url.includes(":6666")), []);
+  });
+});
+
+// Slice 54, B-01: browsers try [::1] first for `localhost`, where another account on the
+// computer can listen while Kotiko's server listens on 127.0.0.1 only; the first request
+// carries the token. An address saved as localhost before this version is moved to
+// 127.0.0.1 on update, with the route it is bound to, and nothing is sent to localhost.
+describe("localhost becomes 127.0.0.1 (slice 54, B-01)", () => {
+  let srv;
+  before(async () => {
+    srv = await startFixtureServer();
+  });
+  after(() => srv.close());
+
+  test("an install that saved http://localhost:PORT keeps syncing, at 127.0.0.1, after the update", async () => {
+    const sent = [];
+    const f = (url, init = {}) => {
+      sent.push({ url: String(url), auth: init.headers?.Authorization ?? null });
+      return fetch(String(url).replace("://localhost:", "://127.0.0.1:"), init);
+    };
+    const bg = loadBackground({ fetch: f });
+    await bg.k.ready();
+    const port = new URL(srv.kotikoUrl).port;
+    const typed = `http://localhost:${port}/kotiko`;
+    // What the version before saved: the address as typed, bound to its route, and the token.
+    const store = await bg.k.getStore();
+    await bg.k.seed({ wordsHome: "server", server: { url: typed }, keys: { server: true, providers: {} }, lookup: { kind: "provider", provider: "ollama", baseUrl: null, model: null, dataCollection: "allow" } });
+    await store.meta.set("route:server", typed);
+    await store.meta.set("route:lookup:ollama", "http://localhost:11434/v1");
+    await store.meta.set("route:lookupProvider", "ollama");
+    await store.secrets.set("server", srv.token);
+    bg.fake.fireInstalled({ reason: "update", previousVersion: "1.0.0" });
+    await bg.until(() => bg.store.server?.url === `http://127.0.0.1:${port}/kotiko`);
+    assert.equal(await store.meta.get("route:server"), `http://127.0.0.1:${port}/kotiko`);
+    assert.equal(await store.meta.get("route:lookup:ollama"), "http://127.0.0.1:11434/v1");
+    sent.length = 0;
+    assert.deepEqual(await bg.send({ type: "sync", force: true }, POPUP), { ok: true });
+    await bg.until(() => sent.some((r) => r.auth === `Bearer ${srv.token}`));
+    assert.deepEqual(sent.filter((r) => new URL(r.url).hostname === "localhost"), [], "nothing goes to localhost");
+    assert.equal(bg.store.syncError ?? null, null);
+  });
+
+  test("a server address typed as localhost is saved, bound and used as 127.0.0.1", async () => {
+    const sent = [];
+    const f = (url, init = {}) => {
+      sent.push({ url: String(url), auth: init.headers?.Authorization ?? null });
+      return fetch(String(url).replace("://localhost:", "://127.0.0.1:"), init);
+    };
+    const bg = loadBackground({ fetch: f });
+    await bg.k.ready();
+    const port = new URL(srv.kotikoUrl).port;
+    const r = await bg.send({ type: "server.connect", url: `localhost:${port}/kotiko`, token: srv.token });
+    assert.equal(r.ok, true, JSON.stringify(r));
+    assert.equal(bg.store.server.url, `http://127.0.0.1:${port}/kotiko`);
+    assert.equal(await (await bg.k.getStore()).meta.get("route:server"), `http://127.0.0.1:${port}/kotiko`);
+    await bg.send({ type: "sync", force: true }, POPUP);
+    await bg.until(() => sent.some((r) => r.auth === `Bearer ${srv.token}`));
+    assert.deepEqual(sent.filter((x) => new URL(x.url).hostname === "localhost"), []);
   });
 });

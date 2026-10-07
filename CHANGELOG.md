@@ -5,6 +5,12 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Security: Kotiko's default server address is now `http://127.0.0.1:4747`, and an address
+  you type as `http://localhost:…` is used as `127.0.0.1`, for your server and for Ollama
+  and LM Studio. Browsers try `localhost` at the IPv6 address `[::1]` first, where another
+  account on the same computer could listen and receive your server's access token. An
+  address saved as `localhost` moves to `127.0.0.1` on update; nothing to do on your side.
+
 - Connect OpenRouter: a web page you have open can no longer spoil a sign-in in progress.
   Before, any page could open Kotiko's return page with a made-up code while you were
   signing in, and your real sign-in then said "This sign-in has expired". Kotiko now

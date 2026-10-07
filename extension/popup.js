@@ -53,7 +53,7 @@
     backupSnooze: null,
   };
   const MAX_JOBS = 3;
-  const DEFAULT_SERVER = "http://localhost:4747";
+  const DEFAULT_SERVER = "http://127.0.0.1:4747";
   // Providers that run without a key (spec/providers.json's keyRequired: false).
   const KEYLESS = new Set(["ollama", "lmstudio", "custom"]);
   const NO_WORD = new Set(["no_word_found", "rejected_same_as_gloss"]);

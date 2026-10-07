@@ -270,20 +270,22 @@ function saveSettings(m) {
 const routeKey = (route) => `route:${route}`;
 const providerOf = (id) => globalThis.KOTIKO_SPEC.providers.providers.find((p) => p.id === id) ?? null;
 
-// The address a request on `route` would use, in the form routes are stored in.
+// The address a request on `route` would use, in the form routes are stored in: plain-http
+// localhost as 127.0.0.1 (slice 54, B-01), like every request.
 function routeUrl(route, url) {
   if (route === "server") {
     const n = normalizeServerUrl(url ?? "");
     return n.ok ? n.url : null;
   }
-  return url ? String(url).trim().replace(/\/+$/, "") || null : null;
+  return url ? globalThis.ServerUrl.pinLoopback(String(url).trim().replace(/\/+$/, "")) || null : null;
 }
 
 // Read from the store every time (one small read), so a wiped store (slice 12's "delete
-// everything") is never outlived by a remembered address.
+// everything") is never outlived by a remembered address. One bound before addresses were
+// pinned to 127.0.0.1 compares in today's form.
 async function trustedUrl(route) {
   const bound = await (await getStore()).meta.get(routeKey(route));
-  if (bound) return bound;
+  if (bound) return bound.startsWith(RAW) ? bound : routeUrl(route, bound) ?? bound;
   // Nothing named yet (a new install, or after "delete everything"): the built-in addresses.
   if (route.startsWith("lookup:")) return routeUrl(route, providerOf(route.slice("lookup:".length))?.baseUrl ?? null);
   return route === "server" ? routeUrl(route, Local.DEFAULT_SERVER) : null;
@@ -1360,10 +1362,33 @@ async function injectOpenTabs() {
   return n;
 }
 
+// Slice 54, B-01: an address saved as plain-http localhost by an earlier version, and the
+// route it is bound to, become 127.0.0.1, so the settings show where requests really go.
+// Requests already went there (routes compare pinned addresses); this only rewrites them.
+async function pinLoopbackAddresses() {
+  await ready();
+  await underRoutes(async () => {
+    const store = await getStore();
+    const s = await Local.readSettings(area);
+    const patch = {};
+    const pinned = routeUrl("server", s.server.url);
+    if (pinned && pinned !== s.server.url && /^http:\/\/localhost\b/i.test(s.server.url.trim())) patch.server = { ...s.server, url: pinned };
+    if (s.lookup.baseUrl && globalThis.ServerUrl.pinLoopback(s.lookup.baseUrl.trim()) !== s.lookup.baseUrl.trim()) patch.lookup = { ...s.lookup, baseUrl: globalThis.ServerUrl.pinLoopback(s.lookup.baseUrl.trim()) };
+    for (const { key, value } of await store.meta.entries("route:")) {
+      if (typeof value !== "string" || value.startsWith(RAW) || key === CHOSEN) continue;
+      const route = key.slice("route:".length);
+      const now = routeUrl(route, value);
+      if (now && now !== value) await store.meta.set(key, now);
+    }
+    if (Object.keys(patch).length) await area.set(patch);
+  });
+}
+
 function onInstalled(details) {
   if (details?.reason === "update") {
     Promise.resolve(ext.alarms.clear(OLD_ALARM)).catch(() => {});
     migrateHiddenLangs().catch(() => {});
+    pinLoopbackAddresses().catch(() => {});
     // The bases after the first-run state: writing them projects the words again, and the
     // first-run check reads the old list first.
     upgradeOnboarding().catch(() => {}).then(upgradeBases).catch(() => {});
@@ -1668,9 +1693,13 @@ ext.runtime.onMessage.addListener(
         async run(m) {
           await ready();
           if (typeof m.url === "string") {
+            // Saved as it will be used (localhost as 127.0.0.1, slice 54 B-01); an address
+            // that isn't one is kept as typed, so the settings can show it with its error.
+            const typed = m.url.trim() || Local.DEFAULT_SERVER;
+            const n = normalizeServerUrl(typed);
             await underRoutes(async () => {
-              await bindRoute("server", m.url.trim() || Local.DEFAULT_SERVER);
-              await area.set({ server: { url: m.url.trim() || Local.DEFAULT_SERVER } });
+              await bindRoute("server", typed);
+              await area.set({ server: { url: n.ok ? n.url : typed } });
             });
           }
           if (typeof m.token === "string") await setSecret("server", m.token.trim() || null);
