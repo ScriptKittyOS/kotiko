@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Kotiko is before 1.0. Only the latest minor release gets security fixes.
+Only the latest release gets security fixes: from 1.0.0 on (the first store release, still pending), the latest 1.x. Release candidates (`vX.Y.Z-rc.N` pre-releases, for review) and versions older than 1.0.0 get none.
 
 ## Reporting a vulnerability
 
