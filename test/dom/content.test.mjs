@@ -6,6 +6,7 @@
 // otherwise; `detect` stands in for the browser's language detector.
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createFakeChrome } from "../helpers/fake-chrome.mjs";
 import { createPage, injectContentScripts, sleep } from "../helpers/load-script.mjs";
 import { baseRulesFor, basesOf } from "../helpers/base-rules.mjs";
@@ -776,6 +777,118 @@ describe("what a page sees of Kotiko (A-03, C-04)", () => {
     await sleep(20);
     assert.equal($("q").textContent, "a дом");
     assert.equal(sheets(doc).length, 1, "one stylesheet");
+  });
+});
+
+// Security review A-01: only text the learner can see is swapped; the rest waits until it
+// shows. jsdom has no layout, so this stands in for the browser's: checkVisibility() from
+// the hidden attribute and inline display, visibility and opacity; each element's box from
+// its data-rect (x,y,w,h; else 0,0,200,20); an IntersectionObserver the test drives.
+describe("only text the learner sees is swapped (A-01)", () => {
+  function layout(dom) {
+    const W = dom.window;
+    const styleHides = (el) => el.hidden || /display:\s*none|visibility:\s*hidden|opacity:\s*0(?![.\d])/.test(el.getAttribute("style") ?? "");
+    W.Element.prototype.checkVisibility = function () {
+      for (let e = this; e; e = e.parentElement) if (styleHides(e)) return false;
+      return true;
+    };
+    W.Element.prototype.getBoundingClientRect = function () {
+      const [x, y, w, h] = (this.dataset.rect ?? "0,0,200,20").split(",").map(Number);
+      return { left: x, top: y, right: x + w, bottom: y + h, width: w, height: h, x, y };
+    };
+    const io = { observed: new Set() };
+    W.IntersectionObserver = class {
+      constructor(cb) {
+        io.fire = (els) => cb(els.map((target) => ({ target, isIntersecting: true })), this);
+      }
+      observe(el) {
+        io.observed.add(el);
+      }
+      unobserve(el) {
+        io.observed.delete(el);
+      }
+      disconnect() {
+        io.observed.clear();
+      }
+    };
+    return io;
+  }
+
+  test("hidden, clipped, tiny and out-of-reach text isn't swapped; text in view is", async () => {
+    let io;
+    const { $, spans } = await load(
+      `<p id="seen">my house</p>
+       <div id="none" style="display: none"><p>a house</p><p>thanks</p></div>
+       <p id="invisible" style="visibility: hidden">my house</p>
+       <p id="clear" style="opacity: 0">my house</p>
+       <div style="overflow-x: hidden; overflow-y: hidden" data-rect="0,0,1,1"><p id="clipped">my house</p></div>
+       <p id="tiny" data-rect="0,0,1,1">my house</p>
+       <p id="left" data-rect="-9999,0,200,20">my house</p>`,
+      { beforeInject: (dom) => (io = layout(dom)) },
+    );
+    assert.equal($("seen").textContent, "my дом");
+    for (const id of ["none", "invisible", "clear", "clipped", "tiny", "left"]) assert.equal($(id).querySelectorAll("kotiko-w").length, 0, id);
+    assert.equal(spans().length, 1);
+    // The hidden menu is watched once, not item by item.
+    assert.ok(io.observed.has($("none")));
+    assert.ok(![...io.observed].some((el) => $("none").contains(el) && el !== $("none")));
+  });
+
+  test("text swaps once it shows: a menu opening, or fading in", async () => {
+    let io;
+    const { dom, $ } = await load(`<p>my house</p><div id="menu" hidden><p id="item">a house</p></div><p id="fade" style="opacity: 0">thanks</p>`, {
+      beforeInject: (d) => (io = layout(d)),
+    });
+    assert.equal($("item").textContent, "a house");
+    $("menu").hidden = false;
+    io.fire([$("menu")]);
+    assert.equal($("item").textContent, "a дом");
+    // The observer says the faded paragraph is in view, but it's still transparent: it
+    // waits for the fade to finish.
+    io.fire([$("fade")]);
+    assert.equal($("fade").textContent, "thanks");
+    $("fade").setAttribute("style", "opacity: 1");
+    $("fade").dispatchEvent(new dom.window.Event("transitionend", { bubbles: true }));
+    for (let i = 0; i < 100 && $("fade").textContent === "thanks"; i++) await sleep(10);
+    assert.equal($("fade").textContent, "спасибо");
+  });
+});
+
+// Security review A-01: a page reads its own DOM, so every swap tells it one of the
+// learner's words. One page view shows at most spec/rules.json's max_page_concepts distinct
+// concepts, and at most max_page_langs_per_concept languages of one concept.
+describe("what one page view may show (A-01)", () => {
+  const RULES = JSON.parse(readFileSync(new URL("../../spec/rules.json", import.meta.url), "utf8"));
+  const letters = (i) => {
+    let out = "";
+    for (let n = i + 26 * 26; n > 0; n = Math.floor(n / 26)) out = String.fromCharCode(97 + (n % 26)) + out;
+    return `q${out}`;
+  };
+
+  test(`at most ${RULES.max_page_concepts} distinct concepts, however many the page holds`, async () => {
+    const n = RULES.max_page_concepts + 40;
+    const words = Array.from({ length: n }, (_, i) => word(`дом${i}`, letters(i)));
+    const html = Array.from({ length: n / 20 }, (_, p) => `<p>${words.slice(p * 20, p * 20 + 20).map((w) => w.english).join(" and ")}.</p>`).join("");
+    const { spans, set } = await load(html, { words });
+    // Big pages are swapped in time slices: until the count holds still.
+    for (let i = 0, last = -1; i < 200 && spans().length !== last; i++) {
+      last = spans().length;
+      await sleep(20);
+    }
+    const shown = new Set(spans().map((s) => s.textContent));
+    assert.equal(shown.size, RULES.max_page_concepts);
+    // In document order: the first ones on the page.
+    assert.ok(shown.has("дом0") && !shown.has(`дом${n - 1}`));
+    // A concept already shown keeps showing, everywhere; a re-apply doesn't reset the count.
+    await set({ seedSalt: "another-day" });
+    assert.equal(new Set(spans().map((s) => s.textContent)).size, RULES.max_page_concepts);
+  });
+
+  test(`"mix within the page" shows at most ${RULES.max_page_langs_per_concept} languages of one concept`, async () => {
+    const W = [...WORDS, word("gracias", "thanks", ["thanks"], "es"), word("danke", "thanks", ["thanks"], "de")];
+    const { spans } = await load(`<p id="p">${Array.from({ length: 10 }, (_, i) => `Thanks ${letters(i)}.`).join(" ")}</p>`, { words: W, mixing: { mode: "mix" } });
+    assert.equal(spans().length, 10, "every occurrence still swaps");
+    assert.equal(new Set(spans().map((x) => x.lang)).size, RULES.max_page_langs_per_concept);
   });
 });
 

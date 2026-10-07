@@ -72,6 +72,15 @@
   let session = null;
   let sessionHref = null;
   let eligibleLangs = new Set();
+  // What this page view has shown, concept -> its languages, for as long as the document
+  // lives (a single-page app's navigations included). A page reads its own DOM, so each
+  // swap tells it one of the learner's words; capping the distinct concepts (and the
+  // languages of one concept, for "mix within the page") caps what any page can learn in
+  // one view, whatever text it shows (security review A-01; spec/rules.json).
+  const PAGE_RULES = globalThis.KOTIKO_PAGE_RULES ?? {};
+  const MAX_CONCEPTS = PAGE_RULES.max_page_concepts ?? 500;
+  const MAX_LANGS = PAGE_RULES.max_page_langs_per_concept ?? 3;
+  const revealed = new Map();
 
   // Buttons, toggles, menus and forms stay as the site wrote them (lib/controls.js).
   const controls = createControlCheck((el) => getComputedStyle(el).cursor);
@@ -233,13 +242,15 @@
 
   // The engine's question: what to swap in `text` (a site text node's own text). Reads
   // computed styles only for a node with a match (lib/controls.js), and before any write.
-  function plan({ text, node, edges }) {
+  function plan({ text, node, edges, shown }) {
     if (!indexes) return [];
     const base = baseFor(node.parentElement);
     const index = base && indexes.get(base);
     if (!index?.size) return [];
     if (!scan(text, { base }, index).matches.length) return [];
     if (prefs().swapControls !== true && controls.inControl(node.parentElement)) return [];
+    // Text the learner doesn't see waits until they do (engine.js, security review A-01).
+    if (shown && !shown()) return [];
     const ctx = { base, ...edges() };
     const items = [];
     const ordinals = new Map();
@@ -257,15 +268,31 @@
       ordinals.set(spot, ordinal + 1);
       const c = session.choose({ base, entry: m.entry, candidates: cands, surface: m.surface, before, after, ordinal });
       if (!c?.word) continue;
-      const w = c.word;
-      const all = [w, ...c.others];
+      const w = reveal(c);
+      if (!w) continue;
+      const all = [w, ...[c.word, ...c.others].filter((x) => x !== w)];
+      const alsoLangs = w === c.word ? c.alsoLangs : [...new Set(all.filter((x) => x !== w && x.lang !== w.lang && x.native === w.native).map((x) => x.lang))];
       // Written in the target's own capitals (slice 17).
       const { shouting } = rules.flags(text, ctx);
       // sentenceStart is worked out lazily; only a capitalised word needs it.
       const display = Casing.display({ shape: m.shape, sentenceStart: m.shape === "title" && m.sentenceStart, shouting, native: w.native, lang: w.lang });
-      items.push({ start: m.start, end: m.end, display, lang: w.lang, read: heard(display, w.lang, text.slice(m.start, m.end), base), tab: prefs().keyboardSwaps === true || null, info: { surface: m.surface, key: m.key, word: w, all, alsoLangs: c.alsoLangs } });
+      items.push({ start: m.start, end: m.end, display, lang: w.lang, read: heard(display, w.lang, text.slice(m.start, m.end), base), tab: prefs().keyboardSwaps === true || null, info: { surface: m.surface, key: m.key, word: w, all, alsoLangs } });
     }
     return items;
+  }
+
+  // The word a choice may show within this page view's caps, or null: a concept past the
+  // cap stays as the site wrote it; a concept already in its language limit shows one of
+  // the languages it has shown.
+  function reveal(c) {
+    let langs = revealed.get(c.concept);
+    if (!langs) {
+      if (revealed.size >= MAX_CONCEPTS) return null;
+      revealed.set(c.concept, (langs = new Set()));
+    }
+    const w = langs.has(c.word.lang) || langs.size < MAX_LANGS ? c.word : c.others.find((x) => langs.has(x.lang)) ?? null;
+    if (w) langs.add(w.lang);
+    return w;
   }
 
   // What screen readers hear on a swap (27 §2). The default is the word itself, in its own

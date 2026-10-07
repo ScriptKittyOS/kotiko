@@ -157,8 +157,9 @@ export default [
   },
   { rules: STRICTER },
   {
-    // extension/spec/spec.js is generated (spec/tools/sync-extension.mjs) as compact JSON.
-    ignores: ["extension/spec/spec.js"],
+    // extension/spec/spec.js and page.js are generated (spec/tools/sync-extension.mjs) as
+    // compact JSON.
+    ignores: ["extension/spec/spec.js", "extension/spec/page.js"],
     plugins: { "@stylistic": stylistic },
     rules: LAYOUT,
   },
@@ -202,7 +203,7 @@ export default [
     // destructure their first argument, even when it's empty. Such a callback can't see
     // the test's variables, so it takes them as an argument under the same name
     // (`page.evaluate((id) => ..., id)`): shadowing is the idiom there, not a mistake.
-    files: ["test/e2e/**/*.mjs", "test/visual/**/*.mjs", "test/helpers/axe.mjs", "test/helpers/a11y-checks.mjs", "site/tests/**/*.spec.mjs"],
+    files: ["test/e2e/**/*.mjs", "test/security/**/*.mjs", "test/visual/**/*.mjs", "test/helpers/axe.mjs", "test/helpers/a11y-checks.mjs", "site/tests/**/*.spec.mjs"],
     languageOptions: { globals: { ...globals.node, ...globals.browser, ...globals.webextensions } },
     rules: {
       "no-empty-pattern": ["error", { allowObjectPatternsAsParameters: true }],
