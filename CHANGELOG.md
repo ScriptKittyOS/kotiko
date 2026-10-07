@@ -28,6 +28,14 @@ Conventional Commits by release-please.
   now warns however the address is written. An OpenRouter address in capitals is also
   recognised as OpenRouter.
 
+- Security: a program that took your server's place while it was stopped could keep a
+  request Kotiko sent it and play it to your server once it was back, and get your word
+  list, when the clock of the computer Kotiko runs on was ahead of the server's. Your
+  server now makes a new random id each time it starts, gives it with its proof, and
+  accepts only requests signed with the current one; after a restart Kotiko asks for a
+  new proof and sends the request again by itself. Update the server and the extension
+  together: each turns the other's older version away and says so.
+
 - Self-hosted server: the two addresses that answer without your access key, `/health` and
   `/api/v1/proof`, also answered when written another way, such as `/health/` or
   `//api/v1/proof`. Now only the exact addresses do; any other spelling needs the key.

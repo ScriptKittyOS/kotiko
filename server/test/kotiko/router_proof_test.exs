@@ -36,9 +36,26 @@ defmodule Kotiko.RouterProofTest do
     conn = prove(%{nonce: @nonce})
 
     assert conn.status == 200
-    assert json_body(conn) == %{"proof" => expected(token(), @nonce)}
+    assert %{"proof" => proof} = json_body(conn)
+    assert proof == expected(token(), @nonce)
     refute conn.resp_body =~ token()
     assert get_resp_header(conn, "cache-control") == ["no-store"]
+  end
+
+  # Security review E-01: the boot id every signed request carries, which a restart changes,
+  # comes with the proof, signed with the token for this nonce.
+  test "carries this boot's id, with its MAC for the nonce" do
+    boot = Kotiko.RequestAuth.boot()
+    body = json_body(prove(%{nonce: @nonce}))
+    assert Map.keys(body) |> Enum.sort() == ~w(boot boot_mac proof)
+    assert body["boot"] == boot
+
+    assert body["boot_mac"] ==
+             :crypto.mac(:hmac, :sha256, token(), "kotiko-boot-v1\n#{@nonce}\n#{boot}")
+             |> Base.url_encode64(padding: false)
+
+    Kotiko.RequestAuth.reset()
+    refute json_body(prove(%{nonce: @nonce}))["boot"] == boot
   end
 
   test "matches the example in docs/reference/http-api.md" do

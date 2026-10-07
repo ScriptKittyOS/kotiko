@@ -7,7 +7,7 @@ import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { createFakeChrome } from "../helpers/fake-chrome.mjs";
 import { proofFor, startFixtureServer } from "../helpers/fixture-server.mjs";
-import { serverSignature, verifySigned } from "../helpers/kotiko-auth.mjs";
+import { proofAnswer, serverSignature, TEST_BOOT, verifySigned } from "../helpers/kotiko-auth.mjs";
 import { webcrypto } from "node:crypto";
 import { manifest, readExt, runInVm, sleep } from "../helpers/load-script.mjs";
 
@@ -27,10 +27,11 @@ const targetOf = (url) => {
 };
 const signedWith = (r, token) =>
   verifySigned(token, { method: r.method ?? "GET", target: targetOf(r.url), body: r.body ?? "", authorization: r.headers?.Authorization }).ok && !JSON.stringify(r).includes(token);
-// A server's answer to a request signed with `token`, signed back as the real server does.
-// A request that isn't signed with it gets the server's 401.
-async function signedAnswer(token, url, init, answer) {
-  const v = verifySigned(token, { method: init.method ?? "GET", target: targetOf(url), body: init.body ?? "", authorization: init.headers?.Authorization });
+// A server's answer to a request signed with `token` (for its boot id `boot`, when given),
+// signed back as the real server does. A request that isn't signed with it gets the
+// server's 401.
+async function signedAnswer(token, url, init, answer, boot = null) {
+  const v = verifySigned(token, { method: init.method ?? "GET", target: targetOf(url), body: init.body ?? "", authorization: init.headers?.Authorization, boot });
   if (!v.ok) return new Response(JSON.stringify({ error: { code: "server_key_rejected" } }), { status: 401, headers: { "www-authenticate": `Bearer, Kotiko-HMAC error="${v.reason}"` } });
   const res = await answer();
   res.headers.set("x-kotiko-server", serverSignature(token, v.nonce, res.status));
@@ -41,25 +42,28 @@ async function signedAnswer(token, url, init, answer) {
 // the background sends after a sync (slice 41 §9) is recorded apart, in `profile`, and
 // answered by `onProfile` (an echo by default), so the sync tests count only their own.
 // The proof a Kotiko server gives before it gets requests (slice 54, B-01) is answered here
-// too, for `token` (the harness's, or a function for a test that changes it), and recorded in
-// `proofs`; every answer is signed with that token, as the real server signs (D-01).
-function stubFetch(handler, { onProfile = (init) => json(200, JSON.parse(init.body)), token = "good-token" } = {}) {
+// too, for `token` (the harness's, or a function for a test that changes it), with the boot id
+// `boot` (a function for a test that restarts the server: requests signed for another get
+// `stale_boot`), and recorded in `proofs`; every answer is signed with that token, as the
+// real server signs (D-01).
+function stubFetch(handler, { onProfile = (init) => json(200, JSON.parse(init.body)), token = "good-token", boot = TEST_BOOT } = {}) {
   const requests = [];
   const profile = [];
   const proofs = [];
   const held = () => (typeof token === "function" ? token() : token);
+  const booted = () => (typeof boot === "function" ? boot() : boot);
   const fetch = async (url, init = {}) => {
     const r = { url: String(url), method: init.method ?? "GET", headers: { ...init.headers }, body: init.body, cache: init.cache, credentials: init.credentials };
     if (r.url.endsWith("/api/v1/proof")) {
       proofs.push(r);
-      return json(200, { proof: proofFor(held(), JSON.parse(init.body).nonce) });
+      return json(200, proofAnswer(held(), JSON.parse(init.body).nonce, booted()));
     }
     if (r.url.endsWith("/api/v1/profile")) {
       profile.push(r);
-      return signedAnswer(held(), url, init, () => onProfile(init));
+      return signedAnswer(held(), url, init, () => onProfile(init), booted());
     }
     requests.push(r);
-    return signedAnswer(held(), url, init, () => handler(String(url), init));
+    return signedAnswer(held(), url, init, () => handler(String(url), init), booted());
   };
   return { fetch, requests, profile, proofs };
 }
@@ -726,7 +730,7 @@ describe("sync correctness (slice 26)", () => {
     const fetch = (url, init) => {
       // The profile sent after connecting (slice 41 §9) isn't the sync this test watches.
       if (String(url).endsWith("/api/v1/profile")) return Promise.resolve(json(200, {}));
-      if (String(url).endsWith("/api/v1/proof")) return Promise.resolve(json(200, { proof: proofFor(serverToken, JSON.parse(init.body).nonce) }));
+      if (String(url).endsWith("/api/v1/proof")) return Promise.resolve(json(200, proofAnswer(serverToken, JSON.parse(init.body).nonce)));
       // Which token signed it (slice 54, D-01: the token itself is never sent).
       const token = ["bad", "good"].find((t) => signedWith({ url: String(url), method: init.method, headers: init.headers, body: init.body }, t));
       const entry = { token, aborted: false };
@@ -1119,7 +1123,7 @@ describe("the server proves it holds the token before it gets it", () => {
       if (String(url).endsWith("/api/v1/proof")) {
         const body = JSON.parse(init.body);
         proofs.push({ headers: { ...init.headers }, body, credentials: init.credentials });
-        return json(200, { proof: proofFor(TOKEN, body.nonce) });
+        return json(200, proofAnswer(TOKEN, body.nonce));
       }
       if (String(url).endsWith("/api/v1/profile")) return signedAnswer(TOKEN, url, init, () => json(200, {}));
       requests.push({ url: String(url), method: init.method, headers: { ...init.headers } });
@@ -1142,8 +1146,18 @@ describe("the server proves it holds the token before it gets it", () => {
     ["a route it doesn't have (404)", () => new Response("not found", { status: 404 }), "not_kotiko_server", "no_proof"],
     ["a 401, as a server from before the proof answers", () => new Response("unauthorized", { status: 401 }), "not_kotiko_server", "no_proof"],
     ["a 200 with no proof", () => json(200, { words: [] }), "not_kotiko_server", "no_proof"],
-    ["a 200 with a proof made with another token", (init) => json(200, { proof: proofFor("another-token", JSON.parse(init.body).nonce) }), "server_key_rejected", "wrong_proof"],
-    ["a 200 with a proof for another nonce", () => json(200, { proof: proofFor("good-token", "q1aP3n0ZKcB1x5mW0u7S9bJ2rV4yT6dE8gH0iL2nO4p") }), "server_key_rejected", "wrong_proof"],
+    ["a 200 with a proof made with another token", (init) => json(200, proofAnswer("another-token", JSON.parse(init.body).nonce)), "server_key_rejected", "wrong_proof"],
+    ["a 200 with a proof for another nonce", () => json(200, proofAnswer("good-token", "q1aP3n0ZKcB1x5mW0u7S9bJ2rV4yT6dE8gH0iL2nO4p")), "server_key_rejected", "wrong_proof"],
+    // Security review E-01: a server from before boot ids can't check today's requests.
+    ["a 200 with a proof but no boot id (a server from before E-01)", (init) => json(200, { proof: proofFor("good-token", JSON.parse(init.body).nonce) }), "not_kotiko_server", "no_proof"],
+    ["a 200 with a boot id signed with another token", (init) => {
+      const { nonce } = JSON.parse(init.body);
+      return json(200, { ...proofAnswer("good-token", nonce), boot_mac: proofAnswer("another-token", nonce).boot_mac });
+    }, "server_key_rejected", "wrong_proof"],
+    ["a 200 with a boot id signed for another nonce", (init) => {
+      const { nonce } = JSON.parse(init.body);
+      return json(200, { ...proofAnswer("good-token", nonce), boot_mac: proofAnswer("good-token", `${nonce}x`).boot_mac });
+    }, "server_key_rejected", "wrong_proof"],
   ];
   for (const [name, answer, code, reason] of impostors) {
     test(`a listener that answers ${name} never gets the token`, async () => {
@@ -1271,6 +1285,50 @@ describe("signed requests: the token never leaves the browser (D-01)", () => {
     assert.ok(proofs.length >= 2, "connecting again proves again");
   });
 
+  // Security review E-01: a request caught while the server was stopped could be played to it
+  // after a restart. Every request now signs the server's boot id, which a restart changes; a
+  // request the restarted server refuses as signed for its previous boot is sent once more,
+  // after a new proof.
+  test("after the server restarts, Kotiko proves again and sends the refused request once more (E-01)", async () => {
+    const RESTARTED = "AAECAwQFBgcICQoLDA0OEA";
+    let boot = TEST_BOOT;
+    const server = stubFetch(() => json(200, { words: WORDS }), { boot: () => boot });
+    const { send, store, fake } = loadBackground({ fetch: server.fetch });
+    assert.deepEqual(await send({ type: "sync", force: true }, POPUP), { ok: true });
+    await requested(fake, server.profile, 1);
+    await fake.idle();
+    assert.equal(server.proofs.length, 1);
+    const bootOf = (r) => /boot=([\w-]+)/.exec(r.headers.Authorization)[1];
+    assert.ok(server.requests.every((r) => bootOf(r) === TEST_BOOT), "signed for the boot the proof gave");
+
+    boot = RESTARTED;
+    const sent = server.requests.length;
+    assert.deepEqual(await send({ type: "sync", force: true }, POPUP), { ok: true });
+    assert.equal(store.syncError, null);
+    assert.deepEqual(store.words, WORDS);
+    assert.equal(server.proofs.length, 2, "proved again once the server said stale_boot");
+    const tries = server.requests.slice(sent).filter((r) => new URL(r.url).pathname === "/api/words");
+    assert.deepEqual(tries.map(bootOf), [TEST_BOOT, RESTARTED], "the refused request, then the same one for the new boot");
+  });
+
+  test("a stale_boot refusal is retried only once", async () => {
+    const requests = [];
+    const proofs = [];
+    const fetch = async (url, init = {}) => {
+      if (String(url).endsWith("/api/v1/proof")) {
+        proofs.push(url);
+        return json(200, proofAnswer("good-token", JSON.parse(init.body).nonce));
+      }
+      requests.push(url);
+      return new Response("{}", { status: 401, headers: { "www-authenticate": 'Bearer, Kotiko-HMAC error="stale_boot"' } });
+    };
+    const { send, store } = loadBackground({ fetch, local: { words: WORDS } });
+    await send({ type: "sync", force: true }, POPUP);
+    assert.deepEqual([store.syncError?.code, store.syncError?.details?.reason], ["server_key_rejected", "stale_boot"]);
+    assert.deepEqual([proofs.length, requests.length], [2, 2]);
+    assert.deepEqual(store.words, WORDS);
+  });
+
   const unsigned = [
     ["a server from before signed requests (401, Bearer challenge)", () => new Response("unauthorized", { status: 401, headers: { "www-authenticate": "Bearer" } }), "not_kotiko_server", "no_proof"],
     ["today's server refusing a stale signature", () => new Response("{}", { status: 401, headers: { "www-authenticate": 'Bearer, Kotiko-HMAC error="stale"' } }), "server_key_rejected", "stale"],
@@ -1288,7 +1346,7 @@ describe("signed requests: the token never leaves the browser (D-01)", () => {
       const fetch = async (url, init = {}) => {
         if (String(url).endsWith("/api/v1/proof")) {
           proofs.push(url);
-          return json(200, { proof: proofFor("good-token", JSON.parse(init.body).nonce) });
+          return json(200, proofAnswer("good-token", JSON.parse(init.body).nonce));
         }
         return answer(url, init);
       };

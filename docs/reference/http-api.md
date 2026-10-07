@@ -22,7 +22,7 @@ a route is added or removed without updating this page.
 [`POST /api/v1/proof`](#post-apiv1proof) needs the API token, in one of two ways:
 
 - `Authorization: Bearer <API token>`, for `curl` and other tools you run yourself;
-- a [signed request](#signed-requests), `Authorization: Kotiko-HMAC v1 ...`, which proves
+- a [signed request](#signed-requests), `Authorization: Kotiko-HMAC v2 ...`, which proves
   the sender holds the token without sending it. The browser extension uses only this, so
   the token never leaves the browser.
 
@@ -102,27 +102,30 @@ client can tell its answers aren't the server's. The extension signs every reque
 may keep using `Bearer`.
 
 ```
-Authorization: Kotiko-HMAC v1 ts=<ts>, nonce=<nonce>, body=<body>, mac=<mac>
+Authorization: Kotiko-HMAC v2 ts=<ts>, nonce=<nonce>, boot=<boot>, body=<body>, mac=<mac>
 ```
 
-Exactly this form: one space after `Kotiko-HMAC`, `v1`, and after each comma; the four
-fields in this order.
+Exactly this form: one space after `Kotiko-HMAC`, `v2`, and after each comma; the five
+fields in this order. (`v1`, without `boot`, from 1.0.0-rc.1 to rc.3, is refused as
+`malformed`.)
 
 | Field | Value |
 |---|---|
 | `ts` | The client's time, whole seconds since 1970-01-01 UTC (1 to 12 digits) |
 | `nonce` | 22 to 128 base64url characters (`A-Z a-z 0-9 - _`), new for every request; the extension sends 16 random bytes (22 characters) |
+| `boot` | The server's boot id, 22 to 64 base64url characters, as its [proof](#post-apiv1proof) answer gave it |
 | `body` | SHA-256 of the request body's bytes, 64 lowercase hex digits; of the empty string when there is no body |
 | `mac` | base64url, without padding (43 characters), of HMAC-SHA256 with the token's UTF-8 bytes as the key, over the canonical request below |
 
-The canonical request is six lines joined by `\n` (LF), with no newline at the end:
+The canonical request is seven lines joined by `\n` (LF), with no newline at the end:
 
 ```
-kotiko-req-v1
+kotiko-req-v2
 <METHOD>
 <path>
 <ts>
 <nonce>
+<boot>
 <body>
 ```
 
@@ -131,17 +134,29 @@ kotiko-req-v1
   percent-decoded), then `?` and the query string if there is one (`/api/v1/words?status=active,paused`).
   An address with a path prefix (a reverse proxy that mounts the server under `/kotiko`
   and strips it) signs the path the server sees, without the prefix.
-- `ts`, `nonce` and `body` exactly as in the header.
+- `ts`, `nonce`, `boot` and `body` exactly as in the header.
 
-The server accepts the request when the MAC matches (compared in constant time), `ts` is
-within 120 seconds of its own clock and not earlier than the second it started, it hasn't
-seen the nonce before, and the body it reads has the signed hash. It remembers each nonce
-for the 120 seconds, once the MAC has matched (so only a token holder can fill that
-memory), for at most 50,000 requests at once; beyond that it refuses signed requests with
-`429 rate_limited` (`details.reason`: `too_many_requests`, with `Retry-After`) rather
-than forget a nonce that could then be replayed. Refusing a `ts` from before the server
-started covers the nonces a restart forgot: a request someone else received while the
-server was stopped can't be played to it once it is back.
+The server accepts the request when the MAC matches (compared in constant time), `boot` is
+its current boot id, `ts` is no more than 120 seconds before or after its own clock, it
+hasn't seen the nonce before, and the body it reads has the signed hash. It remembers each
+nonce for those 120 seconds, once the MAC has matched (so only a token holder can fill
+that memory), for at most 50,000 requests at once; beyond that it refuses signed requests
+with `429 rate_limited` (`details.reason`: `too_many_requests`, with `Retry-After`)
+rather than forget a nonce that could then be replayed.
+
+**The boot id.** The server keeps those nonces in memory, so a restart forgets them. It
+makes a new random boot id (16 bytes, 22 base64url characters) each time it starts, and
+refuses a request signed with any other (`stale_boot`). So a request someone else received
+while the server was stopped (a program that took its port) can't be played to it once it
+is back, whatever its `ts`: it carries the old boot id. A client gets the current id from
+the proof and signs it into every request; when a request is refused as `stale_boot` (the
+server restarted since), the client asks for a new proof and sends the request again. The
+server refused it before doing anything, so sending it again is safe. The extension does
+this once per request.
+
+**Clocks.** `ts` may differ from the server's clock by up to 120 seconds either way, so the
+computer the extension runs on and the server's need roughly the right time (any system
+that sets its clock over the network does). A larger difference gets `stale`.
 
 Every answer to an accepted request, errors included, carries the server's signature:
 
@@ -157,30 +172,34 @@ its server (`not_kotiko_server`): it uses nothing from it, forgets the server's
 
 A signed request that is refused gets `401 server_key_rejected` without `X-Kotiko-Server`;
 `details.reason` and the challenge's `error` say why: `malformed` (not the form above;
-doesn't count towards the [lockout](#requests)), `bad_mac`, `stale` (outside the 120
-seconds: check both clocks), `replayed` or `body_mismatch`. A server from before signed
+doesn't count towards the [lockout](#requests)), `bad_mac`, `stale_boot` (signed for
+another boot of the server: ask for a new proof and send it again; doesn't count towards
+the lockout, since its MAC matched), `stale` (outside the 120 seconds: check both
+clocks), `replayed` or `body_mismatch`. A server from before signed
 requests answers them `401` with `www-authenticate: Bearer` alone; the extension then asks
 you to update the server.
 
 Before a request that carries your words or settings (anything but `GET`), the extension
 also asks for a [proof](#post-apiv1proof) when its last one is more than 30 seconds old.
 
-**Test vectors**, with the token `example-token-0123456789abcdef`:
+**Test vectors**, with the token `example-token-0123456789abcdef` and the boot id
+`AAECAwQFBgcICQoLDA0ODw` (the 16 bytes 00 to 0f):
 
 `PUT /api/v1/profile` with the body `{"base_langs":["es","en"],"ui_lang":null}` (those
 exact bytes), `ts` 1791331200, nonce `q1aP3n0ZKcB1x5mW0u7S9b`:
 
 ```
-kotiko-req-v1
+kotiko-req-v2
 PUT
 /api/v1/profile
 1791331200
 q1aP3n0ZKcB1x5mW0u7S9b
+AAECAwQFBgcICQoLDA0ODw
 40921055f301e073c3aa377b5ac7d8827ce72c5443e994014c2087b2895f51ff
 ```
 
 ```
-Authorization: Kotiko-HMAC v1 ts=1791331200, nonce=q1aP3n0ZKcB1x5mW0u7S9b, body=40921055f301e073c3aa377b5ac7d8827ce72c5443e994014c2087b2895f51ff, mac=osa_O2pBaygJz8c64WTOrTLSiY_6vV70NHtPyZ2CZpA
+Authorization: Kotiko-HMAC v2 ts=1791331200, nonce=q1aP3n0ZKcB1x5mW0u7S9b, boot=AAECAwQFBgcICQoLDA0ODw, body=40921055f301e073c3aa377b5ac7d8827ce72c5443e994014c2087b2895f51ff, mac=KYWsYYqoHJ_1CJtht-ji67yNLQd-XNEXFaKUCZeTm1s
 ```
 
 and the server's `200` answer to it:
@@ -193,11 +212,13 @@ X-Kotiko-Server: v1 mac=CAmhh5A5suXJTIJNSarztt97Q-RO5eA9K0baiuiw1u0
 `dE8gH0iL2nO4pQ6rS8tU0v`:
 
 ```
-Authorization: Kotiko-HMAC v1 ts=1791331200, nonce=dE8gH0iL2nO4pQ6rS8tU0v, body=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855, mac=uHVRpP6SeDO3nxpRjs_zp8V9NYSCV2XP15w9BtwCdPg
+Authorization: Kotiko-HMAC v2 ts=1791331200, nonce=dE8gH0iL2nO4pQ6rS8tU0v, boot=AAECAwQFBgcICQoLDA0ODw, body=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855, mac=_SuhCp1q3PZ4gjDHP-zY0KQKrBe1zK5lxuFmBQuRPdk
 ```
 
-(`ts` this old is refused by a live server; the vectors are for checking an
-implementation. Both the server's and the extension's tests check them.)
+The [proof](#post-apiv1proof) vector gives the `boot_mac` for this boot id.
+
+(`ts` this old is refused by a live server, and its boot id is random; the vectors are for
+checking an implementation. Both the server's and the extension's tests check them.)
 
 ## Errors
 
@@ -307,17 +328,24 @@ curl -s -H 'Content-Type: application/json' -d '{"nonce": "q1aP3n0ZKcB1x5mW0u7S9
 ```
 
 ```json
-{"proof": "E5CHaF60VqTTPPduGD1yAlfWMF5xf9_hmV2qCufV-ek"}
+{"proof": "E5CHaF60VqTTPPduGD1yAlfWMF5xf9_hmV2qCufV-ek", "boot": "AAECAwQFBgcICQoLDA0ODw", "boot_mac": "U8MycDq8d4O9G5n_qj1tMxNoTFoXHv5cex9_OKZifPY"}
 ```
 
-That is the answer of a server whose token is `example-token-0123456789abcdef`; use it to
-check your own implementation.
+That is the answer of a server whose token is `example-token-0123456789abcdef` and whose
+boot id is `AAECAwQFBgcICQoLDA0ODw`; use it to check your own implementation.
 
 `proof` is `base64url(HMAC-SHA256(key = the API token, message = "kotiko-proof-v1:" + nonce))`,
 without padding (43 characters). The key is the token's UTF-8 bytes as you'd send them
 in `Authorization`; the message is the ASCII prefix followed by the nonce exactly as sent.
 Compute the same value with the token you have and compare in constant time; send
 requests only if they match. Use a new nonce each time.
+
+`boot` is the server's [boot id](#signed-requests), new at each start, which every signed
+request carries. `boot_mac` is
+`base64url(HMAC-SHA256(key = the API token, message = "kotiko-boot-v1\n" + nonce + "\n" + boot))`,
+so the boot id is known to be this server's, for this proof. Check it like `proof`; sign
+requests with `boot` only if it matches. An answer without `boot` is from a server from
+before boot ids (1.0.0-rc.3 and earlier), which needs an update.
 
 - `415 invalid_request` (`details.reason`: `content_type`): the request has no
   `Content-Type: application/json`. A web page can't send that type to another site

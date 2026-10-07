@@ -91,8 +91,17 @@ defmodule Kotiko.Router do
 
       true ->
         token = Application.fetch_env!(:kotiko, :api_token)
-        proof = Token.proof(token, nonce)
-        conn |> put_resp_header("cache-control", "no-store") |> json(200, %{proof: proof})
+        boot = RequestAuth.boot()
+
+        # The boot id goes into every signed request, so one signed before a restart is
+        # refused after it (security review E-01); boot_mac ties it to this proof.
+        body = %{
+          proof: Token.proof(token, nonce),
+          boot: boot,
+          boot_mac: RequestAuth.boot_mac(token, nonce, boot)
+        }
+
+        conn |> put_resp_header("cache-control", "no-store") |> json(200, body)
     end
   end
 
@@ -336,6 +345,11 @@ defmodule Kotiko.Router do
             |> RequestAuth.accept(token, header)
             |> rate_limited("too_many_requests", RequestAuth.retry_after())
 
+          # Genuine (the MAC matched), but signed for this server's previous boot: not a
+          # guess, so not counted. The client proves again and resends (E-01).
+          {:error, :stale_boot} ->
+            deny(conn, "stale_boot")
+
           {:error, reason} ->
             signature_failed(conn, reason)
         end
@@ -358,7 +372,7 @@ defmodule Kotiko.Router do
   end
 
   # The challenge names both schemes; for a signed request, why it failed (`malformed`,
-  # `bad_mac`, `stale`, `replayed`, `body_mismatch`). The extension tells a server from
+  # `bad_mac`, `stale_boot`, `stale`, `replayed`, `body_mismatch`). The extension tells a server from
   # before signed requests by its plain `Bearer` challenge.
   defp deny(conn, reason \\ nil) do
     error =

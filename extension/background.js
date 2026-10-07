@@ -499,16 +499,23 @@ async function connection() {
 // found it out. The proof is forgotten on `server.connect`, when the address or token
 // changes, when the server can't be reached, and after any answer the server didn't sign;
 // nothing more is sent until a new proof succeeds.
-//   - 200 with a proof that doesn't match: that server has another token (the learner's is
-//     wrong, or it isn't theirs): server_key_rejected, reason "wrong_proof".
+// The proof answer also carries the server's boot id, signed for this nonce (`boot_mac`),
+// which every request signs: the server makes a new one at each start and refuses a request
+// signed for another (`stale_boot`), so a request another program caught while the server
+// was stopped can't be played to it once it is back (security review E-01). When a request
+// is refused as `stale_boot` (the server restarted since the last proof), Kotiko proves
+// again and sends it once more.
+//   - 200 with a proof, or a boot id, that doesn't match: that server has another token
+//     (the learner's is wrong, or it isn't theirs): server_key_rejected, reason "wrong_proof".
 //   - no route (401, 404 or 405: a server from before this check), or an answer with no
-//     proof: not_kotiko_server, reason "no_proof". An older server has to be updated:
-//     anything could answer 404, so a missing route can't be trusted either.
+//     proof or no boot id (a server from before E-01): not_kotiko_server, reason "no_proof".
+//     An older server has to be updated: anything could answer 404, so a missing route
+//     can't be trusted either.
 const PROOF_CONTEXT = "kotiko-proof-v1:";
 const PROOF_TIMEOUT_MS = 10_000;
 // How old a proof may be before a request that carries the learner's data.
 const PROOF_FRESH_MS = 30_000;
-let proven = null; // {base, token, at} proven in this worker's life
+let proven = null; // {base, token, at, boot} proven in this worker's life
 let proving = null; // {base, token, promise} under way
 const utf8 = (text) => new TextEncoder().encode(text);
 const b64url = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -518,13 +525,15 @@ function forgetProof() {
   proving = null;
 }
 
-// Resolves once `base` has proved it holds `token`, within `maxAge` ms when given.
+// Resolves to the server's boot id once `base` has proved it holds `token`, within
+// `maxAge` ms when given.
 function proveServer(base, token, maxAge = Infinity) {
-  if (proven?.base === base && proven.token === token && now() - proven.at < maxAge) return Promise.resolve();
+  if (proven?.base === base && proven.token === token && now() - proven.at < maxAge) return Promise.resolve(proven.boot);
   if (proving?.base === base && proving.token === token) return proving.promise;
   const promise = askProof(base, token)
-    .then(() => {
-      if (proving?.promise === promise) proven = { base, token, at: now() };
+    .then((boot) => {
+      if (proving?.promise === promise) proven = { base, token, at: now(), boot };
+      return boot;
     })
     .finally(() => {
       if (proving?.promise === promise) proving = null;
@@ -561,17 +570,22 @@ async function askProof(base, token) {
   }
   const proof = typeof body?.proof === "string" && /^[A-Za-z0-9_-]{43}$/.test(body.proof) ? body.proof : null;
   if (!proof) throw noProof(res.status);
+  const wrong = () => codedError("server_key_rejected", `The server at ${base} has another token.`, { reason: "wrong_proof", status: res.status });
   const key = await crypto.subtle.importKey("raw", utf8(token), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
-  if (!(await crypto.subtle.verify("HMAC", key, ServerAuth.fromB64url(proof), utf8(PROOF_CONTEXT + nonce)))) {
-    throw codedError("server_key_rejected", `The server at ${base} has another token.`, { reason: "wrong_proof", status: res.status });
-  }
+  if (!(await crypto.subtle.verify("HMAC", key, ServerAuth.fromB64url(proof), utf8(PROOF_CONTEXT + nonce)))) throw wrong();
+  // A server from before boot ids (E-01) can't check today's requests: it needs an update.
+  if (body.boot === undefined) throw noProof(res.status);
+  if (!(await ServerAuth.verifyBoot(token, nonce, body.boot, body.boot_mac))) throw wrong();
+  return body.boot;
 }
 
 // An answer the server didn't sign: nothing in it is used. A 401 from a server from before
 // signed requests (its challenge is `Bearer` alone) means it needs an update ("no_proof");
 // today's server names `Kotiko-HMAC` and why it refused (`stale`: the clocks differ by
-// over two minutes). Neither is authenticated, so they only choose the message. Anything
-// else (a captive portal, another program) isn't a Kotiko server ("unsigned").
+// over two minutes; `stale_boot`: the server restarted since the proof, which request()
+// handles with one more proof). Neither is authenticated, so they only choose the message
+// or that one retry. Anything else (a captive portal, another program) isn't a Kotiko
+// server ("unsigned").
 function unsignedAnswer(base, res) {
   const c = ServerAuth.challenge(res.headers.get("www-authenticate"));
   if (res.status === 401 && c.signs) return codedError("server_key_rejected", `${base} refused the request's signature.`, { reason: c.reason ?? "signature", status: 401 });
@@ -581,14 +595,16 @@ function unsignedAnswer(base, res) {
 }
 
 // Calls the server, signed, and returns its answer once the server's signature on it is
-// checked. Network failures and unsigned answers become coded errors.
-async function request(conn, path, init = {}) {
+// checked. Network failures and unsigned answers become coded errors. A request refused as
+// signed for the server's previous boot (it restarted since the proof) is sent once more
+// after a new proof; the server refused it before doing anything with it.
+async function request(conn, path, init = {}, retried = false) {
   const method = String(init.method ?? "GET").toUpperCase();
   // The learner's words and settings go only to a server that proved itself just now.
-  if (method !== "GET") await proveServer(conn.base, conn.token, PROOF_FRESH_MS);
+  const boot = await proveServer(conn.base, conn.token, method === "GET" ? Infinity : PROOF_FRESH_MS);
   const url = `${conn.base}${path}`;
   const body = typeof init.body === "string" ? init.body : "";
-  const { header, nonce } = await ServerAuth.sign(conn.token, { method, path: ServerAuth.target(conn.base, url), body, ts: Math.floor(now() / 1000) });
+  const { header, nonce } = await ServerAuth.sign(conn.token, { method, path: ServerAuth.target(conn.base, url), body, ts: Math.floor(now() / 1000), boot });
   let res;
   try {
     res = await fetch(url, {
@@ -612,7 +628,9 @@ async function request(conn, path, init = {}) {
   if (!(await ServerAuth.verifyResponse(conn.token, nonce, res.status, res.headers.get("x-kotiko-server")))) {
     forgetProof();
     res.body?.cancel?.().catch?.(() => {});
-    throw unsignedAnswer(conn.base, res);
+    const refused = unsignedAnswer(conn.base, res);
+    if (!retried && refused.details?.reason === "stale_boot") return request(conn, path, init, true);
+    throw refused;
   }
   return res;
 }

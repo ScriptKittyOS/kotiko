@@ -17,7 +17,9 @@ Kotiko has two parts: the browser extension, and an optional server you run your
 - **Nothing but `/health` answers without your token.** Every other request, whatever its
   method or however its path is spelled (`/%61pi`, `/API`, `//api`), gets `401` unless it
   carries `Authorization: Bearer <your token>` or is signed with it (the extension signs;
-  it never sends the token, and uses an answer only if the server signed it too). `/health` says only the server's name,
+  it never sends the token, and uses an answer only if the server signed it too). A signed
+  request can't be sent to the server again, while it runs or after it restarts, and the
+  two computers' clocks may differ by up to two minutes. `/health` says only the server's name,
   version and whether its database works.
 - **A strong token, kept private.** On first start the server makes a random 256-bit token
   and saves it in `api-token` in the data folder, readable only by you (mode 0600). If you
