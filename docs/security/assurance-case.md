@@ -189,8 +189,11 @@ These match "What you can't expect" in the [requirements](requirements.md).
   `storage.local` as it is, once; one from before slice 28 also takes its server address
   and the address of a local or "custom" lookup service. These were writable by content
   scripts then and can't be checked. An address for a hosted service, which no page shows
-  a field for, is dropped. There have been no releases, so only builds from source are
-  affected.
+  a field for, is dropped. A store set up from `storage.local` is kept only on an update
+  from 0.1 or 0.2 (`onInstalled`'s `previousVersion`); on any other start it is dropped
+  like a new install's, and a store born from "Delete everything" never reads
+  `storage.local` at all, even after the worker restarts (slice 54, A-06). There have been
+  no releases, so only builds from source are affected.
 - **One token, full access.** Anyone with it can read, change and delete every word.
 - **Model answers are checked, not verified**; a plausible wrong meaning can be saved.
 - **No rate limit** for requests that carry the token.

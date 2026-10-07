@@ -319,6 +319,11 @@ describe("triggers", () => {
       periodInMinutes: 1,
     });
     assert.equal(requests.length, 1);
+    // The answer is written after the request; wait for it, not a fixed time.
+    for (const end = Date.now() + 10_000; JSON.stringify(store.words) !== JSON.stringify(WORDS) && Date.now() < end;) {
+      await fake.idle();
+      await sleep(5);
+    }
     assert.deepEqual(store.words, WORDS);
   });
 

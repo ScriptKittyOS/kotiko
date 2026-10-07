@@ -459,3 +459,74 @@ describe("installs and upgrades", () => {
     assert.deepEqual(plain(await (await bg.k.getStore()).secrets.ids()), []);
   });
 });
+
+// Slice 54, A-06: after "Delete everything" the database is gone, so the next store was set
+// up like an update from 0.2, from storage.local, which content scripts can write: a planted
+// `token` and `serverUrl` became the trusted server, and everything typed next went there.
+// A store born from a wipe now takes nothing from storage.local, in this worker's life or a
+// later one (the in-memory "wiped" flag doesn't survive the worker stopping).
+describe("after Delete everything, nothing planted in storage.local is adopted", () => {
+  let evil;
+  before(async () => {
+    evil = await startFixtureServer();
+  });
+  after(() => evil.close());
+  const PLANT = () => ({ token: evil.token, serverUrl: evil.kotikoUrl, wordsHome: "server", lookup: { kind: "provider", provider: "custom", baseUrl: evil.llmUrl } });
+  const untouched = (bg) => {
+    assert.deepEqual(evil.state.log, [], "nothing reached the planted address");
+    assert.notEqual(bg.store.server?.url, evil.kotikoUrl);
+    assert.notEqual(bg.store.wordsHome, "server");
+  };
+
+  test("in the same worker: the learner's next word stays in this browser", async () => {
+    evil.reset();
+    const rec = recorder((u, i) => fetch(u, i));
+    const bg = loadBackground({ fetch: rec.fetch });
+    await bg.k.ready();
+    assert.deepEqual(await bg.send({ type: "data.deleteAll", confirm: "delete-everything" }), { ok: true, server: null });
+    // Code in a content script's world writes the 0.2 keys.
+    await bg.plant(PLANT());
+    const res = await bg.send({ type: "add", text: "my secret diary word" }, POPUP);
+    assert.equal(res.ok, true, JSON.stringify(res));
+    await bg.until(() => bg.store.addJobs?.find((j) => j.id === res.job.id && j.state !== "queued" && j.state !== "running"));
+    untouched(bg);
+    assert.deepEqual(await (await bg.k.getStore()).secrets.ids(), []);
+    assert.equal(rec.requests.some((r) => JSON.stringify(r.body ?? "").includes("my secret diary word")), false);
+  });
+
+  test("after the worker stops while wiped: the next one starts fresh too", async () => {
+    evil.reset();
+    const indexedDB = new IDBFactory();
+    const first = loadBackground({ indexedDB });
+    await first.k.ready();
+    await first.send({ type: "data.deleteAll", confirm: "delete-everything" });
+    await first.plant(PLANT());
+    // A new worker over the same browser storage and database: its own start-up runs.
+    const rec = recorder((u, i) => fetch(u, i));
+    const bg = loadBackground({ local: plain(first.store), indexedDB, fetch: rec.fetch });
+    await bg.k.ready();
+    await bg.send({ type: "sync", force: true }, POPUP);
+    const res = await bg.send({ type: "add", text: "my secret diary word" }, POPUP);
+    await bg.until(() => bg.store.addJobs?.find((j) => j.id === res.job.id && j.state !== "queued" && j.state !== "running"));
+    untouched(bg);
+    assert.deepEqual(await (await bg.k.getStore()).secrets.ids(), []);
+  });
+});
+
+// Slice 54, A-06's second half: a 0.2 token is read only on a real update from 0.2. A store
+// set up from storage.local on any other start (the database lost, say) keeps nothing.
+describe("a 0.2 token counts only on an update from 0.2", () => {
+  for (const [previousVersion, kept] of [["0.2.0", true], ["0.1.0", true], ["1.0.0", false]]) {
+    test(`update from ${previousVersion}: the token is ${kept ? "kept" : "dropped"}`, async () => {
+      const bg = loadBackground({ local: { token: "planted-0123456789", serverUrl: "http://127.0.0.1:6666", words: [] } });
+      await bg.k.ready();
+      bg.fake.fireInstalled({ reason: "update", previousVersion });
+      if (kept) await bg.until(() => bg.store.onboarding);
+      else await bg.until(() => bg.store.server?.url === "http://127.0.0.1:4747" && bg.store.wordsHome === "local");
+      await bg.fake.idle();
+      const store = await bg.k.getStore();
+      assert.deepEqual(await store.secrets.ids(), kept ? ["server"] : []);
+      assert.equal(await store.meta.get("route:server"), kept ? "http://127.0.0.1:6666" : "http://127.0.0.1:4747");
+    });
+  }
+});

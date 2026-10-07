@@ -72,6 +72,16 @@ function getStore() {
   return storeP;
 }
 
+// "Delete everything" leaves a new database holding only this mark (slice 54, A-06): the
+// store set up in it later, by this worker or by one started after this one stopped, takes
+// nothing from storage.local, which content scripts can write while Kotiko is wiped. Without
+// it, a 0.2-style `token` and `serverUrl` planted there were adopted as the trusted server.
+const BORN_FROM_WIPE = "bornFromWipe";
+const NO_LEGACY = { get: async (defaults) => ({ ...defaults }), remove: async () => {} };
+// Whether this worker's start set the store up from what storage.local held (an update from
+// 0.2, or a database lost some other way); `onInstalled` keeps it only for the former.
+let adoptedLegacy = false;
+
 // Everything that reads settings or secrets waits for the upgrade (slice 11 section 8),
 // which runs at every worker start until it has finished once.
 let readyP = null;
@@ -83,10 +93,11 @@ function ready() {
     const r = await Local.migrate({
       store,
       storage: trustedCopy,
-      legacy: ext.storage.local,
+      legacy: (await store.meta.get(BORN_FROM_WIPE)) ? NO_LEGACY : ext.storage.local,
       uiLanguage: uiLanguage(),
       beforeDone: async (from) => from === "new" && (await store.meta.get(TRUSTED)) !== true && store.meta.set(TRUSTED, "fresh"),
     });
+    if (r.migrated && (await store.meta.get("migratedFrom")) !== "new") adoptedLegacy = true;
     await adoptOnce(store);
     if (r.migrated && r.home === "local" && r.seeded) projector.schedule();
     if (r.migrated) refresh.nudge().catch(() => {});
@@ -1142,6 +1153,10 @@ async function wipeEverything(m) {
   secretCache.clear();
   client.reset();
   await globalThis.KotikoStore.wipe({ indexedDB: globalThis.indexedDB });
+  // An empty database with one mark, so the next store is set up afresh (A-06, above).
+  const born = await globalThis.KotikoStore.open({ indexedDB: globalThis.indexedDB, now });
+  await born.meta.set(BORN_FROM_WIPE, wipedAt);
+  born.close();
   await ext.storage.local.set({ words: [] });
   await ext.storage.local.clear();
   await Promise.resolve(ext.storage.session?.clear?.()).catch(() => {});
@@ -1265,6 +1280,18 @@ async function discardPlanted() {
   await store.meta.set("migratedFrom", "new");
   sync.credentialsChanged();
   ensureSeedSalt().catch(() => {});
+}
+
+// Slice 54, A-06: a 0.2 `token` and `serverUrl` (and whatever else storage.local held) count
+// only on an update from 0.1 or 0.2, the versions that kept them there. A store set up from
+// storage.local at any other start (an update from a later version whose database was lost,
+// a browser update) keeps none of it. `ready()` first, so this start's set-up has run.
+const fromBeforeStore = (version) => /^0\.[0-2]\./.test(String(version ?? ""));
+async function keepLegacyOnlyFrom(details) {
+  await ready();
+  if (!adoptedLegacy || (details?.reason === "update" && fromBeforeStore(details.previousVersion))) return;
+  adoptedLegacy = false;
+  await discardPlanted();
 }
 
 async function firstInstall() {
@@ -1401,6 +1428,7 @@ function onInstalled(details) {
     upgradeOnboarding().catch(() => {}).then(upgradeBases).catch(() => {});
   }
   if (details?.reason === "install") firstInstall().catch((e) => console.warn("Kotiko couldn't open the welcome tab:", e?.message ?? e));
+  else keepLegacyOnlyFrom(details).catch((e) => console.warn("Kotiko update:", e?.message ?? e));
   if (details?.reason === "install" || details?.reason === "update") injectOpenTabs().catch(() => {});
   ensureAlarm();
   mirrorBaseRules({ force: true }).catch(() => {});

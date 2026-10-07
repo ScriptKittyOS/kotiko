@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Slice 12 in a real browser: back up the words to a file, delete everything while a tab
-// shows swapped words (the tab gets its own words back, every storage area and the
-// database are gone), then restore the file and get exactly the same words back.
+// shows swapped words (the tab gets its own words back, every storage area is empty and the
+// database holds nothing), then restore the file and get exactly the same words back.
 import fs from "node:fs/promises";
 import { test, expect } from "./fixtures.mjs";
 
@@ -56,12 +56,19 @@ test("back up, delete everything with a tab showing swaps, restore: the same wor
   const left = await everything(dash);
   expect(left.local).toEqual({});
   expect(left.session).toEqual({});
-  expect(left.databases).not.toContain("kotiko");
   expect(JSON.stringify(left)).not.toContain(KEY);
   expect(await dash.evaluate(() => localStorage.length)).toBe(0);
-  // And from the background's side.
-  const fromWorker = await serviceWorker.evaluate(async () => ({ databases: (await indexedDB.databases()).map((d) => d.name), local: await chrome.storage.local.get(null) }));
-  expect(fromWorker).toEqual({ databases: [], local: {} });
+  // And from the background's side: the database holds no words, no keys and one mark, so
+  // the store set up next takes nothing from storage.local (slice 54, A-06).
+  const fromWorker = await serviceWorker.evaluate(async () => {
+    const s = await globalThis.KotikoStore.open({ indexedDB });
+    try {
+      return { databases: (await indexedDB.databases()).map((d) => d.name), local: await chrome.storage.local.get(null), meta: (await s.meta.entries("")).map((r) => r.key), words: (await s.all()).length, secrets: await s.secrets.ids() };
+    } finally {
+      s.close();
+    }
+  });
+  expect(fromWorker).toEqual({ databases: ["kotiko"], local: {}, meta: ["bornFromWipe"], words: 0, secrets: [] });
 
   // Restore the file on a fresh dashboard, opened a moment later.
   await sleep(2500);

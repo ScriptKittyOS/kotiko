@@ -5,6 +5,9 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Security: after "Delete everything", Kotiko starts afresh and no longer takes an old-style
+  server address and token that a page's script left in the browser's storage meanwhile.
+
 - Settings and the welcome page now warn when the address of your lookup service starts
   with `http://` and isn't on your computer: your key and the words you look up would
   travel unencrypted. The server address already warned.
