@@ -73,7 +73,7 @@ Tag it on the release PR's head, whose version is already bumped:
 ```sh
 git fetch origin release-please--branches--main
 git switch --detach origin/release-please--branches--main
-scripts/tag-release.sh --rc 1
+scripts/tag-release.sh --rc 1 --ssh-key ~/.ssh/kotiko_release.pub
 ```
 
 ### Trying the pipeline without releasing
@@ -152,12 +152,17 @@ store credentials.
 
 Each release manager signs tags with their own key; no signing key exists on GitHub.
 
-- **SSH** (simplest): `git config --global gpg.format ssh` and
-  `git config --global user.signingkey ~/.ssh/id_ed25519.pub`, then add a line to
-  `.github/allowed_signers` in a pull request:
-  `you@example.com namespaces="git" ssh-ed25519 AAAA…`.
+- **SSH** (simplest): make a key just for release tags, with the project's address and
+  not a personal one, since the public key and its comment are published:
+  `ssh-keygen -t ed25519 -C "dev@scriptkittyos.com" -f ~/.ssh/kotiko_release`. Add a line
+  to `.github/allowed_signers` in a pull request:
+  `you@example.com namespaces="git" ssh-ed25519 AAAA…`. Sign with
+  `scripts/tag-release.sh --ssh-key ~/.ssh/kotiko_release.pub`, which uses the key for that
+  tag only; how git signs your commits stays as it is. (Setting `gpg.format ssh` globally
+  would switch commit signing to that key too.)
 - **GPG**: `git config --global user.signingkey <fingerprint>`, then
-  `gpg --armor --export <fingerprint> >> .github/release-keys.asc` in a pull request.
+  `gpg --armor --export <fingerprint> >> .github/release-keys.asc` in a pull request. The
+  exported key includes every user ID on it, email addresses too, and they become public.
 
 List the same key's fingerprint in MAINTAINERS.md. Until a key is added, every release tag
 is refused.
