@@ -120,10 +120,15 @@ order: the log filter that hides secrets, settings, the data folder, the API tok
 database migrations (with a backup first), a startup summary, then the supervision tree.
 
 - **HTTP**: Bandit serves [`Kotiko.Router`](../server/lib/kotiko/router.ex), a Plug
-  router. Every request passes `Kotiko.Plug.HostCheck`
+  router, on the address in `BIND` and, for a loopback one, on the other loopback address
+  too ([`Kotiko.Listener`](../server/lib/kotiko/listener.ex)), so no other account can
+  listen on `[::1]` where browsers send `localhost`. Every request passes
+  `Kotiko.Plug.HostCheck`
   ([`plug/host_check.ex`](../server/lib/kotiko/plug/host_check.ex), refuses unknown host
   names against DNS rebinding), then the token check (deny by default; only `GET` and
-  `HEAD /health` are open), then body parsing (64 KB, 1 MB for the batch route).
+  `HEAD /health` and `POST /api/v1/proof` are open; an address that sent 10 wrong tokens
+  in a minute gets `429`, [`Kotiko.AuthThrottle`](../server/lib/kotiko/auth_throttle.ex)),
+  then body parsing (64 KB, 1 MB for the batch route, 1 KB for the proof).
   `/api/v1` is forwarded to [`Kotiko.RouterV1`](../server/lib/kotiko/router_v1.ex). The
   routes are listed in [`reference/http-api.md`](reference/http-api.md).
 - **Settings**: [`Kotiko.Config`](../server/lib/kotiko/config.ex) parses the environment
@@ -245,7 +250,8 @@ Kotiko treats these as untrusted and checks what crosses them:
   HTTP only if you set `BIND` to a network address, with a warning at startup);
 - the model's answers, which are checked against the spec before anything is saved;
 - Telegram updates (allowlisted user IDs only);
-- the files in the data folder, protected by your operating system's file permissions.
+- the files in the data folder, protected by your operating system's file permissions
+  (the server refuses to start when another account could have put files there).
 
 The full threat model, every input and how it is checked, and the evidence are in the
 [assurance case](security/assurance-case.md).

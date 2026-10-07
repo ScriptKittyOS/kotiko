@@ -31,7 +31,9 @@ defmodule Kotiko.Token do
   def resolve(nil, data_dir) do
     path = path(data_dir)
 
-    case File.read(path) do
+    # Never through a link, and only a file of the server's own account (slice 54, B-02):
+    # otherwise someone who could write in the folder would choose the token.
+    case Kotiko.Private.read_own(path) do
       {:ok, contents} ->
         case String.trim(contents) do
           "" -> generate(path)
@@ -42,13 +44,32 @@ defmodule Kotiko.Token do
         generate(path)
 
       {:error, reason} ->
-        {:error, "Couldn't read #{path}: #{:file.format_error(reason)}"}
+        {:error, read_error(reason, path)}
     end
   end
 
   def resolve(env_token, _data_dir) when is_binary(env_token) do
     check(String.trim(env_token), "API_TOKEN", :env)
   end
+
+  defp read_error(:link, path),
+    do:
+      "#{path} is a link. Kotiko never makes one, so someone else may have put it there " <>
+        "to choose your token. Delete it, and the server makes a new token"
+
+  defp read_error({:owner, uid}, path),
+    do:
+      "#{path} belongs to another account (uid #{uid}), so someone else may have chosen " <>
+        "your token. Delete it, and the server makes a new token"
+
+  defp read_error(:not_regular, path), do: "#{path} isn't a regular file"
+  defp read_error(:too_big, path), do: "#{path} is too big for a token"
+
+  defp read_error(:changed, path),
+    do: "#{path} changed while it was read. Start the server again"
+
+  defp read_error(reason, path),
+    do: "Couldn't read #{path}: #{:file.format_error(reason)}"
 
   defp check(token, what, source) do
     if String.length(token) >= @min_length do

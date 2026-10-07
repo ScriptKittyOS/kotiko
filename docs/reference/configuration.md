@@ -328,8 +328,21 @@ check.
 | `models-cache.json` | OpenRouter's model list as last read, used when the server starts offline | `0600` |
 | `backups/kotiko-pre-<version>-<time>.db` | A copy of the database made before an update changes it; the newest five are kept | Folder `0700`, files `0600` |
 
-Only your account can open these files. At every start the server checks them before it
-opens the database:
+Only your account can open these files. At every start, before it reads or writes any of
+them, the server checks that nobody else could have put a file there that it would trust
+(the token in `api-token` opens the server, and your words are written to `kotiko.db`). It
+doesn't start (status 78) and names each problem, with how to fix it, when:
+
+- the data folder, or one of the files above, belongs to another account;
+- one of the files above (or `backups/` or a backup in it) is a symbolic link. Kotiko
+  never makes links, and a link would send your words, or read a token, wherever it
+  points. To keep your words on another disk, point `KOTIKO_DATA_DIR` there instead (the
+  data folder itself may be a link);
+- other users can write in the data folder and it holds other files too. A folder others
+  can write in that holds only Kotiko's files is made `0700` first, with a warning.
+
+The server reads `api-token` the same careful way: never through a link, and only if it
+belongs to your account. Then it checks the permissions:
 
 - Any of the files above that other users can open (say, from an install before this
   check) is made `0600` again, and `backups/` `0700`. The server logs one warning that
@@ -338,8 +351,8 @@ opens the database:
   anything else in it may be shared on purpose (`KOTIKO_DATA_DIR=~`, say), so the server
   leaves it as it is and warns at every start, with the command that makes it private
   (`chmod 700 <folder>`). Giving Kotiko a folder of its own stops the warning too.
-- A file it can't change (owned by another account, say) gets a warning with the
-  `chmod` that fixes it. The server starts either way.
+- A file it can't change gets a warning with the `chmod` that fixes it. The server starts
+  either way.
 
 `run.sh` and the systemd service from `install-service.sh` also start the server with
 umask `077`, so a file it makes is private from the moment it exists. These are POSIX

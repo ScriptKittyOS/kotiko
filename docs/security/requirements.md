@@ -28,7 +28,9 @@ Kotiko has two parts: the browser extension, and an optional server you run your
   `-shm` files, the backups, the token and the model list cache are readable only by you
   (0600), and a data folder the server makes only by you (0700). At every start it makes
   them private again if they aren't, and warns, with the command to run, about anything it
-  can't or won't change (a data folder that also holds other files).
+  can't or won't change (a data folder that also holds other files). It refuses to start
+  when someone else could have put files there that it would trust: a folder others can
+  write in, a link in place of one of its files, or a file of another account's.
 - **It listens only on your computer** unless you change `BIND`, on both loopback
   addresses (`127.0.0.1` and `::1`), so no other account on the computer can listen on the
   one a browser tries for `localhost` and receive your token. When you change `BIND`, it
@@ -92,8 +94,12 @@ Kotiko has two parts: the browser extension, and an optional server you run your
   folder.** Keys, the token and your words are not encrypted at rest.
 - **A private data folder when you share it.** If `KOTIKO_DATA_DIR` points at a folder
   that also holds other files, the server keeps its own files private but leaves the
-  folder as it is, and warns at every start. Others can then see the files' names, not
-  what's in them.
+  folder as it is, and warns at every start. Others who can read the folder see the files'
+  names, not what's in them. Others who can write in it could put their own token or a
+  link in place of your database before a start, which would choose your token or send
+  your words wherever they like; so the server refuses to start in a folder others can
+  write in, when one of its files is a link, or when the folder or one of its files
+  belongs to another account.
 - **Privacy on a network if you use plain HTTP** to a server on another machine. The token
   and your words travel unencrypted. Use Tailscale or HTTPS through a reverse proxy.
 - **Privacy from the model provider you chose.** Lookups go to it under its terms.

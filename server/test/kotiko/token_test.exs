@@ -97,4 +97,17 @@ defmodule Kotiko.TokenTest do
       assert Token.weakness("correct-horse-battery-staple-lamp") == nil
     end
   end
+
+  # B-02 (slice 54): the token file was read through a link, whoever made it.
+  test "a token file that is a link is refused, not followed", %{tmp_dir: dir} do
+    target = Path.join(dir, "elsewhere")
+    File.write!(target, "attacker-chosen-token-0123456789abcdef\n")
+    data = Path.join(dir, "data")
+    File.mkdir_p!(data)
+    File.ln_s!(target, Token.path(data))
+
+    assert {:error, message} = Token.resolve(nil, data)
+    assert message =~ "#{Token.path(data)} is a link"
+    refute message =~ "attacker-chosen"
+  end
 end

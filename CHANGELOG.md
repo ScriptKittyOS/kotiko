@@ -5,6 +5,15 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Self-hosted server: someone who could write in your data folder could choose your access
+  key (by leaving an `api-token` there) or send your words to a file of theirs (by putting
+  a link where `kotiko.db` goes). The server now refuses to start, saying what it found
+  and how to fix it, when the data folder or one of Kotiko's files belongs to another
+  account, when one of Kotiko's files is a link, or when others can write in a data folder
+  that also holds other files. A folder others can write in that holds only Kotiko's files
+  is made private first, with a warning. To keep your words on another disk, point
+  `KOTIKO_DATA_DIR` there instead of linking `kotiko.db`.
+
 - Self-hosted server: with `LOG_LEVEL=debug`, words the model suggested and the server
   refused were written to the log even with `LOG_LOOKUPS=false`. Now only the reasons are,
   unless you turn `LOG_LOOKUPS` on.

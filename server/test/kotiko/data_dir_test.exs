@@ -475,4 +475,85 @@ defmodule Kotiko.DataDirTest do
       assert mode(dir) == 0o700
     end
   end
+
+  # B-02 (slice 54): someone who could write in the data folder chose the API token (the
+  # server used any api-token it found), and a kotiko.db link sent every word to a file
+  # of their choosing, readable by anyone, without a word in the log.
+  describe "check_safe/2" do
+    setup ctx do
+      dir = Path.join(ctx.root, "data")
+      File.mkdir_p!(dir)
+      File.chmod!(dir, 0o700)
+      %{dir: dir, uid: File.stat!(dir).uid}
+    end
+
+    defp plant!(path, contents \\ "x") do
+      File.mkdir_p!(Path.dirname(path))
+      File.write!(path, contents)
+      File.chmod!(path, 0o600)
+      path
+    end
+
+    test "a private folder of your own files is fine, and so is a missing one", ctx do
+      plant!(Path.join(ctx.dir, "kotiko.db"))
+      plant!(Path.join(ctx.dir, "api-token"), "token")
+      plant!(Path.join(ctx.dir, "backups/kotiko-pre-1.0.0-20261001T000000Z.db"))
+      assert capture_log(fn -> assert DataDir.check_safe(ctx.dir, ctx.uid) == :ok end) == ""
+      assert DataDir.check_safe(Path.join(ctx.root, "missing"), ctx.uid) == :ok
+    end
+
+    test "a link in place of the database, the token or a backup stops the start", ctx do
+      elsewhere = plant!(Path.join(ctx.root, "elsewhere/loot.db"), "")
+      File.chmod!(elsewhere, 0o666)
+      File.ln_s!(elsewhere, Path.join(ctx.dir, "kotiko.db"))
+
+      File.ln_s!(
+        plant!(Path.join(ctx.root, "elsewhere/t"), "token"),
+        Path.join(ctx.dir, "api-token")
+      )
+
+      File.mkdir_p!(Path.join(ctx.dir, "backups"))
+      File.ln_s!(elsewhere, Path.join(ctx.dir, "backups/kotiko-pre-1.0.0-20261001T000000Z.db"))
+
+      assert {:error, message} = DataDir.check_safe(ctx.dir, ctx.uid)
+      assert message =~ "The server can't start: someone else may have put files in #{ctx.dir}"
+      assert message =~ "#{ctx.dir}/kotiko.db is a link"
+      assert message =~ "#{ctx.dir}/api-token is a link"
+      assert message =~ "backups/kotiko-pre-1.0.0-20261001T000000Z.db is a link"
+      assert message =~ "Kotiko never makes links"
+      assert File.read!(elsewhere) == ""
+    end
+
+    test "files or a folder that belong to another account stop the start", ctx do
+      plant!(Path.join(ctx.dir, "api-token"), "token")
+
+      assert {:error, message} = DataDir.check_safe(ctx.dir, ctx.uid + 1)
+      assert message =~ "the folder #{ctx.dir} belongs to another account (uid #{ctx.uid})"
+      assert message =~ "#{ctx.dir}/api-token belongs to another account (uid #{ctx.uid})"
+    end
+
+    test "a folder others can write in, that holds other files too, stops the start", ctx do
+      plant!(Path.join(ctx.dir, "notes.txt"))
+      File.chmod!(ctx.dir, 0o777)
+
+      assert {:error, message} = DataDir.check_safe(ctx.dir, ctx.uid)
+      assert message =~ "other users of this computer can write in the folder #{ctx.dir}"
+      assert message =~ "chmod 700 #{ctx.dir}"
+    end
+
+    test "a folder others can write in that holds only Kotiko's files is made private", ctx do
+      plant!(Path.join(ctx.dir, "kotiko.db"))
+      File.chmod!(ctx.dir, 0o775)
+
+      log = capture_log(fn -> assert DataDir.check_safe(ctx.dir, ctx.uid) == :ok end)
+      assert mode(ctx.dir) == 0o700
+      assert log =~ "Other users of this computer could write in the data folder #{ctx.dir}"
+    end
+
+    test "a data folder that is a link to your own folder is fine", ctx do
+      link = Path.join(ctx.root, "link")
+      File.ln_s!(ctx.dir, link)
+      assert DataDir.check_safe(link, ctx.uid) == :ok
+    end
+  end
 end

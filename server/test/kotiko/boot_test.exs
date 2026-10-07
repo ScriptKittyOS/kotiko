@@ -230,6 +230,33 @@ defmodule Kotiko.BootTest do
     refute output =~ "passwordpassword"
   end
 
+  # B-02 (slice 54): reviewer B's planted data folder (test/security/poc/b-data-dir-plant.sh).
+  test "a data folder where someone planted a token and a database link stops the start",
+       ctx do
+    data = Path.join(ctx.tmp, "shared")
+    elsewhere = Path.join(ctx.tmp, "elsewhere")
+    File.mkdir_p!(data)
+    File.mkdir_p!(elsewhere)
+    File.chmod!(data, 0o777)
+    File.write!(Path.join(data, "api-token"), "attacker-chosen-token-0123456789abcdef\n")
+    loot = Path.join(elsewhere, "loot.db")
+    File.write!(loot, "")
+    File.chmod!(loot, 0o666)
+    File.ln_s!(loot, Path.join(data, "kotiko.db"))
+    File.write!(Path.join(data, "shared-notes.txt"), "note")
+    vars = %{"PORT" => to_string(free_port()), "KOTIKO_DATA_DIR" => data}
+
+    {output, status} = boot(vars, @start_and_stop, ctx)
+
+    assert status == 78, output
+    refute output =~ "STARTED"
+    assert output =~ "#{data}/kotiko.db is a link"
+    assert output =~ "other users of this computer can write in the folder #{data}"
+    refute output =~ "attacker-chosen"
+    # Nothing was written through the link.
+    assert File.read!(loot) == ""
+  end
+
   test "the VM exits non-zero when the supervision tree dies", ctx do
     vars = %{"KOTIKO_DATA_DIR" => Path.join(ctx.tmp, "data"), "PORT" => to_string(free_port())}
 
