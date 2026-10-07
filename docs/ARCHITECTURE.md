@@ -25,7 +25,7 @@ The extension works in one of two modes, chosen in its settings (`wordsHome` in
 ```
  web page ── content script ◀── storage.local (a copy of the words and settings pages need)
                                      ▲
- popup, dashboard, welcome ──▶ background ──HTTP + token──▶ Kotiko server ──▶ model API
+ popup, dashboard, welcome ──▶ background ──HTTP, signed──▶ Kotiko server ──▶ model API
                                                               │  (Elixir,  ──▶ en.wiktionary.org
  Telegram (your phone) ◀──── long polling ────────────────────┤   SQLite)  ──▶ transcription
                                                               ▼                (optional)
@@ -126,9 +126,12 @@ database migrations (with a backup first), a startup summary, then the supervisi
   `Kotiko.Plug.HostCheck`
   ([`plug/host_check.ex`](../server/lib/kotiko/plug/host_check.ex), refuses unknown host
   names against DNS rebinding), then the token check (deny by default; only `GET` and
-  `HEAD /health` and `POST /api/v1/proof` are open; an address that sent 10 wrong tokens
-  in a minute gets `429`, [`Kotiko.AuthThrottle`](../server/lib/kotiko/auth_throttle.ex)),
-  then body parsing (64 KB, 1 MB for the batch route, 1 KB for the proof).
+  `HEAD /health` and `POST /api/v1/proof` are open; `Bearer <token>` or a request signed
+  with it, [`Kotiko.RequestAuth`](../server/lib/kotiko/request_auth.ex), whose answers are
+  signed back; an address other than this computer's that sent 10 wrong tokens in a
+  minute gets `429`, [`Kotiko.AuthThrottle`](../server/lib/kotiko/auth_throttle.ex)),
+  then body parsing (64 KB, 1 MB for the batch route, 1 KB for the proof; a signed
+  request's body is checked against its signed hash first).
   `/api/v1` is forwarded to [`Kotiko.RouterV1`](../server/lib/kotiko/router_v1.ex). The
   routes are listed in [`reference/http-api.md`](reference/http-api.md).
 - **Settings**: [`Kotiko.Config`](../server/lib/kotiko/config.ex) parses the environment

@@ -5,6 +5,19 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Security: Kotiko no longer sends your server's access key; it signs each request. Your
+  server signs each answer too, and Kotiko uses an answer only when it carries that
+  signature, so if another program takes your server's place (say, while the server
+  restarts) it gets neither your key nor your words. Update the server and extension
+  together: an older server turns signed requests away, and Kotiko asks you to update it.
+  Tools such as `curl` can still send the key as before. The privacy policy (version 4)
+  says so.
+
+- Security: a web page, or any program on your computer, could lock Kotiko out of your
+  server for a minute by sending it a burst of wrong keys or malformed checks. Requests
+  from your own computer are no longer locked out; requests from other computers still
+  are.
+
 - Security: a web page could read your word list. It could hide a long list of words on
   the page, where you'd never see them, and read back which ones Kotiko swapped. Kotiko
   now swaps only words you can see: text a page hides isn't touched, and text below the
