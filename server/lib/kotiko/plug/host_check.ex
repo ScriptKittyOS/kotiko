@@ -15,18 +15,13 @@ defmodule Kotiko.Plug.HostCheck do
   import Plug.Conn
   require Logger
 
+  alias Kotiko.Log.Limiter
+
   @table __MODULE__
-  @log_every_ms :timer.hours(1)
   @max_logged_names 1_000
 
   @doc "Creates the table that keeps refusals to one log line per name per hour."
-  def init_table do
-    if :ets.whereis(@table) == :undefined do
-      :ets.new(@table, [:named_table, :public, :set])
-    end
-
-    :ok
-  end
+  def init_table, do: Limiter.init(@table)
 
   @impl true
   def init(opts), do: opts
@@ -106,37 +101,29 @@ defmodule Kotiko.Plug.HostCheck do
     |> halt()
   end
 
-  # Names only, never paths; and at most once an hour per name so a scanner can't flood
-  # the log.
+  # Names only, never paths; and at most once an hour per name, and at most 1,000 names an
+  # hour, so a scanner can't flood the log (Kotiko.Log.Limiter).
   defp log_once(name) do
-    if first_time_this_hour?(name) do
-      Logger.info(
-        "Refused a request for host #{inspect(name)}. Add it to ALLOWED_HOSTS if it's yours."
-      )
+    {decision, unlogged} = Limiter.check(@table, name, max_keys: @max_logged_names)
+
+    if unlogged do
+      Logger.info("Didn't log #{unlogged} more refused host names in the last hour (too many).")
     end
-  end
 
-  defp first_time_this_hour?(name) do
-    now = System.monotonic_time(:millisecond)
+    case decision do
+      :log ->
+        Logger.info(
+          "Refused a request for host #{inspect(name)}. Add it to ALLOWED_HOSTS if it's yours."
+        )
 
-    cond do
-      :ets.whereis(@table) == :undefined ->
-        true
+      :overflow ->
+        Logger.warning(
+          "Refused requests for #{@max_logged_names} different host names this hour; " <>
+            "not logging new ones until the hour is over."
+        )
 
-      recently_logged?(name, now) ->
-        false
-
-      true ->
-        if :ets.info(@table, :size) >= @max_logged_names, do: :ets.delete_all_objects(@table)
-        :ets.insert(@table, {name, now})
-        true
-    end
-  end
-
-  defp recently_logged?(name, now) do
-    case :ets.lookup(@table, name) do
-      [{_, at}] -> now - at < @log_every_ms
-      [] -> false
+      :quiet ->
+        :ok
     end
   end
 end

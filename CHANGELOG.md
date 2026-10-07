@@ -5,6 +5,10 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Self-hosted server: requests for many different host names can no longer fill the log.
+  The server logs each refused name at most once an hour, and at most 1,000 names an hour;
+  past that it logs one line saying so, and how many it left out.
+
 - Security: a web page that managed to run code inside Kotiko's page script could change
   Kotiko's settings, because browsers let that script write Kotiko's storage. It could turn
   Kotiko off, pause sites, hide languages, change the words pages show, queue a word to be
