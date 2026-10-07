@@ -18,6 +18,22 @@ Conventional Commits by release-please.
   from your own computer are no longer locked out; requests from other computers still
   are, including those a reverse proxy on your computer passes on.
 
+- Release process: the check that holds store uploads until the security review is closed
+  could miss a "Gate: open" line written with a lookalike letter from another alphabet, an
+  invisible character or a fullwidth colon, and read the review as closed. It now reads
+  each line as a person would, keeps the gate open for any such line, and says which line.
+
+- Security: the server warns when it would send an API key over plain HTTP to another
+  machine, but missed an address written in capitals, such as `HTTP://203.0.113.7/v1`. It
+  now warns however the address is written. An OpenRouter address in capitals is also
+  recognised as OpenRouter.
+
+- Security: a Kotiko server set to a model of its own (`LLM_MODEL`), for example on a paid
+  provider, sent no limit on how long an answer may be, so a model that kept writing could
+  cost you up to the provider's own limit for one word. Every lookup now asks for at most
+  1,200 tokens of answer (4,000 for refreshing pronunciations), like the extension does,
+  in the field OpenAI expects when `LLM_URL` is OpenAI's.
+
 - Security: a web page could read your word list. It could hide a long list of words on
   the page, where you'd never see them, and read back which ones Kotiko swapped. Kotiko
   now swaps only words you can see: text a page hides isn't touched, and text below the

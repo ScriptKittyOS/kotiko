@@ -49,10 +49,8 @@ defmodule Kotiko.LLMTest do
       assert system =~ "\"add a word\" box"
       assert body["temperature"] == 0.2
       assert body["response_format"] == %{"type" => "json_object"}
-      # Not OpenRouter: no reasoning switch, no app attribution, no max_tokens for a
-      # model the catalog doesn't know.
+      # Not OpenRouter: no reasoning switch, no app attribution.
       refute Map.has_key?(body, "reasoning")
-      refute Map.has_key?(body, "max_tokens")
       refute List.keymember?(headers, "http-referer", 0)
       assert {"authorization", "Bearer test-llm-key"} in headers
       assert {"x-title", "Kotiko"} in headers
@@ -80,6 +78,39 @@ defmodule Kotiko.LLMTest do
       assert body["max_tokens"] == 1200
       assert {"http-referer", "https://github.com/ScriptKittyOS/kotiko"} in headers
       assert {"x-title", "Kotiko"} in headers
+    end
+
+    # Security review D-03: the spec's output cap goes on every request, so a model on a
+    # paid endpoint that keeps writing can't bill the key up to the provider's own limit.
+    test "an LLM_MODEL model on a custom endpoint gets the output cap" do
+      LLMStub.stub(fn _, conn -> LLMStub.answer(conn, @da) end)
+      interpret()
+      assert_received {:llm_request, "m1", body, _headers}
+      assert body["max_tokens"] == 1200
+      refute Map.has_key?(body, "max_completion_tokens")
+    end
+
+    test "on OpenRouter, a model the catalog doesn't know gets the output cap" do
+      openrouter()
+      LLMStub.stub(fn _, conn -> LLMStub.answer(conn, @da) end)
+      interpret()
+      assert_received {:llm_request, "m1", body, _headers}
+      assert body["max_tokens"] == 1200
+    end
+
+    test "OpenAI gets the cap in its own field (spec/providers.json maxTokensField)" do
+      for {url, text} <- [
+            {"https://api.openai.com/v1", "da"},
+            {"https://API.OpenAI.com/v1", "da?"}
+          ] do
+        put_app_env(:llm_url, url)
+        LLMStub.stub(fn _, conn -> LLMStub.answer(conn, @da) end)
+        # A different text each time, so the second isn't answered from the cache.
+        interpret(text)
+        assert_received {:llm_request, "m1", body, _headers}
+        assert body["max_completion_tokens"] == 1200
+        refute Map.has_key?(body, "max_tokens")
+      end
     end
 
     test "JSON wrapped in prose or a think block is still read" do
@@ -810,6 +841,13 @@ defmodule Kotiko.LLMTest do
       end)
 
       assert {{:error, %{code: "quota_exhausted"}}, _} = with_log(fn -> LLM.respell(@items) end)
+    end
+
+    test "asks for more tokens than a lookup, even for a model the catalog doesn't know" do
+      LLMStub.stub(fn _, conn -> LLMStub.answer(conn, %{items: []}) end)
+      with_log(fn -> LLM.respell(@items) end)
+      assert_received {:llm_request, "m1", body, _}
+      assert body["max_tokens"] == 4000
     end
 
     test "asks for more tokens than a lookup when the model takes max_tokens" do

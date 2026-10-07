@@ -550,10 +550,14 @@ defmodule Kotiko.Config do
 
   @doc "Whether the model API is OpenRouter (it has the built-in free models)."
   def openrouter?(url) do
+    # URI.parse/1 lowercases the scheme but not the host, which is case-insensitive too.
     case URI.parse(url).host do
-      "openrouter.ai" -> true
-      host when is_binary(host) -> String.ends_with?(host, ".openrouter.ai")
-      _ -> false
+      host when is_binary(host) ->
+        host = String.downcase(host)
+        host == "openrouter.ai" or String.ends_with?(host, ".openrouter.ai")
+
+      _ ->
+        false
     end
   end
 
@@ -648,10 +652,12 @@ defmodule Kotiko.Config do
   # between can read it. This computer and Tailscale (encrypted) are fine.
   defp plain_http(_key_var, nil, _url_var, _url), do: []
 
-  defp plain_http(key_var, _key, url_var, {:ok, "http://" <> _ = url}) do
-    host = URI.parse(url).host
+  # The scheme from URI.parse/1, which lowercases it: a scheme is case-insensitive, so
+  # HTTP://... goes out in the clear just the same (security review D-04).
+  defp plain_http(key_var, _key, url_var, {:ok, url}) when is_binary(url) do
+    %URI{scheme: scheme, host: host} = URI.parse(url)
 
-    if Kotiko.Exposure.network(host) in [:loopback, :tailscale] do
+    if scheme != "http" or Kotiko.Exposure.network(host) in [:loopback, :tailscale] do
       []
     else
       [
