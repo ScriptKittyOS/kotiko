@@ -21,6 +21,7 @@
   const Text = globalThis.KotikoText; // lib/text.js
   const PageLang = globalThis.KotikoPageLang; // lib/page-lang.js
   const { createControlCheck } = globalThis.KotikoControls; // lib/controls.js
+  const SwapStyle = globalThis.KotikoSwapStyle; // ui/swap-style.js
   const MARK = "kotiko-w";
   const SKIP = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA", "INPUT", "SELECT", "OPTION", "CODE", "PRE", "KBD", "SAMP", "SVG", "MATH", "CANVAS", "IFRAME", "TITLE"]);
   const SAMPLE = 2000;
@@ -71,6 +72,15 @@
   let session = null;
   let sessionHref = null;
   let eligibleLangs = new Set();
+  // What this page view has shown, concept -> its languages, for as long as the document
+  // lives (a single-page app's navigations included). A page reads its own DOM, so each
+  // swap tells it one of the learner's words; capping the distinct concepts (and the
+  // languages of one concept, for "mix within the page") caps what any page can learn in
+  // one view, whatever text it shows (security review A-01; spec/rules.json).
+  const PAGE_RULES = globalThis.KOTIKO_PAGE_RULES ?? {};
+  const MAX_CONCEPTS = PAGE_RULES.max_page_concepts ?? 500;
+  const MAX_LANGS = PAGE_RULES.max_page_langs_per_concept ?? 3;
+  const revealed = new Map();
 
   // Buttons, toggles, menus and forms stay as the site wrote them (lib/controls.js).
   const controls = createControlCheck((el) => getComputedStyle(el).cursor);
@@ -119,12 +129,14 @@
 
   // ── which language the page is in ─────────────────────────────────────────
 
+  // The page's declared language, as a canonical tag; a lang attribute that isn't a
+  // language tag counts as none (lib/page-lang.js, security review A-02).
   function declaredLanguage() {
     const html = document.documentElement;
     const tag = html.getAttribute("lang") || html.getAttribute("xml:lang");
-    if (tag) return tag.trim();
+    if (tag) return PageLang.canonical(tag);
     const meta = document.querySelector('meta[http-equiv="content-language" i]')?.getAttribute("content");
-    return meta ? meta.split(",")[0].trim() : null;
+    return meta ? PageLang.canonical(meta.split(",")[0]) : null;
   }
 
   // Up to 2,000 characters of the page's own text (our swaps count as the words they
@@ -230,13 +242,15 @@
 
   // The engine's question: what to swap in `text` (a site text node's own text). Reads
   // computed styles only for a node with a match (lib/controls.js), and before any write.
-  function plan({ text, node, edges }) {
+  function plan({ text, node, edges, shown }) {
     if (!indexes) return [];
     const base = baseFor(node.parentElement);
     const index = base && indexes.get(base);
     if (!index?.size) return [];
     if (!scan(text, { base }, index).matches.length) return [];
     if (prefs().swapControls !== true && controls.inControl(node.parentElement)) return [];
+    // Text the learner doesn't see waits until they do (engine.js, security review A-01).
+    if (shown && !shown()) return [];
     const ctx = { base, ...edges() };
     const items = [];
     const ordinals = new Map();
@@ -254,15 +268,31 @@
       ordinals.set(spot, ordinal + 1);
       const c = session.choose({ base, entry: m.entry, candidates: cands, surface: m.surface, before, after, ordinal });
       if (!c?.word) continue;
-      const w = c.word;
-      const all = [w, ...c.others];
+      const w = reveal(c);
+      if (!w) continue;
+      const all = [w, ...[c.word, ...c.others].filter((x) => x !== w)];
+      const alsoLangs = w === c.word ? c.alsoLangs : [...new Set(all.filter((x) => x !== w && x.lang !== w.lang && x.native === w.native).map((x) => x.lang))];
       // Written in the target's own capitals (slice 17).
       const { shouting } = rules.flags(text, ctx);
       // sentenceStart is worked out lazily; only a capitalised word needs it.
       const display = Casing.display({ shape: m.shape, sentenceStart: m.shape === "title" && m.sentenceStart, shouting, native: w.native, lang: w.lang });
-      items.push({ start: m.start, end: m.end, display, lang: w.lang, read: heard(display, w.lang, text.slice(m.start, m.end), base), tab: prefs().keyboardSwaps === true || null, info: { surface: m.surface, key: m.key, word: w, all, alsoLangs: c.alsoLangs } });
+      items.push({ start: m.start, end: m.end, display, lang: w.lang, read: heard(display, w.lang, text.slice(m.start, m.end), base), tab: prefs().keyboardSwaps === true || null, info: { surface: m.surface, key: m.key, word: w, all, alsoLangs } });
     }
     return items;
+  }
+
+  // The word a choice may show within this page view's caps, or null: a concept past the
+  // cap stays as the site wrote it; a concept already in its language limit shows one of
+  // the languages it has shown.
+  function reveal(c) {
+    let langs = revealed.get(c.concept);
+    if (!langs) {
+      if (revealed.size >= MAX_CONCEPTS) return null;
+      revealed.set(c.concept, (langs = new Set()));
+    }
+    const w = langs.has(c.word.lang) || langs.size < MAX_LANGS ? c.word : c.others.find((x) => langs.has(x.lang)) ?? null;
+    if (w) langs.add(w.lang);
+    return w;
   }
 
   // What screen readers hear on a swap (27 §2). The default is the word itself, in its own
@@ -352,6 +382,10 @@
       rules = globalThis.KotikoRules.create();
     }
     if (indexes) engine.reapply();
+    // The page may have dropped the sheet; it comes back with the swaps, and goes once
+    // Kotiko is off or paused here.
+    if (!indexes) unstyle();
+    else if (styled) SwapStyle.install(document);
     if (cur) {
       const { id } = cur.info.word;
       const gone = !(state.words || []).some((w) => sameId(w.id, id));
@@ -455,7 +489,8 @@
 
   // Swaps made before this version kept the original text in data-en: the span from
   // before the rename and span.kotiko-w (before slice 15's element). Put the page's own
-  // text back. Remove two releases after 0.3.
+  // text back, on pages Kotiko swaps (elsewhere a page could plant one to see Kotiko act).
+  // Remove two releases after 0.3.
   function unwrapLegacy() {
     document.querySelectorAll("span.slovo-w, span.kotiko-w").forEach((span) => { // legacy-name-ok
       span.before(document.createTextNode(span.dataset.en ?? span.textContent));
@@ -463,21 +498,67 @@
     });
   }
 
-  // One live instance per document (slice 15): a newer instance (after an update or a
-  // reload of the extension, or injected into a tab open at install) announces itself, and
-  // this one restores the page and stops.
-  const instanceId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-  function onHandoff(e) {
-    if (e.detail !== instanceId) teardown();
+  // One live instance per document (slice 15). Nothing about this is on the page: an event
+  // or attribute there would let any site switch Kotiko off, or see it installed where it's
+  // paused or off (security review A-03). Instances of one extension in a frame share this
+  // script world, so a newer one (injected into a tab open at install, or injected twice)
+  // finds the live one here and tears it down. One left from before an update or a reload
+  // has lost its extension context: it tears down at its next DOM change (the engine checks
+  // contextValid()), which waitForOrphans() makes happen before this one swaps.
+  const LIVE = "kotikoLiveContent";
+  function claimDocument() {
+    const prev = globalThis[LIVE];
+    globalThis[LIVE] = { teardown };
+    try {
+      prev?.teardown?.();
+    } catch {
+      // the old instance's script is gone
+    }
+  }
+
+  // Swaps on the page that aren't this instance's are an orphan's: one DOM change wakes it,
+  // and this instance waits (up to a second) until it has put the page's text back. Only
+  // where Kotiko swaps anyway, so a page that plants a <kotiko-w> learns nothing.
+  async function waitForOrphans() {
+    if (!document.querySelector(MARK)) return;
+    const poke = document.createTextNode("");
+    document.documentElement.append(poke);
+    poke.remove();
+    await new Promise((resolve) => {
+      const mo = new MutationObserver(() => {
+        if (!document.querySelector(MARK)) done();
+      });
+      const timer = setTimeout(done, 1000);
+      function done() {
+        mo.disconnect();
+        clearTimeout(timer);
+        resolve();
+      }
+      mo.observe(document, { childList: true, subtree: true });
+    });
+  }
+
+  // The swap stylesheet goes in with the first swap: nothing of Kotiko's styles a page it
+  // doesn't swap (ui/swap-style.js).
+  let styled = false;
+  function styleSwaps() {
+    styled = true;
+    SwapStyle.install(document);
+  }
+  function unstyle() {
+    if (!styled) return;
+    styled = false;
+    SwapStyle.uninstall(document);
   }
 
   function teardown() {
     if (torn) return;
     torn = true;
+    if (globalThis[LIVE]?.teardown === teardown) delete globalThis[LIVE];
     clearTimeout(recheckTimer);
     engine?.teardown();
+    unstyle();
     popover?.destroy();
-    document.removeEventListener("kotiko:handoff", onHandoff);
     document.removeEventListener("focusin", onFocus, true);
     try {
       ext.storage.onChanged.removeListener(onStorage);
@@ -494,7 +575,7 @@
     configureSpeech();
     popover = globalThis.KotikoPopover.createPopover({ infoFor, actions: popoverActions, reduceMotion: () => prefs().motion === "reduce" });
     popover.install();
-    engine = globalThis.KotikoEngine.create({ plan, skip, afterSlice: () => rules.settle(), contextValid });
+    engine = globalThis.KotikoEngine.create({ plan, skip, afterSlice: () => rules.settle(), contextValid, onSwap: () => styled || styleSwaps() });
     ext.runtime.onMessage.addListener(onMessage);
     // Installed a moment ago: the background may not have copied the list yet.
     if (!Array.isArray(state.sensitiveSites)) {
@@ -505,6 +586,7 @@
     await decidePage();
     if (torn) return;
     rebuild();
+    if (active()) unwrapLegacy();
     // The word segmenter loads its data on first use: pay for that in a task of its own, not
     // in the first slice of swapping (no task over 50 ms, slice 15).
     if (indexes) {
@@ -512,6 +594,8 @@
       // Any style work the page left pending, before the first slice reads a style.
       if (document.body) void getComputedStyle(document.body).cursor;
       await new Promise((r) => setTimeout(r, 0));
+      if (torn) return;
+      await waitForOrphans();
       if (torn) return;
     }
     engine.start();
@@ -528,8 +612,6 @@
     ext.runtime.sendMessage({ type: "sync" }).catch(() => {});
   }
 
-  document.dispatchEvent(new CustomEvent("kotiko:handoff", { detail: instanceId }));
-  document.addEventListener("kotiko:handoff", onHandoff);
-  unwrapLegacy();
+  claimDocument();
   if (document.body) init();
 })();

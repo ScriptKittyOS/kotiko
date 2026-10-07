@@ -80,6 +80,20 @@ describe("install and update (22 §1)", () => {
     assert.equal(bg.sync.ui, undefined);
   });
 
+  test("a browser update after an update from 0.2 keeps the words and server that update kept", async () => {
+    const words = [{ id: 1, lang: "ru", native: "дом", english: "house", forms: ["house"] }];
+    const bg = loadBackground({ local: { token: "t0ken", serverUrl: "http://127.0.0.1:4999", words } });
+    await bg.fake.fireInstalled({ reason: "update", previousVersion: "0.2.0" });
+    await bg.until(() => bg.store.onboarding?.completedAt);
+    await bg.fake.idle();
+    const store = await bg.k.getStore();
+    await bg.fake.fireInstalled({ reason: "chrome_update" });
+    // Nothing to wait for when it's right; when it's wrong, the drop lands within a second.
+    await bg.until(async () => (await store.count()) === 0, 1000).catch(() => {});
+    assert.equal(await store.count(), 1, "the 0.2 words stay");
+    assert.ok(bg.store.onboarding?.completedAt, "the first run stays finished");
+  });
+
   test("50's upgrade rule: a Spanish browser keeps swapping the old English words", async () => {
     const words = [{ id: 1, lang: "ru", native: "дом", english: "house", forms: ["house"] }];
     const bg = loadBackground({ local: { words }, ui: "es-PR", accept: ["es-PR", "es"] });

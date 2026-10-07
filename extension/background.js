@@ -1377,8 +1377,11 @@ async function discardPlanted() {
 const fromBeforeStore = (version) => /^0\.[0-2]\./.test(String(version ?? ""));
 async function keepLegacyOnlyFrom(details) {
   await ready();
-  if (!adoptedLegacy || (details?.reason === "update" && fromBeforeStore(details.previousVersion))) return;
+  if (!adoptedLegacy) return;
+  // Decided once, by the first event after the set-up: a browser update that follows an
+  // update from 0.2 in the same worker must not drop the words that update kept.
   adoptedLegacy = false;
+  if (details?.reason === "update" && fromBeforeStore(details.previousVersion)) return;
   await discardPlanted();
 }
 
@@ -1464,9 +1467,10 @@ function claimMilestone(key) {
 }
 
 // Tabs open before an install or update get Kotiko without a reload (slice 15): the same
-// files the manifest injects, top frame only, as it does. On an update the new copy tells
-// the old one to stand down (the handoff in content.js). A tab that can't take scripts (a
-// store page, a browser page) is skipped.
+// scripts the manifest injects, top frame only, as it does. On an update the new copy finds
+// the old one and makes it stand down (content.js), with nothing a page can see; the swap
+// style comes with the first swap (ui/swap-style.js). A tab that can't take scripts (a store
+// page, a browser page) is skipped.
 async function injectOpenTabs() {
   const cs = ext.runtime.getManifest?.()?.content_scripts?.[0];
   if (!ext.scripting?.executeScript || !cs) return 0;
@@ -1474,7 +1478,6 @@ async function injectOpenTabs() {
   let n = 0;
   for (const tab of tabs) {
     try {
-      if (cs.css?.length) await ext.scripting.insertCSS({ target: { tabId: tab.id }, files: cs.css });
       await ext.scripting.executeScript({ target: { tabId: tab.id }, files: cs.js });
       n++;
     } catch {
@@ -1508,16 +1511,20 @@ async function pinLoopbackAddresses() {
 }
 
 function onInstalled(details) {
-  if (details?.reason === "update") {
-    Promise.resolve(ext.alarms.clear(OLD_ALARM)).catch(() => {});
-    migrateHiddenLangs().catch(() => {});
-    pinLoopbackAddresses().catch(() => {});
-    // The bases after the first-run state: writing them projects the words again, and the
-    // first-run check reads the old list first.
-    upgradeOnboarding().catch(() => {}).then(upgradeBases).catch(() => {});
-  }
   if (details?.reason === "install") firstInstall().catch((e) => console.warn("Kotiko couldn't open the welcome tab:", e?.message ?? e));
-  else keepLegacyOnlyFrom(details).catch((e) => console.warn("Kotiko update:", e?.message ?? e));
+  else {
+    // What storage.local held is dropped first, so no upgrade step writes something the
+    // drop then erases (it once raced the first-run state, and lost it).
+    const kept = keepLegacyOnlyFrom(details).catch((e) => console.warn("Kotiko update:", e?.message ?? e));
+    if (details?.reason === "update") {
+      Promise.resolve(ext.alarms.clear(OLD_ALARM)).catch(() => {});
+      kept.then(migrateHiddenLangs).catch(() => {});
+      kept.then(pinLoopbackAddresses).catch(() => {});
+      // The bases after the first-run state: writing them projects the words again, and
+      // the first-run check reads the old list first.
+      kept.then(upgradeOnboarding).catch(() => {}).then(upgradeBases).catch(() => {});
+    }
+  }
   if (details?.reason === "install" || details?.reason === "update") injectOpenTabs().catch(() => {});
   ensureAlarm();
   mirrorBaseRules({ force: true }).catch(() => {});

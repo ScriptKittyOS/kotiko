@@ -13,12 +13,14 @@
 //   const E = KotikoEngine.create({ plan, skip, onSwap, onStatus });
 //   E.start();  E.reapply();  E.unwrapAll();  E.restoreWithin(el);  E.infoFor(el);  E.teardown();
 //
-//   plan({ text, node, edges }) -> [{ start, end, display, lang, info, read?, tab? }] sorted, or []
+//   plan({ text, node, edges, shown }) -> [{ start, end, display, lang, info, read?, tab? }] sorted, or []
 //     read: what screen readers hear instead of the word (27 §2), parts in order, each
 //     { text, lang } or a plain string: the word shows inside aria-hidden <kotiko-v> and
 //     the parts go in a visually hidden <kotiko-sr>. tab: the word is a Tab stop (27 §2).
 //     edges() -> { before, after }: up to 16 characters of neighbouring inline text, or
 //     U+2029 at a block boundary (slice 14's ctx).
+//     shown() -> whether the learner can see the node's text (below); the caller asks once
+//     it has a match, and returns [] when not. Text that isn't shown is swapped when it is.
 //   skip(element) -> true when the element's text must be left alone (slice 16); asked for
 //     every element the walk meets, so the caller caches it.
 //   afterSlice() -> nodes to look at again (slice 16's settled deferrals), or nothing.
@@ -36,9 +38,31 @@
   const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA", "INPUT", "SELECT", "OPTION", "CODE", "PRE", "KBD", "SAMP", "SVG", "MATH", "CANVAS", "IFRAME", "TITLE", "TEMPLATE", "HEAD"]);
   const INLINE = new Set(["A", "ABBR", "B", "BDI", "BDO", "CITE", "DATA", "DEL", "DFN", "EM", "FONT", "I", "INS", "MARK", "Q", "S", "SMALL", "SPAN", "STRONG", "SUB", "SUP", "TIME", "U", "WBR"]);
   const HYDRATION_MARKERS = "#__next, [data-reactroot], #__nuxt, [data-sveltekit-hydrated], [ng-version], [data-server-rendered]";
+  // Only text the learner can see is swapped (security review A-01): a page reads its own
+  // DOM, so a swap in text nobody sees would tell it the learner's words for nothing. Text
+  // is swapped when it's rendered (no display:none, visibility, zero opacity or
+  // content-visibility) and its block is on screen or within a screen of it, at least 2 px
+  // each way after every ancestor's clipping; the rest waits until it is (lazily, which is
+  // also what keeps very long pages fast).
+  const SHOWN = { contentVisibilityAuto: true, opacityProperty: true, visibilityProperty: true };
+  const MIN_PX = 2;
+  const NEAR = "100% 0px";
+  // Whether a block is near comes from an IntersectionObserver, which costs no layout. A
+  // block it hasn't answered for yet is measured on the spot (so text a page adds is still
+  // swapped before it's painted), until those measurements take 4 ms in one slice: on a
+  // huge page each one forces a layout, and the observer's answer a frame later is cheaper.
+  const SYNC_MS = 4;
+  // Elements waiting: watched by the observer, or (in view, but a style or clipping still
+  // hides them) looked at again after transitions, animations, and the learner's clicks,
+  // keys and scrolls.
+  const WAIT = { watched: 20000, masked: 500 };
+  const MAYBE_SHOWN = ["transitionend", "animationend", "click", "keyup", "scrollend"];
 
   function create({ plan, skip = () => false, afterSlice = () => null, onSwap = () => {}, onStatus = () => {}, doc = globalThis.document, now = () => performance.now(), clock = () => Date.now(), contextValid = () => true }) {
     const win = doc.defaultView ?? globalThis;
+    // Browsers without checkVisibility (and jsdom, which has no layout) treat all text as
+    // shown.
+    const sees = typeof win.Element?.prototype?.checkVisibility === "function";
     const isMark = (n) => n?.nodeType === 1 && n.localName === MARK;
     // Kotiko's nodes: the text after a swapped word, and the swaps themselves.
     let owned = new WeakSet();
@@ -75,6 +99,11 @@
       return root;
     }
     let walking = null;
+    // Near blocks to walk before anything else (onNear), and the walk they interrupted.
+    const soon = [];
+    let walkingSoon = false;
+    let paused = null;
+    const idle = () => !walking && !paused && !soon.length && !pending();
     let scheduled = false;
     let dirty = false;
     let hydrating = null;
@@ -152,6 +181,160 @@
 
     // The text the site meant for T: its original when Kotiko swapped it.
     const siteText = (T) => swaps.get(T)?.original ?? T.data;
+
+    // ── what the learner can see ──────────────────────────────────────────
+
+    // The block a text's element is laid out in: the nearest ancestor that isn't an inline
+    // tag. The observer watches blocks, not every span.
+    function blockOf(el) {
+      let b = el;
+      while (b.parentElement && b !== doc.body && INLINE.has(b.nodeName.toUpperCase())) b = b.parentElement;
+      return b;
+    }
+
+    // block -> true (near and big enough) | false (away), from the observer.
+    const near = new WeakMap();
+    // Waiting elements: watched by the observer, or masked (el -> "style" | "small").
+    const watched = new Set();
+    const masked = new Map();
+    let io = null;
+    let maskCheck = 0;
+    let syncSpent = 0;
+    // Roots the site just added or changed (handle()), and whether the walk is in one.
+    const fromSite = new WeakSet();
+    let siteChange = false;
+
+    function watch(el) {
+      if (watched.has(el) || masked.has(el) || !win.IntersectionObserver) return;
+      if (watched.size >= WAIT.watched) {
+        // Blocks the site took away since.
+        for (const w of watched) {
+          if (w.isConnected) continue;
+          io.unobserve(w);
+          watched.delete(w);
+        }
+        if (watched.size >= WAIT.watched) return;
+      }
+      io ??= new win.IntersectionObserver(onNear, { rootMargin: NEAR });
+      watched.add(el);
+      io.observe(el);
+    }
+
+    function mask(el, kind) {
+      if (masked.has(el) || masked.size >= WAIT.masked) return;
+      masked.set(el, kind);
+    }
+
+    function onNear(entries) {
+      if (!contextValid()) return teardown();
+      let any = false;
+      for (const e of entries) {
+        const el = e.target;
+        if (!el.isConnected) {
+          io.unobserve(el);
+          watched.delete(el);
+          continue;
+        }
+        if (!e.isIntersecting) {
+          near.set(el, false);
+          continue;
+        }
+        io.unobserve(el);
+        watched.delete(el);
+        const r = e.intersectionRect;
+        const big = !r || (r.width >= MIN_PX && r.height >= MIN_PX);
+        near.set(el, big);
+        // In view but clipped to almost nothing: looked at again later.
+        if (!big) mask(el, "small");
+        else if (!torn && status === "running") {
+          soon.push(el);
+          any = true;
+        }
+      }
+      if (any) schedule();
+    }
+
+    // Measured now, with a layout read: whether el is near the viewport and big enough after
+    // its ancestors' clipping.
+    function measure(el) {
+      const t0 = now();
+      let { left, top, right, bottom } = el.getBoundingClientRect();
+      const clip = (c) => {
+        left = Math.max(left, c.left);
+        right = Math.min(right, c.right);
+        top = Math.max(top, c.top);
+        bottom = Math.min(bottom, c.bottom);
+        return right - left >= MIN_PX && bottom - top >= MIN_PX;
+      };
+      let ok = clip({ left: -Infinity, right: Infinity, top: -Infinity, bottom: Infinity });
+      for (let a = el.parentElement; ok && a && a !== doc.body && a !== doc.documentElement; a = a.parentElement) {
+        const st = win.getComputedStyle(a);
+        const x = st.overflowX !== "visible";
+        const y = st.overflowY !== "visible";
+        if (!x && !y) continue;
+        const r = a.getBoundingClientRect();
+        ok = clip({ left: x ? r.left : -Infinity, right: x ? r.right : Infinity, top: y ? r.top : -Infinity, bottom: y ? r.bottom : Infinity });
+      }
+      // The viewport, a screen above and below it (NEAR), and no further sideways.
+      const h = win.innerHeight || 0;
+      if (ok) ok = clip({ left: 0, right: win.innerWidth || 0, top: -h, bottom: 2 * h });
+      syncSpent += now() - t0;
+      return ok;
+    }
+
+    // "shown", or why not: "hidden" (a style hides it) or "away" (not near, too small, or
+    // not known yet).
+    function sight(el) {
+      if (!sees) return "shown";
+      if (!el.checkVisibility(SHOWN)) return "hidden";
+      const b = blockOf(el);
+      const v = near.get(b);
+      // Text the site just added is measured even in a block that was near: the page may
+      // have moved the block out of sight first.
+      if (siteChange && syncSpent < SYNC_MS) {
+        if (measure(el)) return "shown";
+        if (v === true) near.delete(b);
+        return "away";
+      }
+      if (v === true) return "shown";
+      if (v === false) return "away";
+      if (syncSpent < SYNC_MS && measure(el)) return "shown";
+      return "away";
+    }
+
+    // Text that isn't shown waits: for a style, on the outermost ancestor it hides (one
+    // hidden menu, not each of its items); else on its block.
+    function wait(el, why) {
+      if (why === "hidden") {
+        let top = el;
+        for (let a = el.parentElement; a && a !== doc.body && a !== doc.documentElement && !a.checkVisibility(SHOWN); a = a.parentElement) top = a;
+        // The observer already said it's near: a style still hides it.
+        if (near.get(top) === true || near.get(blockOf(el)) === true) mask(top, "style");
+        else watch(top);
+        return;
+      }
+      const b = blockOf(el);
+      if (near.get(b) !== true) watch(b);
+    }
+
+    // A transition or animation ended, or the learner clicked, typed or scrolled: masked
+    // elements may show now. Once per frame.
+    function onMaybeShown(e) {
+      if (!masked.size || maskCheck || (!e.isTrusted && e.type !== "transitionend" && e.type !== "animationend")) return;
+      maskCheck = (win.requestAnimationFrame ?? setTimeout)(() => {
+        maskCheck = 0;
+        if (torn || status !== "running") return;
+        const again = [...masked];
+        masked.clear();
+        for (const [el, kind] of again) {
+          if (!el.isConnected) continue;
+          near.delete(el);
+          if (kind === "small") watch(el);
+          else enqueue(el);
+        }
+        schedule();
+      });
+    }
 
     // ── what to visit ─────────────────────────────────────────────────────
 
@@ -235,8 +418,15 @@
       const text = siteText(T);
       if (!text || !/[\p{L}\p{N}]/u.test(text)) return null;
       let memo = null;
-      const items = plan({ text, node: T, edges: () => (memo ??= { before: edge(T, "previousSibling"), after: edge(T, "nextSibling") }) });
-      return { T, text, items: items ?? [] };
+      let away = null;
+      const shown = () => {
+        const v = sight(T.parentElement);
+        if (v !== "shown") away = v;
+        return !away;
+      };
+      const items = plan({ text, node: T, edges: () => (memo ??= { before: edge(T, "previousSibling"), after: edge(T, "nextSibling") }), shown });
+      if (away) wait(T.parentElement, away);
+      return { T, text, items: away ? [] : items ?? [] };
     }
 
     // Writes for a batch: the site's pending records are handled first, Kotiko's own are
@@ -267,16 +457,37 @@
 
     // Runs queued work until the deadline; true when the queue is empty.
     function run(deadline) {
+      syncSpent = 0;
       for (;;) {
+        // Blocks that just came near go first: they're what the learner is about to see.
+        // A long walk (a big page's first pass) waits for them.
+        if (soon.length && !walkingSoon) {
+          paused = walking ? { walking, siteChange } : paused;
+          walking = null;
+        }
+        if (!walking && soon.length) {
+          const root = soon.shift();
+          if (!root.isConnected) continue;
+          walking = textsUnder(root);
+          walkingSoon = true;
+          siteChange = false;
+        }
+        if (!walking && paused) {
+          ({ walking, siteChange } = paused);
+          paused = null;
+          walkingSoon = false;
+        }
         if (!walking) {
+          walkingSoon = false;
           const root = take();
           if (!root) return true;
           // A root that yields nothing still costs time: the clock is checked after each.
           if (!root.isConnected && root.nodeType !== 9) {
-            if (now() >= deadline) return !pending();
+            if (now() >= deadline) return idle();
             continue;
           }
           walking = textsUnder(root);
+          siteChange = fromSite.delete(root);
         }
         // Plans (reads) for up to 200 nodes or until the deadline, then their writes.
         const plans = [];
@@ -285,6 +496,7 @@
           const r = walking.next();
           if (r.done) {
             walking = null;
+            walkingSoon = false;
             break;
           }
           plans.push(planFor(r.value));
@@ -292,7 +504,7 @@
           if (plans.length >= BATCH || chars >= SYNC_CHARS || now() >= deadline) break;
         }
         if (plans.length) write(plans);
-        if (now() >= deadline) return !walking && !pending();
+        if (now() >= deadline) return idle();
       }
     }
 
@@ -320,7 +532,7 @@
           for (;;) {
             const done = torn || run(now() + SLICE_MS);
             settle();
-            if (done && !walking && !pending()) break;
+            if (done && idle()) break;
             await yieldNow();
           }
         } finally {
@@ -386,6 +598,7 @@
             if (t.data === rec.original) budget(ownerOf(t), "reverts");
           }
           budget(ownerOf(t), "churn");
+          fromSite.add(t);
           enqueue(t);
           touched = true;
           continue;
@@ -399,6 +612,7 @@
         if (undone) budget(ownerOf(r.target), "reverts");
         for (const n of r.addedNodes) {
           if (owned.has(n) || isMark(n) || n.localName === "kotiko-popover") continue;
+          fromSite.add(n);
           enqueue(n);
           touched = true;
         }
@@ -422,8 +636,12 @@
       if (status === "stood-down") return;
       unwrapAll();
       observer?.disconnect();
+      io?.disconnect();
+      watched.clear();
+      masked.clear();
       queue.length = head = 0;
-      walking = null;
+      soon.length = 0;
+      walking = paused = null;
       status = "stood-down";
       onStatus(status);
     }
@@ -444,6 +662,7 @@
         });
       } else initialPass();
       doc.addEventListener("visibilitychange", onVisibility);
+      if (sees) for (const t of MAYBE_SHOWN) doc.addEventListener(t, onMaybeShown, { capture: true, passive: true });
     }
 
     function waitQuiet(done) {
@@ -500,6 +719,7 @@
     }
 
     function onVisibility() {
+      if (!contextValid()) return teardown();
       if (!doc.hidden && dirty) reapply();
     }
 
@@ -531,8 +751,13 @@
       torn = true;
       observer?.disconnect();
       queue.length = head = 0;
-      walking = null;
+      soon.length = 0;
+      walking = paused = null;
       doc.removeEventListener("visibilitychange", onVisibility);
+      for (const t of MAYBE_SHOWN) doc.removeEventListener(t, onMaybeShown, { capture: true });
+      io?.disconnect();
+      watched.clear();
+      masked.clear();
       status = "torn";
     }
 

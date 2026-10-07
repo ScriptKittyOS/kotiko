@@ -13,7 +13,7 @@ the server (`Kotiko.Spec`, compiled into the release) and the extension (its cop
 | `model-output.schema.json` | What the lookup prompt asks the model for. Lenient: the extractor repairs common deviations. |
 | `respell-output.schema.json` | What the respell prompt asks the model for. |
 | `prompt.md` | The prompt, in fenced `prompt <name>` sections, with `{{placeholders}}`. |
-| `rules.json` | Every number the validator uses (caps, minimum lengths). |
+| `rules.json` | Every number the validator uses (caps, minimum lengths), and the content scripts' `max_page_*` caps (how many words one page view may show; security review A-01), which `sync-extension.mjs` also writes to `extension/spec/page.js`. |
 | `pronunciation.json` | Per target language: romanization scheme, stress kind, tone range, vocalization marks. |
 | `models.json` | Slice 10: the free models to prefer for lookups and respellings (from `eval/RESULTS.md`), the ones to deny, the shipped fallback list, and the lookup client's budgets (deadlines, attempts, health, quota reserve, cache). |
 | `providers.json` | Slice 11: the lookup provider presets (OpenRouter by default, OpenAI, Anthropic, Google Gemini, Groq, Ollama, LM Studio, Custom): base URL, whether a key is needed, JSON mode, extra headers, where the model list comes from. Never a key. |

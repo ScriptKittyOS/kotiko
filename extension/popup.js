@@ -520,12 +520,14 @@
   // or one of theirs with no word yet (20 states H, H2).
   function renderPageLanguage(st) {
     const link = (id, label, onclick) => el("button", { class: "link", id, type: "button", onclick }, label);
-    const name = (l) => I18n.languageName(l) ?? l;
+    // Only a name the browser knows for a language tag: the page writes its own lang
+    // attribute, so its text never reaches the popup (security review A-02).
+    const name = (l) => (typeof l === "string" && l.length <= 35 ? I18n.languageName(l) : null);
     let line = null;
     if (st?.sensitive) line = [`${t(`popup_sensitive_${st.sensitive}`)} `, link("runSensitive", t("popup_sensitive_run"), allowSensitive)];
     else if (st?.stoodDown) line = [t("popup_stood_down")];
-    else if (st && !st.base && st.lang && st.reason !== "unknown") line = [`${t("popup_page_not_yours", { lang: name(st.lang) })} `, link("readToo", t("popup_read_too", { lang: name(st.lang) }), () => openDashboardAt("#settings/languages"))];
-    else if (st?.base && st.words === 0 && wordTotal(state.s.words) > 0) line = [t("popup_no_meanings_base", { base: name(st.base) })];
+    else if (st && !st.base && name(st.lang) && st.reason !== "unknown") line = [`${t("popup_page_not_yours", { lang: name(st.lang) })} `, link("readToo", t("popup_read_too", { lang: name(st.lang) }), () => openDashboardAt("#settings/languages"))];
+    else if (st?.base && name(st.base) && st.words === 0 && wordTotal(state.s.words) > 0) line = [t("popup_no_meanings_base", { base: name(st.base) })];
     $("pageLang").hidden = !line;
     $("pageLangText").replaceChildren(...(line ?? []));
   }

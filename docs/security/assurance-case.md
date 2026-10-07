@@ -60,7 +60,7 @@ its argument and evidence.
 | Attacker | Can reach | Main defences |
 |---|---|---|
 | A malicious web page | Its own DOM, which the content script reads and changes; HTTP requests from the browser to any address, including the server | Text-only DOM; no CORS headers, so it can't read server answers or send the `Authorization` header; Host check against DNS rebinding; the content script can't add or delete words |
-| A script injected into a page | The same as the page; it can see swapped words | Same; nothing secret is put in the page |
+| A script injected into a page | The same as the page; it can see swapped words | Same; nothing secret is put in the page; only text the learner sees is swapped, at most 500 concepts a page view; page-made events can't open the word card or switch Kotiko off |
 | Someone on the same network | Plain-HTTP traffic when the server listens beyond loopback | Loopback by default; startup warnings; Tailscale or HTTPS advice |
 | A malicious or broken model answer | The word pipeline on the server or in the extension | Schema and rule checks, length caps, script checks, text-only rendering |
 | A Telegram user who isn't allowed | The bot's chat | Sender allowlist |
@@ -180,7 +180,17 @@ These match "What you can't expect" in the [requirements](requirements.md).
   service's key and the words looked up. The server warns, and so do the extension's
   address fields for the server and for a lookup service; neither refuses.
 - **The model provider sees every lookup**, under its own terms.
-- **Pages can see swapped words** in their own DOM.
+- **Pages can see swapped words** in their own DOM, and, since they know their own text,
+  which of their words the learner has a word for (security review A-01). Kotiko swaps
+  only text the learner can see (rendered, on screen or within a screen of it, not
+  clipped away) and at most 500 distinct concepts, each in at most 3 languages, per page
+  view (`spec/rules.json` `max_page_*`). What's left: a page that shows text the learner
+  can't make out (tiny, the color of the background, under something else, or shown for
+  one frame) still gets swaps within that cap; the cap is per page view, so a page that
+  reloads itself or a site visited often can learn more of a long list over time; and
+  while the learner has a word card open, `window.find()` can match its text. Where
+  Kotiko is paused, off or stepping back from a sensitive site it adds nothing to the page
+  (A-03, C-04); where it swaps, the swaps and their stylesheet show it's installed.
 - **A subverted content script** (code running in Kotiko's content-script world) can't
   change settings, the word list or the add queue (SCR-448), but it can still: add words
   to the never-swap list one at a time (the word card's action lives in the page; the list

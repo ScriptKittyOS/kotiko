@@ -6,6 +6,7 @@
 // otherwise; `detect` stands in for the browser's language detector.
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createFakeChrome } from "../helpers/fake-chrome.mjs";
 import { createPage, injectContentScripts, sleep } from "../helpers/load-script.mjs";
 import { baseRulesFor, basesOf } from "../helpers/base-rules.mjs";
@@ -32,6 +33,25 @@ const WORDS = [
 
 const FLUSH_MS = 300; // content.js batches page mutations for 250 ms
 
+// The language a word shows in is drawn per page per day (slice 18), so every test page
+// starts at noon on one fixed day, and its clock runs on from there. Without this, a test
+// expecting one language passed on some days and failed on others (security review C-08).
+const TEST_DAY = new Date(2026, 9, 6, 12).getTime();
+function pinDay(win) {
+  const Real = win.Date;
+  const shift = TEST_DAY - Real.now();
+  class TestDate extends Real {
+    constructor(...args) {
+      if (args.length) super(...args);
+      else super(Real.now() + shift);
+    }
+    static now() {
+      return Real.now() + shift;
+    }
+  }
+  win.Date = TestDate;
+}
+
 async function load(html, { words = WORDS, url = "https://example.com/", beforeInject, lang = "en", detect = null, ...local } = {}) {
   // As the background writes it: rules for the learner's bases (theirs, else their words').
   if (!("baseRules" in local)) local.baseRules = baseRulesFor(local.baseLangs ?? basesOf(words));
@@ -46,6 +66,7 @@ async function load(html, { words = WORDS, url = "https://example.com/", beforeI
   fake.chrome.i18n = { detectLanguage: async (text) => (detect ? detect(text) : { isReliable: false, languages: [] }) };
   const page = /<html[\s>]/i.test(html) ? html : `<!doctype html><html${lang ? ` lang="${lang}"` : ""}><head></head><body>${html}</body></html>`;
   const dom = createPage({ html: page, url, chrome: fake.chrome });
+  pinDay(dom.window);
   beforeInject?.(dom);
   injectContentScripts(dom);
   await fake.idle();
@@ -376,19 +397,19 @@ describe("after the rename", () => {
   });
 
   test("swaps from before the <kotiko-w> element (span.kotiko-w with data-en) go back too", async () => {
-    const { $, doc } = await load(
-      `<p id="p">My <span class="kotiko-w" data-en="house" lang="ru" dir="auto" title="house = дом · Russian">дом</span>.</p>`,
-      { enabled: false },
-    );
+    const { $, doc } = await load(`<p id="p">My <span class="kotiko-w" data-en="house" lang="ru" dir="auto" title="house = дом · Russian">дом</span>.</p>`, { words: [] });
     assert.equal(doc.querySelectorAll("span.kotiko-w").length, 0);
     assert.equal($("p").textContent, "My house.");
     assert.ok([...$("p").childNodes].every((n) => n.nodeType === 3));
   });
 
-  test("switched off, the old spans are still restored", async () => {
-    const { $, doc } = await load(`<p id="p">My ${oldSpan("house", "дом")}.</p>`, { enabled: false });
-    assert.equal(doc.querySelectorAll(`span.${OLD}`).length, 0);
-    assert.equal($("p").textContent, "My house.");
+  // Security review A-03: a page could plant such a span to see Kotiko act where it's off.
+  test("switched off or paused, Kotiko touches nothing, old spans included", async () => {
+    for (const local of [{ enabled: false }, { pausedHosts: ["example.com"] }]) {
+      const { $, doc } = await load(`<p id="p">My ${oldSpan("house", "дом")}.</p>`, local);
+      assert.equal(doc.querySelectorAll(`span.${OLD}`).length, 1, JSON.stringify(local));
+      assert.equal($("p").textContent, "My дом.");
+    }
   });
 });
 
@@ -698,6 +719,196 @@ describe("starting up", () => {
     for (let i = 0; i < 400 && !fake.calls.sendMessage.some((m) => m.type === "sync"); i++) await sleep(5);
     await sleep(10);
     assert.equal(dom.window.document.getElementById("p").textContent, "my дом");
+  });
+});
+
+// Security review A-03 and C-04: what a page sees of Kotiko. Nothing at all where it's off,
+// paused or on a sensitive site; on a page it swaps, the swaps and their stylesheet, and no
+// way to switch Kotiko off.
+describe("what a page sees of Kotiko (A-03, C-04)", () => {
+  // Records every event dispatched in the page, as a page listening on document would.
+  const recordEvents = (dom) => {
+    const seen = [];
+    const real = dom.window.EventTarget.prototype.dispatchEvent;
+    dom.window.EventTarget.prototype.dispatchEvent = function (e) {
+      seen.push(e.type);
+      return real.call(this, e);
+    };
+    return seen;
+  };
+  const kotikoEvents = (seen) => seen.filter((t) => /kotiko|handoff/i.test(t));
+  // Kotiko's stylesheets in the page: constructed (adoptedStyleSheets, where the browser has
+  // them; jsdom doesn't) or <style> elements.
+  const sheets = (doc) => [...(doc.adoptedStyleSheets ?? []).map((sh) => [...sh.cssRules].map((r) => r.cssText).join(" ")), ...[...doc.querySelectorAll("style")].map((st) => st.textContent)];
+
+  test("off, paused or on a sensitive site: no event, no stylesheet, nothing changed", async () => {
+    const BANK = [{ pattern: "example.com", category: "banking" }];
+    for (const local of [{ enabled: false }, { pausedHosts: ["example.com"] }, { sensitiveSites: BANK }]) {
+      let seen;
+      const { doc, $ } = await load(`<p id="p">my house</p><kotiko-w id="planted">probe</kotiko-w>`, { ...local, beforeInject: (dom) => (seen = recordEvents(dom)) });
+      assert.deepEqual(kotikoEvents(seen), [], JSON.stringify(local));
+      assert.deepEqual(sheets(doc), [], JSON.stringify(local));
+      assert.equal(doc.querySelectorAll("link").length, 0, JSON.stringify(local));
+      assert.equal($("p").textContent, "my house");
+      assert.equal($("planted").textContent, "probe");
+    }
+  });
+
+  test("on a page it swaps, the stylesheet comes with the first swap, and no event is sent", async () => {
+    let seen;
+    const { doc, spans, set } = await load(`<p id="p">my house</p>`, { beforeInject: (dom) => (seen = recordEvents(dom)) });
+    assert.equal(spans().length, 1);
+    assert.equal(sheets(doc).length, 1);
+    assert.match(sheets(doc)[0], /kotiko-w/);
+    assert.deepEqual(kotikoEvents(seen), []);
+    // Paused: the words and the sheet go.
+    await set({ pausedHosts: ["example.com"] });
+    assert.equal(spans().length, 0);
+    assert.deepEqual(sheets(doc), []);
+  });
+
+  test("a page's own kotiko:handoff event leaves Kotiko running", async () => {
+    const { doc, $, spans } = await load(`<p id="p">my house</p>`);
+    doc.dispatchEvent(new doc.defaultView.CustomEvent("kotiko:handoff", { detail: "page" }));
+    const p = doc.createElement("p");
+    p.id = "later";
+    p.textContent = "thanks for the house";
+    doc.body.append(p);
+    await sleep(20);
+    assert.equal($("p").textContent, "my дом");
+    assert.equal($("later").textContent, "спасибо for the дом");
+    assert.equal(spans().length, 3);
+  });
+
+  test("a second copy of the content scripts takes over from the first, with no duplicate text", async () => {
+    const { dom, doc, $, fake } = await load(`<p id="p">my house and thanks</p>`);
+    assert.equal($("p").textContent, "my дом and спасибо");
+    const before = fake.calls.sendMessage.filter((m) => m.type === "sync").length;
+    injectContentScripts(dom);
+    for (let i = 0; i < 400 && fake.calls.sendMessage.filter((m) => m.type === "sync").length === before; i++) await sleep(5);
+    await sleep(10);
+    assert.equal($("p").textContent, "my дом and спасибо");
+    assert.equal(doc.querySelectorAll("kotiko-w").length, 2);
+    // Only the new copy reacts: a change re-swaps once, not twice.
+    const q = doc.createElement("p");
+    q.id = "q";
+    q.textContent = "a house";
+    doc.body.append(q);
+    await sleep(20);
+    assert.equal($("q").textContent, "a дом");
+    assert.equal(sheets(doc).length, 1, "one stylesheet");
+  });
+});
+
+// Security review A-01: only text the learner can see is swapped; the rest waits until it
+// shows. jsdom has no layout, so this stands in for the browser's: checkVisibility() from
+// the hidden attribute and inline display, visibility and opacity; each element's box from
+// its data-rect (x,y,w,h; else 0,0,200,20); an IntersectionObserver the test drives.
+describe("only text the learner sees is swapped (A-01)", () => {
+  function layout(dom) {
+    const W = dom.window;
+    const styleHides = (el) => el.hidden || /display:\s*none|visibility:\s*hidden|opacity:\s*0(?![.\d])/.test(el.getAttribute("style") ?? "");
+    W.Element.prototype.checkVisibility = function () {
+      for (let e = this; e; e = e.parentElement) if (styleHides(e)) return false;
+      return true;
+    };
+    W.Element.prototype.getBoundingClientRect = function () {
+      const [x, y, w, h] = (this.dataset.rect ?? "0,0,200,20").split(",").map(Number);
+      return { left: x, top: y, right: x + w, bottom: y + h, width: w, height: h, x, y };
+    };
+    const io = { observed: new Set() };
+    W.IntersectionObserver = class {
+      constructor(cb) {
+        io.fire = (els) => cb(els.map((target) => ({ target, isIntersecting: true })), this);
+      }
+      observe(el) {
+        io.observed.add(el);
+      }
+      unobserve(el) {
+        io.observed.delete(el);
+      }
+      disconnect() {
+        io.observed.clear();
+      }
+    };
+    return io;
+  }
+
+  test("hidden, clipped, tiny and out-of-reach text isn't swapped; text in view is", async () => {
+    let io;
+    const { $, spans } = await load(
+      `<p id="seen">my house</p>
+       <div id="none" style="display: none"><p>a house</p><p>thanks</p></div>
+       <p id="invisible" style="visibility: hidden">my house</p>
+       <p id="clear" style="opacity: 0">my house</p>
+       <div style="overflow-x: hidden; overflow-y: hidden" data-rect="0,0,1,1"><p id="clipped">my house</p></div>
+       <p id="tiny" data-rect="0,0,1,1">my house</p>
+       <p id="left" data-rect="-9999,0,200,20">my house</p>`,
+      { beforeInject: (dom) => (io = layout(dom)) },
+    );
+    assert.equal($("seen").textContent, "my дом");
+    for (const id of ["none", "invisible", "clear", "clipped", "tiny", "left"]) assert.equal($(id).querySelectorAll("kotiko-w").length, 0, id);
+    assert.equal(spans().length, 1);
+    // The hidden menu is watched once, not item by item.
+    assert.ok(io.observed.has($("none")));
+    assert.ok(![...io.observed].some((el) => $("none").contains(el) && el !== $("none")));
+  });
+
+  test("text swaps once it shows: a menu opening, or fading in", async () => {
+    let io;
+    const { dom, $ } = await load(`<p>my house</p><div id="menu" hidden><p id="item">a house</p></div><p id="fade" style="opacity: 0">thanks</p>`, {
+      beforeInject: (d) => (io = layout(d)),
+    });
+    assert.equal($("item").textContent, "a house");
+    $("menu").hidden = false;
+    io.fire([$("menu")]);
+    assert.equal($("item").textContent, "a дом");
+    // The observer says the faded paragraph is in view, but it's still transparent: it
+    // waits for the fade to finish.
+    io.fire([$("fade")]);
+    assert.equal($("fade").textContent, "thanks");
+    $("fade").setAttribute("style", "opacity: 1");
+    $("fade").dispatchEvent(new dom.window.Event("transitionend", { bubbles: true }));
+    for (let i = 0; i < 100 && $("fade").textContent === "thanks"; i++) await sleep(10);
+    assert.equal($("fade").textContent, "спасибо");
+  });
+});
+
+// Security review A-01: a page reads its own DOM, so every swap tells it one of the
+// learner's words. One page view shows at most spec/rules.json's max_page_concepts distinct
+// concepts, and at most max_page_langs_per_concept languages of one concept.
+describe("what one page view may show (A-01)", () => {
+  const RULES = JSON.parse(readFileSync(new URL("../../spec/rules.json", import.meta.url), "utf8"));
+  const letters = (i) => {
+    let out = "";
+    for (let n = i + 26 * 26; n > 0; n = Math.floor(n / 26)) out = String.fromCharCode(97 + (n % 26)) + out;
+    return `q${out}`;
+  };
+
+  test(`at most ${RULES.max_page_concepts} distinct concepts, however many the page holds`, async () => {
+    const n = RULES.max_page_concepts + 40;
+    const words = Array.from({ length: n }, (_, i) => word(`дом${i}`, letters(i)));
+    const html = Array.from({ length: n / 20 }, (_, p) => `<p>${words.slice(p * 20, p * 20 + 20).map((w) => w.english).join(" and ")}.</p>`).join("");
+    const { spans, set } = await load(html, { words });
+    // Big pages are swapped in time slices: until the count holds still.
+    for (let i = 0, last = -1; i < 200 && spans().length !== last; i++) {
+      last = spans().length;
+      await sleep(20);
+    }
+    const shown = new Set(spans().map((s) => s.textContent));
+    assert.equal(shown.size, RULES.max_page_concepts);
+    // In document order: the first ones on the page.
+    assert.ok(shown.has("дом0") && !shown.has(`дом${n - 1}`));
+    // A concept already shown keeps showing, everywhere; a re-apply doesn't reset the count.
+    await set({ seedSalt: "another-day" });
+    assert.equal(new Set(spans().map((s) => s.textContent)).size, RULES.max_page_concepts);
+  });
+
+  test(`"mix within the page" shows at most ${RULES.max_page_langs_per_concept} languages of one concept`, async () => {
+    const W = [...WORDS, word("gracias", "thanks", ["thanks"], "es"), word("danke", "thanks", ["thanks"], "de")];
+    const { spans } = await load(`<p id="p">${Array.from({ length: 10 }, (_, i) => `Thanks ${letters(i)}.`).join(" ")}</p>`, { words: W, mixing: { mode: "mix" } });
+    assert.equal(spans().length, 10, "every occurrence still swaps");
+    assert.equal(new Set(spans().map((x) => x.lang)).size, RULES.max_page_langs_per_concept);
   });
 });
 

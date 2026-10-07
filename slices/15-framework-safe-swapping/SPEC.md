@@ -439,3 +439,29 @@ end-to-end test guards against regressions at 150 ms.
 
 **Next**: viewport-first swapping (Future work, first item) is what brings very large pages
 under the budgets: swap what is on or near the screen, and the rest as it scrolls near.
+
+*2026-10-06: security review fixes (slice 54: A-01, A-03, C-04).*
+
+- **Only text the learner can see is swapped**, which is the viewport-first swapping above,
+  done for privacy: a page reads its own DOM, so a swap in hidden text told it the
+  learner's words for nothing. `plan` gets a `shown()` it calls once a text has a match:
+  rendered (`checkVisibility` with opacity, visibility and content-visibility), its block
+  on screen or within a screen of it, at least 2 px each way after every ancestor's
+  clipping, and not above or left of the page. An `IntersectionObserver` watches blocks
+  (no layout reads); a block it hasn't answered for is measured on the spot, up to 4 ms a
+  slice, so text a site adds is still swapped before it's painted, and text a site adds
+  is always measured, even in a block that was near. Hidden text waits on the outermost
+  element hiding it; a fade-in waits for its transition. Blocks that come near are walked
+  before a long walk in progress. Measured on the 100,000-node page: the first swap lands
+  in 160 to 540 ms (about 450 ms before), the screen is done with no long task over 81 ms,
+  and the rest swaps as it scrolls near; a 9,900-word Wikipedia article with a 1,000-word
+  vocabulary shows its first swap in about 60 ms, as before.
+- **One page view shows at most 500 distinct concepts**, each in at most 3 languages
+  (`spec/rules.json`, `content.js` `reveal()`), for the document's whole life.
+- **The handoff no longer uses a DOM event**: a page could send it to switch Kotiko off,
+  or listen for it to see Kotiko where it's paused. Copies of the content scripts share
+  their script world, so a new copy finds the live one there and tears it down; one left
+  from before an update has lost its extension context and tears down at its next DOM
+  change, which the new copy causes, only on pages it swaps, before it starts. The swap
+  stylesheet is no longer the manifest's `content.css`: `ui/swap-style.js` adds it with the
+  first swap and takes it out when Kotiko is paused or off there.

@@ -19,5 +19,7 @@
   "generic_stem_graphemes": 3,
   "min_stem_graphemes": 2,
   "chat_max_words": 3,
+  "max_page_concepts": 500,
+  "max_page_langs_per_concept": 3,
   "temperature": 0.2
 }

@@ -9,6 +9,7 @@ import path from "node:path";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 import { JSDOM } from "jsdom";
+import jsdomUtils from "jsdom/lib/generated/idl/utils.js";
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -54,6 +55,16 @@ function polyfillContentEditable(window) {
       return false;
     },
   });
+}
+
+// Dispatches a jsdom event as the browser's own (isTrusted true), as a real click, key or
+// pointer event from the learner is. dispatchEvent() always makes an event untrusted, and
+// the word card ignores those (security review A-04); tests that stand in for the learner
+// use this. Returns false when a listener cancelled the event, as dispatchEvent() does.
+export function dispatchTrusted(target, event) {
+  const impl = jsdomUtils.implForWrapper(event);
+  impl.isTrusted = true;
+  return jsdomUtils.implForWrapper(target)._dispatch(impl);
 }
 
 // A jsdom page with `chrome` installed, ready for content scripts.

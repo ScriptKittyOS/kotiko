@@ -10,8 +10,9 @@ import { defineConfig } from "@playwright/test";
 const CI = !!process.env.CI;
 
 export default defineConfig({
-  testDir: "test/e2e",
-  testMatch: "**/*.spec.mjs",
+  // test/e2e, and the security review's proofs turned into regression tests (slice 54 §6).
+  testDir: "test",
+  testMatch: ["e2e/**/*.spec.mjs", "security/**/*.spec.mjs"],
   globalSetup: "./test/e2e/global-setup.mjs",
   outputDir: "test-results",
   timeout: 30_000,

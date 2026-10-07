@@ -123,8 +123,8 @@ test.describe("slice 15: framework-safe swapping", () => {
   // Kotiko's own script never blocks for more than about 20 ms, but each frame's style and
   // layout pass takes 30-60 ms while swaps land all over a 100,000-node document, and now and
   // then that pass plus a garbage collection reaches about 100 ms. The old matcher froze the
-  // page for seconds. 150 ms catches a regression; swapping off-screen text only as it
-  // scrolls near (slice 15's future work) is what brings such pages under 50 ms.
+  // page for seconds. 150 ms catches a regression. Text is swapped only on screen or within a
+  // screen of it (security review A-01), so the end of the page swaps once it's scrolled to.
   test("big.html: no long task over 150 ms while swapping 100,000 text nodes", async ({ context, server, popup }) => {
     test.setTimeout(60_000);
     await server.control({ words: WORDS });
@@ -139,6 +139,8 @@ test.describe("slice 15: framework-safe swapping", () => {
       document.addEventListener("DOMContentLoaded", () => (window.__ready = performance.now()));
     });
     await page.goto(server.page("big.html"));
+    await page.waitForFunction(() => !!document.getElementById("root")?.firstElementChild?.querySelector("kotiko-w"), null, { polling: 250, timeout: 30_000 });
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     // Waits with a cheap check: a locator like p:last makes Playwright query all 20,000
     // paragraphs on every poll, in the page, which shows up as long tasks of its own.
     await page.waitForFunction(() => !!document.getElementById("root")?.lastElementChild?.querySelector("kotiko-w"), null, { polling: 250, timeout: 30_000 });
