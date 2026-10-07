@@ -53,8 +53,18 @@ The TCP port the server listens on.
 The address the server listens on.
 
 - Default: `127.0.0.1`, this computer only.
-- Allowed: an IPv4 or IPv6 address (`100.101.102.103`, `0.0.0.0`, `::1`) or a host name
-  that resolves to one (`localhost`).
+- Allowed: an IPv4 or IPv6 address (`100.101.102.103`, `0.0.0.0`, `::`, `::1`) or a host
+  name that resolves to one. `localhost` is always `127.0.0.1`, whatever the hosts file says.
+- Browsers look up `localhost` themselves and try the IPv6 address `::1` first. So that no
+  other program or account on this computer can listen on the address the browser tries
+  and receive the token, the server listens on both loopback addresses: with `127.0.0.1`
+  (the default) or `localhost` it also listens on `::1`, with `::1` also on `127.0.0.1`,
+  and with `0.0.0.0` also on `::1`. `::` covers IPv4 too (dual-stack). On a computer
+  without IPv6 the server starts on `127.0.0.1` alone and logs a line saying so. If another
+  program already listens on one of these addresses at `PORT`, the server doesn't start
+  (status 1) and says which address; stop that program or choose another `PORT`.
+- In the extension, use `http://127.0.0.1:4747` (not `localhost`) for a server on the same
+  computer.
 - Example: your Tailscale address, to use the extension on another computer.
 - At start, the server logs who can reach it. For a local network address, `0.0.0.0` or a
   public address, that line is a warning: the server speaks plain HTTP, so anyone on the way
@@ -82,7 +92,8 @@ behind a reverse proxy). Used only in the pairing string from
 [`mix kotiko.token`](#mix-kotikotoken).
 
 - Default: none. Allowed: an `http://` or `https://` address; a trailing `/` is dropped.
-- Wrong: anything else stops the server ("isn't a web address").
+- Wrong: anything else stops the server ("isn't a web address"), and so does a user name
+  or password in the address (`https://user:password@...`).
 
 ### `API_TOKEN`
 
@@ -94,6 +105,16 @@ The token the extension sends as `Authorization: Bearer <token>` (see the
   random source, written as 43 URL-safe characters, in a file only you can read (mode 0600).
 - Allowed: at least 24 characters. Example: the output of `openssl rand -hex 24`.
 - Wrong: a shorter token stops the server (the message gives its length, not its value).
+- A token that looks easy to guess gets a warning at every start (never showing the
+  token): one with fewer than 10 different characters, one that repeats a shorter piece
+  (`passwordpasswordpassword`), or one with under 64 bits by its characters' frequencies
+  (its length times the Shannon entropy of the character counts, low when most characters
+  are the same). This is a simple check that catches typed tokens, not a guarantee. The
+  same check runs on a token you put in `api-token` yourself. Ten wrong tokens from one
+  address within a minute lock that address out for the rest of the minute
+  ([HTTP API](http-api.md#requests)), but [`POST /api/v1/proof`](http-api.md#post-apiv1proof)
+  lets anyone who can reach the server test guesses offline, so only a random token is
+  safe on a network.
 - To replace the saved token: `mix kotiko.token --rotate`, then restart. With
   `API_TOKEN` set, edit `.env` instead; with [`API_TOKEN_FILE`](#api_token_file), replace
   the file's contents.
@@ -107,7 +128,9 @@ The key for the model API that works out which word you mean. A secret.
   and adds answer `503 lookup_not_set_up` until you set it. A local model such as Ollama
   needs no key.
 - Example: a key from <https://openrouter.ai/keys>.
-- Sent only to `LLM_URL`.
+- Sent only to `LLM_URL`. When `LLM_URL` is a plain `http://` address on another machine
+  (not this computer, not a Tailscale address or `*.ts.net` name), the server warns at
+  start: anyone on the network in between can read the key.
 - Or from a file: [`LLM_API_KEY_FILE`](#llm_api_key_file).
 
 ### `LLM_URL`
@@ -117,6 +140,9 @@ The model API: any OpenAI-compatible API's base URL.
 - Default: `https://openrouter.ai/api/v1`.
 - Example: `http://localhost:11434/v1` for a local Ollama.
 - Allowed: an `http://` or `https://` address. Wrong: anything else stops the server.
+- A user name or password in the address (`https://user:password@host/v1`) stops the
+  server too, without showing it: the address is written to the log at start. Put the key
+  in [`LLM_API_KEY`](#llm_api_key) (or [`LLM_API_KEY_FILE`](#llm_api_key_file)) instead.
 - Your typed text goes to this address (README, "A different model").
 
 ### `LLM_MODEL`
@@ -158,7 +184,9 @@ A speech-to-text endpoint for Telegram voice notes: a local whisper.cpp server
 upload.
 
 - Default: none; voice notes aren't transcribed (typing still works).
-- Allowed: an `http://` or `https://` address. Wrong: anything else stops the server.
+- Allowed: an `http://` or `https://` address. Wrong: anything else stops the server, and
+  so does a user name or password in the address: put the key in
+  [`TRANSCRIBE_API_KEY`](#transcribe_api_key) instead.
 
 ### `TRANSCRIBE_MODEL`
 
@@ -171,6 +199,8 @@ The model name sent with each voice note.
 Sent as `Authorization: Bearer <key>` to `TRANSCRIBE_URL`, for hosted services. A secret.
 
 - Default: none (a local whisper.cpp server needs none).
+- With a plain `http://` `TRANSCRIBE_URL` on another machine (not this computer or
+  Tailscale), the server warns at start, as for `LLM_API_KEY`.
 - Or from a file: [`TRANSCRIBE_API_KEY_FILE`](#transcribe_api_key_file).
 
 ### `KOTIKO_DATA_DIR`
@@ -199,7 +229,9 @@ How much the server logs: `debug`, `info`, `warning` or `error` (`warn` works to
 ### `LOG_LOOKUPS`
 
 `true` to log what you look up and the model's answer, at debug level (so also set
-`LOG_LEVEL=debug`). For troubleshooting a model.
+`LOG_LEVEL=debug`). For troubleshooting a model. Without it, even `LOG_LEVEL=debug` logs
+no words: not what you typed, not the words the model answered or the server refused
+(only the reasons), not the words a database upgrade flags.
 
 - Default: `false`. Allowed: `true`, `yes`, `on`, `1`, `false`, `no`, `off`, `0`.
 - Wrong: anything else stops the server.
@@ -296,8 +328,21 @@ check.
 | `models-cache.json` | OpenRouter's model list as last read, used when the server starts offline | `0600` |
 | `backups/kotiko-pre-<version>-<time>.db` | A copy of the database made before an update changes it; the newest five are kept | Folder `0700`, files `0600` |
 
-Only your account can open these files. At every start the server checks them before it
-opens the database:
+Only your account can open these files. At every start, before it reads or writes any of
+them, the server checks that nobody else could have put a file there that it would trust
+(the token in `api-token` opens the server, and your words are written to `kotiko.db`). It
+doesn't start (status 78) and names each problem, with how to fix it, when:
+
+- the data folder, or one of the files above, belongs to another account;
+- one of the files above (or `backups/` or a backup in it) is a symbolic link. Kotiko
+  never makes links, and a link would send your words, or read a token, wherever it
+  points. To keep your words on another disk, point `KOTIKO_DATA_DIR` there instead (the
+  data folder itself may be a link);
+- other users can write in the data folder and it holds other files too. A folder others
+  can write in that holds only Kotiko's files is made `0700` first, with a warning.
+
+The server reads `api-token` the same careful way: never through a link, and only if it
+belongs to your account. Then it checks the permissions:
 
 - Any of the files above that other users can open (say, from an install before this
   check) is made `0600` again, and `backups/` `0700`. The server logs one warning that
@@ -306,8 +351,8 @@ opens the database:
   anything else in it may be shared on purpose (`KOTIKO_DATA_DIR=~`, say), so the server
   leaves it as it is and warns at every start, with the command that makes it private
   (`chmod 700 <folder>`). Giving Kotiko a folder of its own stops the warning too.
-- A file it can't change (owned by another account, say) gets a warning with the
-  `chmod` that fixes it. The server starts either way.
+- A file it can't change gets a warning with the `chmod` that fixes it. The server starts
+  either way.
 
 `run.sh` and the systemd service from `install-service.sh` also start the server with
 umask `077`, so a file it makes is private from the moment it exists. These are POSIX

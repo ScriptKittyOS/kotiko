@@ -21,14 +21,20 @@ Kotiko has two parts: the browser extension, and an optional server you run your
 - **A strong token, kept private.** On first start the server makes a random 256-bit token
   and saves it in `api-token` in the data folder, readable only by you (mode 0600). If you
   pick your own with `API_TOKEN`, it must be at least 24 characters, or the server won't
-  start.
+  start, and one that looks easy to guess gets a warning at every start. After 10 wrong
+  tokens from one address within a minute, that address is refused until the minute is
+  over; other addresses keep working.
 - **Other accounts on the computer can't read your words.** The database, its `-wal` and
   `-shm` files, the backups, the token and the model list cache are readable only by you
   (0600), and a data folder the server makes only by you (0700). At every start it makes
   them private again if they aren't, and warns, with the command to run, about anything it
-  can't or won't change (a data folder that also holds other files).
-- **It listens only on your computer** unless you change `BIND`. When you do, it says at
-  startup who can now reach it, and warns when your token would cross a network in plain
+  can't or won't change (a data folder that also holds other files). It refuses to start
+  when someone else could have put files there that it would trust: a folder others can
+  write in, a link in place of one of its files, or a file of another account's.
+- **It listens only on your computer** unless you change `BIND`, on both loopback
+  addresses (`127.0.0.1` and `::1`), so no other account on the computer can listen on the
+  one a browser tries for `localhost` and receive your token. When you change `BIND`, it
+  says at startup who can now reach it, and warns when your token would cross a network in plain
   HTTP (repeating that warning daily when the address is reachable from the internet).
 - **It answers only to names it knows**, so a web page can't reach it by pointing its own
   domain at your computer (DNS rebinding). Unknown names get `421`. You add names with
@@ -42,7 +48,9 @@ Kotiko has two parts: the browser extension, and an optional server you run your
   it, the bot only tells whoever writes to it their own Telegram ID.
 - **Keys and tokens stay out of the logs, at every level.** A log filter removes your
   token, your model and transcription keys, your bot token, and anything shaped like a
-  bearer token or an OpenRouter or OpenAI key, before a log line is written.
+  bearer token or an OpenRouter or OpenAI key, before a log line is written. A user name
+  or password inside `LLM_URL`, `TRANSCRIBE_URL` or `PUBLIC_URL` stops the server instead
+  of reaching the log.
 - **Your words stay out of the logs** at the default level. What you look up and what the
   model answered go to the log only if you set `LOG_LOOKUPS=true`, and then only at debug
   level.
@@ -86,8 +94,12 @@ Kotiko has two parts: the browser extension, and an optional server you run your
   folder.** Keys, the token and your words are not encrypted at rest.
 - **A private data folder when you share it.** If `KOTIKO_DATA_DIR` points at a folder
   that also holds other files, the server keeps its own files private but leaves the
-  folder as it is, and warns at every start. Others can then see the files' names, not
-  what's in them.
+  folder as it is, and warns at every start. Others who can read the folder see the files'
+  names, not what's in them. Others who can write in it could put their own token or a
+  link in place of your database before a start, which would choose your token or send
+  your words wherever they like; so the server refuses to start in a folder others can
+  write in, when one of its files is a link, or when the folder or one of its files
+  belongs to another account.
 - **Privacy on a network if you use plain HTTP** to a server on another machine. The token
   and your words travel unencrypted. Use Tailscale or HTTPS through a reverse proxy.
 - **Privacy from the model provider you chose.** Lookups go to it under its terms.

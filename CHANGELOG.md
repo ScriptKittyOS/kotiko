@@ -5,6 +5,55 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Self-hosted server: after moving your words from the folder used before the rename to
+  Kotiko, the old copy (`~/.local/share/slovo/slovo.db`) and the old access key could stay
+  readable by other accounts. The server now makes them private after the move, and at
+  every start for installs moved earlier. `install-service.sh --uninstall --delete-data`
+  now deletes that old copy too.
+
+- Self-hosted server: someone who could write in your data folder could choose your access
+  key (by leaving an `api-token` there) or send your words to a file of theirs (by putting
+  a link where `kotiko.db` goes). The server now refuses to start, saying what it found
+  and how to fix it, when the data folder or one of Kotiko's files belongs to another
+  account, when one of Kotiko's files is a link, or when others can write in a data folder
+  that also holds other files. A folder others can write in that holds only Kotiko's files
+  is made private first, with a warning. To keep your words on another disk, point
+  `KOTIKO_DATA_DIR` there instead of linking `kotiko.db`.
+
+- Self-hosted server: with `LOG_LEVEL=debug`, words the model suggested and the server
+  refused were written to the log even with `LOG_LOOKUPS=false`. Now only the reasons are,
+  unless you turn `LOG_LOOKUPS` on.
+
+- Self-hosted server: when your model or transcription key would go over plain `http://`
+  to another machine (not this computer, not Tailscale), the server now warns at start,
+  because anyone on the network in between could read it.
+
+- Self-hosted server: a user name and password written inside `LLM_URL` or
+  `TRANSCRIBE_URL` (`https://user:password@host/...`) went into the log at start. The
+  server now refuses to start with such an address, without showing it; put the key in
+  `LLM_API_KEY` or `TRANSCRIBE_API_KEY` instead. The same goes for `PUBLIC_URL`.
+
+- Self-hosted server: an access key you chose yourself that looks easy to guess (few
+  different characters, a repeated piece, mostly one character) now gets a warning at
+  every start. Delete `API_TOKEN` to let the server make a random one.
+
+- Self-hosted server: after 10 wrong access keys from one address within a minute, the
+  server refuses that address for the rest of the minute (`429`) and logs it once. Other
+  addresses, including yours, keep working. New route `POST /api/v1/proof`: Kotiko can
+  check that an address really is your server, which proves it holds your access key
+  without sending it, before Kotiko sends the key there.
+
+- Self-hosted server: another account on the same computer could receive your access key
+  by listening on `[::1]:4747`, the address browsers try first for `localhost`. The server
+  now listens on both `127.0.0.1` and `::1` by default (and with `BIND=localhost`), so
+  nobody else can take either; it refuses to start, saying which address, if another
+  program already holds one. In Kotiko, enter `http://127.0.0.1:4747` as your server's
+  address.
+
+- Self-hosted server: requests for many different host names can no longer fill the log.
+  The server logs each refused name at most once an hour, and at most 1,000 names an hour;
+  past that it logs one line saying so, and how many it left out.
+
 - Security: a web page that managed to run code inside Kotiko's page script could change
   Kotiko's settings, because browsers let that script write Kotiko's storage. It could turn
   Kotiko off, pause sites, hide languages, change the words pages show, queue a word to be

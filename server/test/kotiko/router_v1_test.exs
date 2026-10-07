@@ -820,6 +820,72 @@ defmodule Kotiko.RouterV1Test do
     end
   end
 
+  # B-07 (slice 54): at LOG_LEVEL=debug the model's rejected words (native, gloss) were
+  # logged even with LOG_LOOKUPS=false.
+  describe "rejected words at debug level" do
+    setup do
+      Logger.put_module_level(Kotiko.Router, :debug)
+      Logger.put_module_level(Kotiko.RouterV1, :debug)
+      Logger.put_module_level(Kotiko.LLM, :debug)
+
+      on_exit(fn ->
+        for m <- [Kotiko.Router, Kotiko.RouterV1, Kotiko.LLM], do: Logger.delete_module_level(m)
+      end)
+
+      stub_answer([
+        %{
+          "lang" => "ru",
+          "native" => "PRIVATEWORDXYZ",
+          "base_lang" => "en",
+          "gloss" => "MYSECRETGLOSS",
+          "forms" => ["MYSECRETGLOSS"]
+        }
+      ])
+    end
+
+    test "only their reasons are logged without LOG_LOOKUPS" do
+      put_app_env(:log_lookups, false)
+
+      log =
+        capture_log([level: :debug], fn ->
+          assert {422, _} = call("POST", "/api/words", %{text: "mytypedprivatetext"})
+        end)
+
+      assert log =~ "script_mismatch"
+      refute log =~ "PRIVATEWORDXYZ"
+      refute log =~ "MYSECRETGLOSS"
+      refute log =~ "mytypedprivatetext"
+    end
+
+    test "with LOG_LOOKUPS=true they are logged at debug" do
+      put_app_env(:log_lookups, true)
+
+      log =
+        capture_log([level: :debug], fn ->
+          assert {422, _} = call("POST", "/api/words", %{text: "mytypedprivatetext"})
+        end)
+
+      assert log =~ "Couldn't save [%{"
+      assert log =~ "PRIVATEWORDXYZ"
+    end
+
+    test "a word that couldn't be saved: its shape without LOG_LOOKUPS, all of it with" do
+      changeset =
+        %Kotiko.Word{}
+        |> Ecto.Changeset.change(native: "PRIVATEWORDXYZ")
+        |> Ecto.Changeset.add_error(:native, "taken")
+
+      put_app_env(:log_lookups, false)
+      log = capture_log([level: :debug], fn -> Kotiko.RouterV1.log_save_error(changeset) end)
+      assert log =~ "Couldn't save a word: invalid native"
+      refute log =~ "PRIVATEWORDXYZ"
+
+      put_app_env(:log_lookups, true)
+      log = capture_log([level: :debug], fn -> Kotiko.RouterV1.log_save_error(changeset) end)
+      assert log =~ "PRIVATEWORDXYZ"
+    end
+  end
+
   describe "legacy POST /api/words" do
     test "a failed lookup keeps the string error 0.2 reads, plus slice 25's code" do
       LLMStub.stub(fn _, conn -> LLMStub.rate_limited(conn) end)

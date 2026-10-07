@@ -365,11 +365,21 @@ defmodule Kotiko.Config do
     end
   end
 
-  @doc "An IP literal, or a name resolved to IPv4, then IPv6 (so `localhost` works)."
+  @doc """
+  An IP literal, or a name resolved to IPv4, then IPv6. `localhost` is always 127.0.0.1,
+  whatever the hosts file says: `Kotiko.Listener` then listens on `::1` too, as browsers
+  try both for `localhost`.
+  """
   def parse_bind(raw, resolver \\ &resolve_host/1) do
-    case :inet.parse_strict_address(to_charlist(raw)) do
-      {:ok, ip} -> {:ok, ip}
-      {:error, _} -> resolver.(raw)
+    cond do
+      raw |> String.downcase() |> String.trim_trailing(".") == "localhost" ->
+        {:ok, {127, 0, 0, 1}}
+
+      match?({:ok, _}, :inet.parse_strict_address(to_charlist(raw))) ->
+        :inet.parse_strict_address(to_charlist(raw))
+
+      true ->
+        resolver.(raw)
     end
   end
 
@@ -435,15 +445,33 @@ defmodule Kotiko.Config do
 
   defp optional_url(_name, nil), do: {:ok, nil}
 
+  # A user name or password in the address (slice 54, B-05) would reach the log with the
+  # address, so it's refused, and the value is never echoed.
   defp optional_url(name, raw) do
-    if http_url?(raw) do
-      {:ok, String.trim_trailing(raw, "/")}
-    else
-      error(name, raw, [
-        "#{inspect(raw)} isn't a web address. It should start with http:// or https://."
-      ])
+    cond do
+      userinfo?(raw) ->
+        secret_error(name, [
+          "It has a user name or password in it (before the @), which would end up in " <>
+            "the log. Remove them from the address. A key for the model or transcription " <>
+            "service goes in LLM_API_KEY or TRANSCRIBE_API_KEY (or LLM_API_KEY_FILE, " <>
+            "TRANSCRIBE_API_KEY_FILE)."
+        ])
+
+      http_url?(raw) ->
+        {:ok, String.trim_trailing(raw, "/")}
+
+      # Not an address, but it may hold a password: don't echo it.
+      String.contains?(raw, "@") ->
+        secret_error(name, ["It isn't a web address. It should start with http:// or https://."])
+
+      true ->
+        error(name, raw, [
+          "#{inspect(raw)} isn't a web address. It should start with http:// or https://."
+        ])
     end
   end
+
+  defp userinfo?(raw), do: match?({:ok, %URI{userinfo: info}} when is_binary(info), URI.new(raw))
 
   defp http_url?(raw) do
     case URI.new(raw) do
@@ -605,7 +633,57 @@ defmodule Kotiko.Config do
           []
       end
 
-    key_warning ++ renamed(vars) ++ unknown_prefixed(vars)
+    key_warning ++
+      weak_token(vars["API_TOKEN"]) ++
+      plain_http("LLM_API_KEY", vars["LLM_API_KEY"], "LLM_URL", llm_url) ++
+      plain_http(
+        "TRANSCRIBE_API_KEY",
+        vars["TRANSCRIBE_API_KEY"],
+        "TRANSCRIBE_URL",
+        optional_url("TRANSCRIBE_URL", vars["TRANSCRIBE_URL"])
+      ) ++ renamed(vars) ++ unknown_prefixed(vars)
+  end
+
+  # A key sent in the clear to another machine (slice 54, B-06): anyone on the network in
+  # between can read it. This computer and Tailscale (encrypted) are fine.
+  defp plain_http(_key_var, nil, _url_var, _url), do: []
+
+  defp plain_http(key_var, _key, url_var, {:ok, "http://" <> _ = url}) do
+    host = URI.parse(url).host
+
+    if Kotiko.Exposure.network(host) in [:loopback, :tailscale] do
+      []
+    else
+      [
+        "#{key_var} is sent over plain HTTP to #{host} (#{url_var}), so anyone on the " <>
+          "network in between can read it, and what is sent with it. Use an https:// " <>
+          "address, or reach that machine over Tailscale."
+      ]
+    end
+  end
+
+  defp plain_http(_key_var, _key, _url_var, _url), do: []
+
+  @doc """
+  A warning when a token the owner chose looks easy to guess (`Kotiko.Token.weakness/1`),
+  else nothing. `what` names where it came from; the token itself is never in it.
+  """
+  def weak_token(token, what \\ "API_TOKEN")
+  def weak_token(nil, _what), do: []
+
+  def weak_token(token, what) do
+    case Kotiko.Token.weakness(token) do
+      nil ->
+        []
+
+      reason ->
+        [
+          "#{what} looks easy to guess: #{Kotiko.Token.weakness_text(reason)}. Anyone who " <>
+            "can reach the server can try guesses, and one answer from POST " <>
+            "/api/v1/proof lets them test guesses offline. Use a random token: delete it " <>
+            "and the server makes one, or use the output of `openssl rand -hex 24`."
+        ]
+    end
   end
 
   defp renamed(vars) do

@@ -40,6 +40,30 @@ defmodule Kotiko.Exposure do
     end
   end
 
+  @doc """
+  Who can see traffic to `host` (an IP tuple, or a host name from a URL): `:loopback` for
+  this machine (`localhost`, `*.localhost`, 127.0.0.0/8, ::1), `:tailscale` for Tailscale
+  (100.64.0.0/10, fd7a:115c:a1e0::/48, `*.ts.net`), else `:lan`, `:all` or `:public` as
+  for `classify/2`. A name that is neither is `:public`: Kotiko can't tell where it goes.
+  """
+  def network(host) when is_binary(host) do
+    name = host |> String.downcase() |> String.trim_trailing(".")
+
+    case :inet.parse_strict_address(to_charlist(String.trim(name, "[]"))) do
+      {:ok, ip} ->
+        class(ip)
+
+      {:error, _} ->
+        cond do
+          name == "localhost" or String.ends_with?(name, ".localhost") -> :loopback
+          String.ends_with?(name, ".ts.net") -> :tailscale
+          true -> :public
+        end
+    end
+  end
+
+  def network(ip) when is_tuple(ip), do: class(ip)
+
   defp class({127, _, _, _}), do: :loopback
   defp class({0, 0, 0, 0, 0, 0, 0, 1}), do: :loopback
   defp class({0, 0, 0, 0}), do: :all

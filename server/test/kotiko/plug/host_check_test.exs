@@ -89,4 +89,27 @@ defmodule Kotiko.Plug.HostCheckTest do
     assert length(String.split(log, name)) == 2
     refute log =~ "/health"
   end
+
+  # B-04 (slice 54): the table of logged names used to be cleared when it held 1,000, so
+  # the same names logged again and a client could write as many lines as it liked.
+  test "a flood of names logs each at most once, then one summary line" do
+    HostCheck.init_table()
+    :ets.delete_all_objects(HostCheck)
+    on_exit(fn -> :ets.delete_all_objects(HostCheck) end)
+    Logger.put_module_level(HostCheck, :info)
+    on_exit(fn -> Logger.delete_module_level(HostCheck) end)
+    names = for i <- 1..1_001, do: "flood-#{i}.example"
+
+    log =
+      capture_log([level: :info], fn ->
+        for _round <- 1..3, name <- names, do: check(name)
+      end)
+
+    lines = String.split(log, "\n") |> Enum.filter(&(&1 =~ "Refused a request for host"))
+    summaries = String.split(log, "\n") |> Enum.filter(&(&1 =~ "not logging new ones"))
+
+    assert length(lines) <= 1_001
+    assert length(summaries) == 1
+    assert hd(summaries) =~ "1000 different host names"
+  end
 end

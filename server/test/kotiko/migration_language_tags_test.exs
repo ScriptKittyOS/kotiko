@@ -73,6 +73,28 @@ defmodule Kotiko.MigrationLanguageTagsTest do
     assert Word.to_legacy_json(w[4]).language == "Hebrew"
   end
 
+  # B-07 (slice 54): the suspect words were logged at debug even without LOG_LOOKUPS.
+  test "at debug, the suspect words are logged only with LOG_LOOKUPS", ctx do
+    Logger.configure(level: :debug)
+    Application.put_env(:kotiko, :log_lookups, false)
+    on_exit(fn -> Application.put_env(:kotiko, :log_lookups, false) end)
+
+    {_backup, log} = upgrade(ctx)
+    assert log =~ "2 word(s) may have the wrong language"
+    refute log =~ "spasibo"
+    refute log =~ "Qapla"
+  end
+
+  test "with LOG_LOOKUPS the suspect words are logged at debug", ctx do
+    Logger.configure(level: :debug)
+    Application.put_env(:kotiko, :log_lookups, true)
+    on_exit(fn -> Application.put_env(:kotiko, :log_lookups, false) end)
+
+    {_backup, log} = upgrade(ctx)
+    assert log =~ "Words that may have the wrong language"
+    assert log =~ "spasibo"
+  end
+
   test "changed rows get a new seq and a later updated_at; unchanged rows keep theirs", ctx do
     upgrade(ctx)
     w = words(ctx.db)
