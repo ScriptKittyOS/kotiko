@@ -1464,9 +1464,10 @@ function claimMilestone(key) {
 }
 
 // Tabs open before an install or update get Kotiko without a reload (slice 15): the same
-// files the manifest injects, top frame only, as it does. On an update the new copy tells
-// the old one to stand down (the handoff in content.js). A tab that can't take scripts (a
-// store page, a browser page) is skipped.
+// scripts the manifest injects, top frame only, as it does. On an update the new copy finds
+// the old one and makes it stand down (content.js), with nothing a page can see; the swap
+// style comes with the first swap (ui/swap-style.js). A tab that can't take scripts (a store
+// page, a browser page) is skipped.
 async function injectOpenTabs() {
   const cs = ext.runtime.getManifest?.()?.content_scripts?.[0];
   if (!ext.scripting?.executeScript || !cs) return 0;
@@ -1474,7 +1475,6 @@ async function injectOpenTabs() {
   let n = 0;
   for (const tab of tabs) {
     try {
-      if (cs.css?.length) await ext.scripting.insertCSS({ target: { tabId: tab.id }, files: cs.css });
       await ext.scripting.executeScript({ target: { tabId: tab.id }, files: cs.js });
       n++;
     } catch {
