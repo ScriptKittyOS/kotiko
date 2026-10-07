@@ -14,7 +14,7 @@ Kotiko has two parts: the browser extension, and an optional server you run your
 
 ### The server
 
-- **Nothing but `/health` answers without your token.** Every other request, whatever its
+- **Nothing but `GET /health` and `POST /api/v1/proof` answers without your token** (the proof route shows the server holds the token without revealing it). Every other request, whatever its
   method or however its path is spelled (`/%61pi`, `/API`, `//api`), gets `401` unless it
   carries `Authorization: Bearer <your token>` or is signed with it (the extension signs;
   it never sends the token, and uses an answer only if the server signed it too). A signed
