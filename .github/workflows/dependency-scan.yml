@@ -42,7 +42,26 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0 # the base commit, for its osv-scanner.toml
           persist-credentials: false
+      # On a pull request, the accepted findings come from the base commit's osv-scanner.toml,
+      # so a pull request can't accept its own vulnerable dependency (security review C-01);
+      # its edits to the file take effect once it is merged. Elsewhere (main, the weekly run,
+      # a release) they come from the tree.
+      - name: The scan's settings, from the base commit on a pull request
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          ref="${BASE:-HEAD}"
+          git cat-file -e "$ref^{commit}"
+          # The base's own copy of the helper. Only the pull request that adds it has none.
+          if git cat-file -e "$ref:scripts/base-file.sh" 2>/dev/null; then
+            git show "$ref:scripts/base-file.sh" > "$RUNNER_TEMP/base-file.sh"
+          else
+            echo "::warning title=No base-file.sh on the base::Using this tree's copy; only the pull request that adds it should see this."
+            cp scripts/base-file.sh "$RUNNER_TEMP/base-file.sh"
+          fi
+          bash "$RUNNER_TEMP/base-file.sh" "$ref" "$RUNNER_TEMP/trusted" osv-scanner.toml
       - name: Install OSV-Scanner
         run: |
           curl -sSfL -o "$RUNNER_TEMP/osv-scanner" \
@@ -52,7 +71,7 @@ jobs:
       - name: Scan the lockfiles
         run: |
           set +e
-          "$RUNNER_TEMP/osv-scanner" scan source --config osv-scanner.toml \
+          "$RUNNER_TEMP/osv-scanner" scan source --config "$RUNNER_TEMP/trusted/osv-scanner.toml" \
             --lockfile package-lock.json \
             --lockfile site/package-lock.json \
             --lockfile server/mix.lock \

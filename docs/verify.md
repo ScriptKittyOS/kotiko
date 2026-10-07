@@ -1,7 +1,8 @@
 # Verifying a Kotiko release
 
-Each release on GitHub has the two extension zips (the exact packages sent to the Chrome Web
-Store and Firefox Add-ons), the server's SBOM (`kotiko-server-X.Y.Z.cdx.json`) and
+Each release on GitHub has the two extension zips (the exact files the release workflow
+uploads to the Chrome Web Store and Firefox Add-ons; [section 3](#3-the-store-versions) says
+what the stores add), the server's SBOM (`kotiko-server-X.Y.Z.cdx.json`) and
 `SHA256SUMS`. These steps check that what you downloaded was built by this repository's
 release workflow from a tag a maintainer signed. Replace `1.0.0` with the version you have.
 
@@ -22,6 +23,18 @@ git -c gpg.ssh.allowedSignersFile=.github/allowed_signers verify-tag v1.0.0
 The output starts with `Good "git" signature for <maintainer>`. For a GPG-signed tag, import
 the release keys first: `gpg --import .github/release-keys.asc`, then `git verify-tag v1.0.0`
 shows "Good signature".
+
+Then check that the signed tag carries this tag's name. The signature covers the tag object,
+not the name you fetched it under, so a release candidate's signed object could be pushed
+again as `v1.0.0`:
+
+```sh
+git cat-file tag v1.0.0 | sed -n '/^$/q; s/^tag //p'
+```
+
+This prints `v1.0.0`, the name you asked for. Anything else (for example `v1.0.0-rc.2`)
+means the tag isn't the release the maintainer signed. The release workflow refuses such a
+tag (`scripts/verify-tag.sh`).
 
 Cross-check the key: its fingerprint should match MAINTAINERS.md and the signing keys on the
 maintainer's GitHub profile (`https://github.com/<user>.keys` for SSH,
@@ -53,10 +66,13 @@ See [reproducible-builds.md](reproducible-builds.md).
 
 ## 3. The store versions
 
-Install Kotiko only from the store links in the [README](../README.md). The stores sign
-what they distribute: Firefox Add-ons signs every add-on after review, and the Chrome Web
-Store signs its packages. A zip from somewhere else, loaded unpacked, gets none of these
-checks and no automatic updates.
+Install Kotiko only from the store links in the [README](../README.md). The release workflow
+uploads the two zips from the GitHub release to the stores unchanged, after checking each
+against `SHA256SUMS` (Firefox Add-ons: `scripts/amo-submit.mjs`). The stores then sign what
+they distribute, so the package you install isn't byte-identical to the zip: Firefox Add-ons
+adds Mozilla's signature files (`META-INF/`) after review, and the Chrome Web Store
+repackages the zip as a signed CRX. The extension's own files inside are the same. A zip from
+somewhere else, loaded unpacked, gets none of these checks and no automatic updates.
 
 ## What the zips contain
 

@@ -146,7 +146,8 @@ The lead reviewer reads the three reports after all are in, then for each findin
 The output is `docs/security/review-<tag>.md`: scope and commit, the reviewers and how they
 were kept independent, a table of every finding (confirmed, rejected or accepted, with
 severity and the fix's pull request), the threat-area coverage matrix (area by reviewer:
-checked with proof, not checked), and the three original reports appended unchanged. While
+checked with proof, not checked), and the three original reports appended unchanged under
+a `## Appendix` heading (nothing of the lead's own goes below that heading). While
 the repository is private it holds full details; when it goes public, unfixed low findings
 are summarised without exploit steps (SECURITY.md's disclosure rules, 03).
 
@@ -159,10 +160,15 @@ are summarised without exploit steps (SECURITY.md's disclosure rules, 03).
   with a reason, and as issues.
 - A fourth reviewer, fresh and independent like the first three, reruns every confirmed
   finding's proof against `-rc.2` and confirms it no longer works, then the lead closes the
-  gate with a line in the report and a box on 30's release checklist. The line starts
-  `Gate: closed` (for example `Gate: closed 2026-11-02 by <lead>, fixes confirmed on
-  v0.3.0-rc.2`): 30's release workflow looks for it before any store upload
-  (`scripts/check-security-gate.mjs`).
+  gate with a line in the report and a box on 30's release checklist. The line has exactly
+  this form, on a line of its own, above the `## Appendix` heading:
+  `Gate: closed YYYY-MM-DD by <lead>, fixes confirmed on vX.Y.Z-rc.N` (for example
+  `Gate: closed 2026-11-02 by Ayla Croft, fixes confirmed on v1.0.0-rc.2`), naming a
+  candidate of the reviewed version. Until then the report says `Gate: open`; the part
+  above the appendix has only one line starting `Gate:`. 30's release workflow checks for
+  the closed line before any store upload (`scripts/check-security-gate.mjs`): anything
+  else, including the phrase inside an appended report, keeps the gate open (security
+  review C-05).
 - Confirmed findings feed 53 §4.7's assurance case and, for issues in shipped code, 53
   §4.2's vulnerability process.
 

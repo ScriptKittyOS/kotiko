@@ -66,7 +66,7 @@ its argument and evidence.
 | A Telegram user who isn't allowed | The bot's chat | Sender allowlist |
 | Another user on the server machine | Files in the data folder, depending on permissions | Every file the server keeps there is 0600 (the database is created private before SQLite opens it, so `-wal` and `-shm` are too) and a folder it makes 0700; each start re-checks them; `run.sh` and the systemd unit use umask 077 |
 | A compromised dependency or GitHub Action | The build, CI, and later the release | Lockfiles, actions pinned by commit SHA, Dependabot, OSV-Scanner over every lockfile in CI and before each release, `mix hex.audit` and `mix deps.audit` in CI, no runtime npm code in the extension |
-| A malicious pull request | The code base | Review by a maintainer; CI with read-only token; branch protection on going public ([PUBLIC_CHECKLIST.md](../PUBLIC_CHECKLIST.md)) |
+| A malicious pull request | The code base | Required CI checks before merging (the `main` ruleset), with a read-only token; on a pull request the secret and dependency scans take their allowlists and check scripts from the base commit, so it can't switch them off ([`base-file.sh`](../../scripts/base-file.sh)). Review by a maintainer who isn't the author is the aim but not enforced (section 7) |
 
 ## 3. Trust boundaries
 
@@ -101,7 +101,7 @@ its argument and evidence.
 | Server or extension to model provider | The learner's typed text, the key | HTTPS to an address the owner set; answers parsed as JSON and checked by the word spec; deadline and attempt cap per lookup | [`llm.ex`](../../server/lib/kotiko/llm.ex) `interpret/3`; [`spec/models.json`](../../spec/models.json) budgets; [`lib/llm/client.js`](../../extension/lib/llm/client.js) |
 | Server to Telegram | Updates in, messages out | HTTPS; sender allowlist | [`bot.ex`](../../server/lib/kotiko/bot.ex); [`telegram.ex`](../../server/lib/kotiko/telegram.ex) |
 | Server to file system | The database, token, backups | `kotiko.db` and its `-wal`/`-shm`, `api-token`, `models-cache.json` 0600; `backups/` 0700 with 0600 files; a data folder the server makes 0700, one that holds only Kotiko's files made 0700 at start (otherwise a warning); umask 077 in `run.sh` and the unit (`UMask=0077`) | [`private.ex`](../../server/lib/kotiko/private.ex); [`data_dir.ex`](../../server/lib/kotiko/data_dir.ex) `make_private/1`; [`migrations.ex`](../../server/lib/kotiko/migrations.ex) `backup!/2`; [`data_dir_test.exs`](../../server/test/kotiko/data_dir_test.exs); [`boot_test.exs`](../../server/test/kotiko/boot_test.exs) |
-| CI to stores | Release packages | The store jobs run in the `release` environment: a maintainer approves each run, and only `v*` tags (signed, verified against `.github/allowed_signers`) may deploy. The maintainer creates the environment before the first release | [slice 30](../../slices/30-release-pipeline/SPEC.md) |
+| CI to stores | Release packages | The store jobs run in the `release` environment (created 2026-10-06): its required reviewer, the maintainer, approves each run, and only `v*` tags may deploy. A tag is built only if it is signed by a key in `.github/allowed_signers` on `main`, under its own name, and only the release manager can create one. The stores get the release's own zips, checked against `SHA256SUMS` | [slice 30](../../slices/30-release-pipeline/SPEC.md); [`release.yml`](../../.github/workflows/release.yml); [`verify-tag.sh`](../../scripts/verify-tag.sh) |
 
 ## 4. Secure design principles
 
@@ -141,7 +141,7 @@ a small JSON API.
 | CWE-798 Hard-coded credentials | No credentials in the code. CI's required `secrets` job runs gitleaks over the full history on every pull request and every push to `main`, and fails a pull request that adds a `.env`, key or token file; GitHub secret scanning and push protection are on | In place | [`ci.yml`](../../.github/workflows/ci.yml) job `secrets`; [`.gitleaks.toml`](../../.gitleaks.toml); [`check-forbidden-files.mjs`](../../scripts/check-forbidden-files.mjs) |
 | CWE-532 Secrets in logs | The redaction filter; words only with `LOG_LOOKUPS=true` at debug | In place | [`log/redact.ex`](../../server/lib/kotiko/log/redact.ex); [`llm_test.exs`](../../server/test/kotiko/llm_test.exs) |
 | DNS rebinding | Host allowlist before routing | In place | [`host_check.ex`](../../server/lib/kotiko/plug/host_check.ex) |
-| Supply chain | Lockfiles (`mix.lock`, `package-lock.json`); every GitHub Action pinned by commit SHA; Dependabot for mix, both npm lockfiles and Actions; OSV-Scanner over all three lockfiles on every pull request, weekly and before each release build; `mix hex.audit` and `mix deps.audit` in CI; no runtime npm code in the extension; review on every pull request ([policy](dependency-and-static-analysis-policy.md)). Not yet: release attestations (slice 30) | In place, partly | [`dependency-scan.yml`](../../.github/workflows/dependency-scan.yml); [`ci.yml`](../../.github/workflows/ci.yml); [`dependabot.yml`](../../.github/dependabot.yml); [`package.json`](../../package.json) |
+| Supply chain | Lockfiles (`mix.lock`, `package-lock.json`); every GitHub Action pinned by commit SHA; Dependabot for mix, both npm lockfiles and Actions; OSV-Scanner over all three lockfiles on every pull request, weekly and before each release build; `mix hex.audit` and `mix deps.audit` in CI; no runtime npm code in the extension; required CI checks on every pull request, though not a second person's review ([policy](dependency-and-static-analysis-policy.md)). Not yet: release attestations (slice 30) | In place, partly | [`dependency-scan.yml`](../../.github/workflows/dependency-scan.yml); [`ci.yml`](../../.github/workflows/ci.yml); [`dependabot.yml`](../../.github/dependabot.yml); [`package.json`](../../package.json) |
 
 ## 6. Inputs and how each is validated
 
@@ -203,6 +203,14 @@ These match "What you can't expect" in the [requirements](requirements.md).
 - **No rate limit** for requests that carry the token.
 - **Response hardening headers** (`X-Content-Type-Options` and similar) are not sent yet;
   only `/health` sends `cache-control: no-store`. Planned (slice 01 section 7).
+- **No enforced second review.** The `main` ruleset requires the CI checks but no
+  approving review, so one maintainer account (or a stolen token with write access) can
+  merge its own pull request, including changes to `.github/allowed_signers` and the
+  workflows. Accepted while one maintainer does nearly all the work
+  ([CODE_REVIEW.md](../CODE_REVIEW.md), step 2). The release tag and the store upload still
+  need the release manager: only they can create a `v*` tag, and the `release`
+  environment's reviewer approves each upload. A pull request can also change a workflow
+  itself, and that change runs on the pull request; only review catches it.
 - **No releases yet**, so there are no signatures or attestations to verify; users run
   from source. The release pipeline that signs, attests and builds reproducibly is in place
   (slice 30); the first release is v1.0.0.

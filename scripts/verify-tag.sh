@@ -10,6 +10,9 @@
 # 2. It is an annotated tag signed with an SSH key listed in the allowed signers file
 #    (default .github/allowed_signers), or with a GPG key from the keys file (default
 #    .github/release-keys.asc). Unsigned tags, lightweight tags and other keys fail.
+#    The name inside the signed tag object is the tag's name: the signature covers the
+#    object, not the ref, so a candidate's object pushed again as refs/tags/vX.Y.Z would
+#    otherwise pass as a release (security review C-02).
 # 3. Its commit is on main (--main, default origin/main). A release candidate may also sit on
 #    release-please's release branch (--rc-branch), whose head carries the next version.
 # 4. extension/manifest.json, server/mix.exs and .release-please-manifest.json at that commit
@@ -17,7 +20,8 @@
 #
 # The release workflow passes the signers and keys files from main, not from the tagged
 # commit, so a tag can't vouch for itself. Prints version=… and prerelease=… (also to
-# $GITHUB_OUTPUT when set). Needs git 2.34+ and OpenSSH 8.2+ for SSH signatures.
+# $GITHUB_OUTPUT when set, with commit=…, which the build compares with the commit it checks
+# out). Needs git 2.34+ and OpenSSH 8.2+ for SSH signatures.
 
 set -euo pipefail
 
@@ -79,6 +83,10 @@ elif grep -q -- '-----BEGIN PGP SIGNATURE-----' <<<"$object"; then
 else
   die "$tag isn't signed; release tags are signed with git tag -s"
 fi
+# The header ends at the first empty line; the message and signature follow it.
+signed_name="$(sed -n '/^$/q; s/^tag //p' <<<"$object")"
+[ "$signed_name" = "$tag" ] ||
+  die "refs/tags/$tag holds a tag object signed as ${signed_name:-nothing}, not $tag; a release tag is signed under its own name"
 
 # 3. Where the commit is.
 commit="$(git rev-parse "$tag^{commit}")"

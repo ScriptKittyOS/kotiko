@@ -117,7 +117,9 @@ Kotiko has two parts: the browser extension, and an optional server you run your
 These are goals in the plan. They move to "What you can expect" when the slice ships.
 
 - Signed, attested release packages and store-reviewed builds: slice 30 (release
-  pipeline). There are no releases yet; today you run Kotiko from source.
+  pipeline). The pipeline is in place, and release candidates (`v1.0.0-rc.N`) are tagged
+  for the pre-release security review (slice 54); the first store release, v1.0.0, is
+  pending. Until it is out, you run Kotiko from source.
 - Hardening headers on every server response: slice 01 (addition from slice 53). (The
   extension's pages already have an explicit content security policy, `manifest.json`.)
 - A permission review of the extension against the store's rules: slice 28.

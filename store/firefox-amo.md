@@ -4,7 +4,7 @@ What Kotiko declares to Firefox and types into addons.mozilla.org, from
 [slice 28](../slices/28-privacy-and-store-readiness/SPEC.md) §4. Data statements come
 from [`docs/privacy/inventory.md`](../docs/privacy/inventory.md).
 
-Primary sources (checked 2026-10-05):
+Primary sources (checked 2026-10-05; the data declaration again 2026-10-06):
 [Add-on policies](https://extensionworkshop.com/documentation/publish/add-on-policies/),
 [Firefox built-in data collection consent](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/),
 [MDN `browser_specific_settings`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/browser_specific_settings),
@@ -19,7 +19,7 @@ Primary sources (checked 2026-10-05):
   "gecko": {
     "id": "kotiko@scriptkittyos.com",
     "strict_min_version": "140.0",
-    "data_collection_permissions": { "required": ["none"] }
+    "data_collection_permissions": { "required": ["authenticationInfo"] }
   },
   "gecko_android": { "strict_min_version": "142.0" }
 }
@@ -28,17 +28,32 @@ Primary sources (checked 2026-10-05):
 - **`data_collection_permissions`** is required for every new add-on since 3 November
   2025, and Firefox reads it from version 140 on desktop (142 on Android). 140 is an ESR,
   so ESR users are covered; that is why `strict_min_version` is 140.
-- **`required: ["none"]`.** Out of the box Kotiko transmits nothing: a word typed with its
-  meaning ("hola = hello") never leaves the browser except, for languages with word stress,
-  the word alone to Wiktionary for its pronunciation. What a learner chooses to send
-  afterwards is their own input to a service they set up with their own key: the text they
-  type to add a word goes to that AI service. Mozilla's categories (personally identifying,
-  health, financial, authentication, personal communications, location, browsing
-  activity, website content, website activity, search terms, bookmarks, technical and
-  interaction) describe data about the user and their browsing; text the user types to
-  look up is none of them, and page content never leaves the browser. Confidence: medium.
-  The first submission asks the reviewer in its notes (below); if AMO disagrees, the
-  declaration changes in the same release as the policy.
+- **`required: ["authenticationInfo"]`** (security review C-11, 2026-10-06). The
+  learner's own API key for the AI service they chose, and the access token of their own
+  Kotiko server, leave the browser: each is sent in the `Authorization` header to the
+  service it belongs to. Mozilla counts that. Its policy defines data transmission as "any
+  data collected, used, transferred, shared, or handled outside the add-on or the local
+  browser" ([Add-on policies](https://extensionworkshop.com/documentation/publish/add-on-policies/)
+  §6), with no exception for a service the user chose, and its `authenticationInfo`
+  category is "passwords, usernames, personal identification numbers (PINs), security
+  questions, and registration information" ([built-in consent](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/)).
+  A key is a credential, so `none` would misstate it. This matches the Chrome form's
+  "Authentication information: Yes" ([chrome-web-store.md](chrome-web-store.md#data-usage);
+  `store-readiness.test.mjs` checks the two agree). Nothing goes to ScriptKittyOS.
+  - **Required, not optional, for now.** An optional permission is granted only when the
+    extension asks with `browser.permissions.request({ data_collection: ["authenticationInfo"] })`
+    in a click handler; until Kotiko asks when a key is first saved, "Connect OpenRouter"
+    is pressed or a server is paired (and keeps the key on the device if the learner
+    says no), declaring it optional would claim a consent Kotiko never collects. Moving to
+    `optional` with that request is the better fit, since lookups without a key work.
+  - **Everything else stays undeclared.** A word typed with its meaning ("hola = hello")
+    never leaves the browser except, for languages with word stress, the word alone to
+    Wiktionary for its pronunciation; with an AI service set up, the text typed into
+    Kotiko's add box goes to that service. Text the learner types into Kotiko to look up
+    is none of Mozilla's other categories (the nearest, `searchTerms`, is "search terms
+    entered into search engines or the browser"), and page content never leaves the
+    browser. Confidence: medium. The first submission asks the reviewer in its notes
+    (below); if AMO disagrees, the declaration changes in the same release as the policy.
 - **No `optional` list yet.** Slice 33's "Learn this in…" would send text selected on a
   page, which is `websiteContent`; it adds `"optional": ["websiteContent"]` and asks with
   `browser.permissions.request({ data_collection: ["websiteContent"] })` the first time the
@@ -94,13 +109,15 @@ a zip of the repository at the release tag (slice 30).
 > word with its meaning in your browser's language (for example "hola = hello"), press
 > "Make it my first word", then "Try it on a page".
 >
-> Data collection: we declared `required: ["none"]`. Page content never leaves the
-> browser. When a learner sets up an AI service with their own key, the text they type into
-> Kotiko's add box is sent to that service to look the word up; for languages with word
-> stress, the word alone is sent to en.wiktionary.org for its pronunciation. We read
-> neither as one of the data categories, since both are the learner's own input to the
-> feature, but we'd like your view: if you consider either one `websiteContent` or another
-> category, we'll declare it.
+> Data collection: we declared `required: ["authenticationInfo"]`: a learner who sets up
+> an AI service or their own Kotiko server gives Kotiko that service's key, which is sent
+> only to that service (never to us). Page content never leaves the browser. With an AI
+> service set up, the text the learner types into Kotiko's add box is sent to that service
+> to look the word up; for languages with word stress, the word alone is sent to
+> en.wiktionary.org for its pronunciation. We read neither as one of the data categories,
+> since both are the learner's own input to the feature, but we'd like your view: if you
+> consider either one `searchTerms`, `websiteContent` or another category, we'll declare
+> it.
 >
 > `extension/spec/spec.js` is generated from `spec/` in our public repository
 > (https://github.com/ScriptKittyOS/kotiko) by `spec/tools/sync-extension.mjs`; nothing is
