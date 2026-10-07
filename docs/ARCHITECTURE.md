@@ -1,6 +1,6 @@
 # Kotiko architecture
 
-Last reviewed: 2026-10-05.
+Last reviewed: 2026-10-06.
 
 This page says what runs where, what each part does, where words are kept, what leaves
 your machine, and where to look next. It describes the code on `main`. Plans for later

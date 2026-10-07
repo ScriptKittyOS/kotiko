@@ -1,6 +1,6 @@
 # HTTP API reference
 
-Last reviewed: 2026-10-05.
+Last reviewed: 2026-10-06.
 
 The Kotiko server answers HTTP on `http://127.0.0.1:4747` by default, and on
 `http://[::1]:4747` too (`BIND` and `PORT` in [configuration.md](configuration.md#bind)). The browser extension and `curl` use this API. This
