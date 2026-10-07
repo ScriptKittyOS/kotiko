@@ -26,7 +26,8 @@ Kotiko has two parts: the browser extension, and an optional server you run your
   tokens from one address within a minute, that address is refused until the minute is
   over; other addresses keep working. Requests from this computer itself are never
   refused, so no local program or web page can lock the extension out; those a reverse
-  proxy on this computer forwards are limited together.
+  proxy on this computer forwards are limited together (your other devices behind the
+  proxy included), or each by its own address when you set `TRUSTED_PROXY_HEADER`.
 - **Other accounts on the computer can't read your words.** The database, its `-wal` and
   `-shm` files, the backups, the token and the model list cache are readable only by you
   (0600), and a data folder the server makes only by you (0700). At every start it makes

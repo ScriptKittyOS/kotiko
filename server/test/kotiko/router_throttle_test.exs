@@ -100,6 +100,42 @@ defmodule Kotiko.RouterThrottleTest do
     assert log =~ "wrong API tokens from requests forwarded by 127.0.0.1"
   end
 
+  # Security review E-02: a proxy that adds a header outside the list made strangers look
+  # like this computer (never limited).
+  test "every forwarding header a proxy may add keeps the limit" do
+    for header <- ~w(via x-client-ip x-cluster-client-ip fastly-client-ip
+                     x-original-forwarded-for x-forwarded forwarded-for) do
+      Kotiko.AuthThrottle.reset()
+      proxied = [{header, "203.0.113.9"}]
+
+      capture_log(fn ->
+        for _ <- 1..10, do: assert(from({127, 0, 0, 1}, @wrong ++ proxied).status == 401)
+      end)
+
+      assert from({127, 0, 0, 1}, auth() ++ proxied).status == 429, header
+      assert from({127, 0, 0, 1}, auth()).status == 200
+    end
+  end
+
+  # Security review E-02: with every proxied client in one count, a stranger's ten wrong
+  # tokens a minute kept the owner's other devices out. TRUSTED_PROXY_HEADER counts each by
+  # the address the proxy puts in that header.
+  test "with TRUSTED_PROXY_HEADER, each proxied client is counted on its own" do
+    put_app_env(:trusted_proxy_header, "x-forwarded-for")
+    stranger = [{"x-forwarded-for", "198.51.100.1, 203.0.113.9"}]
+    owner = [{"x-forwarded-for", "203.0.113.9, 198.51.100.7"}]
+
+    log =
+      capture_log(fn ->
+        for _ <- 1..10, do: assert(from({127, 0, 0, 1}, @wrong ++ stranger).status == 401)
+      end)
+
+    assert from({127, 0, 0, 1}, auth() ++ stranger).status == 429
+    assert from({127, 0, 0, 1}, auth() ++ owner).status == 200
+    assert from({127, 0, 0, 1}, auth()).status == 200
+    assert log =~ "wrong API tokens from 203.0.113.9 (through the reverse proxy)"
+  end
+
   test "requests without a token don't count; the lockout line is logged once" do
     ip = {203, 0, 113, 10}
     for _ <- 1..20, do: assert(from(ip, []).status == 401)

@@ -39,20 +39,32 @@ defmodule Kotiko.RateLimit do
     :ok
   end
 
-  # Headers a reverse proxy adds for the client it forwards (any value, any case).
-  @forwarding ~w(forwarded x-forwarded-for x-real-ip x-forwarded-host cf-connecting-ip true-client-ip)
+  # Headers a reverse proxy adds for the client it forwards (any value, any case), and any
+  # header whose name starts with one of the prefixes (security review E-02: a proxy that
+  # adds only a header outside the list made its clients look like this computer's own).
+  @forwarding ~w(forwarded forwarded-for x-forwarded x-forwarded-for x-forwarded-host
+                 x-original-forwarded-for x-real-ip x-client-ip x-cluster-client-ip
+                 cf-connecting-ip true-client-ip fastly-client-ip via)
+  @forwarding_prefixes ["x-forwarded-", "tailscale-user-"]
 
   @doc """
-  Who a request counts as for the proof limit and the wrong-token lockout (slice 54, D-02):
+  Who a request counts as for the proof limit and the wrong-token lockout (slice 54, D-02;
+  security review E-02):
 
     * `:local`: a loopback peer with no forwarding header. Every program on this computer,
       and any web page in a browser here, shares it, so a limit there would let any of
       them lock the extension out: it is never limited.
-    * `{:proxied, peer}`: a loopback peer with a forwarding header, as a reverse proxy on
-      this computer (Caddy, nginx) sends every remote client. Limited, all of them
-      together: the header's claimed client address can be forged, so it isn't used.
-      A local program that adds such a header can only lock out this bucket, never the
-      extension, which sends none.
+    * `{:forwarded, client}`: a loopback peer with a forwarding header, when
+      `TRUSTED_PROXY_HEADER` names a header the reverse proxy on this computer sets, and
+      that header holds a client address. Each client is counted on its own, by that
+      address as `client/1` counts it, so a stranger's lockout doesn't keep the owner's
+      other devices out.
+    * `{:proxied, peer}`: a loopback peer with a forwarding header otherwise, as a reverse
+      proxy on this computer (Caddy, nginx) sends every remote client. Limited, all of
+      them together: a header's claimed client address can be forged, so it isn't used
+      unless the owner says which one the proxy sets. A local program that adds such a
+      header locks out only this bucket, never the extension on this computer, which
+      sends none; the extension on another device that comes through the proxy is in it.
     * otherwise the peer's address as `client/1` counts it.
   """
   def peer(%Plug.Conn{remote_ip: ip, req_headers: headers}) do
@@ -60,11 +72,72 @@ defmodule Kotiko.RateLimit do
       not loopback?(ip) ->
         client(ip)
 
-      Enum.any?(headers, fn {name, _} -> String.downcase(name) in @forwarding end) ->
-        {:proxied, client(ip)}
+      not Enum.any?(headers, fn {name, _} -> forwarding?(String.downcase(name)) end) ->
+        :local
+
+      address = trusted_client(headers) ->
+        {:forwarded, client(address)}
 
       true ->
-        :local
+        {:proxied, client(ip)}
+    end
+  end
+
+  defp forwarding?(name),
+    do: name in @forwarding or String.starts_with?(name, @forwarding_prefixes)
+
+  # The client address in the header TRUSTED_PROXY_HEADER names, or nil: the rightmost
+  # X-Forwarded-For entry (the one the proxy added), the last Forwarded element's for=, or
+  # the one X-Real-IP or CF-Connecting-IP value.
+  defp trusted_client(headers) do
+    case Application.get_env(:kotiko, :trusted_proxy_header) do
+      nil -> nil
+      header -> header |> values(headers) |> client_address(header) |> address()
+    end
+  end
+
+  defp values(name, headers),
+    do: for({key, value} <- headers, String.downcase(key) == name, do: value)
+
+  defp client_address([], _header), do: nil
+
+  defp client_address(values, "x-forwarded-for"),
+    do: values |> Enum.join(",") |> String.split(",") |> List.last()
+
+  defp client_address(values, "forwarded") do
+    values
+    |> Enum.join(",")
+    |> String.split(",")
+    |> List.last()
+    |> String.split(";")
+    |> Enum.find_value(fn pair ->
+      case String.split(pair, "=", parts: 2) do
+        [key, value] -> if String.downcase(String.trim(key)) == "for", do: value
+        _ -> nil
+      end
+    end)
+  end
+
+  defp client_address([value], _x_real_ip_or_cf), do: value
+  defp client_address(_several, _header), do: nil
+
+  # An IP address, with or without a port (`203.0.113.9:4711`, `[2001:db8::1]:80`) or
+  # quotes; nil for anything else (`unknown`, an obfuscated `_name`).
+  defp address(nil), do: nil
+
+  defp address(text) do
+    text = text |> String.trim() |> String.trim("\"")
+
+    host =
+      case Regex.run(~r/\A\[([^\]]+)\](?::\d+)?\z|\A([0-9.]+):\d+\z/, text) do
+        [_, v6] -> v6
+        [_, "", v4] -> v4
+        nil -> text
+      end
+
+    case :inet.parse_strict_address(String.to_charlist(host)) do
+      {:ok, ip} -> ip
+      {:error, _} -> nil
     end
   end
 

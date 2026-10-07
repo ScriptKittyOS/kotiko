@@ -9,6 +9,11 @@ defmodule Kotiko.RouterProofTest do
 
   @nonce "n0nce_from-the-extension_0123456789abcdef"
 
+  setup do
+    Kotiko.RateLimit.reset()
+    on_exit(&Kotiko.RateLimit.reset/0)
+  end
+
   defp expected(token, nonce) do
     :crypto.mac(:hmac, :sha256, token, "kotiko-proof-v1:" <> nonce)
     |> Base.url_encode64(padding: false)
@@ -159,6 +164,21 @@ defmodule Kotiko.RouterProofTest do
     assert via_proxy.("203.0.113.99").status == 429
     # The extension, on the same address without a forwarding header, isn't limited.
     for _ <- 1..10, do: assert(prove(%{nonce: @nonce}, ip: {127, 0, 0, 1}).status == 200)
+  end
+
+  test "with TRUSTED_PROXY_HEADER, proofs through the proxy are limited per client (E-02)" do
+    put_app_env(:proof_requests_per_minute, 3)
+    put_app_env(:trusted_proxy_header, "x-real-ip")
+
+    via_proxy = fn client ->
+      build_conn(%{nonce: @nonce}, ip: {127, 0, 0, 1})
+      |> Plug.Conn.put_req_header("x-real-ip", client)
+      |> Kotiko.Router.call(Kotiko.Router.init([]))
+    end
+
+    for _ <- 1..3, do: assert(via_proxy.("203.0.113.9").status == 200)
+    assert via_proxy.("203.0.113.9").status == 429
+    assert via_proxy.("198.51.100.7").status == 200
   end
 
   test "an unknown Host is refused before the proof" do

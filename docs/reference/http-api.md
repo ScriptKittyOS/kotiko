@@ -50,15 +50,24 @@ logs the lockout once an hour per address.
 A request from this computer (127.0.0.0/8, `::1` or IPv4-mapped 127.x) with no forwarding
 header is never locked out: every program on the computer, and any web page open in a
 browser there, reaches the server from those addresses, so any of them could otherwise
-lock the extension out. A request from this computer that carries a forwarding header
-(`Forwarded`, `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`, `CF-Connecting-IP` or `True-Client-IP`, any value) is what a reverse proxy on the same machine sends
-for each remote client: those are counted, all together under one key per proxy address,
-whatever client address the header claims (it can be forged). A stranger's lockout there
-refuses everyone who comes through the proxy for the rest of that minute, but never the
-extension, which sends no forwarding header; a local program that adds one locks out only
-the proxied requests. A token the server made (256 random bits) can't be guessed in any
-case; a weak token you chose can, and the server warns about it at start
-([`API_TOKEN`](configuration.md#api_token)).
+lock the extension out. A request from this computer that carries a forwarding header is
+what a reverse proxy on the same machine sends for each remote client. These headers
+count, any value, in any case: `Forwarded`, `Forwarded-For`, `X-Forwarded`,
+`X-Forwarded-For`, `X-Forwarded-Host` (and any other `X-Forwarded-*`),
+`X-Original-Forwarded-For`, `X-Real-IP`, `X-Client-IP`, `X-Cluster-Client-IP`,
+`CF-Connecting-IP`, `True-Client-IP`, `Fastly-Client-IP`, `Via`, and Tailscale's
+`Tailscale-User-*`. Those requests are counted all together, under one key per proxy
+address, whatever client address the header claims (it can be forged): a stranger's
+lockout there refuses everyone who comes through the proxy for the rest of that minute,
+the extension on your other devices included. It never refuses the extension on this
+computer, which sends no forwarding header; a local program that adds one locks out only
+the proxied requests. With [`TRUSTED_PROXY_HEADER`](configuration.md#trusted_proxy_header)
+set to the header your proxy sets, each proxied client is counted on its own, by the
+address in that header. A proxy that adds none of these headers makes its clients look
+like this computer's own, which are never locked out; check that yours adds one
+(Caddy and nginx add `X-Forwarded-For` when set up as their guides show). A token the
+server made (256 random bits) can't be guessed in any case; a weak token you chose can,
+and the server warns about it at start ([`API_TOKEN`](configuration.md#api_token)).
 
 **Host names.** Before anything else, the server checks the `Host` header, to stop web pages
 reaching it through DNS rebinding. It answers to `localhost`, IP addresses, this machine's
@@ -320,7 +329,8 @@ requests only if they match. Use a new nonce each time.
   again. Refused requests (`415`, `400`) don't count, and neither do requests from this
   computer (127.0.0.0/8, `::1`, IPv4-mapped 127.x) without a forwarding header, which every
   local program and web page shares. Requests from this computer with a forwarding header
-  (a reverse proxy's) are limited all together, as for wrong tokens ([Requests](#requests)).
+  (a reverse proxy's) are limited all together, or each by its address with
+  `TRUSTED_PROXY_HEADER`, as for wrong tokens ([Requests](#requests)).
 - The answer never contains the token and is sent with `cache-control: no-store`. Like
   `/health`, it is checked against the `Host` names the server answers to.
 - Only this exact path and `POST` are open: any other method or spelling

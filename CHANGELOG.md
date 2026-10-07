@@ -38,6 +38,15 @@ Conventional Commits by release-please.
   log line. A query such as `?api-version=...` now also reaches the provider on every
   request, after the path.
 
+- Self-hosted server behind a reverse proxy: everyone the proxy passes on was counted as
+  one, so a stranger sending ten wrong keys a minute could keep your other devices out
+  for as long as they kept at it. Set the new `TRUSTED_PROXY_HEADER` to the header your
+  proxy puts each visitor's address in (`x-forwarded-for`, `x-real-ip`,
+  `cf-connecting-ip` or `forwarded`), and each visitor is counted on their own. The server
+  also recognises more of the headers proxies add (`Via`, `X-Client-IP`,
+  `Fastly-Client-IP` and others), so visitors through such a proxy are no longer taken for
+  your own computer, which is never limited.
+
 - Security: a Kotiko server set to a model of its own (`LLM_MODEL`), for example on a paid
   provider, sent no limit on how long an answer may be, so a model that kept writing could
   cost you up to the provider's own limit for one word. Every lookup now asks for at most

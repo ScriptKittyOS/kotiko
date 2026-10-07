@@ -152,6 +152,21 @@ defmodule Kotiko.ConfigTest do
       assert {:ok, _, []} = parse(%{"LLM_API_KEY" => "sk-or-v1-abc"})
     end
 
+    # Security review E-02: behind a reverse proxy, the throttles can count each client by
+    # the address the proxy puts in this header.
+    test "TRUSTED_PROXY_HEADER: unset by default; one of four headers, in any case" do
+      assert ok!(%{})[:trusted_proxy_header] == nil
+
+      for {raw, value} <- [
+            {"x-forwarded-for", "x-forwarded-for"},
+            {"X-Real-IP", "x-real-ip"},
+            {" CF-Connecting-IP ", "cf-connecting-ip"},
+            {"Forwarded", "forwarded"}
+          ] do
+        assert ok!(%{"TRUSTED_PROXY_HEADER" => raw})[:trusted_proxy_header] == value, raw
+      end
+    end
+
     test "LOG_LEVEL accepts warn as warning" do
       assert ok!(%{"LOG_LEVEL" => "warn"})[:log_level] == :warning
       assert ok!(%{"LOG_LEVEL" => "Warning"})[:log_level] == :warning
@@ -209,7 +224,14 @@ defmodule Kotiko.ConfigTest do
      ["Use one of: debug, info, warning, error."]},
     {%{"LOG_LOOKUPS" => "maybe"}, "LOG_LOOKUPS=maybe", ["Use true or false."]},
     {%{"KOTIKO_LOG_SQL" => "2"}, "KOTIKO_LOG_SQL=2", ["Use true or false."]},
-    {%{"KOTIKO_WIKTIONARY" => "sometimes"}, "KOTIKO_WIKTIONARY=sometimes", ["Use true or false."]}
+    {%{"KOTIKO_WIKTIONARY" => "sometimes"}, "KOTIKO_WIKTIONARY=sometimes",
+     ["Use true or false."]},
+    {%{"TRUSTED_PROXY_HEADER" => "x-client-ip"}, "TRUSTED_PROXY_HEADER=x-client-ip",
+     [
+       "Use one of: x-forwarded-for, x-real-ip, cf-connecting-ip, forwarded. Set it only " <>
+         "when a reverse proxy on this computer sets that header for every request; " <>
+         "leave it empty otherwise."
+     ]}
   ]
 
   for {{vars, label, lines}, i} <- Enum.with_index(@mistakes) do

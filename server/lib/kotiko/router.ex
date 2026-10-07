@@ -106,7 +106,8 @@ defmodule Kotiko.Router do
   # Seconds to wait, or nil. This computer's own requests (`:local`, no forwarding header)
   # aren't limited (slice 54, D-02): every local program shares 127.0.0.1, so any of them
   # could use up the extension's proofs. Strangers on the network, and those a reverse
-  # proxy here forwards (all together), keep the limit (Kotiko.RateLimit.peer/1).
+  # proxy here forwards (all together, or each by TRUSTED_PROXY_HEADER's address), keep the
+  # limit (Kotiko.RateLimit.peer/1).
   defp too_many_proofs(:local), do: nil
 
   defp too_many_proofs(peer) do
