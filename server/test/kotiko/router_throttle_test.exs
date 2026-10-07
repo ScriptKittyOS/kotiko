@@ -53,6 +53,25 @@ defmodule Kotiko.RouterThrottleTest do
     refute log =~ "wrong-token"
   end
 
+  # Slice 54, D-02: every local program, and a web page in a browser here, reaches the
+  # server from 127.0.0.1, so a lockout there would lock the extension out too.
+  test "this computer's addresses are never locked out" do
+    log =
+      capture_log(fn ->
+        for ip <- [{127, 0, 0, 1}, {0, 0, 0, 0, 0, 0, 0, 1}, {0, 0, 0, 0, 0, 0xFFFF, 0x7F00, 1}] do
+          for _ <- 1..10, do: assert(from(ip, @wrong).status == 401)
+          assert from(ip, @wrong).status == 401
+          assert from(ip, auth()).status == 200, inspect(ip)
+        end
+      end)
+
+    refute log =~ "wrong API tokens from"
+
+    # Another address still is.
+    capture_log(fn -> for _ <- 1..10, do: from({198, 51, 100, 99}, @wrong) end)
+    assert from({198, 51, 100, 99}, auth()).status == 429
+  end
+
   test "requests without a token don't count; the lockout line is logged once" do
     ip = {203, 0, 113, 10}
     for _ <- 1..20, do: assert(from(ip, []).status == 401)

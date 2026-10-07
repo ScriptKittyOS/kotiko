@@ -86,6 +86,66 @@ defmodule Kotiko.RouterProofTest do
     assert status == 413
   end
 
+  # Slice 54, D-02: a web page can send POSTs with no Content-Type or a text one (no CORS
+  # needed), and every local program shares 127.0.0.1, so neither may use up the proofs.
+  test "a proof needs Content-Type: application/json (415), checked before counting" do
+    conn =
+      Plug.Test.conn("POST", "http://localhost/api/v1/proof", Jason.encode!(%{nonce: @nonce}))
+      |> Kotiko.Router.call(Kotiko.Router.init([]))
+
+    assert conn.status == 415
+
+    assert %{"code" => "invalid_request", "details" => %{"reason" => "content_type"}} =
+             json_body(conn)["error"]
+  end
+
+  test "31 malformed proofs from one address, then a JSON proof: 200 (only good nonces count)" do
+    put_app_env(:proof_requests_per_minute, 30)
+    ip = {10, 79, 0, 1}
+
+    for i <- 1..31 do
+      malformed =
+        case rem(i, 3) do
+          # What a page's no-cors fetch with a Blob sends: no Content-Type at all.
+          0 ->
+            Plug.Test.conn("POST", "http://localhost/api/v1/proof", "x")
+
+          # A bad nonce, as JSON.
+          1 ->
+            build_conn(%{nonce: "short"}, ip: ip)
+
+          # A nonce that isn't a string.
+          2 ->
+            build_conn(%{nonce: 42}, ip: ip)
+
+            build_conn(%{}, ip: ip)
+            |> Map.put(:body_params, %Plug.Conn.Unfetched{aspect: :body_params})
+        end
+
+      conn = Kotiko.Router.call(%{malformed | remote_ip: ip}, Kotiko.Router.init([]))
+      assert conn.status in [400, 415]
+    end
+
+    assert prove(%{nonce: @nonce}, ip: ip).status == 200
+  end
+
+  test "this computer's addresses aren't limited; others are" do
+    put_app_env(:proof_requests_per_minute, 3)
+
+    for ip <- [
+          {127, 0, 0, 1},
+          {127, 8, 0, 2},
+          {0, 0, 0, 0, 0, 0, 0, 1},
+          {0, 0, 0, 0, 0, 0xFFFF, 0x7F00, 1}
+        ] do
+      for _ <- 1..10, do: assert(prove(%{nonce: @nonce}, ip: ip).status == 200, inspect(ip))
+    end
+
+    ip = {192, 168, 7, 7}
+    for _ <- 1..3, do: assert(prove(%{nonce: @nonce}, ip: ip).status == 200)
+    assert prove(%{nonce: @nonce}, ip: ip).status == 429
+  end
+
   test "an unknown Host is refused before the proof" do
     conn = request("POST", "/api/v1/proof", [], body: %{nonce: @nonce}, host: "evil.example")
     assert conn.status == 421

@@ -9,13 +9,20 @@ defmodule Kotiko.AuthThrottle do
   right token included, until the minute is over: a guesser can't tell a right guess
   from a wrong one while it waits. Other addresses are never affected.
 
-  Only a wrong `Bearer` token counts; a request with no token or another scheme can't be
-  a guess. Addresses are counted as `Kotiko.RateLimit.client/1` says (an IPv6 /64 is one).
+  A wrong `Bearer` token counts, and so does a signed request (`Kotiko.RequestAuth`) that
+  fails; a request with no token, another scheme or a malformed signature can't be a
+  guess.
+
+  This computer's own addresses (`Kotiko.RateLimit.loopback?/1`) are never locked out
+  (slice 54, D-02): every local program shares them, so any of them, or a web page in a
+  browser here, could otherwise lock the extension out. A token the server made (256
+  random bits) can't be guessed anyway, and a weak chosen one gets a warning at start. Addresses are counted as `Kotiko.RateLimit.client/1` says (an IPv6 /64 is one).
   Each lockout is logged once an hour per address, for at most 100 addresses an hour
   (`Kotiko.Log.Limiter`). `auth_failures_per_minute: nil` turns the throttle off (tests).
 
   Behind a reverse proxy on the same machine every request comes from the proxy's
-  address, so a lockout applies to everyone behind it for the rest of that minute.
+  loopback address, so the lockout doesn't apply there: limit attempts at the proxy, and
+  keep the token the server made.
   """
   require Logger
   alias Kotiko.Log.Limiter
@@ -40,7 +47,8 @@ defmodule Kotiko.AuthThrottle do
 
   @doc "`:ok`, or `{:locked, seconds_left}` when `remote_ip` sent too many wrong tokens."
   def check(remote_ip) do
-    with limit when is_integer(limit) <- limit(),
+    with false <- RateLimit.loopback?(remote_ip),
+         limit when is_integer(limit) <- limit(),
          {count, seconds} when count >= limit <-
            RateLimit.peek(@kind, RateLimit.client(remote_ip)) do
       {:locked, seconds}
@@ -51,7 +59,8 @@ defmodule Kotiko.AuthThrottle do
 
   @doc "Counts a wrong token from `remote_ip`; logs the lockout when it starts."
   def failed(remote_ip) do
-    with limit when is_integer(limit) <- limit() do
+    with false <- RateLimit.loopback?(remote_ip),
+         limit when is_integer(limit) <- limit() do
       client = RateLimit.client(remote_ip)
       {count, _seconds} = RateLimit.hit(@kind, client, @window_ms)
       if count == limit, do: log_lockout(client, limit)

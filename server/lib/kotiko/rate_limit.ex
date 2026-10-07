@@ -39,6 +39,16 @@ defmodule Kotiko.RateLimit do
     :ok
   end
 
+  @doc """
+  Whether `remote_ip` is this computer: 127.0.0.0/8, `::1`, or an IPv4-mapped 127.x.
+  Such peers are exempt from the proof limit and the wrong-token lockout (slice 54,
+  D-02): every local program shares them, so one could lock the extension out.
+  """
+  def loopback?({127, _, _, _}), do: true
+  def loopback?({0, 0, 0, 0, 0, 0, 0, 1}), do: true
+  def loopback?({0, 0, 0, 0, 0, 0xFFFF, ab, _}), do: ab >>> 8 == 127
+  def loopback?(_), do: false
+
   @doc "The key `remote_ip` is counted under."
   def client({_, _, _, _} = ip), do: ip
   def client({0, 0, 0, 0, 0, 0xFFFF, ab, cd}), do: {ab >>> 8, ab &&& 0xFF, cd >>> 8, cd &&& 0xFF}

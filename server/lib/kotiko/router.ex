@@ -6,6 +6,7 @@ defmodule Kotiko.Router do
   use Plug.ErrorHandler
   require Logger
   alias Kotiko.{AddRequests, AuthThrottle, I18n, Lookup, RateLimit, Token, Word, Words}
+  alias Plug.Conn.Utils
 
   # First, on every route including /health: refuse names we don't answer to (DNS rebinding).
   plug Kotiko.Plug.HostCheck
@@ -46,20 +47,43 @@ defmodule Kotiko.Router do
   # Open (no token): proves this server holds the API token without revealing it, so the
   # extension can check an address before it sends the token there (slice 54, B-01).
   post "/api/v1/proof" do
-    limit = Application.get_env(:kotiko, :proof_requests_per_minute, 30)
-    {count, seconds} = RateLimit.hit(:proof, RateLimit.client(conn.remote_ip), 60_000)
+    nonce = conn.body_params["nonce"]
 
+    # Checked before counting (slice 54, D-02): a web page can send a POST without
+    # Content-Type, or one that isn't JSON, but not application/json (that needs CORS).
     cond do
-      is_integer(limit) and count > limit ->
+      not json?(conn) ->
+        error(conn, true, 415, "invalid_request", %{reason: "content_type"})
+
+      not Token.nonce?(nonce) ->
+        error(conn, true, 400, "invalid_request", %{field: "nonce"})
+
+      seconds = too_many_proofs(conn.remote_ip) ->
         rate_limited(conn, "too_many_proofs", seconds)
 
-      Token.nonce?(conn.body_params["nonce"]) ->
-        token = Application.fetch_env!(:kotiko, :api_token)
-        proof = Token.proof(token, conn.body_params["nonce"])
-        conn |> put_resp_header("cache-control", "no-store") |> json(200, %{proof: proof})
-
       true ->
-        error(conn, true, 400, "invalid_request", %{field: "nonce"})
+        token = Application.fetch_env!(:kotiko, :api_token)
+        proof = Token.proof(token, nonce)
+        conn |> put_resp_header("cache-control", "no-store") |> json(200, %{proof: proof})
+    end
+  end
+
+  defp json?(conn) do
+    case get_req_header(conn, "content-type") do
+      [type] -> match?({:ok, "application", "json", _}, Utils.media_type(type))
+      _ -> false
+    end
+  end
+
+  # Seconds to wait, or nil. This computer's own addresses aren't limited (slice 54, D-02):
+  # every local program shares 127.0.0.1, so any of them could use up the extension's
+  # proofs. Strangers on the network keep the limit.
+  defp too_many_proofs(ip) do
+    limit = Application.get_env(:kotiko, :proof_requests_per_minute, 30)
+
+    if is_integer(limit) and not RateLimit.loopback?(ip) do
+      {count, seconds} = RateLimit.hit(:proof, RateLimit.client(ip), 60_000)
+      if count > limit, do: seconds
     end
   end
 
