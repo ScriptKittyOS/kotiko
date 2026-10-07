@@ -76,7 +76,7 @@ on the device, per the User Data FAQ):
 | Personally identifiable information | No | Kotiko asks for no name, email or account. |
 | Health information | No | |
 | Financial and payment information | No | |
-| Authentication information | **Yes** | The learner's own API key for the AI service they chose, and the access key of their own Kotiko server. Stored in the extension's IndexedDB, where web pages and content scripts can't read them, and sent only to the service each belongs to. |
+| Authentication information | **Yes** | The learner's own API key for the AI service they chose, and the access key of their own Kotiko server. Stored in the extension's IndexedDB, where web pages and content scripts can't read them, and sent only to the service each belongs to. (Firefox's manifest declares the same: `data_collection_permissions` `required: ["authenticationInfo"]`, [firefox-amo.md](firefox-amo.md).) |
 | Personal communications | No | |
 | Location | No | |
 | Web history | No | Kotiko doesn't record the pages you visit. It checks the current page's address in the browser to honour sites the learner paused; it stores only the host names the learner chose to pause, and sends none. |
