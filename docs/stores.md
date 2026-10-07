@@ -57,8 +57,10 @@ release); from then on release-please picks the version from the commits: `fix` 
 5. **Approve the store uploads.** The two store jobs wait for approval in the `release`
    environment (Actions, the run, "Review deployments"). Before asking, the workflow checks
    that slice 54's security review is closed; until it is, the store jobs fail and nobody is
-   asked to approve. After approval, Chrome gets the zip and submits it for review; Firefox
-   gets the unpacked zip through `web-ext sign --channel listed` and doesn't wait for review.
+   asked to approve. After approval, each store gets the zip from the GitHub release itself,
+   checked against `SHA256SUMS` first: Chrome submits it for review; Firefox gets it as a new
+   listed version through AMO's API (`scripts/amo-submit.mjs`, which uses web-ext's AMO
+   client but not `web-ext sign`, because that builds a new zip) and doesn't wait for review.
    Both jobs succeed on "submitted"; review takes hours to days.
 6. **Afterwards.** A daily job (`.github/workflows/store-status.yml`) writes the Chrome Web
    Store's review status into the release notes until the version is live. Once AMO

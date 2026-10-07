@@ -371,20 +371,16 @@ jobs:
         with:
           name: release-files
           path: dist
-      - if: steps.creds.outputs.ready == 'true'
-        name: Check the zip and unpack it
-        env:
-          VERSION: ${{ needs.verify-tag.outputs.version }}
-        run: |
-          (cd dist && sha256sum -c SHA256SUMS)
-          unzip -q "dist/kotiko-firefox-$VERSION.zip" -d "$RUNNER_TEMP/firefox"
       # Listed on addons.mozilla.org: submit and don't wait for review. AMO signs the version
-      # after review and sends it to users itself.
+      # after review and sends it to users itself. The file submitted is the release's own
+      # zip, checked against SHA256SUMS first, not a zip web-ext builds again (security review
+      # C-06); scripts/amo-submit.mjs explains.
       - if: steps.creds.outputs.ready == 'true'
-        name: Submit to Firefox Add-ons
+        name: Submit the release zip to Firefox Add-ons
         env:
           WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
           WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
-        run: >-
-          npx --no-install web-ext sign --no-config-discovery --channel listed
-          --source-dir "$RUNNER_TEMP/firefox" --artifacts-dir "$RUNNER_TEMP/signed" --approval-timeout 0
+          VERSION: ${{ needs.verify-tag.outputs.version }}
+        run: |
+          (cd dist && sha256sum -c SHA256SUMS)
+          node scripts/amo-submit.mjs --zip "dist/kotiko-firefox-$VERSION.zip" --sums dist/SHA256SUMS
