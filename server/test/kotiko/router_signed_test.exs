@@ -27,11 +27,14 @@ defmodule Kotiko.RouterSignedTest do
     nonce =
       Keyword.get(opts, :nonce, Base.url_encode64(:crypto.strong_rand_bytes(16), padding: false))
 
+    boot = Keyword.get(opts, :boot, RequestAuth.boot())
     hash = RequestAuth.body_hash(Keyword.get(opts, :signed_body, body))
-    mac = RequestAuth.mac(token, RequestAuth.canonical(method, target, ts, nonce, hash))
+    mac = RequestAuth.mac(token, RequestAuth.canonical(method, target, ts, nonce, boot, hash))
 
-    {[{"authorization", "Kotiko-HMAC v1 ts=#{ts}, nonce=#{nonce}, body=#{hash}, mac=#{mac}"}],
-     nonce}
+    {[
+       {"authorization",
+        "Kotiko-HMAC v2 ts=#{ts}, nonce=#{nonce}, boot=#{boot}, body=#{hash}, mac=#{mac}"}
+     ], nonce}
   end
 
   # Sends a signed request; returns the conn and its nonce.
@@ -76,6 +79,8 @@ defmodule Kotiko.RouterSignedTest do
     # (test/unit/server-auth.test.mjs).
     test "matches the examples in docs/reference/http-api.md" do
       token = "example-token-0123456789abcdef"
+      boot = "AAECAwQFBgcICQoLDA0ODw"
+      assert boot == Base.url_encode64(:binary.list_to_bin(Enum.to_list(0..15)), padding: false)
       body = ~s({"base_langs":["es","en"],"ui_lang":null})
       hash = RequestAuth.body_hash(body)
       assert hash == "40921055f301e073c3aa377b5ac7d8827ce72c5443e994014c2087b2895f51ff"
@@ -86,13 +91,21 @@ defmodule Kotiko.RouterSignedTest do
           "/api/v1/profile",
           "1791331200",
           "q1aP3n0ZKcB1x5mW0u7S9b",
+          boot,
           hash
         )
 
       assert canonical ==
-               "kotiko-req-v1\nPUT\n/api/v1/profile\n1791331200\nq1aP3n0ZKcB1x5mW0u7S9b\n" <> hash
+               "kotiko-req-v2\nPUT\n/api/v1/profile\n1791331200\nq1aP3n0ZKcB1x5mW0u7S9b\n" <>
+                 boot <> "\n" <> hash
 
-      assert RequestAuth.mac(token, canonical) == "osa_O2pBaygJz8c64WTOrTLSiY_6vV70NHtPyZ2CZpA"
+      assert RequestAuth.mac(token, canonical) == "KYWsYYqoHJ_1CJtht-ji67yNLQd-XNEXFaKUCZeTm1s"
+
+      header =
+        "Kotiko-HMAC v2 ts=1791331200, nonce=q1aP3n0ZKcB1x5mW0u7S9b, boot=#{boot}, " <>
+          "body=#{hash}, mac=KYWsYYqoHJ_1CJtht-ji67yNLQd-XNEXFaKUCZeTm1s"
+
+      assert {:ok, %{boot: ^boot, nonce: "q1aP3n0ZKcB1x5mW0u7S9b"}} = RequestAuth.parse(header)
 
       assert RequestAuth.response_header(token, "q1aP3n0ZKcB1x5mW0u7S9b", 200) ==
                "v1 mac=CAmhh5A5suXJTIJNSarztt97Q-RO5eA9K0baiuiw1u0"
@@ -105,18 +118,25 @@ defmodule Kotiko.RouterSignedTest do
           "/api/v1/words?status=active,paused",
           "1791331200",
           "dE8gH0iL2nO4pQ6rS8tU0v",
+          boot,
           empty
         )
 
       assert empty == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-      assert RequestAuth.mac(token, get) == "uHVRpP6SeDO3nxpRjs_zp8V9NYSCV2XP15w9BtwCdPg"
+      assert RequestAuth.mac(token, get) == "_SuhCp1q3PZ4gjDHP-zY0KQKrBe1zK5lxuFmBQuRPdk"
+
+      # The proof answer's boot_mac, for the proof vector's nonce.
+      assert RequestAuth.boot_mac(token, "q1aP3n0ZKcB1x5mW0u7S9bJ2rV4yT6dE8gH0iL2nO4p", boot) ==
+               "U8MycDq8d4O9G5n_qj1tMxNoTFoXHv5cex9_OKZifPY"
 
       doc = File.read!(Path.join(@root, "docs/reference/http-api.md"))
 
       for value <- [
-            "osa_O2pBaygJz8c64WTOrTLSiY_6vV70NHtPyZ2CZpA",
+            header,
+            "KYWsYYqoHJ_1CJtht-ji67yNLQd-XNEXFaKUCZeTm1s",
             "CAmhh5A5suXJTIJNSarztt97Q-RO5eA9K0baiuiw1u0",
-            "uHVRpP6SeDO3nxpRjs_zp8V9NYSCV2XP15w9BtwCdPg",
+            "_SuhCp1q3PZ4gjDHP-zY0KQKrBe1zK5lxuFmBQuRPdk",
+            "U8MycDq8d4O9G5n_qj1tMxNoTFoXHv5cex9_OKZifPY",
             hash
           ],
           do: assert(doc =~ value, value)
@@ -202,10 +222,10 @@ defmodule Kotiko.RouterSignedTest do
       end
     end
 
-    test "a stale or future ts, or one from before the server started, is refused" do
+    test "a ts more than 120 s before or after the server's clock is refused" do
       now = System.system_time(:second)
 
-      for ts <- [now - 121, now + 121, 0] do
+      for ts <- [now - 121, now + 121, now + 3600, 0] do
         {conn, _} = signed("GET", "/api/v1/words", nil, ts: ts)
         assert conn.status == 401, "ts #{ts}"
 
@@ -217,12 +237,66 @@ defmodule Kotiko.RouterSignedTest do
       for ts <- [now - 119, now + 119] do
         assert {%{status: 200}, _} = signed("GET", "/api/v1/words", nil, ts: ts)
       end
+    end
 
-      # A request made before this server started (one a squatter kept while the server was
-      # stopped) is refused even inside the window: the restarted server forgot its nonces.
-      RequestAuth.reset(now)
-      assert {%{status: 401}, _} = signed("GET", "/api/v1/words", nil, ts: now - 1)
-      assert {%{status: 200}, _} = signed("GET", "/api/v1/words", nil, ts: now)
+    # Security review E-01: the nonces are in memory, so a restarted server had forgotten
+    # them, and refusing only a ts from before the start let a request stamped up to 119 s
+    # ahead (a client clock ahead of the server's) be played to it after a restart. Every
+    # request now signs the boot id the proof gave, and a restart makes a new one.
+    test "a request signed for another boot is refused (stale_boot), and not counted" do
+      put_app_env(:auth_failures_per_minute, 2)
+      word_fixture()
+      old_boot = RequestAuth.boot()
+      now = System.system_time(:second)
+
+      # Caught while the server was stopped, stamped ahead of its clock as a client's may be.
+      caught =
+        for ahead <- [0, 30, 90, 119] do
+          {[{_, value}], _} = sign("GET", "/api/v1/words", "", ts: now + ahead)
+          value
+        end
+
+      # The server restarts: a new boot id, no nonces remembered.
+      RequestAuth.reset()
+      refute RequestAuth.boot() == old_boot
+
+      for value <- caught do
+        conn =
+          Plug.Test.conn("GET", "http://localhost/api/v1/words")
+          |> Map.put(:remote_ip, {203, 0, 113, 70})
+          |> put_req_header("authorization", value)
+          |> Kotiko.Router.call(Kotiko.Router.init([]))
+
+        assert conn.status == 401, value
+        assert get_resp_header(conn, "x-kotiko-server") == []
+
+        assert get_resp_header(conn, "www-authenticate") == [
+                 ~s(Bearer, Kotiko-HMAC error="stale_boot")
+               ]
+
+        assert %{"code" => "server_key_rejected", "details" => %{"reason" => "stale_boot"}} =
+                 json_body(conn)["error"]
+
+        refute conn.resp_body =~ "да"
+      end
+
+      # Genuine requests (the MAC matched), so no lockout, even from a remote address.
+      assert {%{status: 200}, _} = signed("GET", "/api/v1/words", nil, ip: {203, 0, 113, 70})
+
+      # A boot id the server never had is refused the same way; the current one is accepted.
+      assert {%{status: 401}, _} = signed("GET", "/api/v1/words", nil, boot: old_boot)
+      assert {%{status: 200}, _} = signed("GET", "/api/v1/words", nil, boot: RequestAuth.boot())
+    end
+
+    test "the boot id is new at every start: 16 random bytes, 22 base64url characters" do
+      boots =
+        for _ <- 1..20 do
+          RequestAuth.init()
+          RequestAuth.boot()
+        end
+
+      assert Enum.uniq(boots) == boots
+      assert Enum.all?(boots, &(&1 =~ ~r/\A[A-Za-z0-9_-]{22}\z/))
     end
 
     test "a nonce is accepted once" do
@@ -274,7 +348,9 @@ defmodule Kotiko.RouterSignedTest do
 
       for bad <- [
             "Kotiko-HMAC",
-            "Kotiko-HMAC v2 " <> String.replace_prefix(good, "Kotiko-HMAC v1 ", ""),
+            "Kotiko-HMAC v1 " <> String.replace_prefix(good, "Kotiko-HMAC v2 ", ""),
+            String.replace(good, ~r/boot=[^,]+, /, ""),
+            String.replace(good, ~r/boot=[^,]+/, "boot=short"),
             String.replace(good, ", ", ","),
             String.replace(good, "body=", "hash="),
             good <> ", extra=1",

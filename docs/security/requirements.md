@@ -17,7 +17,9 @@ Kotiko has two parts: the browser extension, and an optional server you run your
 - **Nothing but `/health` answers without your token.** Every other request, whatever its
   method or however its path is spelled (`/%61pi`, `/API`, `//api`), gets `401` unless it
   carries `Authorization: Bearer <your token>` or is signed with it (the extension signs;
-  it never sends the token, and uses an answer only if the server signed it too). `/health` says only the server's name,
+  it never sends the token, and uses an answer only if the server signed it too). A signed
+  request can't be sent to the server again, while it runs or after it restarts, and the
+  two computers' clocks may differ by up to two minutes. `/health` says only the server's name,
   version and whether its database works.
 - **A strong token, kept private.** On first start the server makes a random 256-bit token
   and saves it in `api-token` in the data folder, readable only by you (mode 0600). If you
@@ -26,7 +28,8 @@ Kotiko has two parts: the browser extension, and an optional server you run your
   tokens from one address within a minute, that address is refused until the minute is
   over; other addresses keep working. Requests from this computer itself are never
   refused, so no local program or web page can lock the extension out; those a reverse
-  proxy on this computer forwards are limited together.
+  proxy on this computer forwards are limited together (your other devices behind the
+  proxy included), or each by its own address when you set `TRUSTED_PROXY_HEADER`.
 - **Other accounts on the computer can't read your words.** The database, its `-wal` and
   `-shm` files, the backups, the token and the model list cache are readable only by you
   (0600), and a data folder the server makes only by you (0700). At every start it makes
@@ -53,7 +56,8 @@ Kotiko has two parts: the browser extension, and an optional server you run your
   token, your model and transcription keys, your bot token, and anything shaped like a
   bearer token or an OpenRouter or OpenAI key, before a log line is written. A user name
   or password inside `LLM_URL`, `TRANSCRIBE_URL` or `PUBLIC_URL` stops the server instead
-  of reaching the log.
+  of reaching the log. A query in `LLM_URL` or `TRANSCRIBE_URL` (where some providers take
+  a key) is never logged, and its values are removed from every log line.
 - **Your words stay out of the logs** at the default level. What you look up and what the
   model answered go to the log only if you set `LOG_LOOKUPS=true`, and then only at debug
   level.

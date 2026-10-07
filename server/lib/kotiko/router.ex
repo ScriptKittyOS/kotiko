@@ -91,8 +91,17 @@ defmodule Kotiko.Router do
 
       true ->
         token = Application.fetch_env!(:kotiko, :api_token)
-        proof = Token.proof(token, nonce)
-        conn |> put_resp_header("cache-control", "no-store") |> json(200, %{proof: proof})
+        boot = RequestAuth.boot()
+
+        # The boot id goes into every signed request, so one signed before a restart is
+        # refused after it (security review E-01); boot_mac ties it to this proof.
+        body = %{
+          proof: Token.proof(token, nonce),
+          boot: boot,
+          boot_mac: RequestAuth.boot_mac(token, nonce, boot)
+        }
+
+        conn |> put_resp_header("cache-control", "no-store") |> json(200, body)
     end
   end
 
@@ -106,7 +115,8 @@ defmodule Kotiko.Router do
   # Seconds to wait, or nil. This computer's own requests (`:local`, no forwarding header)
   # aren't limited (slice 54, D-02): every local program shares 127.0.0.1, so any of them
   # could use up the extension's proofs. Strangers on the network, and those a reverse
-  # proxy here forwards (all together), keep the limit (Kotiko.RateLimit.peer/1).
+  # proxy here forwards (all together, or each by TRUSTED_PROXY_HEADER's address), keep the
+  # limit (Kotiko.RateLimit.peer/1).
   defp too_many_proofs(:local), do: nil
 
   defp too_many_proofs(peer) do
@@ -280,13 +290,15 @@ defmodule Kotiko.Router do
       else: json(conn, status, %{error: message})
   end
 
-  # Deny by default: only the exact GET or HEAD /health and POST /api/v1/proof are open.
-  # path_info is not yet percent-decoded here, but routing decodes it, so matching on
-  # ["api" | _] let "/%61pi/words" through without a token.
-  defp authorize(%{path_info: ["health"], method: m} = conn, _opts) when m in ~w(GET HEAD),
+  # Deny by default: only the exact GET or HEAD /health and POST /api/v1/proof are open,
+  # matched on the raw request path as sent. path_info is not yet percent-decoded here, but
+  # routing decodes it, so matching on ["api" | _] let "/%61pi/words" through without a
+  # token; and path_info drops empty segments, so matching on it let "//api/v1/proof",
+  # "/api/v1/proof/" and "/health/" through too (security review E-07).
+  defp authorize(%{request_path: "/health", method: m} = conn, _opts) when m in ~w(GET HEAD),
     do: conn
 
-  defp authorize(%{path_info: ["api", "v1", "proof"], method: "POST"} = conn, _opts), do: conn
+  defp authorize(%{request_path: "/api/v1/proof", method: "POST"} = conn, _opts), do: conn
 
   # An address that sent too many wrong tokens gets 429 whatever it sends now
   # (Kotiko.AuthThrottle).
@@ -333,6 +345,11 @@ defmodule Kotiko.Router do
             |> RequestAuth.accept(token, header)
             |> rate_limited("too_many_requests", RequestAuth.retry_after())
 
+          # Genuine (the MAC matched), but signed for this server's previous boot: not a
+          # guess, so not counted. The client proves again and resends (E-01).
+          {:error, :stale_boot} ->
+            deny(conn, "stale_boot")
+
           {:error, reason} ->
             signature_failed(conn, reason)
         end
@@ -355,7 +372,7 @@ defmodule Kotiko.Router do
   end
 
   # The challenge names both schemes; for a signed request, why it failed (`malformed`,
-  # `bad_mac`, `stale`, `replayed`, `body_mismatch`). The extension tells a server from
+  # `bad_mac`, `stale_boot`, `stale`, `replayed`, `body_mismatch`). The extension tells a server from
   # before signed requests by its plain `Bearer` challenge.
   defp deny(conn, reason \\ nil) do
     error =

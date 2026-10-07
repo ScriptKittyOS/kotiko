@@ -37,8 +37,10 @@ defmodule Kotiko.Config do
   @max_secret_file_bytes 64 * 1024
   # The other settings, without the KOTIKO_ prefix. config/runtime.exs copies them into
   # the app env by name or by their LLM_ and TRANSCRIBE_ prefixes.
-  @plain_vars ~w(PORT BIND ALLOWED_HOSTS PUBLIC_URL ALLOWED_TELEGRAM_IDS LLM_URL LLM_MODEL
-                 TRANSCRIBE_URL TRANSCRIBE_MODEL LOG_LEVEL LOG_LOOKUPS)
+  @plain_vars ~w(PORT BIND ALLOWED_HOSTS PUBLIC_URL TRUSTED_PROXY_HEADER ALLOWED_TELEGRAM_IDS
+                 LLM_URL LLM_MODEL TRANSCRIBE_URL TRANSCRIBE_MODEL LOG_LEVEL LOG_LOOKUPS)
+  # The headers TRUSTED_PROXY_HEADER may name (Kotiko.RateLimit.peer/1).
+  @proxy_headers ~w(x-forwarded-for x-real-ip cf-connecting-ip forwarded)
   @wrap_at 84
 
   @typedoc "A label (`BIND=kotiko.local`) and the lines that explain it."
@@ -151,6 +153,7 @@ defmodule Kotiko.Config do
       api_token: api_token(vars["API_TOKEN"]),
       allowed_hosts: allowed_hosts(vars["ALLOWED_HOSTS"]),
       public_url: optional_url("PUBLIC_URL", vars["PUBLIC_URL"]),
+      trusted_proxy_header: trusted_proxy_header(vars["TRUSTED_PROXY_HEADER"]),
       telegram_token: telegram_token(vars["TELEGRAM_BOT_TOKEN"]),
       allowed_ids: telegram_ids(vars["ALLOWED_TELEGRAM_IDS"]),
       llm_url: llm_url,
@@ -185,6 +188,7 @@ defmodule Kotiko.Config do
       api_token: parsed.api_token,
       allowed_hosts: parsed.allowed_hosts,
       public_url: parsed.public_url,
+      trusted_proxy_header: parsed.trusted_proxy_header,
       telegram_token: parsed.telegram_token,
       allowed_ids: parsed.allowed_ids,
       llm_url: parsed.llm_url,
@@ -443,6 +447,23 @@ defmodule Kotiko.Config do
       match?({:ok, _}, :inet.parse_strict_address(to_charlist(name)))
   end
 
+  # Security review E-02: which header a reverse proxy on this computer sets to the client
+  # it forwards, so the throttles count each client on its own.
+  defp trusted_proxy_header(nil), do: {:ok, nil}
+
+  defp trusted_proxy_header(raw) do
+    header = String.downcase(raw)
+
+    if header in @proxy_headers do
+      {:ok, header}
+    else
+      error("TRUSTED_PROXY_HEADER", raw, [
+        "Use one of: #{Enum.join(@proxy_headers, ", ")}. Set it only when a reverse proxy " <>
+          "on this computer sets that header for every request; leave it empty otherwise."
+      ])
+    end
+  end
+
   defp optional_url(_name, nil), do: {:ok, nil}
 
   # A user name or password in the address (slice 54, B-05) would reach the log with the
@@ -546,6 +567,41 @@ defmodule Kotiko.Config do
       {[], {:error, _}} ->
         {:ok, {@default_models, :default}}
     end
+  end
+
+  @doc """
+  A service address (LLM_URL, TRANSCRIBE_URL) as it may be logged: without a user name or
+  password, query or fragment. A query may hold a key (`?key=...`; security review E-03),
+  so it shows as `?…`. Requests still go to the whole address.
+  """
+  def loggable_url(url) when is_binary(url) do
+    uri = URI.parse(url)
+    shown = URI.to_string(%{uri | userinfo: nil, query: nil, fragment: nil})
+    if is_nil(uri.query), do: shown, else: shown <> "?…"
+  end
+
+  @doc """
+  The values in the queries of LLM_URL and TRANSCRIBE_URL, as written and decoded, for the
+  log redactor (`Kotiko.Log.Redact`): a key a provider takes in the query never reaches
+  the log, wherever it turns up (security review E-03).
+  """
+  def url_secrets(urls) do
+    for url <- urls,
+        is_binary(url),
+        query = URI.parse(url).query,
+        is_binary(query) and query != "",
+        part <- [query | String.split(query, ["&", ";"])],
+        value = part |> String.split("=", parts: 2) |> List.last(),
+        secret <- [value, decode_query(value)],
+        uniq: true,
+        do: secret
+  end
+
+  defp decode_query(value) do
+    URI.decode_www_form(value)
+  rescue
+    # A malformed percent escape: the value as written is redacted.
+    ArgumentError -> value
   end
 
   @doc "Whether the model API is OpenRouter (it has the built-in free models)."

@@ -14,10 +14,12 @@
 //                 jobs/pronunciation-refresh (GET, POST pause/resume), profile (GET, PUT;
 //                 slice 41 §9, kept as sent in `state.profile`) and llm/status
 //                 (slice 10: the quota is `llmRemaining` of 50; each add uses one), and
-//                 POST /api/v1/proof (slice 54 B-01, no token: the HMAC of the nonce).
-//                 Requests are signed (slice 54 D-01, helpers/kotiko-auth.mjs) and every
-//                 answer to one is signed back; `Bearer <token>` works too, unsigned, as for
-//                 curl. The log notes `signed: true` for a request whose signature held
+//                 POST /api/v1/proof (slice 54 B-01, no token: the HMAC of the nonce, and
+//                 the server's boot id with its MAC, E-01).
+//                 Requests are signed (slice 54 D-01, helpers/kotiko-auth.mjs) with the
+//                 boot id, and every answer to one is signed back; `Bearer <token>` works
+//                 too, unsigned, as for curl. The log notes `signed: true` for a request
+//                 whose signature held
 //   /llm/v1/*     a fake OpenAI-compatible model: /models, /key, /chat/completions
 //   /__control    POST to switch behaviours, GET to read state and the request log
 //
@@ -35,11 +37,13 @@
 //     "job": {state, done, total, retry_at}  the pronunciation-refresh job
 //     "failNext": {method, path, status, code, details}  one v1 request (or a legacy POST
 //                                          /api/words, with a 0.2 string error) answers this error
-//     "token": "..." }                     the token /kotiko/api expects (signed or bearer)
+//     "token": "...",                      the token /kotiko/api expects (signed or bearer)
+//     "restart": true }                    a new boot id and no remembered nonces, as after
+//                                          a restart: requests signed before are stale_boot
 //
 // Run it by hand with `node test/helpers/fixture-server.mjs [port]`.
-import { createHmac } from "node:crypto";
-import { serverSignature, verifySigned } from "./kotiko-auth.mjs";
+import { randomBytes } from "node:crypto";
+import { proofAnswer, proofFor, serverSignature, verifySigned } from "./kotiko-auth.mjs";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -51,7 +55,7 @@ const NPM = { "react.js": "react/umd/react.production.min.js", "react-dom.js": "
 const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(FIXTURES, rel), "utf8"));
 
 // What a Kotiko server answers to `POST /api/v1/proof` (slice 54, B-01).
-export const proofFor = (token, nonce) => createHmac("sha256", token).update(`kotiko-proof-v1:${nonce}`).digest("base64url");
+export { proofAnswer, proofFor };
 
 // 43 characters, like a token from `openssl rand -base64 32`.
 export const TEST_TOKEN = "test-token-0123456789abcdefghijklmnopqrstuv";
@@ -358,18 +362,22 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
     return v1Error(res, 404, "not_found", "No such route.");
   }
 
-  // A signed request whose signature holds (its answer is then signed back), or the right
-  // `Bearer` token. Nonces are remembered for the server's life.
-  const seen = new Set();
+  // A signed request whose signature holds, for this boot (its answer is then signed back),
+  // or the right `Bearer` token. Nonces are remembered for the boot's life.
+  let seen = new Set();
+  let boot = randomBytes(16).toString("base64url");
   async function authorized(req, res) {
     const auth = req.headers.authorization ?? "";
     if (auth === `Bearer ${state.token}`) return true;
     if (!auth.startsWith("Kotiko-HMAC ")) return false;
     req.rawBody = await rawBody(req);
-    const v = verifySigned(state.token, { method: req.method, target: req.url.slice("/kotiko".length), body: req.rawBody, authorization: auth, seen });
+    const v = verifySigned(state.token, { method: req.method, target: req.url.slice("/kotiko".length), body: req.rawBody, authorization: auth, seen, boot });
     const entry = state.log.findLast((r) => r.req === req);
     if (entry) entry.signed = v.ok;
-    if (!v.ok) return false;
+    if (!v.ok) {
+      req.refusal = v.reason;
+      return false;
+    }
     const writeHead = res.writeHead.bind(res);
     res.writeHead = (status, ...rest) => {
       res.setHeader("x-kotiko-server", serverSignature(state.token, v.nonce, status));
@@ -391,7 +399,7 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
       const { nonce } = await readBody(req);
       if (typeof nonce !== "string" || !/^[A-Za-z0-9_-]{32,128}$/.test(nonce)) return send(res, 400, { error: { code: "invalid_request", message: "nonce", details: { field: "nonce" } } });
       const held = state.kotiko === "401" ? `another-${state.token}` : state.token;
-      return send(res, 200, { proof: proofFor(held, nonce) }, { "cache-control": "no-store" });
+      return send(res, 200, proofAnswer(held, nonce, boot), { "cache-control": "no-store" });
     }
     // As today's server answers a request signed with another token (slice 54, D-01).
     if (state.kotiko === "401") return send(res, 401, "unauthorized", { "www-authenticate": 'Bearer, Kotiko-HMAC error="bad_mac"' });
@@ -401,7 +409,10 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
         "content-type": "text/html; charset=utf-8",
       });
     }
-    if (!(await authorized(req, res))) return send(res, 401, "unauthorized", { "www-authenticate": "Bearer, Kotiko-HMAC" });
+    if (!(await authorized(req, res))) {
+      const challenge = req.refusal === "stale_boot" ? 'Bearer, Kotiko-HMAC error="stale_boot"' : "Bearer, Kotiko-HMAC";
+      return send(res, 401, "unauthorized", { "www-authenticate": challenge });
+    }
 
     if (route.startsWith("/api/v1/")) return v1(req, res, route.slice("/api/v1".length));
     if (route === "/api/words" && req.method === "GET") return send(res, 200, { words: state.words });
@@ -491,6 +502,10 @@ export async function startFixtureServer({ port = 0, host = "127.0.0.1", token =
     if (req.method === "GET") return send(res, 200, state);
     const body = await readBody(req);
     if (body.reset) reset();
+    if (body.restart) {
+      boot = randomBytes(16).toString("base64url");
+      seen = new Set();
+    }
     for (const k of ["kotiko", "llm", "delayMs", "token", "job", "failNext", "llmRemaining", "llmDelayMs"]) if (k in body) state[k] = body[k];
     if (Array.isArray(body.words)) {
       state.words = body.words;

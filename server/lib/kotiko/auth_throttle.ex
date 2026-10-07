@@ -19,7 +19,11 @@ defmodule Kotiko.AuthThrottle do
   otherwise lock the extension out. Loopback requests with a forwarding header, as a
   reverse proxy on this computer sends every remote client, are counted together under
   one key: a stranger's lockout there locks out everyone behind the proxy for the rest
-  of the minute, but never the extension. Addresses are counted as `Kotiko.RateLimit.client/1` says (an IPv6 /64 is one).
+  of the minute, the extension on the owner's other devices included (never the
+  extension on this computer, which sends no such header). With `TRUSTED_PROXY_HEADER`
+  set, each of them is counted by the client address the proxy puts in that header
+  instead (security review E-02). Addresses are counted as `Kotiko.RateLimit.client/1`
+  says (an IPv6 /64 is one).
   Each lockout is logged once an hour per address, for at most 100 addresses an hour
   (`Kotiko.Log.Limiter`). `auth_failures_per_minute: nil` turns the throttle off (tests).
 
@@ -78,6 +82,7 @@ defmodule Kotiko.AuthThrottle do
   # headers from it would count.
   defp key(:local), do: :local
   defp key({:proxied, _} = key), do: key
+  defp key({:forwarded, _} = key), do: key
   defp key({_, _, _, _, :"/64"} = key), do: key
 
   defp key(ip) when is_tuple(ip),
@@ -113,6 +118,7 @@ defmodule Kotiko.AuthThrottle do
   end
 
   defp format({:proxied, peer}), do: "requests forwarded by " <> format(peer)
+  defp format({:forwarded, client}), do: format(client) <> " (through the reverse proxy)"
 
   defp format({a, b, c, d, :"/64"}),
     do: Enum.map_join([a, b, c, d], ":", &String.downcase(Integer.to_string(&1, 16))) <> "::/64"
