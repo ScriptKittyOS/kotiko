@@ -262,7 +262,10 @@ Gate: closed 2026-11-02 by <lead>, fixes confirmed on v1.0.0-rc.2
 
 The candidate it names is one of the reviewed version's. A second `Gate:` line (for example
 `Gate: open`) above the appendix keeps the gate open, and lines under the appendix count for
-nothing. That blocks every store upload until the first review is done. When a review is
+nothing. Lines are read as a reader sees them: a gate line written with a lookalike letter
+from another alphabet, an invisible character or a fullwidth colon still counts as a second
+gate line, and the closing line itself must be plain ASCII (security review D-05). When the
+gate stays open, the job says why for each report. That blocks every store upload until the first review is done. When a review is
 opened for the version being released (a `review-vX.Y.Z-rc.N.md` for that version), that
 review must be the closed one. Whether a later release needs a review at all (it touches
 the areas above) is enforced by the checklist box, not by the workflow, because no script

@@ -5,6 +5,11 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Release process: the check that holds store uploads until the security review is closed
+  could miss a "Gate: open" line written with a lookalike letter from another alphabet, an
+  invisible character or a fullwidth colon, and read the review as closed. It now reads
+  each line as a person would, keeps the gate open for any such line, and says which line.
+
 - Security: the server warns when it would send an API key over plain HTTP to another
   machine, but missed an address written in capitals, such as `HTTP://203.0.113.7/v1`. It
   now warns however the address is written. An OpenRouter address in capitals is also
