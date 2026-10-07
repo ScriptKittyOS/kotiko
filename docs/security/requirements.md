@@ -53,7 +53,8 @@ Kotiko has two parts: the browser extension, and an optional server you run your
   token, your model and transcription keys, your bot token, and anything shaped like a
   bearer token or an OpenRouter or OpenAI key, before a log line is written. A user name
   or password inside `LLM_URL`, `TRANSCRIBE_URL` or `PUBLIC_URL` stops the server instead
-  of reaching the log.
+  of reaching the log. A query in `LLM_URL` or `TRANSCRIBE_URL` (where some providers take
+  a key) is never logged, and its values are removed from every log line.
 - **Your words stay out of the logs** at the default level. What you look up and what the
   model answered go to the log only if you set `LOG_LOOKUPS=true`, and then only at debug
   level.

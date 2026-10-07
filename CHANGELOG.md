@@ -32,6 +32,12 @@ Conventional Commits by release-please.
   `/api/v1/proof`, also answered when written another way, such as `/health/` or
   `//api/v1/proof`. Now only the exact addresses do; any other spelling needs the key.
 
+- Self-hosted server: a key written in the query of `LLM_URL` or `TRANSCRIBE_URL` (some
+  providers take `?key=...`) was written to the log at start. The log now shows the address
+  without its query (`https://host/v1?…`), and the query's values are taken out of every
+  log line. A query such as `?api-version=...` now also reaches the provider on every
+  request, after the path.
+
 - Security: a Kotiko server set to a model of its own (`LLM_MODEL`), for example on a paid
   provider, sent no limit on how long an answer may be, so a model that kept writing could
   cost you up to the provider's own limit for one word. Every lookup now asks for at most

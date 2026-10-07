@@ -548,6 +548,41 @@ defmodule Kotiko.Config do
     end
   end
 
+  @doc """
+  A service address (LLM_URL, TRANSCRIBE_URL) as it may be logged: without a user name or
+  password, query or fragment. A query may hold a key (`?key=...`; security review E-03),
+  so it shows as `?…`. Requests still go to the whole address.
+  """
+  def loggable_url(url) when is_binary(url) do
+    uri = URI.parse(url)
+    shown = URI.to_string(%{uri | userinfo: nil, query: nil, fragment: nil})
+    if is_nil(uri.query), do: shown, else: shown <> "?…"
+  end
+
+  @doc """
+  The values in the queries of LLM_URL and TRANSCRIBE_URL, as written and decoded, for the
+  log redactor (`Kotiko.Log.Redact`): a key a provider takes in the query never reaches
+  the log, wherever it turns up (security review E-03).
+  """
+  def url_secrets(urls) do
+    for url <- urls,
+        is_binary(url),
+        query = URI.parse(url).query,
+        is_binary(query) and query != "",
+        part <- [query | String.split(query, ["&", ";"])],
+        value = part |> String.split("=", parts: 2) |> List.last(),
+        secret <- [value, decode_query(value)],
+        uniq: true,
+        do: secret
+  end
+
+  defp decode_query(value) do
+    URI.decode_www_form(value)
+  rescue
+    # A malformed percent escape: the value as written is redacted.
+    ArgumentError -> value
+  end
+
   @doc "Whether the model API is OpenRouter (it has the built-in free models)."
   def openrouter?(url) do
     # URI.parse/1 lowercases the scheme but not the host, which is case-insensitive too.

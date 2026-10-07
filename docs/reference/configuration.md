@@ -152,6 +152,11 @@ The model API: any OpenAI-compatible API's base URL.
 - A user name or password in the address (`https://user:password@host/v1`) stops the
   server too, without showing it: the address is written to the log at start. Put the key
   in [`LLM_API_KEY`](#llm_api_key) (or [`LLM_API_KEY_FILE`](#llm_api_key_file)) instead.
+- A query (`?api-version=2024-10-21`, or `?key=...` for a provider that takes its key
+  there) is kept on every request, after the path (`/chat/completions?api-version=...`).
+  It is never logged: the start-up summary shows the address as `https://host/v1?…`, and
+  the query's values are taken out of every log line like the other secrets. A key that
+  the provider accepts in a header still belongs in `LLM_API_KEY`.
 - Your typed text goes to this address (README, "A different model").
 
 ### `LLM_MODEL`
@@ -196,6 +201,7 @@ upload.
 - Allowed: an `http://` or `https://` address. Wrong: anything else stops the server, and
   so does a user name or password in the address: put the key in
   [`TRANSCRIBE_API_KEY`](#transcribe_api_key) instead.
+- A query is kept on the request and never logged, as for [`LLM_URL`](#llm_url).
 
 ### `TRANSCRIBE_MODEL`
 

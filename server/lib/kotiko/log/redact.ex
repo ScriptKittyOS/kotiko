@@ -11,7 +11,8 @@ defmodule Kotiko.Log.Redact do
     * the Telegram bot token in request URLs (`/bot123:ABC.../getUpdates`) becomes
       `bot[redacted]`
     * the configured values of API_TOKEN, LLM_API_KEY, TELEGRAM_BOT_TOKEN and
-      TRANSCRIBE_API_KEY become `[redacted]`
+      TRANSCRIBE_API_KEY become `[redacted]`, and so do the values in the queries of
+      LLM_URL and TRANSCRIBE_URL, where some providers take a key (`?key=...`, E-03)
 
   Events that contain none of these pass through untouched; one that does is rewritten
   to plain text.
@@ -49,12 +50,16 @@ defmodule Kotiko.Log.Redact do
     :persistent_term.put(@secrets_key, secrets)
   end
 
-  @doc "The values of the secret settings in the app env."
+  @doc "The values of the secret settings in the app env, and of the service URLs' queries."
   def configured_secrets do
     Enum.map(
       [:api_token, :llm_api_key, :telegram_token, :transcribe_api_key],
       &Application.get_env(:kotiko, &1)
-    )
+    ) ++
+      Kotiko.Config.url_secrets([
+        Application.get_env(:kotiko, :llm_url),
+        Application.get_env(:kotiko, :transcribe_url)
+      ])
   end
 
   @doc "Redacts one string."
