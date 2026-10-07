@@ -113,6 +113,9 @@ test("the store gate opens only with a closed security review report", (t) => {
   writeFileSync(join(dir, "review-latest.md"), "Gate: closed\n");
   writeFileSync(join(dir, "review-v0.3.0-rc.2.md"), "# Review\n\nThe gate is not closed yet; it says Gate: closed only at the start of a line.\n");
   assert.deepEqual(closedReviews(dir), []);
-  writeFileSync(join(dir, "review-v0.3.0-rc.2.md"), "# Review\n\n**Gate: closed** 2026-11-02 by the lead; fixes confirmed on v0.3.0-rc.2\n");
+  // The exact form, above the appendix (more cases in security-gate.test.mjs).
+  writeFileSync(join(dir, "review-v0.3.0-rc.2.md"), "# Review\n\n**Gate: closed** 2026-11-02 by the lead; fixes confirmed on v0.3.0-rc.2\n\n## Appendix\n");
+  assert.deepEqual(closedReviews(dir), []);
+  writeFileSync(join(dir, "review-v0.3.0-rc.2.md"), "# Review\n\nGate: closed 2026-11-02 by the lead, fixes confirmed on v0.3.0-rc.2\n\n## Appendix\n");
   assert.deepEqual(closedReviews(dir), ["review-v0.3.0-rc.2.md"]);
 });

@@ -1,8 +1,11 @@
 # Reproducible builds
 
 Anyone can rebuild a release's extension zips from its tag and get the same bytes as the
-files on the GitHub release and in the stores. The release workflow checks this on every
-release by building twice and comparing; this page is how you check it yourself.
+zips on the GitHub release, which are the files the release workflow uploads to the Chrome
+Web Store and Firefox Add-ons. (The stores then sign what they distribute, which adds their
+signature to the same files: [verify.md](verify.md#3-the-store-versions).) The release
+workflow checks this on every release by building twice and comparing; this page is how you
+check it yourself.
 
 ## Rebuild a release
 

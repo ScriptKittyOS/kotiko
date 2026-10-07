@@ -7,3 +7,7 @@
 
 # A fake Whisper key in a test, written before it followed that rule; renamed since.
 bd016da4200b0d28093d8360304e46d844ef8f23:server/test/kotiko/voice_test.exs:generic-api-key:75
+
+# The public test vector's nonce for POST /api/v1/proof (docs/reference/http-api.md), not a
+# secret: an extension test uses it as "a proof for another nonce" (security review B-01).
+cc15012ce7f04770df6d6109165c2ebc96c5557c:test/bg/background.test.mjs:generic-api-key:1122

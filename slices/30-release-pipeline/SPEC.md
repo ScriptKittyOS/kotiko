@@ -482,6 +482,16 @@ Built 2026-10-05. What runs where:
     attest v4.2.2 `1e69f48`, download-artifact v8.0.1 `3e5f45b`. Checkout, setup-node,
     setup-beam and upload-artifact use CI's existing pins.
 
+### 2026-10-06: security review (slice 54) changes
+
+- Firefox Add-ons now gets the release's own zip, unchanged, through web-ext's AMO client
+  (`scripts/amo-submit.mjs`, which checks it against SHA256SUMS first) instead of
+  `web-ext sign --source-dir`, which repacked it (finding C-06). Sections 5 and 8's mentions of
+  `web-ext sign` describe the original design.
+- `verify-tag.sh` also checks the name inside the signed tag object (C-02), the build checks
+  out exactly the verified commit, and the release build runs property tests with fixed seeds
+  (C-08). The store gate accepts only the exact `Gate: closed` line above `## Appendix` (C-05).
+
 ## Acceptance criteria
 
 - [ ] Pushing the signed tag for a merged release PR (section 11) creates the GitHub

@@ -243,3 +243,20 @@ test("GPG-signed tags verify only against the keys in the release keys file", { 
   assert.match(verify(work, "v0.3.0", "--keys", join(work, "other.asc")).stderr, /not in .*other\.asc/);
   assert.match(verify(work, "v0.3.0", "--keys", join(work, "none.asc")).stderr, /no release keys/);
 });
+
+// Reviewer C-02 (slice 54): a ref named like a release that holds another tag's signed object
+// (here the candidate v9.9.9-rc.1 pushed again as refs/tags/v9.9.9) would otherwise verify as
+// a final release, because the signature covers the object, not the ref's name.
+test("a signed candidate's tag object under a release's name is refused", () => {
+  const { work } = setup();
+  writeVersion(work, "9.9.9");
+  git(work, "commit", "-q", "-am", "chore(main): release 9.9.9");
+  git(work, "push", "-q", "origin", "main");
+  tagWith(work, "v9.9.9-rc.1", "release");
+  assert.equal(verify(work, "v9.9.9-rc.1").status, 0, "the candidate itself verifies");
+  git(work, "update-ref", "refs/tags/v9.9.9", git(work, "rev-parse", "refs/tags/v9.9.9-rc.1"));
+  const r = verify(work, "v9.9.9");
+  assert.equal(r.status, 1, r.stdout);
+  assert.doesNotMatch(r.stdout, /prerelease=false/);
+  assert.match(r.stderr, /signed as v9\.9\.9-rc\.1, not v9\.9\.9/);
+});

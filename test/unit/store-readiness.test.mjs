@@ -75,17 +75,43 @@ describe("permissions (slice 28 §3)", () => {
 });
 
 describe("Firefox and the content security policy (slice 28 §4, §5)", () => {
-  test("the manifest declares no data collection, needs Firefox 140, and states the extension pages' policy", () => {
+  test("the manifest declares its data collection, needs Firefox 140, and states the extension pages' policy", () => {
     const m = manifest();
     const gecko = m.browser_specific_settings.gecko;
     assert.equal(gecko.id, "kotiko@scriptkittyos.com");
     assert.equal(gecko.strict_min_version, "140.0", "the first desktop Firefox that reads data_collection_permissions");
-    assert.deepEqual(gecko.data_collection_permissions, { required: ["none"] });
+    assert.deepEqual(gecko.data_collection_permissions, { required: ["authenticationInfo"] });
     assert.equal(m.browser_specific_settings.gecko_android.strict_min_version, "142.0", "the first Android Firefox that reads it");
     // Chrome's default, written out: Firefox's own adds upgrade-insecure-requests, which
     // would turn a LAN or Tailscale http:// server into an https:// one that isn't there.
     assert.deepEqual(m.content_security_policy, { extension_pages: "script-src 'self'; object-src 'self'" });
-    assert.match(read("store/firefox-amo.md"), /"required": \["none"\]/);
+    assert.match(read("store/firefox-amo.md"), /"required": \["authenticationInfo"\]/);
+  });
+
+  // Security review C-11: the Chrome form ticked authentication information while Firefox's
+  // manifest declared no data collection. Chrome's form counts data "handled" even on the
+  // device (website content: yes) and Firefox's only data that leaves the browser, so the
+  // categories that leave it must match: here, the learner's own key and server token.
+  test("the Firefox declaration and the Chrome form agree on what leaves the browser", () => {
+    const declared = manifest().browser_specific_settings.gecko.data_collection_permissions;
+    const firefox = new Set([...(declared.required ?? []), ...(declared.optional ?? [])].filter((c) => c !== "none"));
+    const chrome = Object.fromEntries(table(CWS, "### Data usage").map(([name, tick]) => [name, /\*\*Yes\*\*/.test(tick)]));
+    // Chrome's categories and Firefox's for the same data; website content is read on the
+    // device only (Chrome: handled; Firefox: not transmitted), so it isn't compared.
+    const SAME = {
+      "Personally identifiable information": "personallyIdentifyingInfo",
+      "Health information": "healthInfo",
+      "Financial and payment information": "financialAndPaymentInfo",
+      "Authentication information": "authenticationInfo",
+      "Personal communications": "personalCommunications",
+      Location: "locationInfo",
+      "Web history": "browsingActivity",
+    };
+    for (const [cws, gecko] of Object.entries(SAME)) {
+      assert.ok(cws in chrome, `store/chrome-web-store.md has no "${cws}" row`);
+      assert.equal(firefox.has(gecko), chrome[cws], `Chrome "${cws}" is ${chrome[cws] ? "Yes" : "No"}, Firefox ${gecko} is ${firefox.has(gecko) ? "" : "not "}declared`);
+    }
+    assert.ok(!(declared.required ?? []).includes("none") || firefox.size === 0, "none stands alone");
   });
 
   test("the http:// warning: only addresses whose traffic crosses a network unencrypted", async () => {
