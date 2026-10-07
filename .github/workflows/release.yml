@@ -260,7 +260,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - run: node scripts/check-security-gate.mjs
+      # The lead's exact "Gate: closed" line (slice 54 §6); a review opened for this version
+      # must be the closed one.
+      - env:
+          VERSION: ${{ needs.verify-tag.outputs.version }}
+        run: node scripts/check-security-gate.mjs --version "$VERSION"
 
   publish-chrome:
     needs: [verify-tag, store-gate]

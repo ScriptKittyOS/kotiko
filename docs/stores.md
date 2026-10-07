@@ -221,12 +221,22 @@ prompt (07, 09):
 
 ### The security gate in the workflow
 
-The `store-gate` job passes only when the tagged tree has a
-`docs/security/review-vX.Y.Z[-rc.N].md` with a line starting `Gate: closed` (for example
-`Gate: closed 2026-11-02 by <lead>, fixes confirmed on v1.0.0-rc.2`), which slice 54's lead
-writes when the review ends. That blocks every store upload until the first review is done.
-Later reviews (for releases that touch the areas above) are enforced by the checklist box,
-not by the workflow, because no script can tell which releases need one.
+The `store-gate` job (`scripts/check-security-gate.mjs`) passes only when the tagged tree has
+a `docs/security/review-vX.Y.Z-rc.N.md` that slice 54's lead closed when the review ended,
+with exactly one line of this form, on its own, above the report's `## Appendix` heading
+(under which the reviewers' reports are appended):
+
+```text
+Gate: closed 2026-11-02 by <lead>, fixes confirmed on v1.0.0-rc.2
+```
+
+The candidate it names is one of the reviewed version's. A second `Gate:` line (for example
+`Gate: open`) above the appendix keeps the gate open, and lines under the appendix count for
+nothing. That blocks every store upload until the first review is done. When a review is
+opened for the version being released (a `review-vX.Y.Z-rc.N.md` for that version), that
+review must be the closed one. Whether a later release needs a review at all (it touches
+the areas above) is enforced by the checklist box, not by the workflow, because no script
+can tell which releases need one.
 
 ## Rollback
 
