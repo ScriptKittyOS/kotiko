@@ -20,6 +20,11 @@ of them mixed. Hover a swapped word to see what it means in your language and ho
 said.
 
 <p align="center">
+  <a href="https://youtu.be/6hwIcTVvGK8"><img src="brand/demo/kotiko-film.webp" alt="Watch the one-minute Kotiko film on YouTube: a page where Kotiko swapped dog for perro, with the word's card open." width="800"></a>
+  <br><a href="https://youtu.be/6hwIcTVvGK8"><b>Watch the film (1 min, YouTube)</b></a>
+</p>
+
+<p align="center">
   <img src="brand/demo/kotiko-demo.gif" alt="An article about a morning walk, first as written; then the same page with a few words swapped for the reader's words: perro, agua, 猫, 本, дом, ありがとう; then the card for perro, with its pronunciation PEH-rro, Spanish, and its meaning, dog." width="800">
 </p>
 

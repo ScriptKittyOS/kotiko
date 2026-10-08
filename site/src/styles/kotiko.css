@@ -60,6 +60,39 @@
   margin-inline: auto;
 }
 
+/* The film's thumbnail: a link to YouTube; the site itself loads nothing from there. */
+.kotiko-film {
+  display: block;
+  max-width: 800px;
+  margin-inline: auto;
+  border-radius: 12px;
+}
+.kotiko-film img {
+  display: block;
+  width: 100%;
+  height: auto;
+  box-shadow: 0 8px 28px rgb(22 16 42 / 0.14);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+.kotiko-film:hover img,
+.kotiko-film:focus-visible img {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 34px rgb(22 16 42 / 0.2);
+}
+.kotiko-film:focus-visible {
+  outline: 3px solid var(--sl-color-accent);
+  outline-offset: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kotiko-film img {
+    transition: none;
+  }
+  .kotiko-film:hover img,
+  .kotiko-film:focus-visible img {
+    transform: none;
+  }
+}
+
 /* Store buttons and "coming soon" lines on the install and home pages. */
 .store-list {
   display: grid;
