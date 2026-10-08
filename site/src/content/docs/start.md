@@ -23,7 +23,9 @@ Pick one of three ways. You can change it at any time in **Settings**, **Word lo
 ### No key: type words with their meaning
 
 Select **Skip: I'll type meanings myself**. You add words as `word = meaning`, like
-`perro = dog` or `спасибо (spasibo) = thanks`. Nothing leaves your browser. This always works,
+`perro = dog` or `спасибо (spasibo) = thanks`. No AI service is asked. For a language with
+word stress, such as Russian or Spanish, Kotiko looks up only the word on English
+Wiktionary to get its pronunciation right ([privacy policy](/privacy/)). This always works,
 even with a key set up.
 
 ### A free OpenRouter key (recommended)

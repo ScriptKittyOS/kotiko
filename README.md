@@ -85,7 +85,7 @@ data folders and the service file.
 ## Privacy
 
 The text of the pages you read never leaves your browser. A word you add goes only to the AI
-service you chose, or to your own server. Kotiko has no servers of its own and collects
+service you chose, or to your own server, and, for its pronunciation, to English Wiktionary. Kotiko has no servers of its own and collects
 nothing. The [privacy policy](https://kotiko.org/privacy/) (its source is
 [docs/privacy/en.md](docs/privacy/en.md)) says exactly what is kept and sent, and
 [docs/privacy/inventory.md](docs/privacy/inventory.md) lists every request with the code
