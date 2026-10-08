@@ -5,13 +5,49 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
-- Fixing a word's language no longer makes the word disappear when the model answers with the
-  same word in the same language ("Already in your list"): the word stays in your list. Before,
-  it went to Recently deleted.
+## [1.0.0](https://github.com/ScriptKittyOS/kotiko/compare/v0.2.0...v1.0.0) (2026-10-08)
 
-- Privacy policy version 6: "What websites can see" now names every way a page can hide
-  text that Kotiko still swaps (a transparent text colour, text turned away), and says a
-  disguised word's card can open on a click as well as a resting pointer.
+Kotiko's first public release, for the Chrome Web Store and Firefox Add-ons. Learn a word in
+any language and Kotiko slips it into the pages you already read, in whatever language you
+read them; point at it to see what it means and how it's said. Your words stay in your
+browser, lookups use your own AI key (a free OpenRouter key works) or a model on your own
+computer, and an optional server of your own keeps your words in one place.
+
+### Upgrade notes
+
+For anyone updating from Slovo 0.2, or running their own server:
+
+- **Slovo is now Kotiko.** The data folder, service name, environment variables
+  (`KOTIKO_DATA_DIR`, `KOTIKO_LOG_SQL`) and pairing prefix are renamed. The server moves
+  your words and access key across on its first start; see the README's "Updating from
+  Slovo".
+- **Update the server and the extension together.** The extension no longer sends your
+  server's access key: it signs each request (`Kotiko-HMAC v2`) and checks the server's
+  signed answers. An older server turns signed requests away, and Kotiko asks you to update
+  it. Tools such as `curl` can still send the key as a `Bearer` token.
+- **The server's address is `http://127.0.0.1:4747`.** A saved `http://localhost:…` address
+  moves to `127.0.0.1` on its own. The server now listens on both `127.0.0.1` and `::1`, and
+  won't start if another program already holds either.
+- **The words table is rebuilt** on the server's first start. Going back to 0.2 needs the
+  automatic backup the server makes first.
+- **The server refuses to start on an unsafe data folder**: one owned by another account,
+  holding links where Kotiko's files go, or writable by others while holding other files. It
+  says what it found and how to fix it.
+- **`LLM_URL`, `TRANSCRIBE_URL` and `PUBLIC_URL` can't hold a user name or password**; put
+  keys in `LLM_API_KEY` or `TRANSCRIBE_API_KEY` (or their `_FILE` forms).
+- **Behind a reverse proxy**, set `TRUSTED_PROXY_HEADER` so each client gets its own limit
+  on wrong keys; otherwise all proxied clients share one.
+- **`/health` answers JSON** (still 200 when healthy, 503 when the database fails), every
+  other path needs the access key however it's spelled, and `run.sh` runs in production
+  unless `MIX_ENV` is set.
+
+### Security
+
+Before this release, six independent reviewers attacked four release candidates. Every
+finding at medium or above, and almost every lower one, was fixed with a regression test;
+what remains is listed as accepted risks in the report,
+[docs/security/review-v1.0.0.md](docs/security/review-v1.0.0.md). No published version was
+affected, so there are no advisories.
 
 - Security: a web page could restyle a swapped word (it sits in the page) so that it
   covered the page invisibly; then your pointer resting anywhere, or your click on one of
@@ -39,11 +75,6 @@ Conventional Commits by release-please.
   from your own computer are no longer locked out; requests from other computers still
   are, including those a reverse proxy on your computer passes on.
 
-- Release process: the check that holds store uploads until the security review is closed
-  could miss a "Gate: open" line written with a lookalike letter from another alphabet, an
-  invisible character or a fullwidth colon, and read the review as closed. It now reads
-  each line as a person would, keeps the gate open for any such line, and says which line.
-
 - Security: the server warns when it would send an API key over plain HTTP to another
   machine, but missed an address written in capitals, such as `HTTP://203.0.113.7/v1`. It
   now warns however the address is written. An OpenRouter address in capitals is also
@@ -56,32 +87,6 @@ Conventional Commits by release-please.
   accepts only requests signed with the current one; after a restart Kotiko asks for a
   new proof and sends the request again by itself. Update the server and the extension
   together: each turns the other's older version away and says so.
-
-- Release process: the check that holds store uploads until the security review is closed
-  still missed "Gate: open" written as a list item, a table row, code, HTML, an entity or
-  math, a fake "Appendix" heading inside a comment or code block, a closing line hidden in
-  a comment, and "the review is still open" written as prose. It now reads all of these as
-  open, counts the closing line and the heading only where a reader sees them, and says
-  which line keeps the gate open.
-
-- Self-hosted server: the two addresses that answer without your access key, `/health` and
-  `/api/v1/proof`, also answered when written another way, such as `/health/` or
-  `//api/v1/proof`. Now only the exact addresses do; any other spelling needs the key.
-
-- Self-hosted server: a key written in the query of `LLM_URL` or `TRANSCRIBE_URL` (some
-  providers take `?key=...`) was written to the log at start. The log now shows the address
-  without its query (`https://host/v1?…`), and the query's values are taken out of every
-  log line. A query such as `?api-version=...` now also reaches the provider on every
-  request, after the path.
-
-- Self-hosted server behind a reverse proxy: everyone the proxy passes on was counted as
-  one, so a stranger sending ten wrong keys a minute could keep your other devices out
-  for as long as they kept at it. Set the new `TRUSTED_PROXY_HEADER` to the header your
-  proxy puts each visitor's address in (`x-forwarded-for`, `x-real-ip`,
-  `cf-connecting-ip` or `forwarded`), and each visitor is counted on their own. The server
-  also recognises more of the headers proxies add (`Via`, `X-Client-IP`,
-  `Fastly-Client-IP` and others), so visitors through such a proxy are no longer taken for
-  your own computer, which is never limited.
 
 - Security: a Kotiko server set to a model of its own (`LLM_MODEL`), for example on a paid
   provider, sent no limit on how long an answer may be, so a model that kept writing could
@@ -116,21 +121,42 @@ Conventional Commits by release-please.
 - Security: after "Delete everything", Kotiko starts afresh and no longer takes an old-style
   server address and token that a page's script left in the browser's storage meanwhile.
 
-- Settings and the welcome page now warn when the address of your lookup service starts
-  with `http://` and isn't on your computer: your key and the words you look up would
-  travel unencrypted. The server address already warned.
-
 - Security: Kotiko's default server address is now `http://127.0.0.1:4747`, and an address
   you type as `http://localhost:…` is used as `127.0.0.1`, for your server and for Ollama
   and LM Studio. Browsers try `localhost` at the IPv6 address `[::1]` first, where another
   account on the same computer could listen and receive your server's access token. An
   address saved as `localhost` moves to `127.0.0.1` on update; nothing to do on your side.
 
-- Connect OpenRouter: a web page you have open can no longer spoil a sign-in in progress.
-  Before, any page could open Kotiko's return page with a made-up code while you were
-  signing in, and your real sign-in then said "This sign-in has expired". Kotiko now
-  takes a code only from the sign-in it started, and a code that doesn't work no longer
-  ends the sign-in.
+- Security: a web page that managed to run code inside Kotiko's page script could change
+  Kotiko's settings, because browsers let that script write Kotiko's storage. It could turn
+  Kotiko off, pause sites, hide languages, change the words pages show, queue a word to be
+  looked up with your own AI key and saved, pick another model, or change the languages
+  your server's Telegram bot answers in. Kotiko now keeps the real copy of all of these
+  where page scripts can't reach, puts back anything changed elsewhere, and only its own
+  pages change settings. Nothing to do on your side; your settings move over on update.
+  In Firefox (and Chrome before 140), the languages you read no longer follow from
+  Kotiko in your other browsers: set them in each one.
+
+### Your own server
+
+- Self-hosted server: the two addresses that answer without your access key, `/health` and
+  `/api/v1/proof`, also answered when written another way, such as `/health/` or
+  `//api/v1/proof`. Now only the exact addresses do; any other spelling needs the key.
+
+- Self-hosted server: a key written in the query of `LLM_URL` or `TRANSCRIBE_URL` (some
+  providers take `?key=...`) was written to the log at start. The log now shows the address
+  without its query (`https://host/v1?…`), and the query's values are taken out of every
+  log line. A query such as `?api-version=...` now also reaches the provider on every
+  request, after the path.
+
+- Self-hosted server behind a reverse proxy: everyone the proxy passes on was counted as
+  one, so a stranger sending ten wrong keys a minute could keep your other devices out
+  for as long as they kept at it. Set the new `TRUSTED_PROXY_HEADER` to the header your
+  proxy puts each visitor's address in (`x-forwarded-for`, `x-real-ip`,
+  `cf-connecting-ip` or `forwarded`), and each visitor is counted on their own. The server
+  also recognises more of the headers proxies add (`Via`, `X-Client-IP`,
+  `Fastly-Client-IP` and others), so visitors through such a proxy are no longer taken for
+  your own computer, which is never limited.
 
 - Self-hosted server: after moving your words from the folder used before the rename to
   Kotiko, the old copy (`~/.local/share/slovo/slovo.db`) and the old access key could stay
@@ -181,22 +207,6 @@ Conventional Commits by release-please.
   The server logs each refused name at most once an hour, and at most 1,000 names an hour;
   past that it logs one line saying so, and how many it left out.
 
-- Security: a web page that managed to run code inside Kotiko's page script could change
-  Kotiko's settings, because browsers let that script write Kotiko's storage. It could turn
-  Kotiko off, pause sites, hide languages, change the words pages show, queue a word to be
-  looked up with your own AI key and saved, pick another model, or change the languages
-  your server's Telegram bot answers in. Kotiko now keeps the real copy of all of these
-  where page scripts can't reach, puts back anything changed elsewhere, and only its own
-  pages change settings. Nothing to do on your side; your settings move over on update.
-  In Firefox (and Chrome before 140), the languages you read no longer follow from
-  Kotiko in your other browsers: set them in each one.
-
-- Connect OpenRouter with one click, without copying a key: "Connect OpenRouter (free)" is
-  now the first choice on the welcome page, and Settings, Word lookups has a "Connect
-  OpenRouter" button. OpenRouter's sign-in opens in a new tab; when you're done, it sends
-  you back to kotiko.org/connect/, Kotiko gets your key, and the page you started from
-  says you're connected. Pasting a key still works ("Paste a key instead").
-
 - Self-hosted server: other accounts on the same computer can no longer read your words.
   The database (with the `-wal` and `-shm` files next to it), the model list cache and a
   new data folder are now readable only by you, like the API token and the backups
@@ -225,16 +235,6 @@ Conventional Commits by release-please.
   and `.env` are kept unless you add `--delete-data`, which deletes only the files Kotiko
   made in its data folder.
 
-- New documentation site, ready to publish at kotiko.org: install guides for Chrome, Edge,
-  Brave and Firefox (with "coming soon" in place of the store links until the listings are
-  live), how to start with or without an AI key, one guide per word lookup service, help
-  for every message Kotiko can show, the guide to running your own server, and the privacy
-  policy, published from the same file the extension shows so the two can't differ. The
-  site sets no cookies, has no analytics and loads nothing from any other site. It also
-  has the page OpenRouter returns to after "Connect OpenRouter"; Kotiko reads the sign-in
-  code there and nowhere else.
-  The README is now a short introduction that points to the site.
-
 - The Telegram bot no longer assumes you read English. It gives meanings in the languages
   you read: the extension now tells your connected server which ones (and Kotiko's
   interface language, if you chose one), and until it does, the bot uses your Telegram
@@ -247,6 +247,66 @@ Conventional Commits by release-please.
   the chat gets a short reference to look up in the server log instead of the error's
   text, and buttons carry the word's public id instead of an internal number. New routes:
   `GET` and `PUT /api/v1/profile`.
+
+- Turning off Wiktionary pronunciations with `KOTIKO_WIKTIONARY=false` no longer makes the
+  server warn at start that the setting is unknown and ignored. It always worked; only
+  the warning was wrong.
+
+### Changes
+
+- **Slovo is now Kotiko.** Your words move automatically from `~/.local/share/slovo` to
+  `~/.local/share/kotiko` on first start; the old file is kept as a backup. The service is
+  now called `kotiko` (`install-service.sh` replaces the old one). Rename `SLOVO_DATA_DIR`
+  to `KOTIKO_DATA_DIR` in `.env` if you set it (and `SLOVO_LOG_SQL` to `KOTIKO_LOG_SQL`);
+  the old names still work for now, with a warning. Stop the old server before the first
+  start; keep the extension's folder where it is and reload it. See "Updating from Slovo"
+  in the README.
+
+- Fixing a word's language no longer makes the word disappear when the model answers with the
+  same word in the same language ("Already in your list"): the word stays in your list. Before,
+  it went to Recently deleted.
+
+- Privacy policy version 6: "What websites can see" now names every way a page can hide
+  text that Kotiko still swaps (a transparent text colour, text turned away), and says a
+  disguised word's card can open on a click as well as a resting pointer.
+
+- Release process: the check that holds store uploads until the security review is closed
+  could miss a "Gate: open" line written with a lookalike letter from another alphabet, an
+  invisible character or a fullwidth colon, and read the review as closed. It now reads
+  each line as a person would, keeps the gate open for any such line, and says which line.
+
+- Release process: the check that holds store uploads until the security review is closed
+  still missed "Gate: open" written as a list item, a table row, code, HTML, an entity or
+  math, a fake "Appendix" heading inside a comment or code block, a closing line hidden in
+  a comment, and "the review is still open" written as prose. It now reads all of these as
+  open, counts the closing line and the heading only where a reader sees them, and says
+  which line keeps the gate open.
+
+- Settings and the welcome page now warn when the address of your lookup service starts
+  with `http://` and isn't on your computer: your key and the words you look up would
+  travel unencrypted. The server address already warned.
+
+- Connect OpenRouter: a web page you have open can no longer spoil a sign-in in progress.
+  Before, any page could open Kotiko's return page with a made-up code while you were
+  signing in, and your real sign-in then said "This sign-in has expired". Kotiko now
+  takes a code only from the sign-in it started, and a code that doesn't work no longer
+  ends the sign-in.
+
+- Connect OpenRouter with one click, without copying a key: "Connect OpenRouter (free)" is
+  now the first choice on the welcome page, and Settings, Word lookups has a "Connect
+  OpenRouter" button. OpenRouter's sign-in opens in a new tab; when you're done, it sends
+  you back to kotiko.org/connect/, Kotiko gets your key, and the page you started from
+  says you're connected. Pasting a key still works ("Paste a key instead").
+
+- New documentation site, ready to publish at kotiko.org: install guides for Chrome, Edge,
+  Brave and Firefox (with "coming soon" in place of the store links until the listings are
+  live), how to start with or without an AI key, one guide per word lookup service, help
+  for every message Kotiko can show, the guide to running your own server, and the privacy
+  policy, published from the same file the extension shows so the two can't differ. The
+  site sets no cookies, has no analytics and loads nothing from any other site. It also
+  has the page OpenRouter returns to after "Connect OpenRouter"; Kotiko reads the sign-in
+  code there and nowhere else.
+  The README is now a short introduction that points to the site.
 
 - Kotiko's pages and word card work with keyboards and screen readers, and respect reduced
   motion. Every control in the popup, the dashboard, the welcome tab and the word card can
@@ -307,10 +367,6 @@ Conventional Commits by release-please.
   GitHub carries both store packages, a checksum list, a list of the server's dependencies,
   and a signed record of how each file was built. Anyone can rebuild the packages from the
   release's tag and get the same bytes; docs/verify.md shows how to check a download.
-
-- Turning off Wiktionary pronunciations with `KOTIKO_WIKTIONARY=false` no longer makes the
-  server warn at start that the setting is unknown and ignored. It always worked; only
-  the warning was wrong.
 
 - Add a whole list at once: paste it into "Add words" in your word list, or drop a .txt,
   .csv, .tsv, .json or Anki text export on it. Lines that already have a meaning are saved
@@ -406,13 +462,6 @@ Conventional Commits by release-please.
   you look up no longer appear in the server's log. The server adds a table for the lookup
   cache, so it backs up your database once more on first start.
 
-- **Slovo is now Kotiko.** Your words move automatically from `~/.local/share/slovo` to
-  `~/.local/share/kotiko` on first start; the old file is kept as a backup. The service is
-  now called `kotiko` (`install-service.sh` replaces the old one). Rename `SLOVO_DATA_DIR`
-  to `KOTIKO_DATA_DIR` in `.env` if you set it (and `SLOVO_LOG_SQL` to `KOTIKO_LOG_SQL`);
-  the old names still work for now, with a warning. Stop the old server before the first
-  start; keep the extension's folder where it is and reload it. See "Updating from Slovo"
-  in the README.
 - Buttons, toggles, menus, tabs and forms keep the site's own words, including clickable
   labels built from plain `div`s. A lone capital next to a code or numeral ("AOI I",
   "World War I", "I-95") is no longer swapped as the word "I".
@@ -420,13 +469,12 @@ Conventional Commits by release-please.
 - Language names now come from the language code, so Cantonese is always Cantonese. Words
   saved under old codes such as cmn or iw were merged into their languages; the server
   backs up your database before it does this.
+
 - Kotiko now checks every word the model suggests: it won't swap unrelated words like
   "what" for как, never adds more than 5 words at once, and explains anything it rejects.
   Ask in your own language, and meanings come back in the languages you read. Every new
   word comes with how to say it, written for readers of your language, with the stressed
   syllable in capitals.
-
-## [1.0.0](https://github.com/ScriptKittyOS/kotiko/compare/v0.2.0...v1.0.0) (2026-10-08)
 
 
 ### ⚠ BREAKING CHANGES
