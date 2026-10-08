@@ -3,6 +3,10 @@
     "message": "Kotiko",
     "description": "The extension's name in the browser and stores. Don't translate."
   },
+  "extStoreName": {
+    "message": "Kotiko: aprende idiomas mientras navegas",
+    "description": "The extension's full name in the browser's extensions list and on the Chrome Web Store and Firefox Add-ons listings: the name Kotiko, a colon, and a short phrase saying what it does. Keep \"Kotiko\" as it is. At most 45 characters (the Edge store's limit)."
+  },
   "extDescription": {
     "message": "Aprende palabras mientras navegas: cambia palabras de las páginas web por las que estás aprendiendo, en cualquier idioma.",
     "description": "The extension's one-line description on the browser's extensions page."
