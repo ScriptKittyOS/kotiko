@@ -5,6 +5,10 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- Fixing a word's language no longer makes the word disappear when the model answers with the
+  same word in the same language ("Already in your list"): the word stays in your list. Before,
+  it went to Recently deleted.
+
 - Privacy policy version 6: "What websites can see" now names every way a page can hide
   text that Kotiko still swaps (a transparent text colour, text turned away), and says a
   disguised word's card can open on a click as well as a resting pointer.

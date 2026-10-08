@@ -128,6 +128,22 @@ describe("a fresh install keeps words in this browser (slice 11)", () => {
     assert.equal(bg.store.addJobs.find((j) => j.id === first.job.id).replacedBy, null);
   });
 
+  // Launch check F1: the model can answer the same word in the same language ("Already in
+  // your list"); retiring the old add must not delete the word the new one landed on.
+  test("another language that comes back as the same word keeps the word", async () => {
+    const bg = loadBackground({ local: { baseLangs: ["en"] } });
+    await bg.k.ready();
+    const first = await bg.send({ type: "add", text: "gato = cat", hintLang: "es" }, POPUP);
+    await bg.until(() => bg.store.addJobs?.find((j) => j.id === first.job.id && j.state === "done"));
+    const relang = await bg.send({ type: "jobs.relang", id: first.job.id, key: "es\u001fgato", lang: "es" }, POPUP);
+    assert.equal(relang.ok, true);
+    const next = await bg.until(() => bg.store.addJobs?.find((j) => j.id === relang.newId && j.state === "done"));
+    assert.equal(next.results[0].result, "unchanged", "the new add found the same word");
+    await bg.until(() => bg.store.addJobs?.find((j) => j.id === first.job.id && j.replacedBy === relang.newId));
+    const active = (await (await bg.k.getStore()).list()).map((w) => `${w.lang}:${w.native}`);
+    assert.deepEqual(active, ["es:gato"], "the word is still in the list");
+  });
+
   test("Focus on one language decides a 'native = meaning' word's language", async () => {
     const bg = loadBackground({ local: { baseLangs: ["en"] } });
     await bg.k.ready();
