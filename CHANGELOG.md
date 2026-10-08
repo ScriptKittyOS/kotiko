@@ -8,6 +8,14 @@ Conventional Commits by release-please.
 - The Chrome Web Store accepts the package: the Spanish translation now has the extension's
   full name, which the store requires for every language a package includes.
 
+## [1.0.1](https://github.com/ScriptKittyOS/kotiko/compare/v1.0.0...v1.0.1) (2026-10-08)
+
+
+### Bug fixes
+
+* **extension:** the Spanish translation has the store name Chrome requires ([6730d6b](https://github.com/ScriptKittyOS/kotiko/commit/6730d6bff6cdeb3cdb6a6da042a77d3c3052e97f))
+* **extension:** the Spanish translation has the store name Chrome requires ([23a2512](https://github.com/ScriptKittyOS/kotiko/commit/23a2512c924d42af3a0a15057b8a963980cce296))
+
 ## [1.0.0](https://github.com/ScriptKittyOS/kotiko/compare/v0.2.0...v1.0.0) (2026-10-08)
 
 Kotiko's first public release, for the Chrome Web Store and Firefox Add-ons. Learn a word in
