@@ -5,6 +5,9 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- The Chrome Web Store accepts the package: the Spanish translation now has the extension's
+  full name, which the store requires for every language a package includes.
+
 ## [1.0.0](https://github.com/ScriptKittyOS/kotiko/compare/v0.2.0...v1.0.0) (2026-10-08)
 
 Kotiko's first public release, for the Chrome Web Store and Firefox Add-ons. Learn a word in

@@ -240,6 +240,25 @@ describe("the listing (slice 28 §8)", () => {
     for (const k of ["extStoreName", "extDescription"]) assert.doesNotMatch(messages[k].message, /English/, k);
   });
 
+  // The Chrome Web Store refused v1.0.0's zip: "The translation of the name of your item is
+  // missing in locale es". Every locale the package ships needs each message the manifest
+  // names, within the stores' limits (name 45 for Edge, short name 12, description 132).
+  test("every locale in the package has the manifest's messages, within the stores' limits", () => {
+    const keys = [...new Set(JSON.stringify(manifest()).match(/__MSG_(\w+)__/g) ?? [])].map((m) => m.slice(6, -2));
+    assert.ok(keys.includes("extStoreName") && keys.includes("extDescription"));
+    const limits = { extStoreName: 45, extName: 12, extDescription: 132 };
+    const locales = fs.readdirSync(path.join(EXT_DIR, "_locales"));
+    assert.ok(locales.length > 1, "more than one locale ships");
+    for (const locale of locales) {
+      const messages = JSON.parse(readExt(`_locales/${locale}/messages.json`));
+      for (const k of keys) {
+        const text = messages[k]?.message;
+        assert.ok(typeof text === "string" && text.trim(), `${locale}: ${k} is missing`);
+        if (limits[k]) assert.ok([...text].length <= limits[k], `${locale}: ${k} is ${[...text].length} characters, over ${limits[k]}`);
+      }
+    }
+  });
+
   test("the mascot isn't named in the listing (DECISIONS 2026-10-01)", () => {
     for (const f of LISTINGS) assert.doesNotMatch(read(`store/listing/${f}`).replace(/"_comment":.*\n/, ""), /\bMira\b/, f);
   });
