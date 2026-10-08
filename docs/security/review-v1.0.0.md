@@ -134,8 +134,11 @@ rc.4 zips rebuild byte for byte from the tag.
 with issues: SCR-836 (treat a transparent text colour and text turned away as hidden) and
 SCR-837 (read the report the way a CommonMark renderer shows it). The privacy policy is
 now version 6, which names every way a page can hide text that Kotiko still swaps.
-v1.0.0 differs from rc.4 only in documentation (this report, the privacy policy's wording
-and other docs) and the release notes.
+v1.0.0 differs from rc.4 in documentation (this report, the privacy policy's wording and
+other docs), the release notes, and one fix from the launch checks that touches no security
+control: fixing a word's language no longer deletes the word when the new add lands on it
+(`retireReplaced` in `extension/background.js` keeps that word; launch check F1, with a
+regression test).
 
 One slip: a misquoted test setting sent two of F's test lookups ("shukran", "gato") to
 OpenRouter's public endpoint, with no key, token or identity. OpenRouter refused them
