@@ -1995,7 +1995,10 @@ async function relang(m) {
 
 async function retireReplaced(job) {
   const { id, key } = job.replaces;
-  const res = await undoWord(id, key);
+  // The new add can land on the very word the old one made ("Already in your list", when the
+  // model answers the same word in the same language): that word stays.
+  const keep = new Set((job.results ?? []).map((r) => r.wordId).filter(Boolean));
+  const res = await undoWord(id, key, { keep });
   if (res.ok) await queue.patch(id, { replacedBy: job.id });
 }
 
@@ -2065,8 +2068,8 @@ const jobWords = async (id, key) => {
 };
 const writeOps = async (ops) => (await wordRoutes["words.write"].run({ ops })).results;
 
-async function undoWord(id, key) {
-  const records = (await jobWords(id, key)).filter((r) => r.result !== "unchanged" && r.undo !== "done");
+async function undoWord(id, key, { keep = new Set() } = {}) {
+  const records = (await jobWords(id, key)).filter((r) => r.result !== "unchanged" && r.undo !== "done" && !keep.has(r.wordId));
   if (!records.length) return { ok: true };
   await queue.setUndo(id, key, { undo: "pending", undoError: null });
   const ops = records.map((r) =>
