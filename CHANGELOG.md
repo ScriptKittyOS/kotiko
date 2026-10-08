@@ -8,6 +8,14 @@ Conventional Commits by release-please.
 - The dashboard's Add words sheet no longer shows a stray "null" beside "Learning" when you
   read one language.
 
+## [1.0.2](https://github.com/ScriptKittyOS/kotiko/compare/v1.0.1...v1.0.2) (2026-10-08)
+
+
+### Bug fixes
+
+* **dashboard:** no stray "null" beside Learning in the add sheet ([db9f09f](https://github.com/ScriptKittyOS/kotiko/commit/db9f09f34f3ddd34f062a8d38145dd8604834eaa))
+* **dashboard:** no stray "null" beside Learning in the add sheet ([d694085](https://github.com/ScriptKittyOS/kotiko/commit/d69408533db3162bf2f58bfb687dc930e38e506c))
+
 ## [1.0.1](https://github.com/ScriptKittyOS/kotiko/compare/v1.0.0...v1.0.1) (2026-10-08)
 
 The first version in the stores. It fixes the package so the Chrome Web Store accepts it;
