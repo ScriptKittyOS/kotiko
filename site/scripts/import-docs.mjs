@@ -49,6 +49,7 @@ export const BRAND = [
   { from: "brand/illustrations/kitten-happy.png", to: "src/assets/brand/kitten-happy.png" },
   { from: "brand/illustrations/kitten-oops.png", to: "src/assets/brand/kitten-oops.png" },
   { from: "brand/demo/kotiko-demo.gif", to: "public/brand/kotiko-demo.gif" },
+  { from: "brand/demo/kotiko-film.webp", to: "public/brand/kotiko-film.webp" },
   { from: "brand/logo/icon-32.png", to: "public/brand/icon-32.png" },
   { from: "brand/logo/icon-128.png", to: "public/brand/icon-128.png" },
   { from: "brand/social/social-card-1200x630.jpg", to: "public/brand/social-card.jpg" },

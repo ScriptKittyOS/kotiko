@@ -59,6 +59,7 @@ Every word in the store and social artwork was checked letter by letter on 2026-
 
 | File | Use |
 |---|---|
+| `kotiko-film.webp` | The film's thumbnail on kotiko.org and in the README, linking to the one-minute launch film on YouTube (https://youtu.be/6hwIcTVvGK8). A frame of the film (the word card open) with a play button. |
 | `kotiko-demo.gif` | The README demo: an article, then the same article with the reader's words swapped in, then a word's card. Made from the real extension by `node test/visual/readme-demo.mjs` (needs ImageMagick); run it again when the interface changes. |
 
 ## For the designer
