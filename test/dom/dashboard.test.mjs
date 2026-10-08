@@ -1329,6 +1329,7 @@ describe("bulk add (slice 13)", () => {
   test("200 lines of 'native = meaning': all ready, saved in one batch with no lookup, then a summary with Undo", async () => {
     const d = await openDashboard({ hash: "#add", sync: EN });
     await learn(d, "Spanish");
+    assert.equal(d.text(".bulk-controls"), "LearningSpanish", "one language read: no meanings picker, and no stray text");
     const lines = Array.from({ length: 200 }, (_, i) => `palabra${i} = word${i}`).join("\n");
     await paste(d, lines);
     assert.equal(d.text(".bulk-counts").startsWith("200 words"), true);

@@ -351,7 +351,8 @@
         : null;
       controls.replaceChildren(
         el("span", { class: "bulk-control" }, el("span", { class: "field-label" }, t("bulk_learning")), learn),
-        meanings ? el("label", { class: "bulk-control" }, el("span", { class: "field-label" }, t("bulk_meanings_in")), meanings) : null,
+        // Only with more than one language read: replaceChildren would write a null as "null".
+        ...(meanings ? [el("label", { class: "bulk-control" }, el("span", { class: "field-label" }, t("bulk_meanings_in")), meanings)] : []),
       );
     }
 
