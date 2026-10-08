@@ -5,6 +5,9 @@ Conventional Commits by release-please.
 
 ## Unreleased
 
+- The dashboard's Add words sheet no longer shows a stray "null" beside "Learning" when you
+  read one language.
+
 ## [1.0.1](https://github.com/ScriptKittyOS/kotiko/compare/v1.0.0...v1.0.1) (2026-10-08)
 
 The first version in the stores. It fixes the package so the Chrome Web Store accepts it;
