@@ -18,7 +18,7 @@
   "devDependencies": {
     "@astrojs/starlight": "0.42.5",
     "@playwright/test": "1.63.0",
-    "astro": "7.3.6",
+    "astro": "7.4.12",
     "axe-core": "4.13.0",
     "sharp": "0.35.5"
   },
