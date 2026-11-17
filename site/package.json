@@ -19,7 +19,7 @@
     "@astrojs/starlight": "0.42.6",
     "@playwright/test": "1.64.0",
     "astro": "7.4.12",
-    "axe-core": "4.14.0",
+    "axe-core": "4.13.0",
     "sharp": "0.35.5"
   },
   "overrides": {

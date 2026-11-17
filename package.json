@@ -19,7 +19,7 @@
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.65.0",
     "@stylistic/eslint-plugin": "5.10.0",
-    "axe-core": "4.14.0",
+    "axe-core": "4.13.0",
     "chrome-webstore-upload": "6.0.1",
     "chrome-webstore-upload-cli": "4.0.2",
     "cldr-core": "48.2.0",
@@ -38,6 +38,12 @@
   },
   "overrides": {
     "shell-quote": "1.11.0",
-    "@devicefarmer/adbkit": "$@devicefarmer/adbkit"
+    "@devicefarmer/adbkit": "$@devicefarmer/adbkit",
+    "eslint": {
+      "minimatch": "11.0.1"
+    },
+    "@eslint/config-array": {
+      "minimatch": "11.0.1"
+    }
   }
 }
