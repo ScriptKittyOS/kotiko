@@ -124,7 +124,8 @@ check reads it:
   with a comment saying why; GitHub keeps who dismissed it and when.
 - **ESLint**: an `eslint-disable-next-line <rule> -- <reason>` comment.
 
-Accepted findings today: none in `osv-scanner.toml`; the Sobelow skips are all
+Accepted findings today: in `osv-scanner.toml`, GHSA-fc5q-39xc-vjpf (picomatch, dev-only, until
+2026-12-17); the Sobelow skips are all
 `Traversal.FileModule` on file paths that come from the server's own settings or an
 operator's command line, never from a request.
 

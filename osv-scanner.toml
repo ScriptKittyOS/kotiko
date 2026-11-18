@@ -12,4 +12,8 @@
 # ignoreUntil = 2026-11-05  # at most 30 days for high or critical, 90 for the rest
 # reason = "Dev-only (site build). The vulnerable function is never called: <evidence>. Fixed upstream in x.y.z, waiting for <package> to update."
 #
-# None accepted today.
+
+[[IgnoredVulns]]
+id = "GHSA-fc5q-39xc-vjpf"
+ignoreUntil = 2026-12-17  # high: 30 days
+reason = "Dev-only. picomatch <= 4.0.7 (ReDoS on crafted extglobs, no fixed version yet) is reached only through @stylistic/eslint-plugin in package-lock.json and astro, vite, fdir, tinyglobby, anymatch and @astrojs/internal-helpers in site/package-lock.json. Every glob they compile comes from this repository's own lint and site configuration, never from a user or a request, and none of it ships. Remove when picomatch publishes a fix and the tools take it."
