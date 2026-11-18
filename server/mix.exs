@@ -8,7 +8,7 @@ defmodule Kotiko.MixProject do
     [
       app: :kotiko,
       # x-release-please-start-version
-      version: "1.0.1",
+      version: "1.0.2",
       # x-release-please-end
       elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
