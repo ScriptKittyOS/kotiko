@@ -16,10 +16,10 @@
     "e2e": "playwright test"
   },
   "devDependencies": {
-    "@astrojs/starlight": "0.42.6",
-    "@playwright/test": "1.64.0",
-    "astro": "7.4.12",
-    "axe-core": "4.13.0",
+    "@astrojs/starlight": "0.43.1",
+    "@playwright/test": "1.65.1",
+    "astro": "7.4.13",
+    "axe-core": "4.14.1",
     "sharp": "0.35.5"
   },
   "overrides": {
